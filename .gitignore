@@ -1,0 +1,77 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# NestJS
+dist/
+coverage/
+
+# React/Vite
+.vite/
+
+# TypeScript
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Cache
+.cache/
+.eslintcache
+
+# Temporary files
+tmp/
+temp/
+
+# Database
+*.sqlite
+*.db
+
+# Uploads
+uploads/
+
+# Secrets
+secrets.json
+credentials.json
+
+# Package lock (optional)
+# package-lock.json
+# yarn.lock
+
+# Docker
+docker-data/
+
+# Coverage
+coverage/
+
+# MQTT local configs
+mqtt-config.local.json
+
+# Generated files
+*.pem
+*.key
+*.crt

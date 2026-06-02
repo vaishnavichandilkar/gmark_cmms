@@ -1,37 +1,22 @@
 @import "tailwindcss";
+@config "../tailwind.config.js";
 
-@theme {
-  --color-primary: #10b981;
-  --color-danger: #ef4444;
-  --color-warning: #f59e0b;
-  --color-dark-bg: #0f172a;
-  --color-card-bg: #1e293b;
+@layer base {
+  html, body {
+    @apply bg-background text-textMain antialiased min-h-screen m-0 p-0;
+  }
+  
+  body {
+    background-image: 
+      linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+    background-position: center center;
+  }
 }
 
-body {
-  margin: 0;
-  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: var(--color-dark-bg);
-  color: #f8fafc;
-}
-
-/* Custom scrollbar for data tables */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--color-dark-bg);
-}
-
-::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+@layer components {
+  .glass-card {
+    @apply bg-surface backdrop-blur-glass border border-surfaceBorder rounded-2xl shadow-glass transition-all duration-300;
+  }
 }

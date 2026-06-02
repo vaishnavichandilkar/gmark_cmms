@@ -1,8 +1,6 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import * as mqtt from 'mqtt';
 
-import { MqttGateway } from './mqtt.gateway';
-
 @Injectable()
 export class MqttService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(MqttService.name);
@@ -12,22 +10,46 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
   private readonly brokerUrl = 'mqtt://mqtt.gmarksoftware.com:1883';
   private readonly username = 'admin';
   private readonly password = 'admin123';
-  private readonly topic = '#'; // Subscribe to all
-  //  topics
-
-  constructor(private readonly mqttGateway: MqttGateway) { }
+  
+  private readonly topics = [
+    'AGC/SE-20260508012',
+    'AGC/SE-20260508045',
+    'AGC/SE-2026051104',
+    'AGC/SE-20260506027',
+    'AGC/SE-20260506023',
+    'AGC/SE-20260506029',
+    'AGC/SE-20260506030',
+    'AGC/SE-2026050913',
+    'AGC/SE-2026050907',
+    'AGC/SE-2026050909',
+    'AGC/SE-202605034',
+    'AGC/SE-20260508013',
+    'AGC/SE-20260526020',
+    'AGC/SE-2026050805',
+    'AGC/SE-20260508011',
+    'AGC/SE-2026050910',
+    'AGC/SE-2026050904',
+    'AGC/SE-2026050902',
+    'AGC/SE-2026051111',
+    'AGC/SE-20260506036',
+    'AGC/SE-2026051127',
+    'AGC/SE-2026051115',
+    'AGC/SE-2026051133',
+    'AGC/SE-20260508010',
+    'AGC/SE-20260526021',
+    'AGC/SE-2026050901',
+    'AGC/SE-20260223035',
+    'AGC/SE-2026052022',
+    'AGC/SE-20260526023',
+  ];
 
   onModuleInit() {
-    this.logger.log(`Attempting to connect to ${this.brokerUrl}...`);
-
-    // Connect to the broker
     this.client = mqtt.connect(this.brokerUrl, {
       username: this.username,
       password: this.password,
       keepalive: 60,
     });
 
-    // Attach callback functions
     this.client.on('connect', this.onConnect.bind(this));
     this.client.on('message', this.onMessage.bind(this));
     this.client.on('error', this.onError.bind(this));
@@ -37,77 +59,46 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
 
   onModuleDestroy() {
     if (this.client) {
-      this.logger.log('Disconnecting from MQTT broker gracefully.');
       this.client.end();
     }
   }
 
   private onConnect() {
-    this.logger.log(`Successfully connected to MQTT broker at ${this.brokerUrl}`);
+    console.log('\n[Nest] MQTT Connected\n');
 
-    // Subscribing in on_connect ensures subscriptions are renewed if the connection drops and reconnects
-    this.client.subscribe(this.topic, (err) => {
+    this.client.subscribe(this.topics, (err) => {
       if (err) {
-        this.logger.error(`Failed to subscribe to topic: ${this.topic}`, err.stack);
+        this.logger.error('Failed to subscribe to topics', err.stack);
       } else {
-        this.logger.log(`Subscribed to all topics using wildcard: '${this.topic}'`);
+        this.topics.forEach((topic) => {
+          console.log(`[Nest] Subscribed:\n${topic}\n`);
+        });
       }
     });
   }
 
   private onMessage(topic: string, payload: Buffer) {
-    try {
-      // Try to decode the payload as UTF-8
-      const messageStr = payload.toString('utf-8');
+    const messageStr = payload.toString('utf-8');
+    
+    // Format timestamp
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
-      // Prominently display the received data
-      console.log(`\n${'='.repeat(50)}`);
-      console.log(`📡 NEW MESSAGE RECEIVED`);
-      console.log(`${'='.repeat(50)}`);
-      console.log(`📍 Topic: ${topic}`);
-      console.log(`📦 Data:  ${messageStr}`);
-      console.log(`${'='.repeat(50)}\n`);
-
-      // Also keep it in the logs
-      this.logger.log(`Message logged on topic ${topic}`);
-
-      // Parse JSON and broadcast
-      try {
-        const parsed = JSON.parse(messageStr);
-        if (parsed && typeof parsed === 'object') {
-          // Forward the data to all connected websocket clients
-          this.mqttGateway.broadcastDeviceData({
-            topic,
-            timestamp: parsed.timestamp || Date.now(),
-            registers: parsed.registers || [],
-          });
-        }
-      } catch (jsonErr) {
-        this.logger.warn(`Payload on topic ${topic} is not valid JSON`);
-      }
-
-    } catch (e) {
-      // If there's an error in custom parsing/displaying, fallback to raw bytes
-      console.log(`\n${'='.repeat(50)}`);
-      console.log(`📡 NEW RAW MESSAGE RECEIVED`);
-      console.log(`${'='.repeat(50)}`);
-      console.log(`📍 Topic: ${topic}`);
-      console.log(`📦 Data:  ${payload.toString('hex')} (hex)`);
-      console.log(`${'='.repeat(50)}\n`);
-
-      this.logger.log(`Raw message logged on topic ${topic}`);
-    }
+    console.log(`📍 Topic:\n${topic}\n`);
+    console.log(`📦 Raw Payload:\n${messageStr}\n`);
+    console.log(`🕒 Received At:\n${timestamp}\n`);
   }
 
   private onError(error: Error) {
-    this.logger.error(`An unexpected error occurred during connection: ${error.message}`, error.stack);
+    this.logger.error(`MQTT Error: ${error.message}`, error.stack);
   }
 
   private onClose() {
-    this.logger.warn(`Connection closed.`);
+    this.logger.warn(`MQTT Connection closed.`);
   }
 
   private onDisconnect() {
-    this.logger.warn('Unexpected disconnection from broker.');
+    this.logger.warn('MQTT Disconnected.');
   }
 }
