@@ -1,6 +1,8 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import * as mqtt from 'mqtt';
 
+import { MqttGateway } from './mqtt.gateway';
+
 @Injectable()
 export class MqttService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(MqttService.name);
@@ -10,7 +12,10 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
   private readonly brokerUrl = 'mqtt://mqtt.gmarksoftware.com:1883';
   private readonly username = 'admin';
   private readonly password = 'admin123';
-  private readonly topic = '#'; // Subscribe to all topics
+  private readonly topic = '#'; // Subscribe to all
+  //  topics
+
+  constructor(private readonly mqttGateway: MqttGateway) { }
 
   onModuleInit() {
     this.logger.log(`Attempting to connect to ${this.brokerUrl}...`);
@@ -39,7 +44,7 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
 
   private onConnect() {
     this.logger.log(`Successfully connected to MQTT broker at ${this.brokerUrl}`);
-    
+
     // Subscribing in on_connect ensures subscriptions are renewed if the connection drops and reconnects
     this.client.subscribe(this.topic, (err) => {
       if (err) {
@@ -65,6 +70,22 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
 
       // Also keep it in the logs
       this.logger.log(`Message logged on topic ${topic}`);
+
+      // Parse JSON and broadcast
+      try {
+        const parsed = JSON.parse(messageStr);
+        if (parsed && typeof parsed === 'object') {
+          // Forward the data to all connected websocket clients
+          this.mqttGateway.broadcastDeviceData({
+            topic,
+            timestamp: parsed.timestamp || Date.now(),
+            registers: parsed.registers || [],
+          });
+        }
+      } catch (jsonErr) {
+        this.logger.warn(`Payload on topic ${topic} is not valid JSON`);
+      }
+
     } catch (e) {
       // If there's an error in custom parsing/displaying, fallback to raw bytes
       console.log(`\n${'='.repeat(50)}`);
