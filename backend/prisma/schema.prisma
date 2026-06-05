@@ -17,13 +17,57 @@ model Device {
   id         Int      @id @default(autoincrement())
   deviceId   String   @unique
   name       String
+  template   String?
+  systemName String?
+  cardNo     String?
   topic      String?
   buildingId Int
   
   building   Building @relation(fields: [buildingId], references: [id])
   
   latestData Json?
+  lastSeen   DateTime?
   
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+model DeviceSnapshot {
+  id          Int      @id @default(autoincrement())
+  deviceId    String
+  payload     Json
+  createdAt   DateTime @default(now())
+}
+
+model DeviceState {
+  id                  Int      @id @default(autoincrement())
+  deviceId            String   @unique
+  deviceActive        Boolean
+  motor1Status        Boolean
+  motor2Status        Boolean
+  inputPowerFaultType Int
+  averageVoltage      Float
+  ryVoltage           Float
+  ybVoltage           Float
+  rbVoltage           Float
+  motor1RCurrent      Float
+  motor1YCurrent      Float
+  motor1BCurrent      Float
+  motor2RCurrent      Float
+  motor2YCurrent      Float
+  motor2BCurrent      Float
+  waterAvailable      Boolean
+  pressureBar         Float
+  transmitterConnected Boolean
+  pressuremA          Float
+  pumpOnDelay         Int
+  nextFillingTime     Int
+  overloadResetDelay  Int
+  underloadResetDelay Int
+  tankStatus          Boolean
+  pump1FaultType      Int
+  pump2FaultType      Int
+  motor1RunTime       Int
+  motor2RunTime       Int
+  updatedAt           DateTime @updatedAt
 }

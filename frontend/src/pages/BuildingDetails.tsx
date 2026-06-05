@@ -33,18 +33,20 @@ export function BuildingDetails() {
           fetch(`http://localhost:3000/devices/${d.deviceId}/dashboard`)
             .then(res => res.json())
         )).then(dashboardData => {
-          const mappedDevices: Device[] = dashboardData.map((data: any) => ({
-            id: data.deviceId,
-            name: data.name,
-            status: data.status.toUpperCase(),
+          const mappedDevices: Device[] = dashboardData
+            .filter((data: any) => !data.error && data.deviceId)
+            .map((data: any) => ({
+              id: data.deviceId,
+            name: data.system || data.name || 'Unknown Device',
+            status: data.status ? data.status.toUpperCase() : 'UNKNOWN',
             latestData: {
-              faults: data.latestData?.faults ?? 0,
-              runningState: data.latestData?.runningState ?? 'OFF',
-              panelWorkMode: data.latestData?.panelWorkMode ?? 'MANUAL',
-              voltage: data.latestData?.voltage ?? 0,
-              current: data.latestData?.current ?? 0,
-              pressure: data.latestData?.pressure ?? 0,
-              timestamp: data.latestData?.timestamp ?? data.lastSeen ?? new Date().toISOString()
+              faults: data.faultCount ?? 0,
+              runningState: (data.motor1Status || data.motor2Status) ? 'RUNNING' : data.status === 'online' ? 'ON' : 'OFF',
+              panelWorkMode: 'AUTO',
+              voltage: data.averageVoltage ?? 0,
+              current: (data.motor1RCurrent || 0) + (data.motor2RCurrent || 0),
+              pressure: data.pressureBar ?? 0,
+              timestamp: data.lastSeen ?? new Date().toISOString()
             }
           }));
           setDevices(mappedDevices);
@@ -55,13 +57,18 @@ export function BuildingDetails() {
     // 3. Connect WebSocket for live updates
     const socket = io('http://localhost:3000');
     socket.on('device-update', (update: any) => {
+      const data = update.registers || {};
       setDevices(prev => prev.map(d => {
         if (d.id === update.deviceId) {
           return {
             ...d,
             latestData: {
               ...d.latestData,
-              ...update.registers, // assuming registers contains the key-values
+              faults: data.pump1FaultType || data.pump2FaultType || data.inputPowerFaultType ? 1 : 0,
+              runningState: (data.motor1Status || data.motor2Status) ? 'RUNNING' : 'ON',
+              voltage: data.averageVoltage ?? d.latestData.voltage,
+              current: (data.motor1RCurrent || 0) + (data.motor2RCurrent || 0),
+              pressure: data.pressureBar ?? d.latestData.pressure,
               timestamp: new Date().toISOString()
             }
           };

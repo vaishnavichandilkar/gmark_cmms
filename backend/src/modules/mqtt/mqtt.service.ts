@@ -2,6 +2,7 @@ import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/commo
 import * as mqtt from 'mqtt';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
+import { BoosterRegisterParserService } from '../parser/booster-register-parser.service';
 
 @Injectable()
 export class MqttService implements OnModuleInit, OnModuleDestroy {
@@ -18,6 +19,7 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly websocketGateway: WebsocketGateway,
+    private readonly boosterParser: BoosterRegisterParserService,
   ) {}
 
   onModuleInit() {
@@ -85,25 +87,58 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
       deviceId = deviceId.substring(3);
     }
 
-    const { timestamp, registers } = payload;
+    // Only proceed if payload contains registers
+    if (!payload.registers || !Array.isArray(payload.registers)) return;
 
-    // Update in database
     try {
-      const device = await this.prisma.device.update({
-        where: { deviceId },
-        data: {
-          latestData: payload, // Stores the entire JSON payload, or just { registers, timestamp }
-          updatedAt: new Date(),
-        },
+      // 1. Fetch the device to check template
+      const device = await this.prisma.device.findUnique({
+        where: { deviceId }
       });
 
-      if (device) {
-        // Emit via websocket
-        this.websocketGateway.emitDeviceUpdate(deviceId, registers || []);
+      if (!device) {
+        this.logger.warn(`Device ${deviceId} not found in registry`);
+        return;
       }
+
+      // 2. Save snapshot
+      await this.prisma.deviceSnapshot.create({
+        data: {
+          deviceId,
+          payload
+        }
+      });
+
+      // 3. Parse state if it's a booster
+      let parsedState: any = null;
+      if (device.template === 'booster') {
+        parsedState = this.boosterParser.parse(deviceId, payload.registers);
+
+        // 4. Save to DeviceState
+        await this.prisma.deviceState.upsert({
+          where: { deviceId },
+          update: parsedState,
+          create: parsedState,
+        });
+      } else {
+        // Fallback for other templates if needed
+        parsedState = { rawRegisters: payload.registers };
+      }
+
+      // 5. Update latestData and lastSeen on Device
+      await this.prisma.device.update({
+        where: { deviceId },
+        data: {
+          latestData: parsedState,
+          lastSeen: new Date(),
+        }
+      });
+
+      // 6. Emit to websocket
+      this.websocketGateway.emitDeviceUpdate(deviceId, parsedState);
+      
     } catch (error) {
-      // It's possible the device doesn't exist in the database, ignore or log
-      this.logger.warn(`Device ${deviceId} not found or failed to update`);
+      this.logger.error(`Failed to handle message for device ${deviceId}`, error);
     }
   }
 }

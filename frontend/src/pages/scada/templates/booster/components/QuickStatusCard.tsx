@@ -1,9 +1,13 @@
 import React from 'react';
 import { Zap, Sliders, ShieldCheck, DoorOpen, HardDrive } from 'lucide-react';
 
-export const QuickStatusCard: React.FC = () => {
+interface QuickStatusCardProps {
+  powerStatus?: string;
+}
+
+export const QuickStatusCard: React.FC<QuickStatusCardProps> = ({ powerStatus = 'OK' }) => {
   const statuses = [
-    { label: 'Power Status', value: 'OK', icon: <Zap size={16} />, color: 'text-green-500' },
+    { label: 'Power Status', value: powerStatus, icon: <Zap size={16} />, color: powerStatus === 'OK' ? 'text-green-500' : 'text-red-500' },
     { label: 'Control Mode', value: 'AUTO', icon: <Sliders size={16} />, color: 'text-green-500' },
     { label: 'VFD Status', value: 'NORMAL', icon: <HardDrive size={16} />, color: 'text-green-500' },
     { label: 'Motor Protection', value: 'OK', icon: <ShieldCheck size={16} />, color: 'text-green-500' },
