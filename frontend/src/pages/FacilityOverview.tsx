@@ -106,7 +106,7 @@ export function FacilityOverview() {
           onChange={(e) => setSearch(e.target.value)} 
         />
         
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
           {(['all', 'healthy', 'warning', 'critical'] as const).map(f => {
             const colors = {
               all: 'bg-blue-600 text-white',

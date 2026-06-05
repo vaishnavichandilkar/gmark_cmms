@@ -1,20 +1,33 @@
 import { 
   LayoutDashboard, Building2, Cpu, Wifi, Activity, BellRing, 
-  FileText, TrendingUp, Users, Settings, ScrollText, ChevronDown 
+  FileText, TrendingUp, Users, Settings, ScrollText, ChevronDown, X 
 } from 'lucide-react';
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export function Sidebar({ isOpen, onClose }: SidebarProps) {
   return (
-    <div className="w-64 bg-white border-r border-gray-100 h-screen flex flex-col fixed left-0 top-0 overflow-y-auto z-50">
+    <div className={`w-64 bg-white border-r border-gray-100 h-screen flex flex-col fixed left-0 top-0 overflow-y-auto z-50 transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
       {/* Logo */}
       <div className="p-6 flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-sm">
           <Building2 size={24} />
         </div>
-        <div>
+        <div className="flex-1">
           <h2 className="font-bold text-gray-900 text-lg leading-tight">Gera Imperium</h2>
           <p className="text-[11px] text-gray-500 font-medium">IoT BMS Platform</p>
         </div>
+        {onClose && (
+          <button 
+            onClick={onClose}
+            className="lg:hidden p-1.5 text-gray-500 hover:text-gray-900 rounded-lg hover:bg-gray-100 ml-auto transition-colors"
+          >
+            <X size={20} />
+          </button>
+        )}
       </div>
 
       <div className="px-4 py-2">

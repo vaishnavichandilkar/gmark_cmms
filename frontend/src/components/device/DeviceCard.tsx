@@ -12,7 +12,7 @@ interface DeviceCardProps {
 
 // Icons for dynamic rendering without relying on external prop-passing
 const PanelIcon = () => (
-  <svg xmlns="http://www.w3.org/-svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4.5 h-4.5 sm:w-6 sm:h-6">
     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
     <line x1="3" y1="9" x2="21" y2="9"></line>
     <path d="M9 21V9"></path>
@@ -23,13 +23,13 @@ const PanelIcon = () => (
 );
 
 const VoltageIcon = () => (
-  <svg xmlns="http://www.w3.org/-svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4.5 h-4.5 sm:w-6 sm:h-6">
     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
   </svg>
 );
 
 const CurrentIcon = () => (
-  <svg xmlns="http://www.w3.org/-svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4.5 h-4.5 sm:w-6 sm:h-6">
     <path d="M12 22v-5"></path>
     <path d="M9 8V2"></path>
     <path d="M15 8V2"></path>
@@ -40,22 +40,6 @@ const CurrentIcon = () => (
 export const DeviceCard: React.FC<DeviceCardProps> = ({ device }) => {
   const { name, status, latestData } = device;
 
-  // Derive border color based on status
-  const getBorderColor = () => {
-    switch (status) {
-      case 'ONLINE':
-      case 'RUNNING':
-        return 'border-green-400';
-      case 'OFFLINE':
-      case 'FAULT':
-        return 'border-red-400';
-      case 'WARNING':
-        return 'border-orange-400';
-      default:
-        return 'border-gray-200';
-    }
-  };
-
   const isAuto = latestData.panelWorkMode === 'AUTO';
   const panelColor = isAuto ? 'text-blue-500' : 'text-green-500';
 
@@ -63,30 +47,30 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device }) => {
   const isScada = name.includes('Flushing Terrace');
 
   return (
-    <div 
+    <div
       className={`bg-white rounded-[2rem] p-6 md:p-8 shadow-sm transition-all border-2 ${getBorderColor()} ${isScada ? 'cursor-pointer hover:shadow-lg hover:-translate-y-1' : 'hover:shadow-md'}`}
       onClick={() => isScada && navigate('/scada/flushing-terrace')}
     >
       <DeviceHeader name={name} status={status} faults={latestData.faults} />
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+      <div className="grid grid-cols-2 gap-2 sm:gap-6">
         {/* Left Column (Metrics) */}
         <div className="flex flex-col gap-4">
-          <MetricCard 
+          <MetricCard
             icon={<span className="text-blue-500"><PanelIcon /></span>}
             label="Panel Work On"
             value={latestData.panelWorkMode}
             valueColor={panelColor}
           />
-          
-          <MetricCard 
+
+          <MetricCard
             icon={<span className="text-yellow-400"><VoltageIcon /></span>}
             label="Voltage (V)"
             value={latestData.voltage}
             unit="V"
           />
-          
-          <MetricCard 
+
+          <MetricCard
             icon={<span className="text-purple-500"><CurrentIcon /></span>}
             label="Current (A)"
             value={latestData.current.toFixed(1)}
@@ -95,8 +79,8 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device }) => {
         </div>
 
         {/* Right Column (Gauge) */}
-        <GaugeCard 
-          value={latestData.pressure} 
+        <GaugeCard
+          value={latestData.pressure}
           label="Pressure (bar)"
           unit="bar"
         />

@@ -37,11 +37,11 @@ export const GaugeCard: React.FC<GaugeCardProps> = ({ value, min = 0, max = 0.5,
   };
 
   return (
-    <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm flex flex-col items-center col-span-1 md:col-span-1 row-span-2">
-      <h3 className="text-gray-600 font-medium mb-4">{label}</h3>
+    <div className="bg-white rounded-xl p-2.5 sm:p-6 border border-gray-100 shadow-sm flex flex-col items-center justify-between h-full w-full min-w-0">
+      <h3 className="text-gray-600 font-medium text-[10px] sm:text-xs md:text-sm mb-1 md:mb-2 text-center truncate w-full">{label}</h3>
       
-      <div className="relative w-full max-w-[250px] aspect-[4/3] flex items-center justify-center">
-        <svg viewBox={`0 0 ${size} ${size * 1.1}`} className="w-full h-full drop-shadow-sm">
+      <div className="relative flex-1 w-full max-w-[280px] flex items-center justify-center min-h-[120px] sm:min-h-[160px] md:min-h-[200px]">
+        <svg viewBox={`-45 0 390 410`} className="w-full h-full drop-shadow-sm">
           {/* Green Zone (0% - 60%) */}
           <path d={createArc(0, 0.6)} fill="none" stroke="#22c55e" strokeWidth={strokeWidth} strokeLinecap="butt" />
           
@@ -63,7 +63,7 @@ export const GaugeCard: React.FC<GaugeCardProps> = ({ value, min = 0, max = 0.5,
             const y2 = cy + outerRadius * Math.sin(tickAngle);
             
             // Label pos
-            const labelRadius = radius + strokeWidth + 15;
+            const labelRadius = radius + strokeWidth + 24;
             const lx = cx + labelRadius * Math.cos(tickAngle);
             const ly = cy + labelRadius * Math.sin(tickAngle);
             const tickVal = min + (tickPercent * (max - min));
@@ -71,7 +71,7 @@ export const GaugeCard: React.FC<GaugeCardProps> = ({ value, min = 0, max = 0.5,
             return (
               <g key={tickPercent}>
                 <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#cbd5e1" strokeWidth="2" />
-                <text x={lx} y={ly} textAnchor="middle" alignmentBaseline="middle" fill="#64748b" fontSize="14" fontWeight="500">
+                <text x={lx} y={ly} textAnchor="middle" alignmentBaseline="middle" fill="#64748b" fontSize="24" fontWeight="600">
                   {tickVal.toFixed(1)}
                 </text>
               </g>
@@ -91,21 +91,21 @@ export const GaugeCard: React.FC<GaugeCardProps> = ({ value, min = 0, max = 0.5,
           {/* Value Display */}
           <text 
             x={cx} 
-            y={cy + 68} 
+            y={cy + 128} 
             textAnchor="middle" 
             fill="#1e293b" 
-            fontSize="54" 
-            fontWeight="800"
+            fontSize="115" 
+            fontWeight="600"
           >
             {value.toFixed(2)}
           </text>
           <text 
             x={cx} 
-            y={cy + 85} 
+            y={cy + 162} 
             textAnchor="middle" 
             fill="#94a3b8" 
-            fontSize="10" 
-            fontWeight="700" 
+            fontSize="32" 
+            fontWeight="600" 
             letterSpacing="0.05em"
           >
             {unit.toUpperCase()}

@@ -88,7 +88,7 @@ export function BuildingDetails() {
 
 
   return (
-    <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto">
+    <div className="min-h-screen w-full">
       <button 
         onClick={() => navigate('/')}
         className="flex items-center gap-2 text-textMuted hover:text-textMain transition-colors mb-8"
@@ -99,7 +99,7 @@ export function BuildingDetails() {
 
       <h1 className="text-4xl font-bold text-textMain mb-8">{buildingName} - Systems</h1>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {devices.map((device) => (
           <DeviceCard key={device.id} device={device} />
         ))}
