@@ -1,18 +1,39 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Building2, Box, Wifi, AlertTriangle } from 'lucide-react';
 import { Header } from '../components/Header';
 import { KpiCard } from '../components/KpiCard';
 import { BuildingCard } from '../components/BuildingCard';
 import { SearchBar } from '../components/SearchBar';
-import { mockBuildings, facilityName } from '../data/mock';
+import { facilityName } from '../data/mock';
+import type { Building } from '../types';
 
 export function FacilityOverview() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'healthy' | 'warning' | 'critical'>('all');
+  const [buildings, setBuildings] = useState<Building[]>([]);
+
+  useEffect(() => {
+    fetch('http://localhost:3000/buildings')
+      .then(res => res.json())
+      .then(data => {
+        const mapped = data.map((b: any) => ({
+          id: b.id.toString(),
+          name: b.name,
+          deviceCount: b.deviceCount,
+          onlineDevices: b.deviceCount, // Mocked for UI compatibility
+          offlineDevices: 0,            // Mocked
+          activeFaults: 0,              // Mocked
+          healthPercentage: 100,        // Mocked
+          lastUpdated: new Date().toISOString()
+        }));
+        setBuildings(mapped);
+      })
+      .catch(err => console.error("Failed to fetch buildings", err));
+  }, []);
 
   const stats = useMemo(() => {
-    return mockBuildings.reduce(
+    return buildings.reduce(
       (acc, b) => ({
         totalDevices: acc.totalDevices + b.deviceCount,
         onlineDevices: acc.onlineDevices + b.onlineDevices,
@@ -20,10 +41,10 @@ export function FacilityOverview() {
       }),
       { totalDevices: 0, onlineDevices: 0, activeFaults: 0 }
     );
-  }, []);
+  }, [buildings]);
 
   const filteredBuildings = useMemo(() => {
-    return mockBuildings.filter(b => {
+    return buildings.filter(b => {
       const matchesSearch = b.name.toLowerCase().includes(search.toLowerCase());
       
       let matchesFilter = true;
@@ -33,7 +54,7 @@ export function FacilityOverview() {
 
       return matchesSearch && matchesFilter;
     });
-  }, [search, filter]);
+  }, [search, filter, buildings]);
 
   const percentageOnline = stats.totalDevices > 0 ? ((stats.onlineDevices / stats.totalDevices) * 100).toFixed(1) : '0';
 
@@ -45,7 +66,7 @@ export function FacilityOverview() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <KpiCard 
           title="Total Buildings" 
-          value={mockBuildings.length} 
+          value={buildings.length} 
           icon={<Building2 size={28} strokeWidth={2.5} />} 
           colorScheme="blue"
           subtitle="All Buildings"

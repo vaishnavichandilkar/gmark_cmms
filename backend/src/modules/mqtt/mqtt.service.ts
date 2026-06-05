@@ -13,37 +13,7 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
   private readonly username = 'admin';
   private readonly password = 'admin123';
   
-  private readonly topics = [
-    'AGC/SE-20260508012',
-    'AGC/SE-20260508045',
-    'AGC/SE-2026051104',
-    'AGC/SE-20260506027',
-    'AGC/SE-20260506023',
-    'AGC/SE-20260506029',
-    'AGC/SE-20260506030',
-    'AGC/SE-2026050913',
-    'AGC/SE-2026050907',
-    'AGC/SE-2026050909',
-    'AGC/SE-202605034',
-    'AGC/SE-20260508013',
-    'AGC/SE-20260526020',
-    'AGC/SE-2026050805',
-    'AGC/SE-20260508011',
-    'AGC/SE-2026050910',
-    'AGC/SE-2026050904',
-    'AGC/SE-2026050902',
-    'AGC/SE-2026051111',
-    'AGC/SE-20260506036',
-    'AGC/SE-2026051127',
-    'AGC/SE-2026051115',
-    'AGC/SE-2026051133',
-    'AGC/SE-20260508010',
-    'AGC/SE-20260526021',
-    'AGC/SE-2026050901',
-    'AGC/SE-20260223035',
-    'AGC/SE-2026052022',
-    'AGC/SE-20260526023',
-  ];
+  private readonly topics = ['AGC/#'];
 
   constructor(
     private readonly prisma: PrismaService,
