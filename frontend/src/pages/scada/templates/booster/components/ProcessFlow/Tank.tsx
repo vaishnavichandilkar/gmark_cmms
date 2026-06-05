@@ -25,17 +25,45 @@ export const Tank: React.FC<TankProps> = ({
         <div className="absolute inset-0 bg-[#0A2D5F]/30 border-2 border-[rgba(255,255,255,0.1)] rounded-[16px] overflow-hidden" style={{ boxShadow: 'inset 0 0 20px rgba(0,0,0,0.5)' }}>
           {/* Water fill animation */}
           <motion.div 
-            className="absolute bottom-0 w-full bg-gradient-to-b from-[#00A3FF] to-[#0055FF] opacity-80"
+            className="absolute bottom-0 w-full opacity-80"
             initial={{ height: '0%' }}
             animate={{ height: `${level}%` }}
             transition={{ type: "spring", stiffness: 50, damping: 20 }}
-            style={{ 
-              borderTopLeftRadius: level >= 95 ? '16px' : '0', 
-              borderTopRightRadius: level >= 95 ? '16px' : '0' 
-            }}
           >
-            {/* Water surface highlight */}
-            <div className="w-full h-2 bg-[rgba(255,255,255,0.3)] backdrop-blur-sm"></div>
+            {/* Wavy Surface Layer 1 (Back - Big Swell) */}
+            <div className="absolute top-[-18px] left-0 w-[400%] h-[42px] opacity-40">
+              <motion.div 
+                className="flex w-full h-full"
+                animate={{ x: ["-50%", "0%"] }}
+                transition={{ repeat: Infinity, ease: "linear", duration: 5 }}
+              >
+                <svg className="w-1/2 h-full text-[#00E5FF]" preserveAspectRatio="none" viewBox="0 0 100 150" fill="currentColor">
+                  <path d="M0,50 C25,0 75,100 100,50 L100,150 L0,150 Z" />
+                </svg>
+                <svg className="w-1/2 h-full text-[#00E5FF]" preserveAspectRatio="none" viewBox="0 0 100 150" fill="currentColor">
+                  <path d="M0,50 C25,0 75,100 100,50 L100,150 L0,150 Z" />
+                </svg>
+              </motion.div>
+            </div>
+
+            {/* Wavy Surface Layer 2 (Front - Big Swell) */}
+            <div className="absolute top-[-15px] left-0 w-[400%] h-[36px]">
+              <motion.div 
+                className="flex w-full h-full"
+                animate={{ x: ["0%", "-50%"] }}
+                transition={{ repeat: Infinity, ease: "linear", duration: 4 }}
+              >
+                <svg className="w-1/2 h-full text-[#00A3FF]" preserveAspectRatio="none" viewBox="0 0 100 150" fill="currentColor">
+                  <path d="M0,50 C25,0 75,100 100,50 L100,150 L0,150 Z" />
+                </svg>
+                <svg className="w-1/2 h-full text-[#00A3FF]" preserveAspectRatio="none" viewBox="0 0 100 150" fill="currentColor">
+                  <path d="M0,50 C25,0 75,100 100,50 L100,150 L0,150 Z" />
+                </svg>
+              </motion.div>
+            </div>
+
+            {/* Solid fill below the wave */}
+            <div className="absolute top-[14px] bottom-0 left-0 w-full bg-gradient-to-b from-[#00A3FF] to-[#0055FF]" />
           </motion.div>
         </div>
 
@@ -44,30 +72,16 @@ export const Tank: React.FC<TankProps> = ({
         {/* Tank bottom base */}
         <div className="absolute bottom-[-8px] w-full h-4 rounded-[50%] bg-gradient-to-b from-[rgba(255,255,255,0.2)] to-[#0A2D5F] border border-[rgba(255,255,255,0.1)]"></div>
 
-        {/* Scale markings */}
-        <div className={`absolute ${scalePosition === 'left' ? 'left-[-30px]' : 'right-[-30px]'} top-0 h-full flex flex-col justify-between py-2 text-[10px] text-gray-400 font-mono ${scalePosition === 'left' ? 'text-right' : 'text-left'}`}>
-          <span>100%</span>
-          <span>75%</span>
-          <span>50%</span>
-          <span>25%</span>
-          <span>0%</span>
-        </div>
-        <div className={`absolute ${scalePosition === 'left' ? 'left-[-6px]' : 'right-[-6px]'} top-0 h-full w-[2px] bg-[rgba(255,255,255,0.1)] py-2 flex flex-col justify-between ${scalePosition === 'left' ? 'items-start' : 'items-end'}`}>
-          <div className="w-2 h-[1px] bg-[rgba(255,255,255,0.3)]"></div>
-          <div className="w-2 h-[1px] bg-[rgba(255,255,255,0.3)]"></div>
-          <div className="w-2 h-[1px] bg-[rgba(255,255,255,0.3)]"></div>
-          <div className="w-2 h-[1px] bg-[rgba(255,255,255,0.3)]"></div>
-          <div className="w-2 h-[1px] bg-[rgba(255,255,255,0.3)]"></div>
-        </div>
-
         {/* Status text overlay */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10 drop-shadow-md">
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 drop-shadow-md">
           {isAvailable ? (
-            <span className="text-[#00E5FF] text-xl font-bold font-mono bg-black/30 px-2 rounded">{level}%</span>
+            <div className="flex items-center justify-center text-white bg-black/30 px-3 py-2 rounded min-w-[80px]">
+              <span className="text-[11px] font-bold text-center leading-tight uppercase">WATER<br/>AVAILABLE</span>
+            </div>
           ) : (
-            <div className="flex flex-col items-center text-red-500 bg-black/40 p-2 rounded">
-              <Droplets size={24} className="mb-1" />
-              <span className="text-[10px] font-bold text-center leading-tight">WATER NOT<br/>AVAILABLE</span>
+            <div className="flex flex-col items-center justify-center text-red-500 bg-black/40 px-3 py-2 rounded min-w-[80px]">
+              <Droplets size={22} className="mb-1" />
+              <span className="text-[10px] font-bold text-center leading-tight uppercase">WATER NOT<br/>AVAILABLE</span>
             </div>
           )}
         </div>

@@ -11,26 +11,29 @@ export const PressureCard: React.FC = () => {
 
       <div className="flex flex-col sm:flex-row justify-between gap-6 sm:gap-0">
         {/* Left metrics */}
-        <div className="flex flex-col gap-3 w-full sm:w-1/2">
-          <div className="flex justify-between items-center text-sm">
-            <span className="text-gray-300 font-semibold uppercase tracking-wider">Current Pressure</span>
-            <span className="text-[#00E5FF] font-bold text-lg">0.0 <span className="text-xs">bar</span></span>
+        <div className="flex flex-col items-center gap-4 w-full sm:w-1/2 pr-4 border-b sm:border-b-0 sm:border-r border-[rgba(255,255,255,0.08)] pb-5 sm:pb-0">
+          <div className="flex flex-col items-center text-sm mb-1">
+            <span className="text-gray-400 font-semibold uppercase tracking-wider mb-2">Current Pressure</span>
+            <span className="text-[#00E5FF] font-bold text-3xl">0.0 <span className="text-sm font-normal text-gray-400">bar</span></span>
           </div>
-          <div className="flex justify-between items-center text-xs">
-            <span className="text-blue-400 font-semibold uppercase tracking-wider flex items-center gap-1"><span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span> PT-Value</span>
-            <span className="text-blue-400 font-bold">10.0 BAR</span>
-          </div>
-          <div className="flex justify-between items-center text-xs">
-            <span className="text-orange-400 font-semibold uppercase tracking-wider flex items-center gap-1"><span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span> Pump Off</span>
-            <span className="text-orange-400 font-bold">3.0 BAR</span>
-          </div>
-          <div className="flex justify-between items-center text-xs">
-            <span className="text-red-400 font-semibold uppercase tracking-wider flex items-center gap-1"><span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span> Set Point</span>
-            <span className="text-red-400 font-bold">2.5 BAR</span>
-          </div>
-          <div className="flex justify-between items-center text-xs">
-            <span className="text-green-400 font-semibold uppercase tracking-wider flex items-center gap-1"><span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Pump On</span>
-            <span className="text-green-400 font-bold">2.0 BAR</span>
+          
+          <div className="flex flex-col gap-3 w-full max-w-[220px]">
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-blue-400 font-semibold uppercase tracking-wider flex items-center gap-2"><span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span> PT-Value</span>
+              <span className="text-blue-400 font-bold">10.0 BAR</span>
+            </div>
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-orange-400 font-semibold uppercase tracking-wider flex items-center gap-2"><span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span> Pump Off</span>
+              <span className="text-orange-400 font-bold">3.0 BAR</span>
+            </div>
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-red-400 font-semibold uppercase tracking-wider flex items-center gap-2"><span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span> Set Point</span>
+              <span className="text-red-400 font-bold">2.5 BAR</span>
+            </div>
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-green-400 font-semibold uppercase tracking-wider flex items-center gap-2"><span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Pump On</span>
+              <span className="text-green-400 font-bold">2.0 BAR</span>
+            </div>
           </div>
         </div>
 

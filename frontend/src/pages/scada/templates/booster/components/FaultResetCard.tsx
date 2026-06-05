@@ -14,15 +14,15 @@ export const FaultResetCard: React.FC<Props> = ({ hasFault = false }) => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-4 text-center">
-        <div className="flex flex-col sm:border-r border-b sm:border-b-0 border-[rgba(255,255,255,0.08)] pb-4 sm:pb-0">
+        <div className="flex flex-col items-center justify-center sm:border-r border-b sm:border-b-0 border-[rgba(255,255,255,0.08)] pb-4 sm:pb-0">
           <span className="text-[10px] text-gray-400 font-semibold tracking-wider uppercase mb-2">Overload Fault<br/>Reset Time</span>
           <span className="text-xl font-mono text-white font-bold tracking-widest">00:00</span>
         </div>
-        <div className="flex flex-col sm:border-r border-b sm:border-b-0 border-[rgba(255,255,255,0.08)] pb-4 sm:pb-0">
+        <div className="flex flex-col items-center justify-center sm:border-r border-b sm:border-b-0 border-[rgba(255,255,255,0.08)] pb-4 sm:pb-0">
           <span className="text-[10px] text-gray-400 font-semibold tracking-wider uppercase mb-2">Under-Load Fault<br/>Reset Time</span>
           <span className="text-xl font-mono text-white font-bold tracking-widest">00:00</span>
         </div>
-        <div className="flex flex-col">
+        <div className="flex flex-col items-center justify-center">
           <span className="text-[10px] text-gray-400 font-semibold tracking-wider uppercase mb-2">VFD Fault<br/>Reset Time</span>
           <span className="text-xl font-mono text-white font-bold tracking-widest">00:00</span>
         </div>

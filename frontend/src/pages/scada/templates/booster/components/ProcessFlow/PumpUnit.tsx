@@ -22,93 +22,125 @@ export const PumpUnit: React.FC<PumpUnitProps> = ({ name, status, currentR, curr
   const statusColor = isFault ? 'text-red-500' : isRunning ? 'text-green-500' : 'text-gray-500';
 
   return (
-    <div className={`relative bg-[#0A2D5F] rounded-[20px] p-5 border-2 ${borderColor} ${glowClass} w-[340px] flex flex-col transition-all duration-300`}>
-      {isFault && (
-        <motion.div 
-          className="absolute inset-0 rounded-[20px] bg-red-500/10 z-0 pointer-events-none"
-          animate={{ opacity: [0, 0.5, 0] }}
-          transition={{ duration: 1, repeat: Infinity }}
-        />
-      )}
+    <div className="flex flex-col items-center w-[220px]">
+      <div className={`relative bg-[#0A2D5F] rounded-[20px] p-4 border-2 ${borderColor} ${glowClass} w-full flex flex-col items-center transition-all duration-300`}>
+        <h3 className="absolute top-3 right-4 text-gray-300 font-bold text-[11px] tracking-widest uppercase">{name}</h3>
+        {isFault && (
+          <motion.div 
+            className="absolute inset-0 rounded-[20px] bg-red-500/10 z-0 pointer-events-none"
+            animate={{ opacity: [0, 0.5, 0] }}
+            transition={{ duration: 1, repeat: Infinity }}
+          />
+        )}
 
-      <div className="flex justify-between items-start mb-4 z-10">
-        <h3 className="text-white font-bold text-lg tracking-wide uppercase">{name}</h3>
-        <div className="flex bg-[#021B3A] rounded border border-[rgba(255,255,255,0.08)] overflow-hidden">
-          <button className={`px-3 py-1 text-xs font-bold ${mode === 'AUTO' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-[#072B58]'}`}>AUTO</button>
-          <button className={`px-3 py-1 text-xs font-bold ${mode === 'OFF' ? 'bg-red-600 text-white' : 'text-gray-400 hover:bg-[#072B58]'}`}>OFF</button>
-          <button className={`px-3 py-1 text-xs font-bold ${mode === 'MANUAL' ? 'bg-gray-600 text-white' : 'text-gray-400 hover:bg-[#072B58]'}`}>MANUAL</button>
-        </div>
-      </div>
-
-      <div className="flex z-10 gap-4">
         {/* Pump Illustration */}
-        <div className="w-1/2 flex justify-center items-center relative">
-          {/* Detailed SVG Pump */}
-          <div className="relative w-32 h-24">
+        <div className="w-full flex justify-center items-center relative mb-3 z-10">
+          <div className="relative w-40 h-28">
             <svg viewBox="0 0 200 150" className="w-full h-full drop-shadow-xl">
-              {/* Base */}
-              <rect x="20" y="130" width="160" height="10" fill="#334155" rx="2" />
-              <rect x="30" y="120" width="140" height="10" fill="#475569" />
+              <defs>
+                <linearGradient id={`motorGrad-${name.replace(/\\s/g, '')}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#475569" />
+                  <stop offset="50%" stopColor="#94a3b8" />
+                  <stop offset="100%" stopColor="#334155" />
+                </linearGradient>
+                <linearGradient id={`pumpGrad-${name.replace(/\\s/g, '')}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#334155" />
+                  <stop offset="100%" stopColor="#0f172a" />
+                </linearGradient>
+              </defs>
+
+              {/* Base Mount */}
+              <rect x="25" y="125" width="150" height="12" fill="#0f172a" rx="2" />
+              <rect x="40" y="115" width="120" height="10" fill="#1e293b" />
               
-              {/* Motor body */}
-              <rect x="90" y="40" width="90" height="70" fill="#64748b" rx="5" />
-              {/* Cooling fins */}
-              <rect x="100" y="40" width="4" height="70" fill="#334155" />
-              <rect x="110" y="40" width="4" height="70" fill="#334155" />
-              <rect x="120" y="40" width="4" height="70" fill="#334155" />
-              <rect x="130" y="40" width="4" height="70" fill="#334155" />
-              <rect x="140" y="40" width="4" height="70" fill="#334155" />
-              <rect x="150" y="40" width="4" height="70" fill="#334155" />
-              <rect x="160" y="40" width="4" height="70" fill="#334155" />
-              {/* Motor end cap */}
-              <rect x="180" y="50" width="10" height="50" fill="#475569" rx="2" />
+              {/* Motor Cylinder */}
+              <rect x="95" y="40" width="85" height="70" fill={`url(#motorGrad-${name.replace(/\\s/g, '')})`} rx="4" />
               
-              {/* Pump casing (Volute) */}
-              <circle cx="55" cy="75" r="35" fill="#1e293b" />
-              <circle cx="55" cy="75" r="25" fill="#334155" />
-              <circle cx="55" cy="75" r="10" fill="#0f172a" />
+              {/* Motor Ribs */}
+              {[...Array(9)].map((_, i) => (
+                <rect key={i} x={105 + i*8} y="38" width="2" height="74" fill="#1e293b" />
+              ))}
               
-              {/* Discharge nozzle */}
-              <rect x="40" y="10" width="30" height="40" fill="#1e293b" />
-              <rect x="35" y="5" width="40" height="5" fill="#475569" />
+              {/* Motor End Cap */}
+              <path d="M180,45 C195,45 195,105 180,105 Z" fill="#334155" />
               
-              {/* Suction nozzle */}
-              <rect x="5" y="60" width="20" height="30" fill="#1e293b" />
-              <rect x="0" y="55" width="5" height="40" fill="#475569" />
+              {/* Pump Body (Volute) */}
+              <circle cx="60" cy="75" r="38" fill={`url(#pumpGrad-${name.replace(/\\s/g, '')})`} />
+              <circle cx="60" cy="75" r="26" fill="#0f172a" />
               
-              {/* Connecting shaft */}
-              <motion.rect 
-                x="85" y="70" width="10" height="10" fill="#94a3b8" 
-                animate={isRunning ? { rotateX: [0, 180, 360] } : {}}
+              {/* Flanges */}
+              {/* Discharge Flange (Top) */}
+              <rect x="45" y="10" width="30" height="30" fill={`url(#pumpGrad-${name.replace(/\\s/g, '')})`} />
+              <rect x="40" y="5" width="40" height="8" fill="#475569" rx="2" />
+              
+              {/* Suction Flange (Front/Left) */}
+              <rect x="10" y="60" width="20" height="30" fill={`url(#pumpGrad-${name.replace(/\\s/g, '')})`} />
+              <rect x="5" y="50" width="8" height="50" fill="#475569" rx="2" />
+              
+              {/* Shaft */}
+              <rect x="85" y="70" width="15" height="10" fill="#cbd5e1" />
+
+              {/* Flow Path Animation */}
+              {isRunning && (
+                <motion.path 
+                  d="M15,75 L60,75 L60,15"
+                  fill="none"
+                  stroke="#00E5FF"
+                  strokeWidth="4"
+                  strokeDasharray="8 8"
+                  animate={{ strokeDashoffset: [16, 0] }}
+                  transition={{ duration: 0.4, repeat: Infinity, ease: "linear" }}
+                />
+              )}
+
+              {/* Spinning Impeller */}
+              {isRunning && <circle cx="60" cy="75" r="24" fill="#00E5FF" opacity="0.15" className="animate-pulse" />}
+              <motion.g 
+                style={{ transformOrigin: "60px 75px" }}
+                animate={isRunning ? { rotate: 360 } : {}}
                 transition={{ duration: 0.2, repeat: Infinity, ease: "linear" }}
-              />
+              >
+                <circle cx="60" cy="75" r="22" fill="#1e293b" />
+                {[...Array(6)].map((_, i) => (
+                  <g key={i} style={{ transformOrigin: "60px 75px", transform: `rotate(${i * 60}deg)` }}>
+                    <rect x="58" y="53" width="4" height="22" fill={isRunning ? "#00E5FF" : "#475569"} rx="1" />
+                  </g>
+                ))}
+                <circle cx="60" cy="75" r="8" fill="#0f172a" />
+                <circle cx="60" cy="75" r="3" fill={isRunning ? "#fff" : "#475569"} />
+              </motion.g>
+
+              {/* Status LED */}
+              <circle cx="170" cy="75" r="5" fill={isFault ? "#ef4444" : isRunning ? "#22c55e" : "#64748b"} className={isRunning || isFault ? 'animate-pulse' : ''} />
             </svg>
           </div>
-          
-          {/* Status Label Overlay */}
-          <div className="absolute -bottom-2 w-full text-center">
-            <span className={`font-bold text-lg tracking-widest ${statusColor} drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]`}>{statusText}</span>
-          </div>
         </div>
 
-        {/* Right Info */}
-        <div className="w-1/2 flex flex-col gap-4">
-          <div className="flex justify-between items-center text-xs text-gray-300">
-            <div className="flex items-center gap-2"><Clock size={14} /> <span className="uppercase tracking-widest">Time</span></div>
-            <span className="font-mono font-bold text-white">0:0 Hrs</span>
+        {/* Mode Buttons */}
+        <div className="flex bg-[#021B3A] rounded border border-[rgba(255,255,255,0.08)] overflow-hidden mb-3 w-[90%] justify-center z-10">
+          <button className={`flex-1 py-1.5 text-[10px] font-bold ${mode === 'AUTO' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-[#072B58]'}`}>AUTO</button>
+          <button className={`flex-1 py-1.5 text-[10px] font-bold ${mode === 'OFF' ? 'bg-red-600 text-white' : 'text-gray-400 hover:bg-[#072B58]'}`}>OFF</button>
+          <button className={`flex-1 py-1.5 text-[10px] font-bold ${mode === 'MANUAL' ? 'bg-gray-600 text-white' : 'text-gray-400 hover:bg-[#072B58]'}`}>MANUAL</button>
+        </div>
+
+        {/* Right Info -> Now Bottom Info */}
+        <div className="w-full flex flex-col gap-2 px-2 z-10">
+          <div className="flex justify-between items-center text-xs text-gray-300 border-b border-[rgba(255,255,255,0.05)] pb-2">
+            <div className="flex items-center gap-2"><Clock size={12} /> <span className="uppercase text-[10px] tracking-widest">Time</span></div>
+            <span className="font-mono font-bold text-white text-[11px]">0:0 Hrs</span>
           </div>
           
-          <div className="flex justify-between items-center text-xs text-gray-300">
-            <div className="flex items-center gap-2"><Zap size={14} /> <span className="uppercase tracking-widest">Run On</span></div>
-            <span className="font-bold text-white">{runOnTime}</span>
+          <div className="flex justify-between items-center text-xs text-gray-300 border-b border-[rgba(255,255,255,0.05)] pb-2">
+            <div className="flex items-center gap-2"><Zap size={12} /> <span className="uppercase text-[10px] tracking-widest">Run On</span></div>
+            <span className="font-bold text-white text-[11px]">{runOnTime}</span>
           </div>
 
-          <div className="mt-2">
-            <div className="text-[10px] text-gray-400 uppercase tracking-widest mb-2">Current (Amp)</div>
-            <div className="flex justify-between px-2 text-xs font-mono font-bold">
-              <div className="flex flex-col items-center"><span className="text-red-500">R</span><span className="text-white mt-1">{currentR}</span></div>
-              <div className="flex flex-col items-center"><span className="text-yellow-500">Y</span><span className="text-white mt-1">{currentY}</span></div>
-              <div className="flex flex-col items-center"><span className="text-blue-500">B</span><span className="text-white mt-1">{currentB}</span></div>
+          <div className="mt-0">
+            <div className="text-[9px] text-gray-400 uppercase tracking-widest mb-1.5 text-center">Current (Amp)</div>
+            <div className="flex justify-center gap-6 px-2 text-[11px] font-mono font-bold">
+              <div className="flex flex-col items-center"><span className="text-red-500 text-[9px]">R</span><span className="text-white mt-0.5">{currentR}</span></div>
+              <div className="flex flex-col items-center"><span className="text-yellow-500 text-[9px]">Y</span><span className="text-white mt-0.5">{currentY}</span></div>
+              <div className="flex flex-col items-center"><span className="text-blue-500 text-[9px]">B</span><span className="text-white mt-0.5">{currentB}</span></div>
             </div>
           </div>
         </div>
