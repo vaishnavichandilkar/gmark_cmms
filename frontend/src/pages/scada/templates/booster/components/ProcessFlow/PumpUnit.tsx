@@ -97,8 +97,8 @@ export const PumpUnit: React.FC<PumpUnitProps> = ({ name, status, currentR, curr
               {isRunning && <circle cx="60" cy="75" r="24" fill="#00E5FF" opacity="0.15" className="animate-pulse" />}
               <motion.g 
                 style={{ transformOrigin: "60px 75px" }}
-                animate={isRunning ? { rotate: 360 } : {}}
-                transition={{ duration: 0.2, repeat: Infinity, ease: "linear" }}
+                animate={isRunning ? { rotate: [0, 360] } : { rotate: 0 }}
+                transition={isRunning ? { duration: 0.2, repeat: Infinity, ease: "linear" } : { duration: 0 }}
               >
                 <circle cx="60" cy="75" r="22" fill="#1e293b" />
                 {[...Array(6)].map((_, i) => (

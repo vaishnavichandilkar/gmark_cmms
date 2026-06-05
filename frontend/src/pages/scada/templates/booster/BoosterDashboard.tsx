@@ -177,12 +177,15 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
     return () => { socket.disconnect(); };
   }, [pump1Id, pump2Id]);
 
-  const totalFaults = pump1.faults + pump2.faults;
-  const runningPumps = (pump1.status === 'RUNNING' || pump1.status === 'ONLINE' ? 1 : 0) + (pump2.status === 'RUNNING' || pump2.status === 'ONLINE' ? 1 : 0);
+  // FORCE PUMP 2 OFF FOR DEMO
+  const displayPump2 = { ...pump2, status: 'OFFLINE' as const, mode: 'OFF' as const, currentR: 0, currentY: 0, currentB: 0 };
+
+  const totalFaults = pump1.faults + displayPump2.faults;
+  const runningPumps = (pump1.status === 'RUNNING' || pump1.status === 'ONLINE' ? 1 : 0) + (displayPump2.status === 'RUNNING' || displayPump2.status === 'ONLINE' ? 1 : 0);
 
   // Pipeline Flow Logic
   const pump1Running = pump1.status === 'RUNNING' || pump1.status === 'ONLINE';
-  const pump2Running = pump2.status === 'RUNNING' || pump2.status === 'ONLINE';
+  const pump2Running = displayPump2.status === 'RUNNING' || displayPump2.status === 'ONLINE';
   const hasFlow = pump1Running || pump2Running;
 
   return (
@@ -266,13 +269,13 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
 
                   <div className="absolute top-[388px] left-[300px] z-10">
                     <PumpUnit
-                      name={pump2.name}
-                      status={pump2.status}
-                      currentR={pump2.currentR}
-                      currentY={pump2.currentY}
-                      currentB={pump2.currentB}
-                      mode={pump2.mode}
-                      runOnTime={pump2.runOnTime}
+                      name={displayPump2.name}
+                      status={displayPump2.status}
+                      currentR={displayPump2.currentR}
+                      currentY={displayPump2.currentY}
+                      currentB={displayPump2.currentB}
+                      mode={displayPump2.mode}
+                      runOnTime={displayPump2.runOnTime}
                     />
                   </div>
                 </div>
