@@ -1,11 +1,17 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { MqttModule } from './mqtt/mqtt.module';
+import { PrismaModule } from './common/prisma/prisma.module';
+import { BuildingsModule } from './modules/buildings/buildings.module';
+import { DevicesModule } from './modules/devices/devices.module';
+import { MqttModule } from './modules/mqtt/mqtt.module';
+import { WebsocketModule } from './modules/websocket/websocket.module';
 
 @Module({
-  imports: [MqttModule],
-  controllers: [AppController],
-  providers: [AppService],
+  imports: [
+    PrismaModule,
+    WebsocketModule,
+    BuildingsModule,
+    DevicesModule,
+    MqttModule,
+  ],
 })
 export class AppModule {}

@@ -10,7 +10,8 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
   private readonly brokerUrl = 'mqtt://mqtt.gmarksoftware.com:1883';
   private readonly username = 'admin';
   private readonly password = 'admin123';
-  
+  // private readonly topics = '#';
+
   private readonly topics = [
     'AGC/SE-20260508012',
     'AGC/SE-20260508045',
@@ -70,24 +71,75 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
       if (err) {
         this.logger.error('Failed to subscribe to topics', err.stack);
       } else {
-        this.topics.forEach((topic) => {
-          console.log(`[Nest] Subscribed:\n${topic}\n`);
-        });
+        if (Array.isArray(this.topics)) {
+          this.topics.forEach((topic) => {
+            console.log(`[Nest] Subscribed:\n${topic}\n`);
+          });
+        } else {
+          console.log(`[Nest] Subscribed:\n${this.topics}\n`);
+        }
       }
     });
   }
 
   private onMessage(topic: string, payload: Buffer) {
     const messageStr = payload.toString('utf-8');
-    
+
     // Format timestamp
     const now = new Date();
     const pad = (n: number) => n.toString().padStart(2, '0');
     const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
-    console.log(`📍 Topic:\n${topic}\n`);
-    console.log(`📦 Raw Payload:\n${messageStr}\n`);
-    console.log(`🕒 Received At:\n${timestamp}\n`);
+    // Extract device ID from topic
+    const deviceParts = topic.split('/');
+    const deviceId = deviceParts.length > 1 ? deviceParts[deviceParts.length - 1] : topic;
+
+    try {
+      const parsed = JSON.parse(messageStr);
+      let registerObject: Record<string, any> = {};
+
+      if (parsed && Array.isArray(parsed.registers)) {
+        parsed.registers.forEach((item: any) => {
+          if (item.register !== undefined && item.value !== undefined) {
+            registerObject[item.register] = item.value;
+          }
+        });
+      } else if (Array.isArray(parsed)) {
+        parsed.forEach((item: any) => {
+          if (item.register !== undefined && item.value !== undefined) {
+            registerObject[item.register] = item.value;
+          }
+        });
+      }
+
+      const keys = Object.keys(registerObject);
+      if (keys.length > 0) {
+        console.log(`\n[MQTT] Device: ${deviceId}`);
+        console.log(`[MQTT] Topic: ${topic}`);
+        console.log(`[MQTT] Timestamp: ${timestamp}`);
+        console.log(`[MQTT] Registers Received: ${keys.length}\n`);
+
+        const CHUNK_SIZE = 30;
+        for (let i = 0; i < keys.length; i += CHUNK_SIZE) {
+          const chunkKeys = keys.slice(i, i + CHUNK_SIZE);
+          const chunkObj: Record<string, any> = {};
+          chunkKeys.forEach(k => {
+            chunkObj[k] = registerObject[k];
+          });
+          // Pass as an array of one item to make it horizontal
+          console.table([chunkObj]);
+        }
+        return; // Early return if we successfully parsed registers
+      }
+    } catch (e) {
+      // Not JSON, fallback to basic logging
+    }
+
+    // Fallback for non-register payloads
+    console.log(`\n[MQTT] Device: ${deviceId}`);
+    console.log(`[MQTT] Topic: ${topic}`);
+    console.log(`[MQTT] Timestamp: ${timestamp}`);
+    console.log(`[MQTT] Payload: ${messageStr.length > 200 ? messageStr.substring(0, 197) + '...' : messageStr}\n`);
   }
 
   private onError(error: Error) {

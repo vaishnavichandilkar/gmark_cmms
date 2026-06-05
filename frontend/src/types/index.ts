@@ -14,3 +14,24 @@ export interface Building {
   healthPercentage: number;
   lastUpdated: string;
 }
+
+export type DeviceStatus = 'ONLINE' | 'OFFLINE' | 'RUNNING' | 'WARNING' | 'FAULT';
+export type RunningState = 'ON' | 'OFF' | 'RUNNING' | 'STOPPED';
+export type PanelWorkMode = 'AUTO' | 'MANUAL' | 'DOL' | 'OFF';
+
+export interface DeviceLatestData {
+  faults: number;
+  runningState: RunningState;
+  panelWorkMode: PanelWorkMode;
+  voltage: number;
+  current: number;
+  pressure: number;
+  timestamp: string;
+}
+
+export interface Device {
+  id: string;
+  name: string;
+  status: DeviceStatus;
+  latestData: DeviceLatestData;
+}

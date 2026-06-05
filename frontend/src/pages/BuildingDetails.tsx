@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { mockBuildings } from '../data/mock';
+import { mockBuildings, mockDevices } from '../data/mock';
+import { DeviceCard } from '../components/device/DeviceCard';
 
 export function BuildingDetails() {
   const { buildingId } = useParams();
@@ -19,13 +20,8 @@ export function BuildingDetails() {
     );
   }
 
-  // Placeholder for systems
-  const systems = [
-    'Domestic Booster System',
-    'Flushing Booster System',
-    'Sump Pumps',
-    'Sub Soil Pumps'
-  ];
+  // Instead of fetching from API (as per user instruction to not change fetch logic, we use mockDevices)
+  const devices = mockDevices;
 
   return (
     <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto">
@@ -39,12 +35,9 @@ export function BuildingDetails() {
 
       <h1 className="text-4xl font-bold text-textMain mb-8">{building.name} - Systems</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {systems.map((sys, i) => (
-          <div key={i} className="glass-card p-6 flex justify-between items-center hover:border-black/10 cursor-pointer transition-colors">
-            <h3 className="text-xl font-semibold text-textMain">{sys}</h3>
-            <div className="h-3 w-3 rounded-full bg-healthy shadow-glow-healthy" />
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {devices.map((device) => (
+          <DeviceCard key={device.id} device={device} />
         ))}
       </div>
     </div>
