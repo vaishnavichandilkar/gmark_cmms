@@ -13,6 +13,10 @@ interface BuildingCardProps {
 }
 
 const images: Record<string, string> = {
+  '1': buildingA,
+  '2': buildingB,
+  '3': buildingC,
+  '4': stp,
   a: buildingA,
   b: buildingB,
   c: buildingC,
@@ -20,6 +24,10 @@ const images: Record<string, string> = {
 };
 
 const styles = {
+  '1': { iconBg: 'bg-blue-600', text: 'text-blue-600' },
+  '2': { iconBg: 'bg-emerald-600', text: 'text-emerald-600' },
+  '3': { iconBg: 'bg-purple-500', text: 'text-purple-500' },
+  '4': { iconBg: 'bg-teal-500', text: 'text-teal-500' },
   a: { iconBg: 'bg-blue-600', text: 'text-blue-600' },
   b: { iconBg: 'bg-emerald-600', text: 'text-emerald-600' },
   c: { iconBg: 'bg-purple-500', text: 'text-purple-500' },
@@ -45,11 +53,16 @@ export function BuildingCard({ building }: BuildingCardProps) {
 
   return (
     <motion.div
-      whileHover={{ y: -4 }}
+      whileHover={{ y: -10, scale: 1.02 }}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="bg-white rounded-[24px] p-6 shadow-sm border border-gray-100 flex flex-col relative overflow-hidden group"
+      transition={{ 
+        type: "spring", 
+        stiffness: 500, 
+        damping: 25 
+      }}
+      onClick={() => navigate(`/building/${building.id}`)}
+      className="bg-white rounded-[24px] p-6 shadow-sm hover:shadow-2xl border border-gray-100 flex flex-col relative overflow-hidden group cursor-pointer transition-[box-shadow,border-color] duration-150"
     >
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
@@ -140,12 +153,11 @@ export function BuildingCard({ building }: BuildingCardProps) {
       <div className="h-px w-full bg-gray-100 mb-4" />
 
       {/* Footer link */}
-      <button 
-        onClick={() => navigate(`/building/${building.id}`)}
-        className="flex justify-center items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors w-full py-2"
+      <div 
+        className="flex justify-center items-center gap-2 text-sm font-bold text-blue-600 group-hover:text-blue-700 transition-colors w-full py-2"
       >
-        View Details <ArrowRight size={16} />
-      </button>
+        View Details <ArrowRight size={16} className="transform group-hover:translate-x-1 transition-transform duration-300" />
+      </div>
     </motion.div>
   );
 }

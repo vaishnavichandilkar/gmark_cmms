@@ -41,7 +41,7 @@ export const GaugeCard: React.FC<GaugeCardProps> = ({ value, min = 0, max = 0.5,
       <h3 className="text-gray-600 font-medium mb-4">{label}</h3>
       
       <div className="relative w-full max-w-[250px] aspect-[4/3] flex items-center justify-center">
-        <svg viewBox={`0 0 ${size} ${size * 0.85}`} className="w-full h-full drop-shadow-sm">
+        <svg viewBox={`0 0 ${size} ${size * 1.1}`} className="w-full h-full drop-shadow-sm">
           {/* Green Zone (0% - 60%) */}
           <path d={createArc(0, 0.6)} fill="none" stroke="#22c55e" strokeWidth={strokeWidth} strokeLinecap="butt" />
           
@@ -87,15 +87,30 @@ export const GaugeCard: React.FC<GaugeCardProps> = ({ value, min = 0, max = 0.5,
             {/* Needle center dot */}
             <circle cx={cx} cy={cy} r="4" fill="#cbd5e1" />
           </g>
-        </svg>
 
-        {/* Value Display */}
-        <div className="absolute bottom-0 flex flex-col items-center transform translate-y-1/4">
-          <span className="text-5xl font-bold text-gray-800 tracking-tight">
+          {/* Value Display */}
+          <text 
+            x={cx} 
+            y={cy + 68} 
+            textAnchor="middle" 
+            fill="#1e293b" 
+            fontSize="54" 
+            fontWeight="800"
+          >
             {value.toFixed(2)}
-          </span>
-          <span className="text-gray-500 font-medium">{unit}</span>
-        </div>
+          </text>
+          <text 
+            x={cx} 
+            y={cy + 85} 
+            textAnchor="middle" 
+            fill="#94a3b8" 
+            fontSize="10" 
+            fontWeight="700" 
+            letterSpacing="0.05em"
+          >
+            {unit.toUpperCase()}
+          </text>
+        </svg>
       </div>
     </div>
   );

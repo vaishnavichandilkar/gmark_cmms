@@ -5,6 +5,28 @@ interface StatusBadgeProps {
   status: DeviceStatus;
 }
 
+const FrequencyAnimation = () => (
+  <div className="flex items-center gap-[3.5px] h-3 px-0.5">
+    <style dangerouslySetInnerHTML={{ __html: `
+      @keyframes eqBar1 {
+        0%, 100% { height: 4px; }
+        50% { height: 12px; }
+      }
+      @keyframes eqBar2 {
+        0%, 100% { height: 7px; }
+        50% { height: 11px; }
+      }
+      @keyframes eqBar3 {
+        0%, 100% { height: 3px; }
+        50% { height: 14px; }
+      }
+    `}} />
+    <div className="w-[3px] bg-green-500 rounded-full" style={{ animation: 'eqBar1 0.8s ease-in-out infinite' }} />
+    <div className="w-[3px] bg-green-500 rounded-full" style={{ animation: 'eqBar2 0.6s ease-in-out infinite' }} />
+    <div className="w-[3px] bg-green-500 rounded-full" style={{ animation: 'eqBar3 1.0s ease-in-out infinite' }} />
+  </div>
+);
+
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
   const getStatusConfig = () => {
     switch (status) {
@@ -24,8 +46,12 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
   const config = getStatusConfig();
 
   return (
-    <div className={`flex items-center gap-2 px-3 py-1 rounded-full border ${config.border} bg-white shadow-sm`}>
-      <div className={`w-2 h-2 rounded-full ${config.bg} animate-pulse`} />
+    <div className="flex items-center gap-2 px-3 py-1 rounded-full border border-gray-150 bg-white shadow-sm">
+      {status === 'ONLINE' || status === 'RUNNING' ? (
+        <FrequencyAnimation />
+      ) : (
+        <div className={`w-2 h-2 rounded-full ${config.bg} animate-pulse`} />
+      )}
       <span className={`text-sm font-semibold tracking-wide ${config.color}`}>
         {status}
       </span>
