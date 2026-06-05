@@ -9,9 +9,9 @@ export const PressureCard: React.FC = () => {
         <h2 className="text-[#00A3FF] font-bold text-sm tracking-widest uppercase">Pressure</h2>
       </div>
 
-      <div className="flex justify-between">
+      <div className="flex flex-col sm:flex-row justify-between gap-6 sm:gap-0">
         {/* Left metrics */}
-        <div className="flex flex-col gap-3 w-1/2">
+        <div className="flex flex-col gap-3 w-full sm:w-1/2">
           <div className="flex justify-between items-center text-sm">
             <span className="text-gray-300 font-semibold uppercase tracking-wider">Current Pressure</span>
             <span className="text-[#00E5FF] font-bold text-lg">0.0 <span className="text-xs">bar</span></span>
@@ -35,7 +35,7 @@ export const PressureCard: React.FC = () => {
         </div>
 
         {/* Right transmitter */}
-        <div className="flex flex-col items-center justify-center border-l border-[rgba(255,255,255,0.08)] pl-6 w-1/2">
+        <div className="flex flex-col items-center justify-center sm:border-l border-t sm:border-t-0 border-[rgba(255,255,255,0.08)] pt-5 sm:pt-0 sm:pl-6 w-full sm:w-1/2">
           <span className="text-gray-400 text-xs font-semibold tracking-widest uppercase mb-4">Transmitter</span>
           <div className="relative flex items-center justify-center w-12 h-12 mb-3">
             {/* Pulsing signal rings */}

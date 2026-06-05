@@ -46,6 +46,17 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device }) => {
   const navigate = useNavigate();
   const isScada = name.includes('Flushing Terrace');
 
+  const getBorderColor = () => {
+    switch (status) {
+      case 'ONLINE':
+      case 'RUNNING': return 'border-green-100';
+      case 'WARNING': return 'border-amber-200';
+      case 'FAULT': return 'border-red-200';
+      case 'OFFLINE':
+      default: return 'border-gray-200';
+    }
+  };
+
   return (
     <div
       className={`bg-white rounded-[2rem] p-6 md:p-8 shadow-sm transition-all border-2 ${getBorderColor()} ${isScada ? 'cursor-pointer hover:shadow-lg hover:-translate-y-1' : 'hover:shadow-md'}`}

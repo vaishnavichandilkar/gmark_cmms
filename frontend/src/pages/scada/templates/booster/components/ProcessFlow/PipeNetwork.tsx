@@ -35,9 +35,6 @@ export const Pipe: React.FC<PipeProps> = ({ x1, y1, x2, y2, flowDirection = 'for
         animate={flowDirection !== 'none' ? { strokeDashoffset: animateTo } : {}}
         transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
       />
-      {/* Pipe joints */}
-      <circle cx={x1} cy={y1} r="8" fill="#475569" stroke="#94a3b8" strokeWidth="2" />
-      <circle cx={x2} cy={y2} r="8" fill="#475569" stroke="#94a3b8" strokeWidth="2" />
     </svg>
   );
 };

@@ -9,9 +9,9 @@ export const PerformanceCard: React.FC = () => {
         <h2 className="text-[#00E5FF] font-bold text-sm tracking-widest uppercase">Performance</h2>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-4">
         {/* Voltage */}
-        <div className="flex flex-col border-r border-[rgba(255,255,255,0.08)] pr-4">
+        <div className="flex flex-col sm:border-r border-b sm:border-b-0 border-[rgba(255,255,255,0.08)] pb-4 sm:pb-0 sm:pr-4">
           <div className="flex items-center gap-2 text-xs text-gray-400 font-semibold mb-2 tracking-wider">
             <Zap size={12} /> VOLTAGE
           </div>
@@ -24,7 +24,7 @@ export const PerformanceCard: React.FC = () => {
         </div>
 
         {/* Input Power */}
-        <div className="flex flex-col items-center border-r border-[rgba(255,255,255,0.08)] px-2">
+        <div className="flex flex-col items-start sm:items-center sm:border-r border-b sm:border-b-0 border-[rgba(255,255,255,0.08)] pb-4 sm:pb-0 sm:px-2">
           <div className="flex items-center gap-2 text-xs text-gray-400 font-semibold mb-3 tracking-wider">
             <Activity size={12} /> INPUT POWER
           </div>
@@ -34,7 +34,7 @@ export const PerformanceCard: React.FC = () => {
         </div>
 
         {/* Current */}
-        <div className="flex flex-col pl-2">
+        <div className="flex flex-col sm:pl-2">
           <div className="flex items-center gap-2 text-xs text-gray-400 font-semibold mb-2 tracking-wider">
             <Waves size={12} /> CURRENT
           </div>
