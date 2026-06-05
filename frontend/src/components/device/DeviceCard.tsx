@@ -3,6 +3,7 @@ import { DeviceHeader } from './DeviceHeader';
 import { MetricCard } from './MetricCard';
 import { GaugeCard } from './GaugeCard';
 import { DeviceFooter } from './DeviceFooter';
+import { useNavigate } from 'react-router-dom';
 import type { Device } from '../../types';
 
 interface DeviceCardProps {
@@ -58,8 +59,14 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device }) => {
   const isAuto = latestData.panelWorkMode === 'AUTO';
   const panelColor = isAuto ? 'text-blue-500' : 'text-green-500';
 
+  const navigate = useNavigate();
+  const isScada = name.includes('Flushing Terrace');
+
   return (
-    <div className={`bg-white rounded-[2rem] p-6 md:p-8 shadow-sm hover:shadow-md transition-shadow border-2 ${getBorderColor()}`}>
+    <div 
+      className={`bg-white rounded-[2rem] p-6 md:p-8 shadow-sm transition-all border-2 ${getBorderColor()} ${isScada ? 'cursor-pointer hover:shadow-lg hover:-translate-y-1' : 'hover:shadow-md'}`}
+      onClick={() => isScada && navigate('/scada/flushing-terrace')}
+    >
       <DeviceHeader name={name} status={status} faults={latestData.faults} />
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
