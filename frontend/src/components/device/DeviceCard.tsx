@@ -44,7 +44,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device }) => {
   const panelColor = isAuto ? 'text-blue-500' : 'text-green-500';
 
   const navigate = useNavigate();
-  const isScada = name.includes('Flushing Terrace');
+  const isScada = device.template === 'booster';
 
   const getBorderColor = () => {
     switch (status) {
@@ -60,7 +60,11 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device }) => {
   return (
     <div
       className={`bg-white rounded-[2rem] p-6 md:p-8 shadow-sm transition-all border-2 ${getBorderColor()} ${isScada ? 'cursor-pointer hover:shadow-lg hover:-translate-y-1' : 'hover:shadow-md'}`}
-      onClick={() => isScada && navigate('/scada/flushing-terrace')}
+      onClick={() => {
+        if (isScada) {
+          navigate(`/scada/${device.id}`);
+        }
+      }}
     >
       <DeviceHeader name={name} status={status} faults={latestData.faults} />
 

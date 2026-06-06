@@ -11,6 +11,8 @@ function App() {
         <Route path="/" element={<DashboardLayout><FacilityOverview /></DashboardLayout>} />
         <Route path="/building/:buildingId" element={<DashboardLayout><BuildingDetails /></DashboardLayout>} />
         <Route path="/scada/flushing-terrace" element={<BoosterDashboard title="Flushing Terrace Booster System" panelId="20260508012" buildingName="A Building" />} />
+        <Route path="/scada/domestic-terrace" element={<BoosterDashboard title="Domestic Terrace Booster System" panelId="20260508045" buildingName="A Building" pump1Id="20260508045" pump2Id="20260508012" />} />
+        <Route path="/scada/:deviceId" element={<BoosterDashboard />} />
       </Routes>
     </BrowserRouter>
   );

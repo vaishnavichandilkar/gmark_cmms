@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { ScadaHeader } from './components/ScadaHeader';
 import { PerformanceCard } from './components/PerformanceCard';
@@ -14,9 +15,9 @@ import { Tank } from './components/ProcessFlow/Tank';
 import { PumpUnit } from './components/ProcessFlow/PumpUnit';
 
 export interface BoosterDashboardProps {
-  title: string;
-  panelId: string;
-  buildingName: string;
+  title?: string;
+  panelId?: string;
+  buildingName?: string;
   pump1Id?: string;
   pump2Id?: string;
 }
@@ -51,16 +52,26 @@ interface DashboardState {
 }
 
 export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
-  title,
-  panelId,
-  buildingName,
+  title: propTitle,
+  panelId: propPanelId,
+  buildingName: propBuildingName,
   pump1Id = '20260508012',
   pump2Id = '20260508045'
 }) => {
+  const { deviceId } = useParams<{ deviceId?: string }>();
+
+  const activePump1Id = deviceId || pump1Id || '20260508012';
+  const activePump2Id = deviceId 
+    ? (deviceId === '20260508012' ? '20260508045' : deviceId === '20260508045' ? '20260508012' : deviceId)
+    : (pump2Id || '20260508045');
+
+  const [title, setTitle] = useState(propTitle || 'Booster System');
+  const [buildingName, setBuildingName] = useState(propBuildingName || 'Building');
+  const [panelId, setPanelId] = useState(propPanelId || 'Panel');
 
   // Initial mockup state for Pump 1 and Pump 2
   const [pump1, setPump1] = useState<PumpState>({
-    id: pump1Id,
+    id: activePump1Id,
     name: 'Pump 1',
     status: 'OFFLINE',
     currentR: 0, currentY: 0, currentB: 0,
@@ -76,7 +87,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
   });
 
   const [pump2, setPump2] = useState<PumpState>({
-    id: pump2Id,
+    id: activePump2Id,
     name: 'Pump 2',
     status: 'OFFLINE',
     currentR: 0, currentY: 0, currentB: 0,
@@ -89,10 +100,14 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
   useEffect(() => {
     // Attempt to fetch from DB backend
     Promise.all([
-      fetch(`http://localhost:3000/devices/${pump1Id}/dashboard`).then(r => r.json()).catch(() => null),
-      fetch(`http://localhost:3000/devices/${pump2Id}/dashboard`).then(r => r.json()).catch(() => null),
+      fetch(`http://localhost:3000/devices/${activePump1Id}/dashboard`).then(r => r.json()).catch(() => null),
+      fetch(`http://localhost:3000/devices/${activePump2Id}/dashboard`).then(r => r.json()).catch(() => null),
     ]).then(([d1, d2]) => {
       if (d1 && !d1.error) {
+        setTitle(d1.system || propTitle || 'Booster System');
+        setBuildingName(d1.building || propBuildingName || 'Building');
+        setPanelId(d1.cardNo || d1.deviceId || propPanelId || 'Panel');
+
         const data = d1.latestData || {};
 
         setPump1((prev: PumpState) => ({
@@ -137,7 +152,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
     socket.on('device-update', (update: DeviceUpdate) => {
       const data = update.registers || {};
 
-      if (update.deviceId === pump1Id) {
+      if (update.deviceId === activePump1Id) {
         setPump1((prev: PumpState) => ({
           ...prev,
           status: data.motor1Status ? 'RUNNING' : 'ONLINE', // if update received, device is online
@@ -161,7 +176,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
           inputPowerFaultType: data.inputPowerFaultType ?? prev.inputPowerFaultType
         }));
       }
-      if (update.deviceId === pump2Id) {
+      if (update.deviceId === activePump2Id) {
         setPump2((prev: PumpState) => ({
           ...prev,
           status: data.motor2Status ? 'RUNNING' : 'ONLINE',
@@ -175,10 +190,12 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
     });
 
     return () => { socket.disconnect(); };
-  }, [pump1Id, pump2Id]);
+  }, [activePump1Id, activePump2Id]);
 
-  // FORCE PUMP 2 OFF FOR DEMO
-  const displayPump2 = { ...pump2, status: 'OFFLINE' as PumpState['status'], mode: 'OFF' as PumpState['mode'], currentR: 0, currentY: 0, currentB: 0 };
+  // FORCE PUMP 2 OFF FOR DEMO ONLY IF THEY ARE DIFFERENT DEVICES (Flushing vs Domestic)
+  const displayPump2 = activePump1Id !== activePump2Id
+    ? { ...pump2, status: 'OFFLINE' as PumpState['status'], mode: 'OFF' as PumpState['mode'], currentR: 0, currentY: 0, currentB: 0 }
+    : pump2;
 
   const totalFaults = pump1.faults + displayPump2.faults;
   const runningPumps = (pump1.status === 'RUNNING' || pump1.status === 'ONLINE' ? 1 : 0) + (displayPump2.status === 'RUNNING' || displayPump2.status === 'ONLINE' ? 1 : 0);

@@ -22,7 +22,7 @@ async function main() {
   const devices = [
     // A BUILDING
     { deviceId: '20260508012', name: 'Flushing Terrace Booster System', buildingId: 1, template: 'booster', systemName: 'Flushing Terrace Booster System', cardNo: '06' },
-    { deviceId: '20260508045', name: 'Domestic Terrace Booster System', buildingId: 1 },
+    { deviceId: '20260508045', name: 'Domestic Terrace Booster System', buildingId: 1, template: 'booster', systemName: 'Domestic Terrace Booster System', cardNo: '05' },
 
     // B BUILDING
     { deviceId: '2026051104', name: 'Sump Pump-05', buildingId: 2 },
@@ -34,10 +34,10 @@ async function main() {
     { deviceId: '2026050907', name: 'Sub Soil Pump-03', buildingId: 2 },
     { deviceId: '2026050909', name: 'Sub Soil Pump-04', buildingId: 2 },
     { deviceId: '202605034', name: 'Sub Soil Pump-02', buildingId: 2 },
-    { deviceId: '20260508013', name: 'Tower B Domestic System', buildingId: 2 },
+    { deviceId: '20260508013', name: 'Tower B Domestic System', buildingId: 2, template: 'booster', systemName: 'Tower B Domestic System', cardNo: '04' },
     { deviceId: '20260526020', name: 'Tower A&C Domestic System', buildingId: 2 },
     { deviceId: '2026050805', name: 'Flushing Terrace Booster System', buildingId: 2, template: 'booster', systemName: 'Flushing Terrace Booster System', cardNo: '06' },
-    { deviceId: '20260508011', name: 'Domestic Terrace Booster System', buildingId: 2 },
+    { deviceId: '20260508011', name: 'Domestic Terrace Booster System', buildingId: 2, template: 'booster', systemName: 'Domestic Terrace Booster System', cardNo: '05' },
 
     // C BUILDING - 10 devices
     { deviceId: '2026050910', name: 'C Building Pump 1', buildingId: 3 },
