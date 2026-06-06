@@ -18,8 +18,7 @@ export const PumpUnit: React.FC<PumpUnitProps> = ({ name, status, currentR, curr
 
   const borderColor = isFault ? 'border-red-500' : isRunning ? 'border-green-500' : 'border-gray-500';
   const glowClass = isFault ? 'shadow-[0_0_20px_rgba(239,68,68,0.3)]' : isRunning ? 'shadow-[0_0_20px_rgba(34,197,94,0.15)]' : '';
-  const statusText = isFault ? 'FAULT' : isRunning ? 'RUNNING' : 'OFF';
-  const statusColor = isFault ? 'text-red-500' : isRunning ? 'text-green-500' : 'text-gray-500';
+
 
   return (
     <div className="flex flex-col items-center w-[220px]">

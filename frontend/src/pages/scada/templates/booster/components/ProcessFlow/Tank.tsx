@@ -5,13 +5,11 @@ import { Droplets } from 'lucide-react';
 interface TankProps {
   level: number; // 0 to 100
   title?: string;
-  scalePosition?: 'left' | 'right';
 }
 
 export const Tank: React.FC<TankProps> = ({ 
   level, 
-  title = 'Overhead Tank', 
-  scalePosition = 'left' 
+  title = 'Overhead Tank' 
 }) => {
   const isAvailable = level > 0;
 

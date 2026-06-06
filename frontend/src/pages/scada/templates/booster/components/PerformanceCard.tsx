@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, Activity, Waves } from 'lucide-react';
+import { Zap } from 'lucide-react';
 
 interface PerformanceCardProps {
   voltageR?: number;

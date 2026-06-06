@@ -192,10 +192,10 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
     <div className="min-h-screen bg-[#021B3A] p-4 md:p-6 lg:p-8 overflow-hidden font-sans">
       <ScadaHeader title={title} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="flex flex-col lg:flex-row gap-6">
 
         {/* LEFT PANEL */}
-        <div className="col-span-1 lg:col-span-3 flex flex-col">
+        <div className="w-full lg:w-2/5 flex-none flex flex-col min-w-[300px]">
           <PerformanceCard
             voltageR={dashboardData.ryVoltage}
             voltageY={dashboardData.ybVoltage}
@@ -214,48 +214,48 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
         </div>
 
         {/* CENTER PROCESS FLOW */}
-        <div className="col-span-1 lg:col-span-9 flex flex-col w-full overflow-hidden">
-          <div className="w-full overflow-x-auto pb-2 custom-scrollbar relative rounded-[20px] flex lg:justify-end">
+        <div className="w-full lg:w-3/5 flex-grow flex flex-col overflow-hidden">
+          <div className="w-full overflow-x-auto pb-2 custom-scrollbar relative rounded-[20px]">
             <div className="min-w-[950px] w-[950px]">
               <ProcessFlowContainer>
                 <div className="absolute right-0 top-0 w-[950px] h-full">
                   {/* Draw Pipes via absolute overlay */}
                   <div className="absolute inset-0 z-0">
                     {/* Main Inlet Pipe from Tank */}
-                    <div className="absolute left-[60px] top-[345px] text-[10px] text-gray-400 font-bold whitespace-nowrap leading-tight text-left z-0">FROM<br />TANK</div>
-                    <Pipe x1={114} y1={330} x2={114} y2={540} flowDirection={hasFlow ? 'forward' : 'none'} />
-                    <Pipe x1={114} y1={540} x2={450} y2={540} flowDirection={hasFlow ? 'forward' : 'none'} />
-                    <Pipe x1={450} y1={540} x2={450} y2={114} flowDirection={hasFlow ? 'forward' : 'none'} />
-                    
-                    {/* Branch to Pump 1 */}
-                    <Pipe x1={450} y1={114} x2={500} y2={114} flowDirection={pump1Running ? 'forward' : 'none'} />
-                    
-                    {/* Branch to Pump 2 */}
-                    <Pipe x1={450} y1={454} x2={500} y2={454} flowDirection={pump2Running ? 'forward' : 'none'} />
+                    <div className="absolute left-[80px] top-[495px] text-[10px] text-gray-400 font-bold whitespace-nowrap leading-tight text-left z-0">FROM<br />TANK</div>
+                    {/* Vertical down from Tank center (x=144, y=431 to y=565) */}
+                    <Pipe x1={144} y1={431} x2={144} y2={565} flowDirection={hasFlow ? 'forward' : 'none'} />
+                    {/* Horizontal to Pump 1 branch (x=144 to x=410, y=565) */}
+                    <Pipe x1={144} y1={565} x2={410} y2={565} flowDirection={hasFlow ? 'forward' : 'none'} />
+                    {/* Horizontal from Pump 1 to Pump 2 branch (x=410 to x=690, y=565) */}
+                    <Pipe x1={410} y1={565} x2={690} y2={565} flowDirection={pump2Running ? 'forward' : 'none'} />
 
-                    {/* Pump 1 Discharge */}
-                    <Pipe x1={720} y1={114} x2={770} y2={114} flowDirection={pump1Running ? 'forward' : 'none'} />
+                    {/* Vertical Branch UP to Pump 1 inlet (x=410, y=565 to y=465) */}
+                    <Pipe x1={410} y1={565} x2={410} y2={465} flowDirection={pump1Running ? 'forward' : 'none'} />
+                    {/* Vertical Branch UP to Pump 2 inlet (x=690, y=565 to y=465) */}
+                    <Pipe x1={690} y1={565} x2={690} y2={465} flowDirection={pump2Running ? 'forward' : 'none'} />
 
-                    {/* Pump 2 Discharge */}
-                    <Pipe x1={720} y1={454} x2={770} y2={454} flowDirection={pump2Running ? 'forward' : 'none'} />
+                    {/* Vertical Branch UP from Pump 1 outlet (x=410, y=175 to y=115) */}
+                    <Pipe x1={410} y1={175} x2={410} y2={115} flowDirection={pump1Running ? 'forward' : 'none'} />
+                    {/* Vertical Branch UP from Pump 2 outlet (x=690, y=175 to y=115) */}
+                    <Pipe x1={690} y1={175} x2={690} y2={115} flowDirection={pump2Running ? 'forward' : 'none'} />
 
-                    {/* Outlet Manifold */}
-                    <Pipe x1={770} y1={114} x2={770} y2={454} flowDirection={hasFlow ? 'forward' : 'none'} />
-
-                    {/* Outlet final */}
-                    <Pipe x1={770} y1={114} x2={820} y2={114} flowDirection={hasFlow ? 'forward' : 'none'} />
+                    {/* Horizontal Outlet line between Pump 1 and Pump 2 (x=410 to x=690, y=115) */}
+                    <Pipe x1={410} y1={115} x2={690} y2={115} flowDirection={pump1Running ? 'forward' : 'none'} />
+                    {/* Horizontal Outlet line from Pump 2 to Outlet (x=690 to x=840, y=115) */}
+                    <Pipe x1={690} y1={115} x2={840} y2={115} flowDirection={hasFlow ? 'forward' : 'none'} />
                   </div>
 
                   {/* Elements */}
-                  <div className="absolute top-[80px] left-[50px] z-10">
+                  <div className="absolute top-[175px] left-[80px] z-10">
                     <Tank level={dashboardData.waterAvailable ? 100 : 0} title="Inlet Water" />
                   </div>
 
-                  <div className="absolute top-[114px] left-[830px] z-10 -translate-y-1/2 flex items-center">
+                  <div className="absolute top-[115px] left-[850px] z-10 -translate-y-1/2 flex items-center">
                     <h3 className="text-white text-xs font-bold tracking-widest uppercase whitespace-nowrap">OUTLET</h3>
                   </div>
 
-                  <div className="absolute top-[48px] left-[500px] z-10">
+                  <div className="absolute top-[175px] left-[300px] z-10">
                     <PumpUnit
                       name={pump1.name}
                       status={pump1.status}
@@ -267,7 +267,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
                     />
                   </div>
 
-                  <div className="absolute top-[388px] left-[500px] z-10">
+                  <div className="absolute top-[175px] left-[580px] z-10">
                     <PumpUnit
                       name={displayPump2.name}
                       status={displayPump2.status}

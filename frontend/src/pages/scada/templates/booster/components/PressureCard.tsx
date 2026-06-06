@@ -19,7 +19,7 @@ export const PressureCard: React.FC<PressureCardProps> = ({ pressure = 0.0, isCo
         <div className="flex flex-col items-center gap-4 w-full sm:w-1/2 pr-4 border-b sm:border-b-0 sm:border-r border-[rgba(255,255,255,0.08)] pb-5 sm:pb-0">
           <div className="flex flex-col items-center text-sm mb-1">
             <span className="text-gray-400 font-semibold uppercase tracking-wider mb-2">Current Pressure</span>
-            <span className="text-[#00E5FF] font-bold text-3xl">0.0 <span className="text-sm font-normal text-gray-400">bar</span></span>
+            <span className="text-[#00E5FF] font-bold text-3xl">{pressure.toFixed(1)} <span className="text-sm font-normal text-gray-400">bar</span></span>
           </div>
 
           <div className="flex flex-col gap-3 w-full max-w-[220px]">

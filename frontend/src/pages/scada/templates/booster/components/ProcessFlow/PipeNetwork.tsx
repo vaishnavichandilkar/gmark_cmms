@@ -41,7 +41,7 @@ export const Pipe: React.FC<PipeProps> = ({ x1, y1, x2, y2, flowDirection = 'for
 
 export const ProcessFlowContainer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <div className="relative w-full h-[760px] bg-[#021B3A] rounded-[20px] p-6 flex items-center border border-[rgba(255,255,255,0.08)] shadow-inner">
+    <div className="relative w-full h-[680px] bg-[#021B3A] rounded-[20px] p-6 flex items-center border border-[rgba(255,255,255,0.08)] shadow-inner">
       {children}
     </div>
   );
