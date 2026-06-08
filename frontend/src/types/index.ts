@@ -33,7 +33,5 @@ export interface Device {
   id: string;
   name: string;
   status: DeviceStatus;
-  template?: string;
-  cardNo?: string;
   latestData: DeviceLatestData;
 }

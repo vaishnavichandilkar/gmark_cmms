@@ -16,26 +16,26 @@ export const PressureCard: React.FC<PressureCardProps> = ({ pressure = 0.0, isCo
 
       <div className="flex flex-col sm:flex-row justify-between gap-6 sm:gap-0">
         {/* Left metrics */}
-        <div className="flex flex-col items-center gap-4 w-full sm:w-1/2 pr-4 border-b sm:border-b-0 sm:border-r border-[rgba(255,255,255,0.08)] pb-5 sm:pb-0">
+        <div className="flex flex-col items-center gap-4 w-full sm:w-[70%] pr-4 border-b sm:border-b-0 sm:border-r border-[rgba(255,255,255,0.08)] pb-5 sm:pb-0">
           <div className="flex flex-col items-center text-sm mb-1">
             <span className="text-gray-400 font-semibold uppercase tracking-wider mb-2">Current Pressure</span>
-            <span className="text-[#00E5FF] font-bold text-3xl">{pressure.toFixed(1)} <span className="text-sm font-normal text-gray-400">bar</span></span>
+            <span className="text-[#00E5FF] font-bold text-4xl">{pressure.toFixed(1)} <span className="text-lg font-normal text-gray-400">bar</span></span>
           </div>
 
           <div className="flex flex-col gap-3 w-full max-w-[220px]">
-            <div className="flex justify-between items-center text-xs">
+            <div className="flex justify-between items-center text-sm">
               <span className="text-blue-400 font-semibold uppercase tracking-wider flex items-center gap-2"><span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span> PT-Value</span>
               <span className="text-blue-400 font-bold">10.0 BAR</span>
             </div>
-            <div className="flex justify-between items-center text-xs">
+            <div className="flex justify-between items-center text-sm">
               <span className="text-orange-400 font-semibold uppercase tracking-wider flex items-center gap-2"><span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span> Pump Off</span>
               <span className="text-orange-400 font-bold">3.0 BAR</span>
             </div>
-            <div className="flex justify-between items-center text-xs">
+            <div className="flex justify-between items-center text-sm">
               <span className="text-red-400 font-semibold uppercase tracking-wider flex items-center gap-2"><span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span> Set Point</span>
               <span className="text-red-400 font-bold">2.5 BAR</span>
             </div>
-            <div className="flex justify-between items-center text-xs">
+            <div className="flex justify-between items-center text-sm">
               <span className="text-green-400 font-semibold uppercase tracking-wider flex items-center gap-2"><span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Pump On</span>
               <span className="text-green-400 font-bold">2.0 BAR</span>
             </div>
@@ -43,8 +43,8 @@ export const PressureCard: React.FC<PressureCardProps> = ({ pressure = 0.0, isCo
         </div>
 
         {/* Right transmitter */}
-        <div className="flex flex-col items-center justify-center sm:border-l border-t sm:border-t-0 border-[rgba(255,255,255,0.08)] pt-5 sm:pt-0 sm:pl-6 w-full sm:w-1/2">
-          <span className="text-gray-400 text-xs font-semibold tracking-widest uppercase mb-4">Transmitter</span>
+        <div className="flex flex-col items-center justify-center sm:border-l border-t sm:border-t-0 border-[rgba(255,255,255,0.08)] pt-5 sm:pt-0 sm:pl-6 w-full sm:w-[30%]">
+          <span className="text-gray-400 text-sm font-semibold tracking-widest uppercase mb-4">Transmitter</span>
           <div className="relative flex items-center justify-center w-12 h-12 mb-3">
             {/* Pulsing signal rings */}
             {isConnected && (
@@ -55,7 +55,7 @@ export const PressureCard: React.FC<PressureCardProps> = ({ pressure = 0.0, isCo
             )}
             <Radio size={24} className={`${isConnected ? 'text-green-500' : 'text-red-500'} relative z-10`} />
           </div>
-          <span className={`${isConnected ? 'text-green-500' : 'text-red-500'} text-xs font-bold tracking-widest uppercase`}>{isConnected ? 'Connected' : 'Disconnected'}</span>
+          <span className={`${isConnected ? 'text-green-500' : 'text-red-500'} text-sm font-bold tracking-widest uppercase`}>{isConnected ? 'Connected' : 'Disconnected'}</span>
           <div className={`w-2 h-2 border-2 ${isConnected ? 'border-green-500' : 'border-red-500'} rounded-full mt-2`}></div>
         </div>
       </div>

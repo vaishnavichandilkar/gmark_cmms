@@ -32,8 +32,8 @@ export const PerformanceCard: React.FC<PerformanceCardProps> = ({
           <div className="text-xs text-gray-400 font-semibold mb-2 tracking-wider uppercase">
             Voltage
           </div>
-          <div className="text-3xl font-bold text-white font-mono tracking-tight">{avgVoltage} <span className="text-sm font-normal text-gray-400">V</span></div>
-          <div className="flex gap-5 text-sm font-mono mt-2">
+          <div className="text-4xl font-bold text-white font-mono tracking-tight">{avgVoltage} <span className="text-lg font-normal text-gray-400">V</span></div>
+          <div className="flex gap-5 text-base font-mono mt-2">
             <div className="flex flex-col items-center"><span className="text-red-500 font-bold">R</span><span className="text-white">{voltageR}</span></div>
             <div className="flex flex-col items-center"><span className="text-yellow-500 font-bold">Y</span><span className="text-white">{voltageY}</span></div>
             <div className="flex flex-col items-center"><span className="text-blue-500 font-bold">B</span><span className="text-white">{voltageB}</span></div>
@@ -45,7 +45,7 @@ export const PerformanceCard: React.FC<PerformanceCardProps> = ({
           <div className="text-xs text-gray-400 font-semibold mb-3 tracking-wider uppercase">
             Input Power
           </div>
-          <div className="text-3xl font-bold text-white mt-1">{power.toFixed(1)} <span className="text-sm font-normal text-gray-400">kW</span></div>
+          <div className="text-4xl font-bold text-white mt-1">{power.toFixed(1)} <span className="text-lg font-normal text-gray-400">kW</span></div>
         </div>
 
         {/* Current */}
@@ -53,8 +53,8 @@ export const PerformanceCard: React.FC<PerformanceCardProps> = ({
           <div className="text-xs text-gray-400 font-semibold mb-2 tracking-wider uppercase">
             Current
           </div>
-          <div className="text-3xl font-bold text-white mt-1">{totalCurrent} <span className="text-sm font-normal text-gray-400">A</span></div>
-          <div className="flex gap-5 text-sm font-mono mt-2">
+          <div className="text-4xl font-bold text-white mt-1">{totalCurrent} <span className="text-lg font-normal text-gray-400">A</span></div>
+          <div className="flex gap-5 text-base font-mono mt-2">
             <div className="flex flex-col items-center"><span className="text-red-500 font-bold">R</span><span className="text-white">{currentR.toFixed(1)}</span></div>
             <div className="flex flex-col items-center"><span className="text-yellow-500 font-bold">Y</span><span className="text-white">{currentY.toFixed(1)}</span></div>
             <div className="flex flex-col items-center"><span className="text-blue-500 font-bold">B</span><span className="text-white">{currentB.toFixed(1)}</span></div>

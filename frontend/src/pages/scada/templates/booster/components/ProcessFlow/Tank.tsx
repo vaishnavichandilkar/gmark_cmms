@@ -15,7 +15,16 @@ export const Tank: React.FC<TankProps> = ({
 
   return (
     <div className="relative w-32 h-64 flex flex-col items-center">
-      <h3 className="text-white text-xs font-bold tracking-widest uppercase mb-4 whitespace-nowrap">{title}</h3>
+      {title && (
+        <h3 className="text-white text-xs font-bold tracking-widest uppercase mb-4 text-center leading-tight">
+          {title.split(' ').map((word, index) => (
+            <React.Fragment key={index}>
+              {word}
+              {index < title.split(' ').length - 1 && <br />}
+            </React.Fragment>
+          ))}
+        </h3>
+      )}
       
       {/* 3D Tank container */}
       <div className="relative w-full h-full flex-1">

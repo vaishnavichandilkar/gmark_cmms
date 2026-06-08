@@ -21,9 +21,9 @@ export const PumpUnit: React.FC<PumpUnitProps> = ({ name, status, currentR, curr
 
 
   return (
-    <div className="flex flex-col items-center w-[220px]">
-      <div className={`relative bg-[#0A2D5F] rounded-[20px] p-4 border-2 ${borderColor} ${glowClass} w-full flex flex-col items-center transition-all duration-300`}>
-        <h3 className="absolute top-3 right-4 text-gray-300 font-bold text-[11px] tracking-widest uppercase">{name}</h3>
+    <div className="flex flex-col items-center w-[260px]">
+      <div className={`relative bg-[#0A2D5F] rounded-[20px] p-5 border-2 ${borderColor} ${glowClass} w-full flex flex-col items-center transition-all duration-300`}>
+        <h3 className="absolute top-4 right-5 text-gray-300 font-bold text-base tracking-widest uppercase">{name}</h3>
         {isFault && (
           <motion.div 
             className="absolute inset-0 rounded-[20px] bg-red-500/10 z-0 pointer-events-none"
@@ -33,7 +33,7 @@ export const PumpUnit: React.FC<PumpUnitProps> = ({ name, status, currentR, curr
         )}
 
         {/* Pump Illustration */}
-        <div className="w-full flex justify-center items-center relative mb-3 z-10">
+        <div className="w-full flex justify-center items-center relative mb-4 mt-2 z-10">
           <div className="relative w-40 h-28">
             <svg viewBox="0 0 200 150" className="w-full h-full drop-shadow-xl">
               <defs>
@@ -116,30 +116,30 @@ export const PumpUnit: React.FC<PumpUnitProps> = ({ name, status, currentR, curr
         </div>
 
         {/* Mode Buttons */}
-        <div className="flex bg-[#021B3A] rounded border border-[rgba(255,255,255,0.08)] overflow-hidden mb-3 w-[90%] justify-center z-10">
-          <button className={`flex-1 py-1.5 text-[10px] font-bold ${mode === 'AUTO' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-[#072B58]'}`}>AUTO</button>
-          <button className={`flex-1 py-1.5 text-[10px] font-bold ${mode === 'OFF' ? 'bg-red-600 text-white' : 'text-gray-400 hover:bg-[#072B58]'}`}>OFF</button>
-          <button className={`flex-1 py-1.5 text-[10px] font-bold ${mode === 'MANUAL' ? 'bg-gray-600 text-white' : 'text-gray-400 hover:bg-[#072B58]'}`}>MANUAL</button>
+        <div className="flex bg-[#051124] rounded-lg border border-[rgba(255,255,255,0.05)] p-1 mb-4 mt-1 w-[90%] justify-center z-10 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] gap-1">
+          <button className={`flex-1 py-1.5 text-[10px] font-bold tracking-widest rounded transition-all duration-300 ${mode === 'AUTO' ? 'bg-[#0A2D5F] text-blue-400 border border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]' : 'text-gray-500 border border-transparent hover:text-gray-300 hover:bg-white/5'}`}>AUTO</button>
+          <button className={`flex-1 py-1.5 text-[10px] font-bold tracking-widest rounded transition-all duration-300 ${mode === 'OFF' ? 'bg-[#0A2D5F] text-red-400 border border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'text-gray-500 border border-transparent hover:text-gray-300 hover:bg-white/5'}`}>OFF</button>
+          <button className={`flex-1 py-1.5 text-[10px] font-bold tracking-widest rounded transition-all duration-300 ${mode === 'MANUAL' ? 'bg-[#0A2D5F] text-gray-200 border border-gray-500/50 shadow-[0_0_15px_rgba(156,163,175,0.2)]' : 'text-gray-500 border border-transparent hover:text-gray-300 hover:bg-white/5'}`}>MANUAL</button>
         </div>
 
         {/* Right Info -> Now Bottom Info */}
-        <div className="w-full flex flex-col gap-2 px-2 z-10">
-          <div className="flex justify-between items-center text-xs text-gray-300 border-b border-[rgba(255,255,255,0.05)] pb-2">
-            <div className="flex items-center gap-2"><Clock size={12} /> <span className="uppercase text-[10px] tracking-widest">Time</span></div>
-            <span className="font-mono font-bold text-white text-[11px]">0:0 Hrs</span>
+        <div className="w-full flex flex-col gap-3 px-2 z-10">
+          <div className="flex justify-between items-center text-base text-gray-300 border-b border-[rgba(255,255,255,0.05)] pb-2">
+            <div className="flex items-center gap-2"><Clock size={12} /> <span className="uppercase text-base tracking-widest">Time</span></div>
+            <span className="font-mono font-bold text-white text-lg">0:0 Hrs</span>
           </div>
           
-          <div className="flex justify-between items-center text-xs text-gray-300 border-b border-[rgba(255,255,255,0.05)] pb-2">
-            <div className="flex items-center gap-2"><Zap size={12} /> <span className="uppercase text-[10px] tracking-widest">Run On</span></div>
-            <span className="font-bold text-white text-[11px]">{runOnTime}</span>
+          <div className="flex justify-between items-center text-base text-gray-300 border-b border-[rgba(255,255,255,0.05)] pb-2">
+            <div className="flex items-center gap-2"><Zap size={12} /> <span className="uppercase text-base tracking-widest">Run On</span></div>
+            <span className="font-bold text-white text-lg">{runOnTime}</span>
           </div>
 
-          <div className="mt-0">
-            <div className="text-[9px] text-gray-400 uppercase tracking-widest mb-1.5 text-center">Current (Amp)</div>
-            <div className="flex justify-center gap-6 px-2 text-[11px] font-mono font-bold">
-              <div className="flex flex-col items-center"><span className="text-red-500 text-[9px]">R</span><span className="text-white mt-0.5">{currentR}</span></div>
-              <div className="flex flex-col items-center"><span className="text-yellow-500 text-[9px]">Y</span><span className="text-white mt-0.5">{currentY}</span></div>
-              <div className="flex flex-col items-center"><span className="text-blue-500 text-[9px]">B</span><span className="text-white mt-0.5">{currentB}</span></div>
+          <div className="mt-2 mb-1">
+            <div className="text-base text-gray-400 uppercase tracking-widest mb-1.5 text-center">Current (Amp)</div>
+            <div className="flex justify-center gap-6 px-2 text-lg font-mono font-bold">
+              <div className="flex flex-col items-center"><span className="text-red-500 text-base">R</span><span className="text-white mt-0.5">{currentR}</span></div>
+              <div className="flex flex-col items-center"><span className="text-yellow-500 text-base">Y</span><span className="text-white mt-0.5">{currentY}</span></div>
+              <div className="flex flex-col items-center"><span className="text-blue-500 text-base">B</span><span className="text-white mt-0.5">{currentB}</span></div>
             </div>
           </div>
         </div>

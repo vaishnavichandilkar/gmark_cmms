@@ -29,8 +29,6 @@ export class DevicesService {
       building: device.building.name,
       system: device.systemName || device.name,
       status,
-      template: device.template,
-      cardNo: device.cardNo,
       ...latestData,
       faultCount: (latestData.pump1FaultType ? 1 : 0) + (latestData.pump2FaultType ? 1 : 0) + (latestData.inputPowerFaultType ? 1 : 0),
       lastSeen,

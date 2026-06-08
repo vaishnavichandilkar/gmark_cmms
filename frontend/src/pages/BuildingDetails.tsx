@@ -36,22 +36,20 @@ export function BuildingDetails() {
           const mappedDevices: Device[] = dashboardData
             .filter((data: any) => !data.error && data.deviceId)
             .map((data: any) => ({
-                id: data.deviceId,
-              name: data.system || data.name || 'Unknown Device',
-              status: data.status ? data.status.toUpperCase() : 'UNKNOWN',
-              template: data.template,
-              cardNo: data.cardNo,
-              latestData: {
-                faults: data.faultCount ?? 0,
-                runningState: (data.motor1Status || data.motor2Status) ? 'RUNNING' : data.status === 'online' ? 'ON' : 'OFF',
-                panelWorkMode: 'AUTO',
-                voltage: data.averageVoltage ?? 0,
-                current: (data.motor1RCurrent || 0) + (data.motor2RCurrent || 0),
-                pressure: data.pressureBar ?? 0,
-                timestamp: data.lastSeen ?? new Date().toISOString()
-              }
-            }));
-            setDevices(mappedDevices);
+              id: data.deviceId,
+            name: data.system || data.name || 'Unknown Device',
+            status: data.status ? data.status.toUpperCase() : 'UNKNOWN',
+            latestData: {
+              faults: data.faultCount ?? 0,
+              runningState: (data.motor1Status || data.motor2Status) ? 'RUNNING' : data.status === 'online' ? 'ON' : 'OFF',
+              panelWorkMode: 'AUTO',
+              voltage: data.averageVoltage ?? 0,
+              current: (data.motor1RCurrent || 0) + (data.motor2RCurrent || 0),
+              pressure: data.pressureBar ?? 0,
+              timestamp: data.lastSeen ?? new Date().toISOString()
+            }
+          }));
+          setDevices(mappedDevices);
         });
       })
       .catch(console.error);

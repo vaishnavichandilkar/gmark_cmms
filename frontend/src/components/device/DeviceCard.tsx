@@ -44,7 +44,24 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device }) => {
   const panelColor = isAuto ? 'text-blue-500' : 'text-green-500';
 
   const navigate = useNavigate();
-  const isScada = device.template === 'booster';
+  const isFlushing = name.includes('Flushing Terrace');
+  const isDomestic = name.includes('Domestic Terrace');
+  const isTowerBDomestic = name.includes('Tower B Domestic');
+  const isTowerACDomestic = name.includes('Tower A&C Domestic');
+  const isSubSoilPump02 = name.includes('Sub Soil Pump-02');
+  const isSubSoilPump03 = name.includes('Sub Soil Pump-03');
+  const isSubSoilPump04 = name.includes('Sub Soil Pump-04');
+  const isSumpPump01 = name.includes('Sump Pump-01');
+  const isSumpPump02 = name.includes('Sump Pump-02');
+  const isSumpPump03 = name.includes('Sump Pump-03');
+  const isSumpPump04 = name.includes('Sump Pump-04');
+  const isSumpPump05 = name.includes('Sump Pump-05');
+  const isSumpPump06 = name.includes('Sump Pump-06');
+  
+  const isScada = isFlushing || isDomestic || isTowerBDomestic || isTowerACDomestic ||
+                  isSubSoilPump02 || isSubSoilPump03 || isSubSoilPump04 ||
+                  isSumpPump01 || isSumpPump02 || isSumpPump03 ||
+                  isSumpPump04 || isSumpPump05 || isSumpPump06;
 
   const getBorderColor = () => {
     switch (status) {
@@ -61,9 +78,19 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device }) => {
     <div
       className={`bg-white rounded-[2rem] p-6 md:p-8 shadow-sm transition-all border-2 ${getBorderColor()} ${isScada ? 'cursor-pointer hover:shadow-lg hover:-translate-y-1' : 'hover:shadow-md'}`}
       onClick={() => {
-        if (isScada) {
-          navigate(`/scada/${device.id}`);
-        }
+        if (isFlushing) navigate('/scada/flushing-terrace');
+        if (isDomestic) navigate('/scada/domestic-terrace');
+        if (isTowerBDomestic) navigate('/scada/tower-b-domestic');
+        if (isTowerACDomestic) navigate('/scada/tower-ac-domestic');
+        if (isSubSoilPump02) navigate('/scada/sub-soil-pump-02');
+        if (isSubSoilPump03) navigate('/scada/sub-soil-pump-03');
+        if (isSubSoilPump04) navigate('/scada/sub-soil-pump-04');
+        if (isSumpPump01) navigate('/scada/sump-pump-01');
+        if (isSumpPump02) navigate('/scada/sump-pump-02');
+        if (isSumpPump03) navigate('/scada/sump-pump-03');
+        if (isSumpPump04) navigate('/scada/sump-pump-04');
+        if (isSumpPump05) navigate('/scada/sump-pump-05');
+        if (isSumpPump06) navigate('/scada/sump-pump-06');
       }}
     >
       <DeviceHeader name={name} status={status} faults={latestData.faults} />
