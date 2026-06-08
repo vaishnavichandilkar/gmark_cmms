@@ -4,6 +4,9 @@ import {
   OnGatewayInit,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  SubscribeMessage,
+  MessageBody,
+  ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
@@ -31,10 +34,27 @@ export class WebsocketGateway implements OnGatewayInit, OnGatewayConnection, OnG
     this.logger.log(`Client disconnected: ${client.id}`);
   }
 
-  emitDeviceUpdate(deviceId: string, registers: any[]) {
-    this.server.emit('device-update', {
+  @SubscribeMessage('join-device')
+  handleJoinDevice(@ConnectedSocket() client: Socket, @MessageBody() payload: { topic: string }) {
+    if (payload && payload.topic) {
+      client.join(`device-${payload.topic}`);
+      this.logger.log(`Client ${client.id} joined room device-${payload.topic}`);
+    }
+  }
+
+  @SubscribeMessage('leave-device')
+  handleLeaveDevice(@ConnectedSocket() client: Socket, @MessageBody() payload: { topic: string }) {
+    if (payload && payload.topic) {
+      client.leave(`device-${payload.topic}`);
+      this.logger.log(`Client ${client.id} left room device-${payload.topic}`);
+    }
+  }
+
+  emitDeviceUpdate(topic: string, deviceId: string, registers: any[], rawRegisters?: any[]) {
+    this.server.to(`device-${topic}`).to(`device-${deviceId}`).emit('device-update', {
       deviceId,
       registers,
+      rawRegisters,
     });
   }
 }

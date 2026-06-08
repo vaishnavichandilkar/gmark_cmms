@@ -69,5 +69,11 @@ model DeviceState {
   pump2FaultType      Int
   motor1RunTime       Int
   motor2RunTime       Int
+  motor3Status        Boolean   @default(false)
+  motor3RCurrent      Float     @default(0)
+  motor3YCurrent      Float     @default(0)
+  motor3BCurrent      Float     @default(0)
+  pump3FaultType      Int       @default(0)
+  motor3RunTime       Int       @default(0)
   updatedAt           DateTime @updatedAt
 }

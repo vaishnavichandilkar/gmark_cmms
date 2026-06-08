@@ -5,6 +5,43 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 export class DevicesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async getAllDevices() {
+    const devices = await this.prisma.device.findMany({
+      include: { building: true },
+    });
+
+    const now = new Date();
+
+    return devices.map((device) => {
+      const lastSeen = device.lastSeen || device.updatedAt;
+      const diffMs = now.getTime() - lastSeen.getTime();
+      const status = diffMs <= 60000 ? 'online' : 'offline';
+
+      return {
+        id: device.id,
+        deviceId: device.deviceId,
+        name: device.name,
+        building: device.building.name,
+        topic: device.topic,
+        status,
+        lastSeen,
+      };
+    });
+  }
+
+  async getDeviceSnapshot(deviceId: string) {
+    const snapshot = await this.prisma.deviceSnapshot.findFirst({
+      where: { deviceId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!snapshot) {
+      throw new NotFoundException(`No snapshot found for device ${deviceId}`);
+    }
+
+    return snapshot;
+  }
+
   async getDeviceDashboard(deviceId: string) {
     const device = await this.prisma.device.findUnique({
       where: { deviceId },
@@ -26,6 +63,7 @@ export class DevicesService {
 
     return {
       deviceId: device.deviceId,
+      topic: device.topic,
       building: device.building.name,
       system: device.systemName || device.name,
       status,

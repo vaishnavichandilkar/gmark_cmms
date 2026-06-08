@@ -57,11 +57,11 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device }) => {
   const isSumpPump04 = name.includes('Sump Pump-04');
   const isSumpPump05 = name.includes('Sump Pump-05');
   const isSumpPump06 = name.includes('Sump Pump-06');
-  
+
   const isScada = isFlushing || isDomestic || isTowerBDomestic || isTowerACDomestic ||
-                  isSubSoilPump02 || isSubSoilPump03 || isSubSoilPump04 ||
-                  isSumpPump01 || isSumpPump02 || isSumpPump03 ||
-                  isSumpPump04 || isSumpPump05 || isSumpPump06;
+    isSubSoilPump02 || isSubSoilPump03 || isSubSoilPump04 ||
+    isSumpPump01 || isSumpPump02 || isSumpPump03 ||
+    isSumpPump04 || isSumpPump05 || isSumpPump06;
 
   const getBorderColor = () => {
     switch (status) {

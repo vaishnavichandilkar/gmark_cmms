@@ -65,6 +65,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
   outletTitle = 'OUTLET',
   showPressureCard = true
 }) => {
+  const deviceTopic = panelId;
 
   const [pump1, setPump1] = useState<PumpState>({
     id: pump1Id, name: 'Pump 1', status: 'OFFLINE',
@@ -178,6 +179,11 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
     });
 
     const socket = io('http://localhost:3000');
+    
+    if (deviceTopic) {
+      socket.emit('join-device', { topic: deviceTopic });
+    }
+
     socket.on('device-update', (update: DeviceUpdate) => {
       const data = update.registers || {};
 
@@ -228,8 +234,13 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
       }
     });
 
-    return () => { socket.disconnect(); };
-  }, [pump1Id, pump2Id, pump3Id]);
+    return () => {
+      if (deviceTopic) {
+        socket.emit('leave-device', { topic: deviceTopic });
+      }
+      socket.disconnect();
+    };
+  }, [pump1Id, pump2Id, pump3Id, deviceTopic]);
 
   // FORCE PUMP 2 AND 3 OFF FOR DEMO
   const displayPump2 = { ...pump2, status: 'OFFLINE' as PumpState['status'], mode: 'OFF' as PumpState['mode'], currentR: 0, currentY: 0, currentB: 0 };

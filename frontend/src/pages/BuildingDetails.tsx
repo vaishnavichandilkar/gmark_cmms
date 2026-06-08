@@ -12,6 +12,7 @@ export function BuildingDetails() {
   
   const [buildingName, setBuildingName] = useState<string>('Loading Building...');
   const [devices, setDevices] = useState<Device[]>([]);
+  const [topics, setTopics] = useState<string[]>([]);
 
   useEffect(() => {
     // 1. Fetch buildings to get current building name
@@ -37,25 +38,39 @@ export function BuildingDetails() {
             .filter((data: any) => !data.error && data.deviceId)
             .map((data: any) => ({
               id: data.deviceId,
-            name: data.system || data.name || 'Unknown Device',
-            status: data.status ? data.status.toUpperCase() : 'UNKNOWN',
-            latestData: {
-              faults: data.faultCount ?? 0,
-              runningState: (data.motor1Status || data.motor2Status) ? 'RUNNING' : data.status === 'online' ? 'ON' : 'OFF',
-              panelWorkMode: 'AUTO',
-              voltage: data.averageVoltage ?? 0,
-              current: (data.motor1RCurrent || 0) + (data.motor2RCurrent || 0),
-              pressure: data.pressureBar ?? 0,
-              timestamp: data.lastSeen ?? new Date().toISOString()
-            }
-          }));
+              name: data.system || data.name || 'Unknown Device',
+              status: data.status ? data.status.toUpperCase() : 'UNKNOWN',
+              latestData: {
+                faults: data.faultCount ?? 0,
+                runningState: (data.motor1Status || data.motor2Status) ? 'RUNNING' : data.status === 'online' ? 'ON' : 'OFF',
+                panelWorkMode: 'AUTO',
+                voltage: data.averageVoltage ?? 0,
+                current: (data.motor1RCurrent || 0) + (data.motor2RCurrent || 0),
+                pressure: data.pressureBar ?? 0,
+                timestamp: data.lastSeen ?? new Date().toISOString()
+              }
+            }));
           setDevices(mappedDevices);
+          
+          const fetchedTopics = dashboardData
+            .filter((d: any) => !d.error && d.topic)
+            .map((d: any) => d.topic);
+          setTopics(fetchedTopics);
         });
       })
       .catch(console.error);
+  }, [buildingId]);
 
-    // 3. Connect WebSocket for live updates
+  useEffect(() => {
+    // Connect WebSocket for live updates
     const socket = io('http://localhost:3000');
+    
+    socket.on('connect', () => {
+      topics.forEach(topic => {
+        socket.emit('join-device', { topic });
+      });
+    });
+
     socket.on('device-update', (update: any) => {
       const data = update.registers || {};
       setDevices(prev => prev.map(d => {
@@ -78,9 +93,12 @@ export function BuildingDetails() {
     });
 
     return () => {
+      topics.forEach(topic => {
+        socket.emit('leave-device', { topic });
+      });
       socket.disconnect();
     };
-  }, [buildingId]);
+  }, [topics]);
 
   if (buildingName === 'Building not found') {
     return (

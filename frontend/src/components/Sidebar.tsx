@@ -2,6 +2,7 @@ import {
   LayoutDashboard, Building2, Cpu, Wifi, Activity, BellRing, 
   FileText, TrendingUp, Users, Settings, ScrollText, ChevronDown, X 
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -9,6 +10,8 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
+  const navigate = useNavigate();
+
   return (
     <div className={`w-64 bg-white border-r border-gray-100 h-screen flex flex-col fixed left-0 top-0 overflow-y-auto z-50 transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
       {/* Logo */}
@@ -42,13 +45,20 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             <p className="text-[10px] font-bold text-gray-400 mb-3 px-2 tracking-wider">MONITORING</p>
             <div className="space-y-0.5">
               {[
-                { icon: <Building2 size={18} />, label: 'Buildings' },
-                { icon: <Cpu size={18} />, label: 'Systems' },
-                { icon: <Wifi size={18} />, label: 'Devices' },
-                { icon: <Activity size={18} />, label: 'Live Data' },
-                { icon: <BellRing size={18} />, label: 'Alarms' },
+                { icon: <Building2 size={18} />, label: 'Buildings', path: '/' },
+                { icon: <Cpu size={18} />, label: 'Systems', path: '/' },
+                { icon: <Wifi size={18} />, label: 'Devices', path: '/devices' },
+                { icon: <Activity size={18} />, label: 'Live Data', path: '/' },
+                { icon: <BellRing size={18} />, label: 'Alarms', path: '/' },
               ].map((item, i) => (
-                <button key={i} className="w-full flex items-center gap-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors font-medium text-sm">
+                <button 
+                  key={i} 
+                  onClick={() => {
+                    navigate(item.path);
+                    if (onClose) onClose();
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors font-medium text-sm"
+                >
                   <span className="text-gray-400">{item.icon}</span>
                   <span>{item.label}</span>
                 </button>
