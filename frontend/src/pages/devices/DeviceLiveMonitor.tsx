@@ -34,6 +34,11 @@ export function DeviceLiveMonitor() {
     const fetchSnapshot = async () => {
       try {
         const res = await fetch(`http://localhost:3000/devices/${deviceId}/snapshot`);
+        if (res.status === 404) {
+          setRegisters([]);
+          setLoading(false);
+          return;
+        }
         if (!res.ok) {
           throw new Error('Failed to fetch snapshot');
         }
@@ -115,11 +120,11 @@ export function DeviceLiveMonitor() {
     return (
       <div className="text-center py-12">
         <div className="text-rose-500 mb-4 flex justify-center"><Activity size={48} /></div>
-        <h2 className="text-xl font-bold text-gray-900">Error Loading Device</h2>
-        <p className="text-gray-500">{error}</p>
+        <h2 className="text-xl font-bold text-white">Error Loading Device</h2>
+        <p className="text-[rgba(255,255,255,0.45)]">{error}</p>
         <button 
           onClick={() => navigate('/devices')}
-          className="mt-6 px-6 py-2 bg-gray-900 text-white rounded-lg font-medium"
+          className="mt-6 px-6 py-2 bg-white/10 hover:bg-white/20 border border-white/10 text-white rounded-lg font-medium transition-colors"
         >
           Back to Devices
         </button>
