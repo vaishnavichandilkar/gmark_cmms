@@ -13,20 +13,20 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const navigate = useNavigate();
 
   return (
-    <div className={`w-64 bg-white border-r border-gray-100 h-screen flex flex-col fixed left-0 top-0 overflow-y-auto z-50 transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+    <div className={`w-64 bg-black border-r border-white/10 h-screen flex flex-col fixed left-0 top-0 overflow-y-auto z-50 transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
       {/* Logo */}
       <div className="p-6 flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-sm">
           <Building2 size={24} />
         </div>
         <div className="flex-1">
-          <h2 className="font-bold text-gray-900 text-lg leading-tight">Gera Imperium</h2>
-          <p className="text-[11px] text-gray-500 font-medium">IoT BMS Platform</p>
+          <h2 className="font-bold text-white text-lg leading-tight">Gera Imperium</h2>
+          <p className="text-[11px] text-gray-400 font-medium">IoT BMS Platform</p>
         </div>
         {onClose && (
           <button 
             onClick={onClose}
-            className="lg:hidden p-1.5 text-gray-500 hover:text-gray-900 rounded-lg hover:bg-gray-100 ml-auto transition-colors"
+            className="lg:hidden p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-white/10 ml-auto transition-colors"
           >
             <X size={20} />
           </button>
@@ -34,7 +34,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       </div>
 
       <div className="px-4 py-2">
-        <div className="bg-blue-50 text-blue-700 rounded-xl px-4 py-3 flex items-center gap-3 font-semibold mb-6 shadow-sm">
+        <div className="bg-blue-500/20 text-blue-400 rounded-xl px-4 py-3 flex items-center gap-3 font-semibold mb-6 shadow-sm border border-blue-500/10">
           <LayoutDashboard size={20} />
           <span className="text-sm">Overview</span>
         </div>
@@ -57,7 +57,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     navigate(item.path);
                     if (onClose) onClose();
                   }}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors font-medium text-sm"
+                  className="w-full flex items-center gap-3 px-3 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors font-medium text-sm"
                 >
                   <span className="text-gray-400">{item.icon}</span>
                   <span>{item.label}</span>
@@ -74,7 +74,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 { icon: <FileText size={18} />, label: 'Reports' },
                 { icon: <TrendingUp size={18} />, label: 'Trends' },
               ].map((item, i) => (
-                <button key={i} className="w-full flex items-center gap-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors font-medium text-sm">
+                <button key={i} className="w-full flex items-center gap-3 px-3 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors font-medium text-sm">
                   <span className="text-gray-400">{item.icon}</span>
                   <span>{item.label}</span>
                 </button>
@@ -91,7 +91,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 { icon: <Settings size={18} />, label: 'Settings' },
                 { icon: <ScrollText size={18} />, label: 'Audit Logs' },
               ].map((item, i) => (
-                <button key={i} className="w-full flex items-center gap-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors font-medium text-sm">
+                <button key={i} className="w-full flex items-center gap-3 px-3 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors font-medium text-sm">
                   <span className="text-gray-400">{item.icon}</span>
                   <span>{item.label}</span>
                 </button>
@@ -102,13 +102,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       </div>
 
       <div className="mt-auto p-4 mb-4">
-        <div className="flex items-center gap-3 p-3 rounded-2xl border border-gray-100 bg-white shadow-sm cursor-pointer hover:bg-gray-50 transition-colors">
-          <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
+        <div className="flex items-center gap-3 p-3 rounded-2xl border border-white/10 bg-white/5 shadow-sm cursor-pointer hover:bg-white/10 transition-colors">
+          <div className="w-9 h-9 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-sm">
             AM
           </div>
           <div className="flex-1">
-            <h4 className="text-sm font-bold text-gray-900 leading-tight">Admin User</h4>
-            <p className="text-[11px] text-gray-500">Super Admin</p>
+            <h4 className="text-sm font-bold text-white leading-tight">Admin User</h4>
+            <p className="text-[11px] text-gray-400">Super Admin</p>
           </div>
           <ChevronDown size={16} className="text-gray-400" />
         </div>

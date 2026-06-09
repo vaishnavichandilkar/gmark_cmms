@@ -12,23 +12,32 @@ interface DeviceHeaderProps {
 export const DeviceHeader: React.FC<DeviceHeaderProps> = ({ name, status, faults }) => {
   const isHealthy = faults === 0;
 
+  const formatName = (str: string) => {
+    if (!str) return '';
+    return str
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
   return (
-    <div className="flex flex-row justify-between items-start gap-2 mb-4 md:mb-6">
-      <h2 className="text-base sm:text-base md:text-lg lg:text-xl font-bold text-gray-800 uppercase max-w-[65%] leading-tight tracking-wide">
-        {name}
+    <div className="flex flex-row justify-between items-center gap-3">
+      <h2 className="text-base sm:text-lg md:text-xl font-black text-white max-w-[65%] leading-tight tracking-wide">
+        {formatName(name)}
       </h2>
       
-      <div className="flex flex-col items-end gap-1.5 md:gap-3">
+      <div className="flex flex-col items-end gap-1 sm:gap-1.5">
         <StatusBadge status={status} />
         
-        <div className="flex items-center gap-1">
-          <span className={`text-[10px] sm:text-xs md:text-sm font-semibold ${isHealthy ? 'text-green-600' : 'text-red-500'}`}>
+        <div className="flex items-center gap-1.5 bg-white/10 px-2 py-1 rounded-full border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)]">
+          <span className={`text-[9px] sm:text-[11px] font-bold ${isHealthy ? 'text-emerald-400' : 'text-rose-400'}`}>
             Faults: {faults}
           </span>
           {isHealthy ? (
-            <ShieldCheck className="text-green-600 w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+            <ShieldCheck className="text-emerald-500 w-3.5 h-3.5" />
           ) : (
-            <ShieldAlert className="text-red-500 animate-pulse w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+            <ShieldAlert className="text-rose-500 animate-pulse w-3.5 h-3.5" />
           )}
         </div>
       </div>

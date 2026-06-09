@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { ScadaHeader } from './components/ScadaHeader';
 import { PerformanceCard } from './components/PerformanceCard';
@@ -51,14 +52,24 @@ interface DashboardState {
 }
 
 export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
-  title,
-  panelId,
-  buildingName,
-  inletTankTitle = 'Inlet Water',
-  outletType = 'label',
-  outletTitle = 'OUTLET',
-  showPressureCard = true
+  title: initialTitle,
+  panelId: initialPanelId,
+  buildingName: initialBuildingName,
+  inletTankTitle: initialInletTankTitle = 'Inlet Water',
+  outletType: initialOutletType = 'label',
+  outletTitle: initialOutletTitle = 'OUTLET',
+  showPressureCard: initialShowPressureCard = true
 }) => {
+  const location = useLocation();
+  const state = location.state as any;
+
+  const title = state?.title ?? initialTitle;
+  const panelId = state?.panelId ?? initialPanelId;
+  const buildingName = state?.buildingName ?? initialBuildingName;
+  const inletTankTitle = state?.inletTankTitle ?? initialInletTankTitle;
+  const outletType = state?.outletType ?? initialOutletType;
+  const outletTitle = state?.outletTitle ?? initialOutletTitle;
+  const showPressureCard = state?.showPressureCard ?? initialShowPressureCard;
   const deviceTopic = panelId;
 
   // Initialize all 4 pumps
@@ -103,7 +114,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
   const processPayload = (data: any, isInitial: boolean) => {
     setPumps(prev => {
       const newPumps = [...prev];
-      
+
       // Helper to safely extract boolean
       const getBool = (val: any) => typeof val === 'boolean' ? val : (Number(val) > 0);
 
@@ -118,13 +129,13 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
         const configKey = `motor${n}ConfigActivate`;
 
         const p = { ...newPumps[i] };
-        
+
         if (data[rCurrKey] !== undefined) p.currentR = Number(data[rCurrKey]) || 0;
         if (data[yCurrKey] !== undefined) p.currentY = Number(data[yCurrKey]) || 0;
         if (data[bCurrKey] !== undefined) p.currentB = Number(data[bCurrKey]) || 0;
         if (data[faultKey] !== undefined) p.faults = Number(data[faultKey]) || 0;
         if (data[timeKey] !== undefined) p.runOnTime = `${data[timeKey]} Hrs`;
-        
+
         if (data[configKey] !== undefined) {
           p.isVisible = getBool(data[configKey]);
         }
@@ -175,7 +186,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
       .catch(console.error);
 
     const socket = io('http://localhost:3000');
-    
+
     socket.on('connect', () => {
       socket.emit('join-device', { topic: deviceTopic });
     });
@@ -194,16 +205,16 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
 
   // Filter visible pumps dynamically
   const visiblePumps = pumps.filter(p => p.isVisible);
-  
+
   // To avoid breaking the UI before data arrives or if all are disabled, 
   // we can show a placeholder or just render whatever is visible.
-  
+
   const totalFaults = visiblePumps.reduce((sum, p) => sum + p.faults, 0);
   const totalCurrentR = visiblePumps.reduce((sum, p) => sum + p.currentR, 0);
   const totalCurrentY = visiblePumps.reduce((sum, p) => sum + p.currentY, 0);
   const totalCurrentB = visiblePumps.reduce((sum, p) => sum + p.currentB, 0);
-  const totalPower = dashboardData.averageVoltage > 0 
-    ? (totalCurrentR * dashboardData.averageVoltage * 1.732 * 0.8 / 1000) 
+  const totalPower = dashboardData.averageVoltage > 0
+    ? (totalCurrentR * dashboardData.averageVoltage * 1.732 * 0.8 / 1000)
     : 0;
 
   const hasFlow = visiblePumps.some(p => p.status === 'RUNNING');
@@ -211,10 +222,10 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
   // Dynamic layout calculations
   const pumpSpacing = 270;
   const isTankOutlet = outletType === 'tank';
-  
+
   const leftTankLeft = 20;
   const leftTankCenter = leftTankLeft + 64;
-  
+
   // Calculate X positions for pumps based on index
   const pumpLefts = visiblePumps.map((_, idx) => leftTankLeft + 155 + (idx * pumpSpacing));
   const pumpCenters = pumpLefts.map(left => left + 130);
@@ -223,15 +234,19 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
   const numPumps = visiblePumps.length || 1; // Minimum width calculation safety
   let rightTankLeft = leftTankLeft + 155 + (numPumps * pumpSpacing) + 17;
   let outletEndX = rightTankLeft + 2;
-  
+
   const canvasWidth = rightTankLeft + (isTankOutlet ? 150 : 100);
 
   const fromTankLabelTop = isTankOutlet ? '530px' : '495px';
   const tankBottomY = isTankOutlet ? 501 : 431;
   const manifoldY = isTankOutlet ? 85 : 55;
-
   return (
-    <div className="min-h-screen bg-[#021B3A] p-4 md:p-6 lg:p-8 overflow-hidden font-sans">
+    <div
+      className="min-h-screen p-4 md:p-6 lg:p-8 overflow-hidden font-sans relative"
+      style={{
+        backgroundColor: '#000000'
+      }}
+    >
       <ScadaHeader title={title} />
 
       <div className="flex flex-col lg:flex-row gap-6">
@@ -253,7 +268,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
               isConnected={dashboardData.transmitterConnected}
             />
           )}
-          <DelaySettingsCard 
+          <DelaySettingsCard
             pumpOnDelay={dashboardData.pumpOnDelay}
             nextFillingTime={dashboardData.nextFillingTime}
             overloadResetDelay={dashboardData.overloadResetDelay}
@@ -264,7 +279,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
 
         {/* CENTER PROCESS FLOW */}
         <div className="w-full flex-initial flex flex-col overflow-hidden max-w-full" style={{ flexBasis: `${canvasWidth}px` }}>
-          <div 
+          <div
             ref={scrollRef}
             className={`w-full overflow-x-auto pb-2 custom-scrollbar relative rounded-[20px] ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
             onMouseDown={handleMouseDown}
@@ -278,12 +293,12 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
                   {/* Draw Pipes via absolute overlay */}
                   <div className="absolute inset-0 z-0">
                     <div className="absolute text-[10px] text-gray-400 font-bold whitespace-nowrap leading-tight text-left z-0" style={{ left: `${leftTankLeft}px`, top: fromTankLabelTop }}>FROM<br />TANK</div>
-                    
+
                     {visiblePumps.length > 0 && (
                       <>
                         <Pipe x1={leftTankCenter} y1={tankBottomY} x2={leftTankCenter} y2={630} flowDirection={hasFlow ? 'forward' : 'none'} />
                         <Pipe x1={leftTankCenter} y1={630} x2={pumpCenters[0]} y2={630} flowDirection={hasFlow ? 'forward' : 'none'} />
-                        
+
                         {/* Connecting Inlet manifold to all pumps */}
                         {visiblePumps.map((p, i) => {
                           const isRunning = p.status === 'RUNNING';
@@ -293,7 +308,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
                             <React.Fragment key={`inlet-pipe-${p.id}`}>
                               {/* Horizontal pipe between pumps */}
                               {!isLast && (
-                                <Pipe x1={pumpCenters[i]} y1={630} x2={pumpCenters[i+1]} y2={630} flowDirection={nextRunning ? 'forward' : 'none'} />
+                                <Pipe x1={pumpCenters[i]} y1={630} x2={pumpCenters[i + 1]} y2={630} flowDirection={nextRunning ? 'forward' : 'none'} />
                               )}
                               {/* Vertical pipe up to pump */}
                               <Pipe x1={pumpCenters[i]} y1={630} x2={pumpCenters[i]} y2={435} flowDirection={isRunning ? 'forward' : 'none'} />
@@ -311,17 +326,17 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
                               {/* Vertical pipe up from pump */}
                               <Pipe x1={pumpCenters[i]} y1={145} x2={pumpCenters[i]} y2={manifoldY} flowDirection={isRunning ? 'forward' : 'none'} />
                               {/* Horizontal pipe to next pump or exit */}
-                              <Pipe 
-                                x1={pumpCenters[i]} 
-                                y1={manifoldY} 
-                                x2={isLast ? (isTankOutlet ? rightTankLeft + 64 : outletEndX) : pumpCenters[i+1]} 
-                                y2={manifoldY} 
-                                flowDirection={currentOrPrevRunning ? 'forward' : 'none'} 
+                              <Pipe
+                                x1={pumpCenters[i]}
+                                y1={manifoldY}
+                                x2={isLast ? (isTankOutlet ? rightTankLeft + 64 : outletEndX) : pumpCenters[i + 1]}
+                                y2={manifoldY}
+                                flowDirection={currentOrPrevRunning ? 'forward' : 'none'}
                               />
                             </React.Fragment>
                           );
                         })}
-                        
+
                         {/* Final tank connection */}
                         {isTankOutlet && (
                           <Pipe x1={rightTankLeft + 64} y1={manifoldY} x2={rightTankLeft + 64} y2={manifoldY + 55} flowDirection={hasFlow ? 'forward' : 'none'} />
@@ -331,7 +346,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
                   </div>
 
                   {/* Elements */}
-                  <div className="absolute z-10" style={{ left: `${leftTankLeft}px`, top: isTankOutlet ? '245px' : '175px' }}>
+                  <div className="absolute z-10" style={{ left: `${leftTankLeft}px`, top: '285px' }}>
                     <Tank level={dashboardData.waterAvailable ? 100 : 0} title={inletTankTitle} />
                   </div>
 
@@ -339,7 +354,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
                     <>
                       <div className="absolute z-10 w-32 flex justify-center text-center" style={{ left: `${rightTankLeft}px`, top: '45px' }}>
                         <h3 className="text-white text-xs font-bold tracking-widest uppercase leading-tight">
-                          {outletTitle.split(' ').map((word, index) => (
+                          {outletTitle.split(' ').map((word: string, index: number) => (
                             <React.Fragment key={index}>
                               {word}
                               {index < outletTitle.split(' ').length - 1 && <br />}
@@ -359,14 +374,14 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
 
                   {visiblePumps.map((p, idx) => (
                     <div key={p.id} className="absolute top-[145px] z-10" style={{ left: `${pumpLefts[idx]}px` }}>
-                      <PumpUnit 
-                        name={p.name} 
-                        status={p.status} 
-                        currentR={p.currentR} 
-                        currentY={p.currentY} 
-                        currentB={p.currentB} 
-                        mode={p.mode} 
-                        runOnTime={p.runOnTime} 
+                      <PumpUnit
+                        name={p.name}
+                        status={p.status}
+                        currentR={p.currentR}
+                        currentY={p.currentY}
+                        currentB={p.currentB}
+                        mode={p.mode}
+                        runOnTime={p.runOnTime}
                       />
                     </div>
                   ))}

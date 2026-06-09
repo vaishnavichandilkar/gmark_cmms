@@ -7,16 +7,16 @@ interface TankProps {
   title?: string;
 }
 
-export const Tank: React.FC<TankProps> = ({ 
-  level, 
-  title = 'Overhead Tank' 
+export const Tank: React.FC<TankProps> = ({
+  level,
+  title = 'Overhead Tank'
 }) => {
   const isAvailable = level > 0;
 
   return (
     <div className="relative w-32 h-64 flex flex-col items-center">
       {title && (
-        <h3 className="text-white text-xs font-bold tracking-widest uppercase mb-4 text-center leading-tight">
+        <h3 className="text-white text-xs font-semibold tracking-widest uppercase mb-4 text-center leading-tight">
           {title.split(' ').map((word, index) => (
             <React.Fragment key={index}>
               {word}
@@ -25,70 +25,113 @@ export const Tank: React.FC<TankProps> = ({
           ))}
         </h3>
       )}
-      
+
       {/* 3D Tank container */}
       <div className="relative w-full h-full flex-1">
-        {/* Tank background (glass effect) */}
-        <div className="absolute inset-0 bg-[#0A2D5F]/30 border-2 border-[rgba(255,255,255,0.1)] rounded-[16px] overflow-hidden" style={{ boxShadow: 'inset 0 0 20px rgba(0,0,0,0.5)' }}>
+        {/* Tank background (liquid glass effect) */}
+        <div 
+          className="absolute inset-0 rounded-[16px] overflow-hidden shadow-[inset_0_0_24px_rgba(0,0,0,0.6),0_8px_32px_rgba(0,0,0,0.5)] border-l-2 border-r-2 border-t border-b border-l-white/10 border-r-white/10 border-t-white/4 border-b-white/4 bg-white/[0.02]"
+        >
+          {/* Glass Highlights */}
+          <div className="absolute top-0 bottom-0 left-3 w-2 bg-gradient-to-r from-white/10 to-transparent rounded-full z-20 pointer-events-none" />
+          <div className="absolute top-0 bottom-0 right-3 w-1.5 bg-gradient-to-l from-white/5 to-transparent rounded-full z-20 pointer-events-none" />
+
           {/* Water fill animation */}
-          <motion.div 
-            className="absolute bottom-0 w-full opacity-80"
+          <motion.div
+            className="absolute bottom-0 w-full"
             initial={{ height: '0%' }}
             animate={{ height: `${level}%` }}
             transition={{ type: "spring", stiffness: 50, damping: 20 }}
           >
-            {/* Wavy Surface Layer 1 (Back - Big Swell) */}
-            <div className="absolute top-[-18px] left-0 w-[400%] h-[42px] opacity-40">
-              <motion.div 
-                className="flex w-full h-full"
-                animate={{ x: ["-50%", "0%"] }}
-                transition={{ repeat: Infinity, ease: "linear", duration: 5 }}
-              >
-                <svg className="w-1/2 h-full text-[#00E5FF]" preserveAspectRatio="none" viewBox="0 0 100 150" fill="currentColor">
-                  <path d="M0,50 C25,0 75,100 100,50 L100,150 L0,150 Z" />
-                </svg>
-                <svg className="w-1/2 h-full text-[#00E5FF]" preserveAspectRatio="none" viewBox="0 0 100 150" fill="currentColor">
-                  <path d="M0,50 C25,0 75,100 100,50 L100,150 L0,150 Z" />
-                </svg>
-              </motion.div>
-            </div>
+            {/* Top water ellipse to show 3D volume */}
+            {level > 0 && (
+              <div className="absolute top-[-8px] left-0 w-full h-4 rounded-[50%] bg-[#2171B5] border-t border-[#3A95E8] shadow-[inset_0_0_8px_rgba(0,0,0,0.2)] z-20 pointer-events-none" />
+            )}
 
-            {/* Wavy Surface Layer 2 (Front - Big Swell) */}
-            <div className="absolute top-[-15px] left-0 w-[400%] h-[36px]">
-              <motion.div 
-                className="flex w-full h-full"
-                animate={{ x: ["0%", "-50%"] }}
-                transition={{ repeat: Infinity, ease: "linear", duration: 4 }}
-              >
-                <svg className="w-1/2 h-full text-[#00A3FF]" preserveAspectRatio="none" viewBox="0 0 100 150" fill="currentColor">
-                  <path d="M0,50 C25,0 75,100 100,50 L100,150 L0,150 Z" />
-                </svg>
-                <svg className="w-1/2 h-full text-[#00A3FF]" preserveAspectRatio="none" viewBox="0 0 100 150" fill="currentColor">
-                  <path d="M0,50 C25,0 75,100 100,50 L100,150 L0,150 Z" />
-                </svg>
-              </motion.div>
-            </div>
-
-            {/* Solid fill below the wave */}
-            <div className="absolute top-[14px] bottom-0 left-0 w-full bg-gradient-to-b from-[#00A3FF] to-[#0055FF]" />
+            {/* Refractive water body with background blur */}
+            <div className="absolute top-0 bottom-0 left-0 w-full bg-gradient-to-b from-[#1C4E80] to-[#0F2A4A] backdrop-blur-[8px]" />
+            
+            {/* Inner cylinder highlights inside water */}
+            <div className="absolute top-0 bottom-0 left-3 w-1 bg-white/10 rounded-full z-10 pointer-events-none" />
           </motion.div>
         </div>
 
         {/* Tank top rim */}
-        <div className="absolute top-[-8px] w-full h-4 rounded-[50%] border-2 border-[rgba(255,255,255,0.2)] bg-[#0A2D5F]/50"></div>
+        <div className="absolute top-[-8px] w-full h-4 rounded-[50%] border-t border-l border-r border-white/10 bg-white/5 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] z-20 pointer-events-none"></div>
         {/* Tank bottom base */}
-        <div className="absolute bottom-[-8px] w-full h-4 rounded-[50%] bg-gradient-to-b from-[rgba(255,255,255,0.2)] to-[#0A2D5F] border border-[rgba(255,255,255,0.1)]"></div>
+        <div className="absolute bottom-[-8px] w-full h-4 rounded-[50%] bg-gradient-to-b from-white/[0.04] to-black/90 border-b border-l border-r border-white/5 z-20 pointer-events-none"></div>
+
+        {/* Curved Pipe from the left */}
+        <div className="absolute top-[-36px] left-[-40px] z-20 pointer-events-none">
+          <svg width="114" height="60" viewBox="0 0 114 60">
+            <defs>
+              <linearGradient id="pipeGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="rgba(255,255,255,0.05)" />
+                <stop offset="100%" stopColor="rgba(255,255,255,0.01)" />
+              </linearGradient>
+            </defs>
+            {/* Pipe Background */}
+            <path 
+              d="M 0 16 L 84 16 A 20 20 0 0 1 104 36 L 104 60" 
+              fill="none" 
+              stroke="url(#pipeGradient)" 
+              strokeWidth="16" 
+            />
+            {/* Pipe Outer Border */}
+            <path 
+              d="M 0 8 L 84 8 A 28 28 0 0 1 112 36 L 112 60" 
+              fill="none" 
+              stroke="rgba(255,255,255,0.15)" 
+              strokeWidth="1" 
+            />
+            {/* Pipe Inner Border */}
+            <path 
+              d="M 0 24 L 84 24 A 12 12 0 0 1 96 36 L 96 60" 
+              fill="none" 
+              stroke="rgba(255,255,255,0.15)" 
+              strokeWidth="1" 
+            />
+            
+            {/* Animated Water Flow Dashes */}
+            {isAvailable && (
+              <path 
+                d="M 0 16 L 84 16 A 20 20 0 0 1 104 36 L 104 55" 
+                fill="none" 
+                stroke="#14F195"
+                strokeWidth="3.5"
+                strokeLinecap="round"
+                strokeDasharray="8 12"
+                className="animate-[pipeFlow_0.8s_linear_infinite]"
+              />
+            )}
+            {/* Downward solid water stream into the tank */}
+            {isAvailable && (
+              <line 
+                x1="104" y1="40" x2="104" y2="80" 
+                stroke="#3A95E8" 
+                strokeWidth="2" 
+                className="opacity-70"
+              />
+            )}
+          </svg>
+          <style>{`
+            @keyframes pipeFlow {
+              from { stroke-dashoffset: 20; }
+              to { stroke-dashoffset: 0; }
+            }
+          `}</style>
+        </div>
 
         {/* Status text overlay */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 drop-shadow-md">
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
           {isAvailable ? (
-            <div className="flex items-center justify-center text-white bg-black/30 px-3 py-2 rounded min-w-[80px]">
-              <span className="text-[11px] font-bold text-center leading-tight uppercase">WATER<br/>AVAILABLE</span>
+            <div className="flex items-center justify-center text-[#30D158] bg-transparent border border-[#30D158]/70 px-4 py-2.5 rounded-2xl min-w-[100px] shadow-[inset_0_0_15px_rgba(48,209,88,0.15),0_4px_10px_rgba(0,0,0,0.3)] backdrop-blur-sm">
+              <span className="text-[11px] font-semibold text-center leading-tight uppercase tracking-wide">WATER<br />AVAILABLE</span>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center text-red-500 bg-black/40 px-3 py-2 rounded min-w-[80px]">
-              <Droplets size={22} className="mb-1" />
-              <span className="text-[10px] font-bold text-center leading-tight uppercase">WATER NOT<br/>AVAILABLE</span>
+            <div className="flex flex-col items-center justify-center text-[#FF453A] bg-transparent border border-[#FF453A]/70 px-4 py-2.5 rounded-2xl min-w-[100px] shadow-[inset_0_0_15px_rgba(255,69,58,0.15),0_4px_10px_rgba(0,0,0,0.3)] backdrop-blur-sm">
+              <Droplets size={20} className="mb-1 text-[#FF453A] opacity-80" />
+              <span className="text-[10px] font-semibold text-center leading-tight uppercase tracking-wide">WATER NOT<br />AVAILABLE</span>
             </div>
           )}
         </div>

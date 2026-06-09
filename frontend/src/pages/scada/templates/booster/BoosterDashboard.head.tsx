@@ -346,10 +346,9 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
                     <Pipe x1={leftTankCenter} y1={tankBottomY} x2={leftTankCenter} y2={630} flowDirection={hasFlow ? 'forward' : 'none'} />
                     <Pipe x1={leftTankCenter} y1={630} x2={pump1Center} y2={630} flowDirection={hasFlow ? 'forward' : 'none'} />
                     
-                    <Pipe x1={pump1Center} y1={630} x2={pump2Center} y2={630} flowDirection={pump2Running || pump3Running ? 'forward' : 'none'} />
-                    <Pipe x1={pump1Center} y1={630} x2={pump1Center} y2={435} flowDirection={pump1Running ? 'forward' : 'none'} />
+                    <Pipe x1={pump1Center} y1={630} x2={pump1Center} y2={555} flowDirection={pump1Running ? 'forward' : 'none'} />
                     
-                    <Pipe x1={pump2Center} y1={630} x2={pump2Center} y2={435} flowDirection={pump2Running ? 'forward' : 'none'} />
+                    <Pipe x1={pump2Center} y1={630} x2={pump2Center} y2={555} flowDirection={pump2Running ? 'forward' : 'none'} />
                     <Pipe x1={pump1Center} y1={145} x2={pump1Center} y2={manifoldY} flowDirection={pump1Running ? 'forward' : 'none'} />
                     <Pipe x1={pump2Center} y1={145} x2={pump2Center} y2={manifoldY} flowDirection={pump2Running ? 'forward' : 'none'} />
                     <Pipe x1={pump1Center} y1={manifoldY} x2={pump2Center} y2={manifoldY} flowDirection={pump1Running ? 'forward' : 'none'} />
@@ -357,7 +356,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
                     {hasPump3 && (
                       <>
                         <Pipe x1={pump2Center} y1={630} x2={pump3Center} y2={630} flowDirection={pump3Running ? 'forward' : 'none'} />
-                        <Pipe x1={pump3Center} y1={630} x2={pump3Center} y2={435} flowDirection={pump3Running ? 'forward' : 'none'} />
+                        <Pipe x1={pump3Center} y1={630} x2={pump3Center} y2={555} flowDirection={pump3Running ? 'forward' : 'none'} />
                         <Pipe x1={pump3Center} y1={145} x2={pump3Center} y2={manifoldY} flowDirection={pump3Running ? 'forward' : 'none'} />
                         <Pipe x1={pump2Center} y1={manifoldY} x2={pump3Center} y2={manifoldY} flowDirection={pump1Running || pump2Running ? 'forward' : 'none'} />
                       </>

@@ -60,7 +60,7 @@ export function FacilityOverview() {
   const percentageOnline = stats.totalDevices > 0 ? ((stats.onlineDevices / stats.totalDevices) * 100).toFixed(1) : '0';
 
   return (
-    <div className="pb-12">
+    <div className="min-h-[calc(100vh-3.5rem)] lg:min-h-screen bg-black -m-4 sm:-m-6 md:-m-8 p-4 sm:p-6 md:p-8 pb-12 text-white relative">
       <Header facilityName={facilityName} />
 
       {/* KPIs */}
@@ -109,10 +109,10 @@ export function FacilityOverview() {
         <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
           {(['all', 'healthy', 'warning', 'critical'] as const).map(f => {
             const colors = {
-              all: 'bg-blue-600 text-white',
-              healthy: 'bg-white text-gray-600',
-              warning: 'bg-white text-gray-600',
-              critical: 'bg-white text-gray-600'
+              all: 'bg-blue-600 text-white border-blue-600',
+              healthy: 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10 hover:text-white',
+              warning: 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10 hover:text-white',
+              critical: 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10 hover:text-white'
             };
             const dots = {
               all: <div className="w-2 h-2 rounded-full bg-white mr-2" />,
@@ -124,10 +124,8 @@ export function FacilityOverview() {
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`flex items-center px-5 py-2.5 rounded-full text-xs font-bold capitalize transition-all border ${
-                  filter === f 
-                    ? colors.all + ' border-blue-600 shadow-sm'
-                    : colors[f] + ' border-gray-200 hover:bg-gray-50'
+                className={`flex items-center px-5 py-2.5 rounded-full text-xs font-bold capitalize transition-all border shadow-sm ${
+                  filter === f ? colors.all : colors[f]
                 }`}
               >
                 {dots[f]}
