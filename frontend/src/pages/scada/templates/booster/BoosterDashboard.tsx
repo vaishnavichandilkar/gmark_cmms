@@ -15,9 +15,6 @@ export interface BoosterDashboardProps {
   title: string;
   panelId: string;
   buildingName: string;
-  pump1Id?: string;
-  pump2Id?: string;
-  pump3Id?: string;
   inletTankTitle?: string;
   outletType?: 'label' | 'tank';
   outletTitle?: string;
@@ -27,18 +24,14 @@ export interface BoosterDashboardProps {
 interface PumpState {
   id: string;
   name: string;
-  status: 'ONLINE' | 'OFFLINE' | 'RUNNING' | 'FAULT' | 'WARNING';
+  status: 'ONLINE' | 'OFFLINE' | 'RUNNING' | 'FAULT' | 'WARNING' | 'OFF';
   currentR: number;
   currentY: number;
   currentB: number;
   mode: 'AUTO' | 'MANUAL' | 'OFF';
   runOnTime: string;
   faults: number;
-}
-
-interface DeviceUpdate {
-  deviceId: string;
-  registers: any;
+  isVisible: boolean; // Based on motorXConfigActivate
 }
 
 interface DashboardState {
@@ -51,15 +44,16 @@ interface DashboardState {
   waterAvailable: boolean;
   deviceActive: boolean;
   inputPowerFaultType: number;
+  pumpOnDelay: number;
+  nextFillingTime: number;
+  overloadResetDelay: number;
+  underloadResetDelay: number;
 }
 
 export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
   title,
   panelId,
   buildingName,
-  pump1Id = '20260508012',
-  pump2Id = '20260508045',
-  pump3Id,
   inletTankTitle = 'Inlet Water',
   outletType = 'label',
   outletTitle = 'OUTLET',
@@ -67,25 +61,19 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
 }) => {
   const deviceTopic = panelId;
 
-  const [pump1, setPump1] = useState<PumpState>({
-    id: pump1Id, name: 'Pump 1', status: 'OFFLINE',
-    currentR: 0, currentY: 0, currentB: 0, mode: 'AUTO', runOnTime: '0:0 Hrs', faults: 0
-  });
-
-  const [pump2, setPump2] = useState<PumpState>({
-    id: pump2Id, name: 'Pump 2', status: 'OFFLINE',
-    currentR: 0, currentY: 0, currentB: 0, mode: 'AUTO', runOnTime: '0:0 Hrs', faults: 0
-  });
-
-  const [pump3, setPump3] = useState<PumpState>({
-    id: pump3Id || '', name: 'Pump 3', status: 'OFFLINE',
-    currentR: 0, currentY: 0, currentB: 0, mode: 'AUTO', runOnTime: '0:0 Hrs', faults: 0
-  });
+  // Initialize all 4 pumps
+  const [pumps, setPumps] = useState<PumpState[]>([
+    { id: '1', name: 'Pump 1', status: 'OFFLINE', currentR: 0, currentY: 0, currentB: 0, mode: 'AUTO', runOnTime: '0:0 Hrs', faults: 0, isVisible: false },
+    { id: '2', name: 'Pump 2', status: 'OFFLINE', currentR: 0, currentY: 0, currentB: 0, mode: 'AUTO', runOnTime: '0:0 Hrs', faults: 0, isVisible: false },
+    { id: '3', name: 'Pump 3', status: 'OFFLINE', currentR: 0, currentY: 0, currentB: 0, mode: 'AUTO', runOnTime: '0:0 Hrs', faults: 0, isVisible: false },
+    { id: '4', name: 'Pump 4', status: 'OFFLINE', currentR: 0, currentY: 0, currentB: 0, mode: 'AUTO', runOnTime: '0:0 Hrs', faults: 0, isVisible: false },
+  ]);
 
   const [dashboardData, setDashboardData] = useState<DashboardState>({
     averageVoltage: 0, ryVoltage: 0, ybVoltage: 0, rbVoltage: 0,
     pressureBar: 0, transmitterConnected: false, waterAvailable: false,
-    deviceActive: false, inputPowerFaultType: 0
+    deviceActive: false, inputPowerFaultType: 0,
+    pumpOnDelay: 0, nextFillingTime: 0, overloadResetDelay: 0, underloadResetDelay: 0
   });
 
   // Drag-to-scroll state and handlers
@@ -108,194 +96,135 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
     if (!isDragging || !scrollRef.current) return;
     e.preventDefault();
     const x = e.pageX - scrollRef.current.offsetLeft;
-    const walk = (x - startX) * 2; // Scroll-fast multiplier
+    const walk = (x - startX) * 2;
     scrollRef.current.scrollLeft = scrollLeft - walk;
   };
 
-  useEffect(() => {
-    const fetchPromises = [
-      fetch(`http://localhost:3000/devices/${pump1Id}/dashboard`).then(r => r.json()).catch(() => null),
-      fetch(`http://localhost:3000/devices/${pump2Id}/dashboard`).then(r => r.json()).catch(() => null)
-    ];
-    if (pump3Id) {
-      fetchPromises.push(fetch(`http://localhost:3000/devices/${pump3Id}/dashboard`).then(r => r.json()).catch(() => null));
-    }
+  const processPayload = (data: any, isInitial: boolean) => {
+    setPumps(prev => {
+      const newPumps = [...prev];
+      
+      // Helper to safely extract boolean
+      const getBool = (val: any) => typeof val === 'boolean' ? val : (Number(val) > 0);
 
-    Promise.all(fetchPromises).then((results) => {
-      const d1 = results[0];
-      const d2 = results[1];
-      const d3 = pump3Id ? results[2] : null;
+      for (let i = 0; i < 4; i++) {
+        const n = i + 1;
+        const statusKey = `motor${n}Status`;
+        const rCurrKey = `motor${n}RCurrent`;
+        const yCurrKey = `motor${n}YCurrent`;
+        const bCurrKey = `motor${n}BCurrent`;
+        const faultKey = `pump${n}FaultType`;
+        const timeKey = `motor${n}RunTime`;
+        const configKey = `motor${n}ConfigActivate`;
 
-      if (d1 && !d1.error) {
-        const data = d1.latestData || {};
-        setPump1((prev: PumpState) => ({
-          ...prev,
-          status: data.motor1Status ? 'RUNNING' : d1.status === 'online' ? 'ONLINE' : 'OFFLINE',
-          currentR: data.motor1RCurrent || 0,
-          currentY: data.motor1YCurrent || 0,
-          currentB: data.motor1BCurrent || 0,
-          mode: 'AUTO',
-          faults: data.pump1FaultType || 0,
-          runOnTime: `${data.motor1RunTime || 0} Hrs`
-        }));
-        setDashboardData({
-          averageVoltage: data.averageVoltage || 0,
-          ryVoltage: data.ryVoltage || 0,
-          ybVoltage: data.ybVoltage || 0,
-          rbVoltage: data.rbVoltage || 0,
-          pressureBar: data.pressureBar || 0,
-          transmitterConnected: data.transmitterConnected || false,
-          waterAvailable: data.waterAvailable || false,
-          deviceActive: data.deviceActive || false,
-          inputPowerFaultType: data.inputPowerFaultType || 0
-        });
+        const p = { ...newPumps[i] };
+        
+        if (data[rCurrKey] !== undefined) p.currentR = Number(data[rCurrKey]) || 0;
+        if (data[yCurrKey] !== undefined) p.currentY = Number(data[yCurrKey]) || 0;
+        if (data[bCurrKey] !== undefined) p.currentB = Number(data[bCurrKey]) || 0;
+        if (data[faultKey] !== undefined) p.faults = Number(data[faultKey]) || 0;
+        if (data[timeKey] !== undefined) p.runOnTime = `${data[timeKey]} Hrs`;
+        
+        if (data[configKey] !== undefined) {
+          p.isVisible = getBool(data[configKey]);
+        }
+
+        // Apply Priority Logic
+        if (p.faults > 0) {
+          p.status = 'FAULT';
+        } else if (data[statusKey] !== undefined) {
+          p.status = getBool(data[statusKey]) ? 'RUNNING' : 'OFF';
+        } else if (isInitial) {
+          // If this is initial load and no status was provided but pump doesn't have a fault, fallback to OFF
+          p.status = 'OFF';
+        }
+
+        newPumps[i] = p;
       }
-      if (d2 && !d2.error) {
-        const data = d2.latestData || {};
-        setPump2((prev: PumpState) => ({
-          ...prev,
-          status: data.motor2Status ? 'RUNNING' : d2.status === 'online' ? 'ONLINE' : 'OFFLINE',
-          currentR: data.motor2RCurrent || 0,
-          currentY: data.motor2YCurrent || 0,
-          currentB: data.motor2BCurrent || 0,
-          mode: 'AUTO',
-          faults: data.pump2FaultType || 0,
-          runOnTime: `${data.motor2RunTime || 0} Hrs`
-        }));
-      }
-      if (d3 && !d3.error) {
-        const data = d3.latestData || {};
-        setPump3((prev: PumpState) => ({
-          ...prev,
-          status: data.motor1Status ? 'RUNNING' : d3.status === 'online' ? 'ONLINE' : 'OFFLINE',
-          currentR: data.motor1RCurrent || 0,
-          currentY: data.motor1YCurrent || 0,
-          currentB: data.motor1BCurrent || 0,
-          mode: 'AUTO',
-          faults: data.pump1FaultType || 0,
-          runOnTime: `${data.motor1RunTime || 0} Hrs`
-        }));
-      }
+      return newPumps;
     });
+
+    setDashboardData(prev => ({
+      ...prev,
+      averageVoltage: data.averageVoltage ?? prev.averageVoltage,
+      ryVoltage: data.ryVoltage ?? prev.ryVoltage,
+      ybVoltage: data.ybVoltage ?? prev.ybVoltage,
+      rbVoltage: data.rbVoltage ?? prev.rbVoltage,
+      pressureBar: data.pressureBar ?? prev.pressureBar,
+      transmitterConnected: data.transmitterConnected ?? prev.transmitterConnected,
+      waterAvailable: data.waterAvailable ?? prev.waterAvailable,
+      deviceActive: data.deviceActive ?? prev.deviceActive,
+      inputPowerFaultType: data.inputPowerFaultType ?? prev.inputPowerFaultType,
+      pumpOnDelay: data.pumpOnDelay ?? prev.pumpOnDelay,
+      nextFillingTime: data.nextFillingTime ?? prev.nextFillingTime,
+      overloadResetDelay: data.overloadResetDelay ?? prev.overloadResetDelay,
+      underloadResetDelay: data.underloadResetDelay ?? prev.underloadResetDelay
+    }));
+  };
+
+  useEffect(() => {
+    if (!panelId) return;
+
+    fetch(`http://localhost:3000/devices/${panelId}/dashboard`)
+      .then(r => r.json())
+      .then(res => {
+        if (res && !res.error && res.latestData) {
+          processPayload(res.latestData, true);
+        }
+      })
+      .catch(console.error);
 
     const socket = io('http://localhost:3000');
     
-    if (deviceTopic) {
+    socket.on('connect', () => {
       socket.emit('join-device', { topic: deviceTopic });
-    }
+    });
 
-    socket.on('device-update', (update: DeviceUpdate) => {
-      const data = update.registers || {};
-
-      if (update.deviceId === pump1Id) {
-        setPump1((prev: PumpState) => ({
-          ...prev,
-          status: data.motor1Status ? 'RUNNING' : 'ONLINE',
-          currentR: data.motor1RCurrent ?? prev.currentR,
-          currentY: data.motor1YCurrent ?? prev.currentY,
-          currentB: data.motor1BCurrent ?? prev.currentB,
-          faults: data.pump1FaultType ?? prev.faults,
-          runOnTime: data.motor1RunTime ? `${data.motor1RunTime} Hrs` : prev.runOnTime
-        }));
-        setDashboardData(prev => ({
-          ...prev,
-          averageVoltage: data.averageVoltage ?? prev.averageVoltage,
-          ryVoltage: data.ryVoltage ?? prev.ryVoltage,
-          ybVoltage: data.ybVoltage ?? prev.ybVoltage,
-          rbVoltage: data.rbVoltage ?? prev.rbVoltage,
-          pressureBar: data.pressureBar ?? prev.pressureBar,
-          transmitterConnected: data.transmitterConnected ?? prev.transmitterConnected,
-          waterAvailable: data.waterAvailable ?? prev.waterAvailable,
-          deviceActive: data.deviceActive ?? prev.deviceActive,
-          inputPowerFaultType: data.inputPowerFaultType ?? prev.inputPowerFaultType
-        }));
-      }
-      if (update.deviceId === pump2Id) {
-        setPump2((prev: PumpState) => ({
-          ...prev,
-          status: data.motor2Status ? 'RUNNING' : 'ONLINE',
-          currentR: data.motor2RCurrent ?? prev.currentR,
-          currentY: data.motor2YCurrent ?? prev.currentY,
-          currentB: data.motor2BCurrent ?? prev.currentB,
-          faults: data.pump2FaultType ?? prev.faults,
-          runOnTime: data.motor2RunTime ? `${data.motor2RunTime} Hrs` : prev.runOnTime
-        }));
-      }
-      if (pump3Id && update.deviceId === pump3Id) {
-        setPump3((prev: PumpState) => ({
-          ...prev,
-          status: data.motor1Status ? 'RUNNING' : 'ONLINE',
-          currentR: data.motor1RCurrent ?? prev.currentR,
-          currentY: data.motor1YCurrent ?? prev.currentY,
-          currentB: data.motor1BCurrent ?? prev.currentB,
-          faults: data.pump1FaultType ?? prev.faults,
-          runOnTime: data.motor1RunTime ? `${data.motor1RunTime} Hrs` : prev.runOnTime
-        }));
+    socket.on('device-update', (update: { deviceId: string, registers: any }) => {
+      if (update.deviceId === panelId && update.registers) {
+        processPayload(update.registers, false);
       }
     });
 
     return () => {
-      if (deviceTopic) {
-        socket.emit('leave-device', { topic: deviceTopic });
-      }
+      socket.emit('leave-device', { topic: deviceTopic });
       socket.disconnect();
     };
-  }, [pump1Id, pump2Id, pump3Id, deviceTopic]);
+  }, [panelId, deviceTopic]);
 
-  // FORCE PUMP 2 AND 3 OFF FOR DEMO
-  const displayPump2 = { ...pump2, status: 'OFFLINE' as PumpState['status'], mode: 'OFF' as PumpState['mode'], currentR: 0, currentY: 0, currentB: 0 };
-  const displayPump3 = { ...pump3, status: 'OFFLINE' as PumpState['status'], mode: 'OFF' as PumpState['mode'], currentR: 0, currentY: 0, currentB: 0 };
-
-  const totalFaults = pump1.faults + displayPump2.faults + (pump3Id ? displayPump3.faults : 0);
-
-  // Pipeline Flow Logic
-  const pump1Running = pump1.status === 'RUNNING' || pump1.status === 'ONLINE';
-  const pump2Running = displayPump2.status === 'RUNNING' || displayPump2.status === 'ONLINE';
-  const pump3Running = pump3Id && (displayPump3.status === 'RUNNING' || displayPump3.status === 'ONLINE');
-  const hasFlow = pump1Running || pump2Running || pump3Running;
-
-  // Dynamic layout calculations based on outletType and 3rd pump
-  const isTankOutlet = outletType === 'tank';
-  const hasPump3 = !!pump3Id;
-  const canvasWidth = hasPump3 ? 1150 : 880;
+  // Filter visible pumps dynamically
+  const visiblePumps = pumps.filter(p => p.isVisible);
   
-  let leftTankLeft = 20;
-  let pump1Left = 175;
-  let pump2Left = 445;
-  let pump3Left = 0;
-  let rightTankLeft = 732;
-  let outletEndX = 734;
+  // To avoid breaking the UI before data arrives or if all are disabled, 
+  // we can show a placeholder or just render whatever is visible.
+  
+  const totalFaults = visiblePumps.reduce((sum, p) => sum + p.faults, 0);
+  const totalCurrentR = visiblePumps.reduce((sum, p) => sum + p.currentR, 0);
+  const totalCurrentY = visiblePumps.reduce((sum, p) => sum + p.currentY, 0);
+  const totalCurrentB = visiblePumps.reduce((sum, p) => sum + p.currentB, 0);
+  const totalPower = dashboardData.averageVoltage > 0 
+    ? (totalCurrentR * dashboardData.averageVoltage * 1.732 * 0.8 / 1000) 
+    : 0;
 
-  if (hasPump3 && isTankOutlet) {
-    leftTankLeft = 20;
-    pump1Left = 175;
-    pump2Left = 445;
-    pump3Left = 715;
-    rightTankLeft = 1002;
-    outletEndX = 1004;
-  } else if (hasPump3 && !isTankOutlet) {
-    leftTankLeft = 20;
-    pump1Left = 175;
-    pump2Left = 445;
-    pump3Left = 715;
-    outletEndX = 1002;
-  } else if (!hasPump3 && isTankOutlet) {
-    leftTankLeft = 20;
-    pump1Left = 175;
-    pump2Left = 445;
-    rightTankLeft = 732;
-    outletEndX = 734;
-  } else if (!hasPump3 && !isTankOutlet) {
-    leftTankLeft = 20;
-    pump1Left = 175;
-    pump2Left = 445;
-    outletEndX = 732;
-  }
+  const hasFlow = visiblePumps.some(p => p.status === 'RUNNING');
 
+  // Dynamic layout calculations
+  const pumpSpacing = 270;
+  const isTankOutlet = outletType === 'tank';
+  
+  const leftTankLeft = 20;
   const leftTankCenter = leftTankLeft + 64;
-  const pump1Center = pump1Left + 130;
-  const pump2Center = pump2Left + 130;
-  const pump3Center = pump3Left + 130;
+  
+  // Calculate X positions for pumps based on index
+  const pumpLefts = visiblePumps.map((_, idx) => leftTankLeft + 155 + (idx * pumpSpacing));
+  const pumpCenters = pumpLefts.map(left => left + 130);
+
+  // Determine canvas width based on the last pump
+  const numPumps = visiblePumps.length || 1; // Minimum width calculation safety
+  let rightTankLeft = leftTankLeft + 155 + (numPumps * pumpSpacing) + 17;
+  let outletEndX = rightTankLeft + 2;
+  
+  const canvasWidth = rightTankLeft + (isTankOutlet ? 150 : 100);
 
   const fromTankLabelTop = isTankOutlet ? '530px' : '495px';
   const tankBottomY = isTankOutlet ? 501 : 431;
@@ -313,10 +242,10 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
             voltageR={dashboardData.ryVoltage}
             voltageY={dashboardData.ybVoltage}
             voltageB={dashboardData.rbVoltage}
-            currentR={pump1.currentR + pump2.currentR + (hasPump3 ? pump3.currentR : 0)}
-            currentY={pump1.currentY + pump2.currentY + (hasPump3 ? pump3.currentY : 0)}
-            currentB={pump1.currentB + pump2.currentB + (hasPump3 ? pump3.currentB : 0)}
-            power={dashboardData.averageVoltage > 0 ? ((pump1.currentR + pump2.currentR + (hasPump3 ? pump3.currentR : 0)) * dashboardData.averageVoltage * 1.732 * 0.8 / 1000) : 0}
+            currentR={totalCurrentR}
+            currentY={totalCurrentY}
+            currentB={totalCurrentB}
+            power={totalPower}
           />
           {showPressureCard && (
             <PressureCard
@@ -324,7 +253,12 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
               isConnected={dashboardData.transmitterConnected}
             />
           )}
-          <DelaySettingsCard />
+          <DelaySettingsCard 
+            pumpOnDelay={dashboardData.pumpOnDelay}
+            nextFillingTime={dashboardData.nextFillingTime}
+            overloadResetDelay={dashboardData.overloadResetDelay}
+            underloadResetDelay={dashboardData.underloadResetDelay}
+          />
           <FaultResetCard hasFault={totalFaults > 0 || dashboardData.inputPowerFaultType > 0} />
         </div>
 
@@ -344,29 +278,55 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
                   {/* Draw Pipes via absolute overlay */}
                   <div className="absolute inset-0 z-0">
                     <div className="absolute text-[10px] text-gray-400 font-bold whitespace-nowrap leading-tight text-left z-0" style={{ left: `${leftTankLeft}px`, top: fromTankLabelTop }}>FROM<br />TANK</div>
-                    <Pipe x1={leftTankCenter} y1={tankBottomY} x2={leftTankCenter} y2={630} flowDirection={hasFlow ? 'forward' : 'none'} />
-                    <Pipe x1={leftTankCenter} y1={630} x2={pump1Center} y2={630} flowDirection={hasFlow ? 'forward' : 'none'} />
                     
-                    <Pipe x1={pump1Center} y1={630} x2={pump2Center} y2={630} flowDirection={pump2Running || pump3Running ? 'forward' : 'none'} />
-                    <Pipe x1={pump1Center} y1={630} x2={pump1Center} y2={435} flowDirection={pump1Running ? 'forward' : 'none'} />
-                    
-                    <Pipe x1={pump2Center} y1={630} x2={pump2Center} y2={435} flowDirection={pump2Running ? 'forward' : 'none'} />
-                    <Pipe x1={pump1Center} y1={145} x2={pump1Center} y2={manifoldY} flowDirection={pump1Running ? 'forward' : 'none'} />
-                    <Pipe x1={pump2Center} y1={145} x2={pump2Center} y2={manifoldY} flowDirection={pump2Running ? 'forward' : 'none'} />
-                    <Pipe x1={pump1Center} y1={manifoldY} x2={pump2Center} y2={manifoldY} flowDirection={pump1Running ? 'forward' : 'none'} />
-                    
-                    {hasPump3 && (
+                    {visiblePumps.length > 0 && (
                       <>
-                        <Pipe x1={pump2Center} y1={630} x2={pump3Center} y2={630} flowDirection={pump3Running ? 'forward' : 'none'} />
-                        <Pipe x1={pump3Center} y1={630} x2={pump3Center} y2={435} flowDirection={pump3Running ? 'forward' : 'none'} />
-                        <Pipe x1={pump3Center} y1={145} x2={pump3Center} y2={manifoldY} flowDirection={pump3Running ? 'forward' : 'none'} />
-                        <Pipe x1={pump2Center} y1={manifoldY} x2={pump3Center} y2={manifoldY} flowDirection={pump1Running || pump2Running ? 'forward' : 'none'} />
-                      </>
-                    )}
+                        <Pipe x1={leftTankCenter} y1={tankBottomY} x2={leftTankCenter} y2={630} flowDirection={hasFlow ? 'forward' : 'none'} />
+                        <Pipe x1={leftTankCenter} y1={630} x2={pumpCenters[0]} y2={630} flowDirection={hasFlow ? 'forward' : 'none'} />
+                        
+                        {/* Connecting Inlet manifold to all pumps */}
+                        {visiblePumps.map((p, i) => {
+                          const isRunning = p.status === 'RUNNING';
+                          const isLast = i === visiblePumps.length - 1;
+                          const nextRunning = visiblePumps.slice(i + 1).some(op => op.status === 'RUNNING');
+                          return (
+                            <React.Fragment key={`inlet-pipe-${p.id}`}>
+                              {/* Horizontal pipe between pumps */}
+                              {!isLast && (
+                                <Pipe x1={pumpCenters[i]} y1={630} x2={pumpCenters[i+1]} y2={630} flowDirection={nextRunning ? 'forward' : 'none'} />
+                              )}
+                              {/* Vertical pipe up to pump */}
+                              <Pipe x1={pumpCenters[i]} y1={630} x2={pumpCenters[i]} y2={435} flowDirection={isRunning ? 'forward' : 'none'} />
+                            </React.Fragment>
+                          );
+                        })}
 
-                    <Pipe x1={hasPump3 ? pump3Center : pump2Center} y1={manifoldY} x2={isTankOutlet ? rightTankLeft + 64 : outletEndX} y2={manifoldY} flowDirection={hasFlow ? 'forward' : 'none'} />
-                    {isTankOutlet && (
-                      <Pipe x1={rightTankLeft + 64} y1={manifoldY} x2={rightTankLeft + 64} y2={manifoldY + 55} flowDirection={hasFlow ? 'forward' : 'none'} />
+                        {/* Connecting Outlet manifold to all pumps */}
+                        {visiblePumps.map((p, i) => {
+                          const isRunning = p.status === 'RUNNING';
+                          const isLast = i === visiblePumps.length - 1;
+                          const currentOrPrevRunning = visiblePumps.slice(0, i + 1).some(op => op.status === 'RUNNING');
+                          return (
+                            <React.Fragment key={`outlet-pipe-${p.id}`}>
+                              {/* Vertical pipe up from pump */}
+                              <Pipe x1={pumpCenters[i]} y1={145} x2={pumpCenters[i]} y2={manifoldY} flowDirection={isRunning ? 'forward' : 'none'} />
+                              {/* Horizontal pipe to next pump or exit */}
+                              <Pipe 
+                                x1={pumpCenters[i]} 
+                                y1={manifoldY} 
+                                x2={isLast ? (isTankOutlet ? rightTankLeft + 64 : outletEndX) : pumpCenters[i+1]} 
+                                y2={manifoldY} 
+                                flowDirection={currentOrPrevRunning ? 'forward' : 'none'} 
+                              />
+                            </React.Fragment>
+                          );
+                        })}
+                        
+                        {/* Final tank connection */}
+                        {isTankOutlet && (
+                          <Pipe x1={rightTankLeft + 64} y1={manifoldY} x2={rightTankLeft + 64} y2={manifoldY + 55} flowDirection={hasFlow ? 'forward' : 'none'} />
+                        )}
+                      </>
                     )}
                   </div>
 
@@ -397,17 +357,25 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
                     </div>
                   )}
 
-                  <div className="absolute top-[145px] z-10" style={{ left: `${pump1Left}px` }}>
-                    <PumpUnit name={pump1.name} status={pump1.status} currentR={pump1.currentR} currentY={pump1.currentY} currentB={pump1.currentB} mode={pump1.mode} runOnTime={pump1.runOnTime} />
-                  </div>
+                  {visiblePumps.map((p, idx) => (
+                    <div key={p.id} className="absolute top-[145px] z-10" style={{ left: `${pumpLefts[idx]}px` }}>
+                      <PumpUnit 
+                        name={p.name} 
+                        status={p.status} 
+                        currentR={p.currentR} 
+                        currentY={p.currentY} 
+                        currentB={p.currentB} 
+                        mode={p.mode} 
+                        runOnTime={p.runOnTime} 
+                      />
+                    </div>
+                  ))}
 
-                  <div className="absolute top-[145px] z-10" style={{ left: `${pump2Left}px` }}>
-                    <PumpUnit name={displayPump2.name} status={displayPump2.status} currentR={displayPump2.currentR} currentY={displayPump2.currentY} currentB={displayPump2.currentB} mode={displayPump2.mode} runOnTime={displayPump2.runOnTime} />
-                  </div>
-
-                  {hasPump3 && (
-                    <div className="absolute top-[145px] z-10" style={{ left: `${pump3Left}px` }}>
-                      <PumpUnit name={displayPump3.name} status={displayPump3.status} currentR={displayPump3.currentR} currentY={displayPump3.currentY} currentB={displayPump3.currentB} mode={displayPump3.mode} runOnTime={displayPump3.runOnTime} />
+                  {visiblePumps.length === 0 && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="bg-black/50 px-6 py-4 rounded-2xl border border-gray-700 text-gray-400 font-bold uppercase tracking-widest">
+                        No Pumps Configured in Panel
+                      </div>
                     </div>
                   )}
                 </div>

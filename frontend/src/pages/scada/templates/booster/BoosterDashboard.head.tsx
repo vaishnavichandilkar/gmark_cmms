@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import { ScadaHeader } from './components/ScadaHeader';
 import { PerformanceCard } from './components/PerformanceCard';
@@ -27,7 +27,7 @@ export interface BoosterDashboardProps {
 interface PumpState {
   id: string;
   name: string;
-  status: 'ONLINE' | 'OFFLINE' | 'RUNNING' | 'FAULT' | 'WARNING';
+  status: 'ONLINE' | 'OFFLINE' | 'RUNNING' | 'FAULT' | 'WARNING' | 'OFF';
   currentR: number;
   currentY: number;
   currentB: number;
@@ -51,6 +51,10 @@ interface DashboardState {
   waterAvailable: boolean;
   deviceActive: boolean;
   inputPowerFaultType: number;
+  pumpOnDelay?: number;
+  nextFillingTime?: number;
+  overloadResetDelay?: number;
+  underloadResetDelay?: number;
 }
 
 export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
@@ -84,7 +88,8 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
   const [dashboardData, setDashboardData] = useState<DashboardState>({
     averageVoltage: 0, ryVoltage: 0, ybVoltage: 0, rbVoltage: 0,
     pressureBar: 0, transmitterConnected: false, waterAvailable: false,
-    deviceActive: false, inputPowerFaultType: 0
+    deviceActive: false, inputPowerFaultType: 0,
+    pumpOnDelay: 0, nextFillingTime: 0, overloadResetDelay: 0, underloadResetDelay: 0
   });
 
   // Drag-to-scroll state and handlers
@@ -238,9 +243,9 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
   const totalFaults = pump1.faults + displayPump2.faults + (pump3Id ? displayPump3.faults : 0);
 
   // Pipeline Flow Logic
-  const pump1Running = pump1.status === 'RUNNING' || pump1.status === 'ONLINE';
-  const pump2Running = displayPump2.status === 'RUNNING' || displayPump2.status === 'ONLINE';
-  const pump3Running = pump3Id && (displayPump3.status === 'RUNNING' || displayPump3.status === 'ONLINE');
+  const pump1Running = pump1.status === 'RUNNING';
+  const pump2Running = displayPump2.status === 'RUNNING';
+  const pump3Running = pump3Id && (displayPump3.status === 'RUNNING');
   const hasFlow = pump1Running || pump2Running || pump3Running;
 
   // Dynamic layout calculations based on outletType and 3rd pump
@@ -313,7 +318,12 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
               isConnected={dashboardData.transmitterConnected}
             />
           )}
-          <DelaySettingsCard />
+          <DelaySettingsCard 
+            pumpOnDelay={dashboardData.pumpOnDelay || 0}
+            nextFillingTime={dashboardData.nextFillingTime || 0}
+            overloadResetDelay={dashboardData.overloadResetDelay || 0}
+            underloadResetDelay={dashboardData.underloadResetDelay || 0}
+          />
           <FaultResetCard hasFault={totalFaults > 0 || dashboardData.inputPowerFaultType > 0} />
         </div>
 

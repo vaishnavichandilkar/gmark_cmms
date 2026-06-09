@@ -30,6 +30,8 @@ model Device {
   
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  
+  registerValues DeviceRegisterValue[]
 }
 
 model DeviceSnapshot {
@@ -42,38 +44,80 @@ model DeviceSnapshot {
 model DeviceState {
   id                  Int      @id @default(autoincrement())
   deviceId            String   @unique
-  deviceActive        Boolean
-  motor1Status        Boolean
-  motor2Status        Boolean
-  inputPowerFaultType Int
-  averageVoltage      Float
-  ryVoltage           Float
-  ybVoltage           Float
-  rbVoltage           Float
-  motor1RCurrent      Float
-  motor1YCurrent      Float
-  motor1BCurrent      Float
-  motor2RCurrent      Float
-  motor2YCurrent      Float
-  motor2BCurrent      Float
-  waterAvailable      Boolean
-  pressureBar         Float
-  transmitterConnected Boolean
-  pressuremA          Float
-  pumpOnDelay         Int
-  nextFillingTime     Int
-  overloadResetDelay  Int
-  underloadResetDelay Int
-  tankStatus          Boolean
-  pump1FaultType      Int
-  pump2FaultType      Int
-  motor1RunTime       Int
-  motor2RunTime       Int
-  motor3Status        Boolean   @default(false)
-  motor3RCurrent      Float     @default(0)
-  motor3YCurrent      Float     @default(0)
-  motor3BCurrent      Float     @default(0)
-  pump3FaultType      Int       @default(0)
-  motor3RunTime       Int       @default(0)
+  deviceActive        Boolean  @default(false)
+  motor1Status        Boolean  @default(false)
+  motor2Status        Boolean  @default(false)
+  motor3Status        Boolean  @default(false)
+  motor4Status        Boolean  @default(false)
+  motor1ConfigActivate Boolean  @default(false)
+  motor2ConfigActivate Boolean  @default(false)
+  motor3ConfigActivate Boolean  @default(false)
+  motor4ConfigActivate Boolean  @default(false)
+  inputPowerFaultType Int      @default(0)
+  averageVoltage      Float    @default(0)
+  ryVoltage           Float    @default(0)
+  ybVoltage           Float    @default(0)
+  rbVoltage           Float    @default(0)
+  motor1RCurrent      Float    @default(0)
+  motor1YCurrent      Float    @default(0)
+  motor1BCurrent      Float    @default(0)
+  motor2RCurrent      Float    @default(0)
+  motor2YCurrent      Float    @default(0)
+  motor2BCurrent      Float    @default(0)
+  motor3RCurrent      Float    @default(0)
+  motor3YCurrent      Float    @default(0)
+  motor3BCurrent      Float    @default(0)
+  motor4RCurrent      Float    @default(0)
+  motor4YCurrent      Float    @default(0)
+  motor4BCurrent      Float    @default(0)
+  waterAvailable      Boolean  @default(false)
+  pressureSwitch1     Boolean  @default(false)
+  pressureSwitch2     Boolean  @default(false)
+  pressureSwitch3     Boolean  @default(false)
+  pressureSwitch4     Boolean  @default(false)
+  pressureBar         Float    @default(0)
+  transmitterConnected Boolean  @default(false)
+  pressuremA          Float    @default(0)
+  pumpOnDelay         Int      @default(0)
+  nextFillingTime     Int      @default(0)
+  overloadResetDelay  Int      @default(0)
+  underloadResetDelay Int      @default(0)
+  pressureTankPressure Float   @default(0)
+  tankStatus          Boolean  @default(false)
+  pump1FaultType      Int      @default(0)
+  pump2FaultType      Int      @default(0)
+  pump3FaultType      Int      @default(0)
+  pump4FaultType      Int      @default(0)
+  motor1RunTime       Int      @default(0)
+  motor2RunTime       Int      @default(0)
+  motor3RunTime       Int      @default(0)
+  motor4RunTime       Int      @default(0)
   updatedAt           DateTime @updatedAt
+}
+
+model RegisterDefinition {
+  id          Int      @id @default(autoincrement())
+  address     Int      @unique // Array Index (0, 1, 2, etc.)
+  name        String   
+  range       String?  
+  description String?  
+  units       String?
+  mappedKey   String?  // The key to update in DeviceState/Frontend
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  deviceValues DeviceRegisterValue[]
+}
+
+model DeviceRegisterValue {
+  id           Int      @id @default(autoincrement())
+  deviceId     String
+  registerId   Int
+  value        Float
+  updatedAt    DateTime @updatedAt
+
+  register     RegisterDefinition @relation(fields: [registerId], references: [id])
+  device       Device             @relation(fields: [deviceId], references: [deviceId])
+
+  @@unique([deviceId, registerId])
 }

@@ -8,6 +8,7 @@ import { BoosterRegisterParserService } from '../parser/booster-register-parser.
 export class MqttService implements OnModuleInit, OnModuleDestroy {
   private client: mqtt.MqttClient;
   private readonly logger = new Logger(MqttService.name);
+  private registerDefinitions: Record<number, any> = {};
 
   // --- Configuration ---
   private readonly brokerUrl = 'mqtt://mqtt.gmarksoftware.com:1883';
@@ -57,6 +58,16 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
     this.client = mqtt.connect(this.brokerUrl, {
       username: this.username,
       password: this.password,
+    });
+    
+    // Load Register Definitions
+    this.prisma.registerDefinition.findMany().then(defs => {
+      defs.forEach(def => {
+        this.registerDefinitions[def.address] = def;
+      });
+      this.logger.log(`Loaded ${defs.length} register definitions`);
+    }).catch(err => {
+      this.logger.error(`Failed to load register definitions: ${err.message}`);
     });
 
     this.client.on('connect', () => {
@@ -158,23 +169,59 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
         }
       });
 
-      // 3. Parse state if it's a booster
-      let parsedState: any = null;
-      if (device.template === 'booster') {
-        parsedState = this.boosterParser.parse(deviceId, payload.registers);
+      // 3. Dynamic parse and DeviceRegisterValue update
+      let parsedState: any = { deviceId };
+      const registerValuesToUpsert = [];
 
-        // 4. Save to DeviceState
+      for (const reg of payload.registers) {
+        const address = Number(reg.register);
+        const value = Number(reg.value);
+        
+        const def = this.registerDefinitions[address];
+        if (def) {
+          // Add to parsedState if there's a mapped key
+          if (def.mappedKey) {
+            // Convert to boolean for specific keys if needed, based on typical frontend logic
+            // e.g., statuses are boolean
+            if (def.mappedKey.includes('Status') || def.mappedKey === 'deviceActive' || def.mappedKey === 'waterAvailable' || def.mappedKey === 'transmitterConnected' || def.mappedKey === 'tankStatus' || def.mappedKey.includes('pressureSwitch') || def.mappedKey.includes('ConfigActivate')) {
+               parsedState[def.mappedKey] = value === 1;
+            } else if (def.mappedKey === 'pressureBar' || def.mappedKey === 'pressuremA') {
+               parsedState[def.mappedKey] = value / 10.0;
+            } else {
+               parsedState[def.mappedKey] = value;
+            }
+          }
+
+          // Prepare DeviceRegisterValue
+          registerValuesToUpsert.push({
+            deviceId,
+            registerId: def.id,
+            value
+          });
+        }
+      }
+
+      // 4. Save to DeviceRegisterValue concurrently
+      if (registerValuesToUpsert.length > 0) {
+        await Promise.all(registerValuesToUpsert.map(val => 
+          this.prisma.deviceRegisterValue.upsert({
+            where: { deviceId_registerId: { deviceId: val.deviceId, registerId: val.registerId } },
+            update: { value: val.value },
+            create: val
+          })
+        ));
+      }
+
+      // 5. Update DeviceState using the dynamic mapped keys
+      if (Object.keys(parsedState).length > 1) { // more than just deviceId
         await this.prisma.deviceState.upsert({
           where: { deviceId },
           update: parsedState,
           create: parsedState,
         });
-      } else {
-        // Fallback for other templates if needed
-        parsedState = { rawRegisters: payload.registers };
       }
 
-      // 5. Update latestData and lastSeen on Device
+      // 6. Update latestData and lastSeen on Device
       await this.prisma.device.update({
         where: { deviceId },
         data: {

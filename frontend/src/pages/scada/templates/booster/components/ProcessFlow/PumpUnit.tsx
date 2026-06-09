@@ -4,7 +4,7 @@ import { Clock, Zap } from 'lucide-react';
 
 interface PumpUnitProps {
   name: string;
-  status: 'ONLINE' | 'OFFLINE' | 'RUNNING' | 'FAULT' | 'WARNING';
+  status: 'ONLINE' | 'OFFLINE' | 'RUNNING' | 'FAULT' | 'WARNING' | 'OFF';
   currentR: number;
   currentY: number;
   currentB: number;
@@ -13,7 +13,7 @@ interface PumpUnitProps {
 }
 
 export const PumpUnit: React.FC<PumpUnitProps> = ({ name, status, currentR, currentY, currentB, mode, runOnTime }) => {
-  const isRunning = status === 'RUNNING' || status === 'ONLINE'; // Assuming online also means running or ready
+  const isRunning = status === 'RUNNING';
   const isFault = status === 'FAULT';
 
   const borderColor = isFault ? 'border-red-500' : isRunning ? 'border-green-500' : 'border-gray-500';

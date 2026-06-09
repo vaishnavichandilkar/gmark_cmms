@@ -8,7 +8,6 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 interface DeviceCardProps {
-  id: number;
   deviceId: string;
   name: string;
   building: string;
@@ -17,7 +16,7 @@ interface DeviceCardProps {
   lastSeen: string;
 }
 
-export function DeviceCard({ id, deviceId, name, building, topic, status, lastSeen }: DeviceCardProps) {
+export function DeviceCard({ deviceId, name, building, topic, status, lastSeen }: DeviceCardProps) {
   const navigate = useNavigate();
   const isOnline = status === 'online';
 
