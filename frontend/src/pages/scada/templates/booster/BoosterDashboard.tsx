@@ -244,8 +244,8 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
       className="min-h-screen p-4 md:p-6 lg:p-8 overflow-hidden font-sans relative"
       style={{
         backgroundColor: '#000000',
-        zoom: 0.9
-      } as React.CSSProperties}
+        zoom: 0.8
+      }}
     >
       <ScadaHeader title={title} />
 
