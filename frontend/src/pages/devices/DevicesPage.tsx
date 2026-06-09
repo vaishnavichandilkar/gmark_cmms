@@ -47,13 +47,13 @@ export function DevicesPage() {
     <div className="max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-black text-gray-950 tracking-tight mb-1">Device Registry</h1>
-          <p className="text-sm font-medium text-gray-500">Manage and monitor all connected IoT devices across facilities.</p>
+          <h1 className="text-2xl font-black text-white tracking-tight mb-1">Device Registry</h1>
+          <p className="text-sm font-medium text-[rgba(255,255,255,0.45)]">Manage and monitor all connected IoT devices across facilities.</p>
         </div>
         <div className="flex items-center gap-3">
           <button 
             onClick={fetchDevices}
-            className="p-2.5 bg-white border border-gray-200 text-gray-600 hover:text-blue-600 hover:border-blue-200 rounded-xl transition-all shadow-sm flex items-center justify-center"
+            className="p-2.5 liquid-glass border border-white/10 text-[rgba(255,255,255,0.7)] hover:text-teal-400 hover:border-teal-500/50 rounded-xl transition-all shadow-sm flex items-center justify-center"
             title="Refresh Devices"
           >
             <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
@@ -61,34 +61,34 @@ export function DevicesPage() {
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-8 flex flex-col sm:flex-row gap-4">
+      <div className="liquid-glass p-4 rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.4)] border border-white/10 mb-8 flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[rgba(255,255,255,0.45)]" size={20} />
           <input 
             type="text" 
             placeholder="Search by name, ID, or building..." 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+            className="w-full pl-11 pr-4 py-3 bg-black/20 border border-white/5 rounded-xl text-sm font-medium text-white focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500/50 transition-all placeholder-[rgba(255,255,255,0.3)]"
           />
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center p-1 bg-gray-100 rounded-xl border border-gray-200">
+          <div className="flex items-center p-1 bg-black/20 rounded-xl border border-white/5">
             <button 
               onClick={() => setFilter('all')}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${filter === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${filter === 'all' ? 'bg-white/10 text-white shadow-sm' : 'text-[rgba(255,255,255,0.45)] hover:text-white'}`}
             >
               All
             </button>
             <button 
               onClick={() => setFilter('online')}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${filter === 'online' ? 'bg-emerald-50 text-emerald-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${filter === 'online' ? 'bg-emerald-500/20 text-emerald-400 shadow-sm' : 'text-[rgba(255,255,255,0.45)] hover:text-white'}`}
             >
               Online
             </button>
             <button 
               onClick={() => setFilter('offline')}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${filter === 'offline' ? 'bg-rose-50 text-rose-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${filter === 'offline' ? 'bg-rose-500/20 text-rose-400 shadow-sm' : 'text-[rgba(255,255,255,0.45)] hover:text-white'}`}
             >
               Offline
             </button>
@@ -109,11 +109,11 @@ export function DevicesPage() {
           ))}
           {filteredDevices.length === 0 && (
             <div className="col-span-full py-12 text-center">
-              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Filter size={32} className="text-gray-400" />
+              <div className="w-16 h-16 bg-black/20 border border-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Filter size={32} className="text-[rgba(255,255,255,0.45)]" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-1">No devices found</h3>
-              <p className="text-gray-500 text-sm">Try adjusting your search or filters.</p>
+              <h3 className="text-lg font-bold text-white mb-1">No devices found</h3>
+              <p className="text-[rgba(255,255,255,0.45)] text-sm">Try adjusting your search or filters.</p>
             </div>
           )}
         </div>

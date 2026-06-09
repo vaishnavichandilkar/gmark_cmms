@@ -172,7 +172,7 @@ export const PumpUnit: React.FC<PumpUnitProps> = ({ name, status, currentR, curr
         </div>
 
         {/* Right Info -> Now Bottom Info */}
-        <div className="w-full flex flex-col gap-[12px] z-10 bg-black/20 rounded-2xl p-[16px] border border-white/5 shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)]">
+        <div className="w-full flex flex-col gap-[12px] z-10 bg-black/80 backdrop-blur-md rounded-2xl p-[16px] border border-white/5 shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)]">
           <div className="flex justify-between items-center text-[16px] text-[rgba(255,255,255,0.75)] border-b border-white/[0.03] pb-[8px] font-medium">
             <div className="flex items-center gap-[8px]"><Clock size={12} className="text-[rgba(255,255,255,0.45)]" /> <span className="uppercase text-[12px] tracking-widest text-[rgba(255,255,255,0.45)] font-semibold">Time</span></div>
             <span className="font-mono font-semibold text-white text-[16px]">{runOnTime}</span>

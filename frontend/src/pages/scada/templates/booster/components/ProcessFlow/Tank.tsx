@@ -61,66 +61,6 @@ export const Tank: React.FC<TankProps> = ({
         {/* Tank bottom base */}
         <div className="absolute bottom-[-8px] w-full h-4 rounded-[50%] bg-gradient-to-b from-white/[0.04] to-black/90 border-b border-l border-r border-white/5 z-20 pointer-events-none"></div>
 
-        {/* Curved Pipe from the left */}
-        <div className="absolute top-[-36px] left-[-40px] z-20 pointer-events-none">
-          <svg width="114" height="60" viewBox="0 0 114 60">
-            <defs>
-              <linearGradient id="pipeGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="rgba(255,255,255,0.05)" />
-                <stop offset="100%" stopColor="rgba(255,255,255,0.01)" />
-              </linearGradient>
-            </defs>
-            {/* Pipe Background */}
-            <path 
-              d="M 0 16 L 84 16 A 20 20 0 0 1 104 36 L 104 60" 
-              fill="none" 
-              stroke="url(#pipeGradient)" 
-              strokeWidth="16" 
-            />
-            {/* Pipe Outer Border */}
-            <path 
-              d="M 0 8 L 84 8 A 28 28 0 0 1 112 36 L 112 60" 
-              fill="none" 
-              stroke="rgba(255,255,255,0.15)" 
-              strokeWidth="1" 
-            />
-            {/* Pipe Inner Border */}
-            <path 
-              d="M 0 24 L 84 24 A 12 12 0 0 1 96 36 L 96 60" 
-              fill="none" 
-              stroke="rgba(255,255,255,0.15)" 
-              strokeWidth="1" 
-            />
-            
-            {/* Animated Water Flow Dashes */}
-            {isAvailable && (
-              <path 
-                d="M 0 16 L 84 16 A 20 20 0 0 1 104 36 L 104 55" 
-                fill="none" 
-                stroke="#14F195"
-                strokeWidth="3.5"
-                strokeLinecap="round"
-                strokeDasharray="8 12"
-                className="animate-[pipeFlow_0.8s_linear_infinite]"
-              />
-            )}
-            {/* Downward solid water stream into the tank */}
-            {isAvailable && (
-              <line 
-                x1="104" y1="40" x2="104" y2="80" 
-                stroke="#3A95E8" 
-                strokeWidth="2" 
-                className="opacity-70"
-              />
-            )}
-          </svg>
-          <style>{`
-            @keyframes pipeFlow {
-              from { stroke-dashoffset: 20; }
-              to { stroke-dashoffset: 0; }
-            }
-          `}</style>
-        </div>
 
         {/* Status text overlay */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">

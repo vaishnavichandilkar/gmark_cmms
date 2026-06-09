@@ -237,8 +237,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
 
   const canvasWidth = rightTankLeft + (isTankOutlet ? 150 : 100);
 
-  const fromTankLabelTop = isTankOutlet ? '530px' : '495px';
-  const tankBottomY = isTankOutlet ? 501 : 431;
+  const tankBottomY = 550;
   const manifoldY = isTankOutlet ? 85 : 55;
   return (
     <div
@@ -292,45 +291,67 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
                 <div className="absolute right-0 top-0 h-full" style={{ width: `${canvasWidth}px` }}>
                   {/* Draw Pipes via absolute overlay */}
                   <div className="absolute inset-0 z-0">
-                    <div className="absolute text-[10px] text-gray-400 font-bold whitespace-nowrap leading-tight text-left z-0" style={{ left: `${leftTankLeft}px`, top: fromTankLabelTop }}>FROM<br />TANK</div>
+                    <div className="absolute text-[10px] text-gray-400 font-bold whitespace-nowrap leading-tight text-left z-0" style={{ left: `${leftTankCenter + 16}px`, top: '560px' }}>FROM<br />TANK</div>
 
                     {visiblePumps.length > 0 && (
                       <>
-                        <Pipe x1={leftTankCenter} y1={tankBottomY} x2={leftTankCenter} y2={630} flowDirection={hasFlow ? 'forward' : 'none'} />
-                        <Pipe x1={leftTankCenter} y1={630} x2={pumpCenters[0]} y2={630} flowDirection={hasFlow ? 'forward' : 'none'} />
+                        <Pipe
+                          path={`M ${leftTankCenter} ${tankBottomY} L ${leftTankCenter} ${680 - 16} A 16 16 0 0 0 ${leftTankCenter + 16} 680 L ${visiblePumps.length === 1 ? pumpCenters[0] - 16 : pumpCenters[0]} 680`}
+                          flowDirection={hasFlow ? 'forward' : 'none'}
+                        />
 
                         {/* Connecting Inlet manifold to all pumps */}
+                        {/* Vertical branches (rendered first to sit behind the main manifold) */}
                         {visiblePumps.map((p, i) => {
                           const isRunning = p.status === 'RUNNING';
                           const isLast = i === visiblePumps.length - 1;
+                          return (
+                            <React.Fragment key={`inlet-pipe-vert-${p.id}`}>
+                              {isLast ? (
+                                <Pipe path={`M ${pumpCenters[i] - 16} 680 A 16 16 0 0 0 ${pumpCenters[i]} ${680 - 16} L ${pumpCenters[i]} 585`} flowDirection={isRunning ? 'forward' : 'none'} />
+                              ) : (
+                                <Pipe path={`M ${pumpCenters[i]} 680 L ${pumpCenters[i]} 585`} flowDirection={isRunning ? 'forward' : 'none'} capStyle="butt" />
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+
+                        {/* Horizontal manifold segments (rendered on top for a clean continuous line) */}
+                        {visiblePumps.map((p, i) => {
+                          const isLast = i === visiblePumps.length - 1;
                           const nextRunning = visiblePumps.slice(i + 1).some(op => op.status === 'RUNNING');
                           return (
-                            <React.Fragment key={`inlet-pipe-${p.id}`}>
-                              {/* Horizontal pipe between pumps */}
+                            <React.Fragment key={`inlet-pipe-horiz-${p.id}`}>
                               {!isLast && (
-                                <Pipe x1={pumpCenters[i]} y1={630} x2={pumpCenters[i + 1]} y2={630} flowDirection={nextRunning ? 'forward' : 'none'} />
+                                <Pipe path={`M ${pumpCenters[i]} 680 L ${i + 1 === visiblePumps.length - 1 ? pumpCenters[i + 1] - 16 : pumpCenters[i + 1]} 680`} flowDirection={nextRunning ? 'forward' : 'none'} />
                               )}
-                              {/* Vertical pipe up to pump */}
-                              <Pipe x1={pumpCenters[i]} y1={630} x2={pumpCenters[i]} y2={435} flowDirection={isRunning ? 'forward' : 'none'} />
                             </React.Fragment>
                           );
                         })}
 
                         {/* Connecting Outlet manifold to all pumps */}
+                        {/* Vertical branches (rendered first to sit behind the main manifold) */}
                         {visiblePumps.map((p, i) => {
                           const isRunning = p.status === 'RUNNING';
+                          return (
+                            <React.Fragment key={`outlet-pipe-vert-${p.id}`}>
+                              {i === 0 ? (
+                                <Pipe path={`M ${pumpCenters[i]} 145 L ${pumpCenters[i]} ${manifoldY + 16} A 16 16 0 0 1 ${pumpCenters[i] + 16} ${manifoldY}`} flowDirection={isRunning ? 'forward' : 'none'} />
+                              ) : (
+                                <Pipe path={`M ${pumpCenters[i]} 145 L ${pumpCenters[i]} ${manifoldY}`} flowDirection={isRunning ? 'forward' : 'none'} capStyle="butt" />
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+
+                        {/* Horizontal manifold segments (rendered on top for a clean continuous line) */}
+                        {visiblePumps.map((p, i) => {
                           const isLast = i === visiblePumps.length - 1;
                           const currentOrPrevRunning = visiblePumps.slice(0, i + 1).some(op => op.status === 'RUNNING');
                           return (
-                            <React.Fragment key={`outlet-pipe-${p.id}`}>
-                              {/* Vertical pipe up from pump */}
-                              <Pipe x1={pumpCenters[i]} y1={145} x2={pumpCenters[i]} y2={manifoldY} flowDirection={isRunning ? 'forward' : 'none'} />
-                              {/* Horizontal pipe to next pump or exit */}
+                            <React.Fragment key={`outlet-pipe-horiz-${p.id}`}>
                               <Pipe
-                                x1={pumpCenters[i]}
-                                y1={manifoldY}
-                                x2={isLast ? (isTankOutlet ? rightTankLeft + 64 : outletEndX) : pumpCenters[i + 1]}
-                                y2={manifoldY}
+                                path={`M ${i === 0 ? pumpCenters[i] + 16 : pumpCenters[i]} ${manifoldY} L ${isLast ? (isTankOutlet ? rightTankLeft + 64 - 16 : outletEndX) : pumpCenters[i + 1]} ${manifoldY}`}
                                 flowDirection={currentOrPrevRunning ? 'forward' : 'none'}
                               />
                             </React.Fragment>
@@ -339,7 +360,10 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
 
                         {/* Final tank connection */}
                         {isTankOutlet && (
-                          <Pipe x1={rightTankLeft + 64} y1={manifoldY} x2={rightTankLeft + 64} y2={manifoldY + 55} flowDirection={hasFlow ? 'forward' : 'none'} />
+                          <Pipe
+                            path={`M ${rightTankLeft + 64 - 16} ${manifoldY} A 16 16 0 0 1 ${rightTankLeft + 64} ${manifoldY + 16} L ${rightTankLeft + 64} ${manifoldY + 55}`}
+                            flowDirection={hasFlow ? 'forward' : 'none'}
+                          />
                         )}
                       </>
                     )}
@@ -387,8 +411,16 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
                   ))}
 
                   {visiblePumps.length === 0 && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="bg-black/50 px-6 py-4 rounded-2xl border border-gray-700 text-gray-400 font-bold uppercase tracking-widest">
+                    <div
+                      className="absolute z-10 flex items-center justify-center pointer-events-none"
+                      style={{
+                        left: `${leftTankLeft + 155}px`,
+                        top: '145px',
+                        width: '260px',
+                        height: '350px'
+                      }}
+                    >
+                      <div className="bg-[#0f172a]/80 px-6 py-6 rounded-[24px] border border-white/10 text-[rgba(255,255,255,0.45)] font-bold text-[14px] uppercase tracking-widest text-center shadow-[0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur-md">
                         No Pumps Configured in Panel
                       </div>
                     </div>
