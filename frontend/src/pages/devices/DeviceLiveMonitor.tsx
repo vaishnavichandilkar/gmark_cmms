@@ -135,25 +135,23 @@ export function DeviceLiveMonitor() {
   return (
     <div className="max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <button 
             onClick={() => navigate('/devices')}
-            className="p-2.5 liquid-glass border border-white/10 text-[rgba(255,255,255,0.7)] hover:text-white hover:border-white/20 rounded-xl transition-all shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
+            className="w-11 h-11 liquid-glass rounded-full text-white hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center shrink-0"
           >
             <ArrowLeft size={20} />
           </button>
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-2xl font-black text-white tracking-tight">{deviceId}</h1>
-              <div className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 uppercase tracking-wider backdrop-blur-md ${socketConnected ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}`}>
-                <div className={`w-1.5 h-1.5 rounded-full ${socketConnected ? 'bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-amber-500'}`} />
-                {socketConnected ? 'Live' : 'Connecting'}
-              </div>
+          
+          <div className="flex items-center gap-4 px-6 py-2.5 liquid-glass rounded-[24px] flex-1 sm:flex-initial">
+            <h1 className="text-lg md:text-xl font-bold text-white tracking-wider uppercase truncate max-w-[200px] md:max-w-none">
+              {deviceId}
+            </h1>
+            <div className={`flex items-center gap-2 px-3 py-1 rounded-full border shrink-0 ${socketConnected ? 'bg-[#30D158]/10 border-[#30D158]/20' : 'bg-amber-500/10 border-amber-500/20'}`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${socketConnected ? 'bg-[#30D158] animate-pulse' : 'bg-amber-500'}`}></div>
+              <span className={`text-[9px] font-bold tracking-widest ${socketConnected ? 'text-[#30D158]' : 'text-amber-500'}`}>{socketConnected ? 'LIVE' : 'CONNECTING'}</span>
             </div>
-            <p className="text-sm font-medium text-[rgba(255,255,255,0.45)] flex items-center gap-2">
-              <Server size={14} /> SCADA Register Monitor
-            </p>
           </div>
         </div>
         

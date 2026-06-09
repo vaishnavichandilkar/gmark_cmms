@@ -240,13 +240,9 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
   const tankBottomY = 550;
   const manifoldY = isTankOutlet ? 85 : 55;
   return (
-    <div
-      className="min-h-screen p-4 md:p-6 lg:p-8 overflow-hidden font-sans relative"
-      style={{
-        backgroundColor: '#000000'
-      }}
-    >
-      <ScadaHeader title={title} />
+    <div className="min-h-screen font-sans relative overflow-hidden bg-black">
+      <div className="p-4 md:p-6 lg:p-8 w-full h-full" style={{ zoom: 0.9 }}>
+        <ScadaHeader title={title} />
 
       <div className="flex flex-col lg:flex-row gap-6">
 
@@ -444,6 +440,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
         </div>
       </div>
 
+      </div>
     </div>
   );
 };
