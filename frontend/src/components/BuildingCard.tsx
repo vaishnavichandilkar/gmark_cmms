@@ -1,6 +1,6 @@
 import type { Building } from '../types';
 import { motion } from 'framer-motion';
-import { Building2, Settings2, Wifi, WifiOff, ShieldAlert, Clock, ArrowRight } from 'lucide-react';
+import { Building2, Settings2, Wifi, WifiOff, ShieldAlert, Clock, ArrowRight, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import buildingA from '../assets/building/building A.png';
@@ -10,6 +10,7 @@ import stp from '../assets/building/STP.png';
 
 interface BuildingCardProps {
   building: Building;
+  onDelete?: (e: React.MouseEvent) => void;
 }
 
 const images: Record<string, string> = {
@@ -34,7 +35,7 @@ const styles = {
   stp: { iconBg: 'bg-teal-400', text: 'text-teal-400' },
 };
 
-export function BuildingCard({ building }: BuildingCardProps) {
+export function BuildingCard({ building, onDelete }: BuildingCardProps) {
   const navigate = useNavigate();
   
   const status = building.healthPercentage === 100 
@@ -49,7 +50,9 @@ export function BuildingCard({ building }: BuildingCardProps) {
     critical: { dot: 'bg-red-500', text: 'text-red-400', bg: 'bg-red-500/10', label: 'Critical', bar: 'bg-red-500' },
   }[status];
 
-  const style = styles[building.id as keyof typeof styles] || styles.a;
+  const style = styles[building.id as keyof typeof styles] || 
+                styles[building.name.toLowerCase().trim()[0] as keyof typeof styles] || 
+                styles.a;
 
   return (
     <motion.div
@@ -72,16 +75,27 @@ export function BuildingCard({ building }: BuildingCardProps) {
           </div>
           <h3 className="text-lg font-bold text-white">{building.name}</h3>
         </div>
-        <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/5 ${statusConfig.bg}`}>
-          <div className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot}`} />
-          <span className={`text-[10px] font-bold ${statusConfig.text}`}>{statusConfig.label}</span>
+        <div className="flex items-center gap-2">
+          {onDelete && (
+            <button
+              onClick={onDelete}
+              className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer mr-1 z-10"
+              title="Delete Tower"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/5 ${statusConfig.bg}`}>
+            <div className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot}`} />
+            <span className={`text-[10px] font-bold ${statusConfig.text}`}>{statusConfig.label}</span>
+          </div>
         </div>
       </div>
 
       {/* Image */}
       <div className="h-40 w-full mb-4 flex items-center justify-center">
         {/* We use a white drop-shadow filter to make the black-lined building images visible on dark background, or just brightness */}
-        <img src={images[building.id]} alt={building.name} className="h-full object-contain filter invert opacity-80" />
+        <img src={images[building.id] || images[building.name.toLowerCase().trim()[0]] || buildingA} alt={building.name} className="h-full object-contain filter invert opacity-80" />
       </div>
 
       {/* Timestamp */}

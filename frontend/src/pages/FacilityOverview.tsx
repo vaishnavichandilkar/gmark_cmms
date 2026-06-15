@@ -28,10 +28,26 @@ export function FacilityOverview() {
           healthPercentage: 100,        // Mocked
           lastUpdated: new Date().toISOString()
         }));
-        setBuildings(mapped);
+        const localBuildingsStr = localStorage.getItem('local_buildings');
+        const localBuildings = localBuildingsStr ? JSON.parse(localBuildingsStr) : [];
+        setBuildings([...mapped, ...localBuildings]);
       })
-      .catch(err => console.error("Failed to fetch buildings", err));
+      .catch(err => {
+        console.error("Failed to fetch buildings", err);
+        const localBuildingsStr = localStorage.getItem('local_buildings');
+        const localBuildings = localBuildingsStr ? JSON.parse(localBuildingsStr) : [];
+        setBuildings(localBuildings);
+      });
   }, []);
+
+  const handleDeleteLocalBuilding = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const localBuildingsStr = localStorage.getItem('local_buildings');
+    const localBuildings = localBuildingsStr ? JSON.parse(localBuildingsStr) : [];
+    const updated = localBuildings.filter((b: any) => b.id !== id);
+    localStorage.setItem('local_buildings', JSON.stringify(updated));
+    setBuildings(prev => prev.filter(b => b.id !== id));
+  };
 
   const stats = useMemo(() => {
     return buildings.reduce(
@@ -144,7 +160,11 @@ export function FacilityOverview() {
         transition={{ staggerChildren: 0.1 }}
       >
         {filteredBuildings.map(building => (
-          <BuildingCard key={building.id} building={building} />
+          <BuildingCard 
+            key={building.id} 
+            building={building} 
+            onDelete={building.id.startsWith('local-') ? (e) => handleDeleteLocalBuilding(building.id, e) : undefined}
+          />
         ))}
         {filteredBuildings.length === 0 && (
           <div className="col-span-full py-12 text-center text-gray-500">

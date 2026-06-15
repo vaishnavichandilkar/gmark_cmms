@@ -11,6 +11,7 @@ export function BuildingDetails() {
   const navigate = useNavigate();
   
   const [buildingName, setBuildingName] = useState<string>('Loading Building...');
+  const [buildingDetails, setBuildingDetails] = useState<any>(null);
   const [devices, setDevices] = useState<Device[]>([]);
   const [topics, setTopics] = useState<string[]>([]);
 
@@ -20,10 +21,32 @@ export function BuildingDetails() {
       .then(res => res.json())
       .then(data => {
         const b = data.find((x: any) => x.id.toString() === buildingId);
-        if (b) setBuildingName(b.name);
-        else setBuildingName('Building not found');
+        if (b) {
+          setBuildingName(b.name);
+        } else {
+          const localBuildingsStr = localStorage.getItem('local_buildings');
+          const localBuildings = localBuildingsStr ? JSON.parse(localBuildingsStr) : [];
+          const lb = localBuildings.find((x: any) => x.id === buildingId);
+          if (lb) {
+            setBuildingName(lb.name);
+            setBuildingDetails(lb);
+          } else {
+            setBuildingName('Building not found');
+          }
+        }
       })
-      .catch(console.error);
+      .catch(err => {
+        console.error(err);
+        const localBuildingsStr = localStorage.getItem('local_buildings');
+        const localBuildings = localBuildingsStr ? JSON.parse(localBuildingsStr) : [];
+        const lb = localBuildings.find((x: any) => x.id === buildingId);
+        if (lb) {
+          setBuildingName(lb.name);
+          setBuildingDetails(lb);
+        } else {
+          setBuildingName('Building not found');
+        }
+      });
 
     // 2. Fetch devices for this building
     fetch(`http://localhost:3000/buildings/${buildingId}/devices`)
@@ -130,6 +153,31 @@ export function BuildingDetails() {
           </div>
         </div>
       </div>
+
+      {/* Building Details Info Card */}
+      {buildingDetails && (
+        <div className="mb-10 p-6 liquid-glass rounded-[24px] border border-white/10 max-w-4xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest leading-none">Tagline</span>
+            <p className="text-lg font-medium text-white italic">"{buildingDetails.tagline}"</p>
+          </div>
+          <div className="h-px bg-white/10 w-full" />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Description</span>
+              <span className="text-sm font-semibold text-white">{buildingDetails.description}</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Floors</span>
+              <span className="text-sm font-semibold text-white">{buildingDetails.floors}</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Total Flats</span>
+              <span className="text-sm font-semibold text-white">{buildingDetails.totalFlats}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-16">
         {devices.map((device) => (
