@@ -1,4 +1,9 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import * as mqtt from 'mqtt';
 
 @Injectable()
@@ -92,11 +97,12 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
 
     // Extract device ID from topic
     const deviceParts = topic.split('/');
-    const deviceId = deviceParts.length > 1 ? deviceParts[deviceParts.length - 1] : topic;
+    const deviceId =
+      deviceParts.length > 1 ? deviceParts[deviceParts.length - 1] : topic;
 
     try {
       const parsed = JSON.parse(messageStr);
-      let registerObject: Record<string, any> = {};
+      const registerObject: Record<string, any> = {};
 
       if (parsed && Array.isArray(parsed.registers)) {
         parsed.registers.forEach((item: any) => {
@@ -123,7 +129,7 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
         for (let i = 0; i < keys.length; i += CHUNK_SIZE) {
           const chunkKeys = keys.slice(i, i + CHUNK_SIZE);
           const chunkObj: Record<string, any> = {};
-          chunkKeys.forEach(k => {
+          chunkKeys.forEach((k) => {
             chunkObj[k] = registerObject[k];
           });
           // Pass as an array of one item to make it horizontal
@@ -139,7 +145,9 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
     console.log(`\n[MQTT] Device: ${deviceId}`);
     console.log(`[MQTT] Topic: ${topic}`);
     console.log(`[MQTT] Timestamp: ${timestamp}`);
-    console.log(`[MQTT] Payload: ${messageStr.length > 200 ? messageStr.substring(0, 197) + '...' : messageStr}\n`);
+    console.log(
+      `[MQTT] Payload: ${messageStr.length > 200 ? messageStr.substring(0, 197) + '...' : messageStr}\n`,
+    );
   }
 
   private onError(error: Error) {

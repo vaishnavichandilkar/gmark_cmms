@@ -36,22 +36,22 @@ export function DevicesPage() {
   }, []);
 
   const filteredDevices = devices.filter(d => {
-    const matchesSearch = d.name.toLowerCase().includes(search.toLowerCase()) || 
-                          d.deviceId.toLowerCase().includes(search.toLowerCase()) ||
-                          d.building.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = d.name.toLowerCase().includes(search.toLowerCase()) ||
+      d.deviceId.toLowerCase().includes(search.toLowerCase()) ||
+      d.building.toLowerCase().includes(search.toLowerCase());
     const matchesFilter = filter === 'all' ? true : d.status === filter;
     return matchesSearch && matchesFilter;
   });
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="w-full px-2 md:px-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-black text-white tracking-tight mb-1">Device Registry</h1>
           <p className="text-sm font-medium text-[rgba(255,255,255,0.45)]">Manage and monitor all connected IoT devices across facilities.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={fetchDevices}
             className="p-2.5 liquid-glass border border-white/10 text-[rgba(255,255,255,0.7)] hover:text-teal-400 hover:border-teal-500/50 rounded-xl transition-all shadow-sm flex items-center justify-center"
             title="Refresh Devices"
@@ -64,9 +64,9 @@ export function DevicesPage() {
       <div className="liquid-glass p-4 rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.4)] border border-white/10 mb-8 flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[rgba(255,255,255,0.45)]" size={20} />
-          <input 
-            type="text" 
-            placeholder="Search by name, ID, or building..." 
+          <input
+            type="text"
+            placeholder="Search by name, ID, or building..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-11 pr-4 py-3 bg-black/20 border border-white/5 rounded-xl text-sm font-medium text-white focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500/50 transition-all placeholder-[rgba(255,255,255,0.3)]"
@@ -74,19 +74,19 @@ export function DevicesPage() {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center p-1 bg-black/20 rounded-xl border border-white/5">
-            <button 
+            <button
               onClick={() => setFilter('all')}
               className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${filter === 'all' ? 'bg-white/10 text-white shadow-sm' : 'text-[rgba(255,255,255,0.45)] hover:text-white'}`}
             >
               All
             </button>
-            <button 
+            <button
               onClick={() => setFilter('online')}
               className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${filter === 'online' ? 'bg-emerald-500/20 text-emerald-400 shadow-sm' : 'text-[rgba(255,255,255,0.45)] hover:text-white'}`}
             >
               Online
             </button>
-            <button 
+            <button
               onClick={() => setFilter('offline')}
               className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${filter === 'offline' ? 'bg-rose-500/20 text-rose-400 shadow-sm' : 'text-[rgba(255,255,255,0.45)] hover:text-white'}`}
             >

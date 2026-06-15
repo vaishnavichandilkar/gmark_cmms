@@ -153,8 +153,8 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, buildingName }) 
         )
           ? 'Underground Sump'
           : (isTowerBDomestic || isTowerACDomestic || isTowerBFlushing || isTowerACFlushing || isGardenSystem)
-          ? 'Underground Tank'
-          : 'Inlet Water';
+            ? 'Underground Tank'
+            : 'Inlet Water';
 
         const outType = (isTowerBDomestic || isTowerACDomestic || isTowerBFlushing || isTowerACFlushing || isGardenSystem) ? 'tank' : 'label';
         const outTitle = (isTowerBDomestic || isTowerACDomestic || isTowerBFlushing || isTowerACFlushing || isGardenSystem) ? 'Overhead Tank' : 'OUTLET';

@@ -49,6 +49,7 @@ interface DashboardState {
   nextFillingTime: number;
   overloadResetDelay: number;
   underloadResetDelay: number;
+  vfdResetAfter: number;
 }
 
 export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
@@ -74,18 +75,19 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
 
   // Initialize all 4 pumps
   const [pumps, setPumps] = useState<PumpState[]>([
-    { id: '1', name: 'Pump 1', status: 'OFFLINE', currentR: 0, currentY: 0, currentB: 0, mode: 'AUTO', runOnTime: '0:0 Hrs', faults: 0, isVisible: false },
-    { id: '2', name: 'Pump 2', status: 'OFFLINE', currentR: 0, currentY: 0, currentB: 0, mode: 'AUTO', runOnTime: '0:0 Hrs', faults: 0, isVisible: false },
+    { id: '1', name: 'Pump 1', status: 'OFFLINE', currentR: 0, currentY: 0, currentB: 0, mode: 'AUTO', runOnTime: '0:0 Hrs', faults: 0, isVisible: true },
+    { id: '2', name: 'Pump 2', status: 'OFFLINE', currentR: 0, currentY: 0, currentB: 0, mode: 'AUTO', runOnTime: '0:0 Hrs', faults: 0, isVisible: true },
     { id: '3', name: 'Pump 3', status: 'OFFLINE', currentR: 0, currentY: 0, currentB: 0, mode: 'AUTO', runOnTime: '0:0 Hrs', faults: 0, isVisible: false },
     { id: '4', name: 'Pump 4', status: 'OFFLINE', currentR: 0, currentY: 0, currentB: 0, mode: 'AUTO', runOnTime: '0:0 Hrs', faults: 0, isVisible: false },
   ]);
 
-  const [dashboardData, setDashboardData] = useState<DashboardState>({
+  const [dashboardData, setDashboardData] = useState<DashboardState>(({
     averageVoltage: 0, ryVoltage: 0, ybVoltage: 0, rbVoltage: 0,
     pressureBar: 0, transmitterConnected: false, waterAvailable: false,
     deviceActive: false, inputPowerFaultType: 0,
-    pumpOnDelay: 0, nextFillingTime: 0, overloadResetDelay: 0, underloadResetDelay: 0
-  });
+    pumpOnDelay: 0, nextFillingTime: 0, overloadResetDelay: 0, underloadResetDelay: 0,
+    vfdResetAfter: 0
+  }) as any);
 
   // Drag-to-scroll state and handlers
   const scrollRef = React.useRef<HTMLDivElement>(null);
@@ -138,6 +140,18 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
 
         if (data[configKey] !== undefined) {
           p.isVisible = getBool(data[configKey]);
+        } else if (isInitial) {
+          const hasData = (data[statusKey] !== undefined && getBool(data[statusKey])) ||
+            (data[rCurrKey] !== undefined && Number(data[rCurrKey]) > 0) ||
+            (data[yCurrKey] !== undefined && Number(data[yCurrKey]) > 0) ||
+            (data[bCurrKey] !== undefined && Number(data[bCurrKey]) > 0) ||
+            (data[faultKey] !== undefined && Number(data[faultKey]) > 0) ||
+            (data[timeKey] !== undefined && Number(data[timeKey]) > 0);
+          if (n <= 2) {
+            p.isVisible = true;
+          } else {
+            p.isVisible = hasData;
+          }
         }
 
         // Apply Priority Logic
@@ -169,7 +183,8 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
       pumpOnDelay: data.pumpOnDelay ?? prev.pumpOnDelay,
       nextFillingTime: data.nextFillingTime ?? prev.nextFillingTime,
       overloadResetDelay: data.overloadResetDelay ?? prev.overloadResetDelay,
-      underloadResetDelay: data.underloadResetDelay ?? prev.underloadResetDelay
+      underloadResetDelay: data.underloadResetDelay ?? prev.underloadResetDelay,
+      vfdResetAfter: data.vfdResetAfter ?? prev.vfdResetAfter
     }));
   };
 
@@ -179,8 +194,8 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
     fetch(`http://localhost:3000/devices/${panelId}/dashboard`)
       .then(r => r.json())
       .then(res => {
-        if (res && !res.error && res.latestData) {
-          processPayload(res.latestData, true);
+        if (res && !res.error) {
+          processPayload(res, true);
         }
       })
       .catch(console.error);
@@ -213,9 +228,6 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
   const totalCurrentR = visiblePumps.reduce((sum, p) => sum + p.currentR, 0);
   const totalCurrentY = visiblePumps.reduce((sum, p) => sum + p.currentY, 0);
   const totalCurrentB = visiblePumps.reduce((sum, p) => sum + p.currentB, 0);
-  const totalPower = dashboardData.averageVoltage > 0
-    ? (totalCurrentR * dashboardData.averageVoltage * 1.732 * 0.8 / 1000)
-    : 0;
 
   const hasFlow = visiblePumps.some(p => p.status === 'RUNNING');
 
@@ -243,8 +255,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
     <div
       className="min-h-screen p-4 md:p-6 lg:p-8 overflow-hidden font-sans relative"
       style={{
-        backgroundColor: '#000000',
-        zoom: 0.8
+        backgroundColor: '#000000'
       }}
     >
       <ScadaHeader title={title} />
@@ -260,7 +271,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
             currentR={totalCurrentR}
             currentY={totalCurrentY}
             currentB={totalCurrentB}
-            power={totalPower}
+            inputPowerStatus={dashboardData.inputPowerFaultType}
           />
           {showPressureCard && (
             <PressureCard
@@ -273,6 +284,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
             nextFillingTime={dashboardData.nextFillingTime}
             overloadResetDelay={dashboardData.overloadResetDelay}
             underloadResetDelay={dashboardData.underloadResetDelay}
+            vfdResetAfter={dashboardData.vfdResetAfter}
           />
           <FaultResetCard hasFault={totalFaults > 0 || dashboardData.inputPowerFaultType > 0} />
         </div>

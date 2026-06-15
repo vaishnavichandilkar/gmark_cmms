@@ -16,7 +16,8 @@ import { Logger } from '@nestjs/common';
     origin: '*',
   },
 })
-export class WebsocketGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class WebsocketGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
@@ -35,26 +36,42 @@ export class WebsocketGateway implements OnGatewayInit, OnGatewayConnection, OnG
   }
 
   @SubscribeMessage('join-device')
-  handleJoinDevice(@ConnectedSocket() client: Socket, @MessageBody() payload: { topic: string }) {
+  handleJoinDevice(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { topic: string },
+  ) {
     if (payload && payload.topic) {
       client.join(`device-${payload.topic}`);
-      this.logger.log(`Client ${client.id} joined room device-${payload.topic}`);
+      this.logger.log(
+        `Client ${client.id} joined room device-${payload.topic}`,
+      );
     }
   }
 
   @SubscribeMessage('leave-device')
-  handleLeaveDevice(@ConnectedSocket() client: Socket, @MessageBody() payload: { topic: string }) {
+  handleLeaveDevice(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { topic: string },
+  ) {
     if (payload && payload.topic) {
       client.leave(`device-${payload.topic}`);
       this.logger.log(`Client ${client.id} left room device-${payload.topic}`);
     }
   }
 
-  emitDeviceUpdate(topic: string, deviceId: string, registers: any[], rawRegisters?: any[]) {
-    this.server.to(`device-${topic}`).to(`device-${deviceId}`).emit('device-update', {
-      deviceId,
-      registers,
-      rawRegisters,
-    });
+  emitDeviceUpdate(
+    topic: string,
+    deviceId: string,
+    registers: any[],
+    rawRegisters?: any[],
+  ) {
+    this.server
+      .to(`device-${topic}`)
+      .to(`device-${deviceId}`)
+      .emit('device-update', {
+        deviceId,
+        registers,
+        rawRegisters,
+      });
   }
 }

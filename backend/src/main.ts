@@ -8,7 +8,9 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('Industrial IoT API')
-    .setDescription('API documentation for the Industrial IoT Monitoring Platform')
+    .setDescription(
+      'API documentation for the Industrial IoT Monitoring Platform',
+    )
     .setVersion('1.0')
     .build();
   const document = SwaggerModule.createDocument(app, config);
@@ -17,9 +19,11 @@ async function bootstrap() {
   const port = process.env.PORT ?? 3000;
   app.enableCors();
   await app.listen(port);
-  
+
   const logger = new Logger('Bootstrap');
   logger.log(`🚀 Backend is running on: http://localhost:${port}`);
-  logger.log(`📚 Swagger API Docs available at: http://localhost:${port}/api/docs`);
+  logger.log(
+    `📚 Swagger API Docs available at: http://localhost:${port}/api/docs`,
+  );
 }
 bootstrap();

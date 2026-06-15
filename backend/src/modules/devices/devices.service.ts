@@ -30,6 +30,25 @@ export class DevicesService {
   }
 
   async getDeviceSnapshot(deviceId: string) {
+    const values = await this.prisma.deviceRegisterValue.findMany({
+      where: { deviceId },
+      include: { register: true },
+      orderBy: { register: { address: 'asc' } },
+    });
+
+    if (values.length > 0) {
+      return {
+        deviceId,
+        payload: {
+          registers: values.map((v) => ({
+            register: v.register.address,
+            value: v.value,
+          })),
+        },
+        createdAt: values[0]?.updatedAt || new Date(),
+      };
+    }
+
     const snapshot = await this.prisma.deviceSnapshot.findFirst({
       where: { deviceId },
       orderBy: { createdAt: 'desc' },
@@ -54,11 +73,11 @@ export class DevicesService {
 
     const lastSeen = device.lastSeen || device.updatedAt;
     const now = new Date();
-    
+
     // Check if data received within 60 seconds
     const diffMs = now.getTime() - lastSeen.getTime();
     const status = diffMs <= 60000 ? 'online' : 'offline';
-    
+
     const latestData: any = device.latestData || {};
 
     return {
@@ -68,7 +87,10 @@ export class DevicesService {
       system: device.systemName || device.name,
       status,
       ...latestData,
-      faultCount: (latestData.pump1FaultType ? 1 : 0) + (latestData.pump2FaultType ? 1 : 0) + (latestData.inputPowerFaultType ? 1 : 0),
+      faultCount:
+        (latestData.pump1FaultType ? 1 : 0) +
+        (latestData.pump2FaultType ? 1 : 0) +
+        (latestData.inputPowerFaultType ? 1 : 0),
       lastSeen,
     };
   }

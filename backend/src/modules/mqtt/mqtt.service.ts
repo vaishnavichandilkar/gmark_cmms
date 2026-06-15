@@ -1,4 +1,9 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import * as mqtt from 'mqtt';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
@@ -9,6 +14,7 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
   private client: mqtt.MqttClient;
   private readonly logger = new Logger(MqttService.name);
   private registerDefinitions: Record<number, any> = {};
+  private verifiedDevices = new Set<string>();
 
   // --- Configuration ---
   private readonly brokerUrl = 'mqtt://mqtt.gmarksoftware.com:1883';
@@ -51,7 +57,7 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
     private readonly prisma: PrismaService,
     private readonly websocketGateway: WebsocketGateway,
     private readonly boosterParser: BoosterRegisterParserService,
-  ) { }
+  ) {}
 
   onModuleInit() {
     this.logger.log(`Connecting to MQTT broker at ${this.brokerUrl}`);
@@ -59,16 +65,21 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
       username: this.username,
       password: this.password,
     });
-    
+
     // Load Register Definitions
-    this.prisma.registerDefinition.findMany().then(defs => {
-      defs.forEach(def => {
-        this.registerDefinitions[def.address] = def;
+    this.prisma.registerDefinition
+      .findMany()
+      .then((defs) => {
+        defs.forEach((def) => {
+          this.registerDefinitions[def.address] = def;
+        });
+        this.logger.log(`Loaded ${defs.length} register definitions`);
+      })
+      .catch((err) => {
+        this.logger.error(
+          `Failed to load register definitions: ${err.message}`,
+        );
       });
-      this.logger.log(`Loaded ${defs.length} register definitions`);
-    }).catch(err => {
-      this.logger.error(`Failed to load register definitions: ${err.message}`);
-    });
 
     this.client.on('connect', () => {
       this.logger.log('Connected to MQTT broker');
@@ -77,7 +88,9 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
         if (err) {
           this.logger.error(`Subscription error: ${err.message}`);
         } else {
-          this.logger.log(`Subscribed to ${this.topics.length} specific topics`);
+          this.logger.log(
+            `Subscribed to ${this.topics.length} specific topics`,
+          );
         }
       });
     });
@@ -100,13 +113,13 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
         // SCADA-style Terminal Logging
         let logStr = `\n[MQTT] ${topic}\n`;
         if (payload.registers && Array.isArray(payload.registers)) {
-          let regStrs = [];
+          const regStrs = [];
           payload.registers.forEach((r: any) => {
             if (r.register !== undefined && r.value !== undefined) {
               regStrs.push(`Reg${r.register}=${r.value}`);
             }
           });
-          
+
           const chunkSize = 8;
           for (let i = 0; i < regStrs.length; i += chunkSize) {
             logStr += regStrs.slice(i, i + chunkSize).join(' | ') + '\n';
@@ -114,7 +127,7 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
         } else {
           logStr += `Payload: ${JSON.stringify(payload).substring(0, 200)}\n`;
         }
-        
+
         console.log(logStr); // Use console.log for proper multiline output
 
         await this.handleMessage(topic, payload);
@@ -151,44 +164,50 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
     if (!payload.registers || !Array.isArray(payload.registers)) return;
 
     try {
-      // 1. Fetch the device to check template
-      const device = await this.prisma.device.findUnique({
-        where: { deviceId }
-      });
+      // 1. Fetch the device from DB (using in-memory cache to optimize)
+      if (!this.verifiedDevices.has(deviceId)) {
+        const device = await this.prisma.device.findUnique({
+          where: { deviceId },
+        });
 
-      if (!device) {
-        this.logger.warn(`Device ${deviceId} not found in registry`);
-        return;
+        if (!device) {
+          this.logger.warn(`Device ${deviceId} not found in registry`);
+          return;
+        }
+        this.verifiedDevices.add(deviceId);
       }
 
-      // 2. Save snapshot
-      await this.prisma.deviceSnapshot.create({
-        data: {
-          deviceId,
-          payload
-        }
-      });
-
-      // 3. Dynamic parse and DeviceRegisterValue update
-      let parsedState: any = { deviceId };
+      // 2. Dynamic parse
+      const parsedState: any = { deviceId };
       const registerValuesToUpsert = [];
 
       for (const reg of payload.registers) {
         const address = Number(reg.register);
         const value = Number(reg.value);
-        
+
         const def = this.registerDefinitions[address];
         if (def) {
           // Add to parsedState if there's a mapped key
           if (def.mappedKey) {
             // Convert to boolean for specific keys if needed, based on typical frontend logic
             // e.g., statuses are boolean
-            if (def.mappedKey.includes('Status') || def.mappedKey === 'deviceActive' || def.mappedKey === 'waterAvailable' || def.mappedKey === 'transmitterConnected' || def.mappedKey === 'tankStatus' || def.mappedKey.includes('pressureSwitch') || def.mappedKey.includes('ConfigActivate')) {
-               parsedState[def.mappedKey] = value === 1;
-            } else if (def.mappedKey === 'pressureBar' || def.mappedKey === 'pressuremA') {
-               parsedState[def.mappedKey] = value / 10.0;
+            if (
+              def.mappedKey.includes('Status') ||
+              def.mappedKey === 'deviceActive' ||
+              def.mappedKey === 'waterAvailable' ||
+              def.mappedKey === 'transmitterConnected' ||
+              def.mappedKey === 'tankStatus' ||
+              def.mappedKey.includes('pressureSwitch') ||
+              def.mappedKey.includes('ConfigActivate')
+            ) {
+              parsedState[def.mappedKey] = value > 0;
+            } else if (
+              def.mappedKey === 'pressureBar' ||
+              def.mappedKey === 'pressuremA'
+            ) {
+              parsedState[def.mappedKey] = value / 10.0;
             } else {
-               parsedState[def.mappedKey] = value;
+              parsedState[def.mappedKey] = value;
             }
           }
 
@@ -196,45 +215,88 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
           registerValuesToUpsert.push({
             deviceId,
             registerId: def.id,
-            value
+            value,
           });
         }
       }
 
-      // 4. Save to DeviceRegisterValue concurrently
-      if (registerValuesToUpsert.length > 0) {
-        await Promise.all(registerValuesToUpsert.map(val => 
-          this.prisma.deviceRegisterValue.upsert({
-            where: { deviceId_registerId: { deviceId: val.deviceId, registerId: val.registerId } },
-            update: { value: val.value },
-            create: val
-          })
-        ));
-      }
+      // 3. Emit instantly to websocket gateway BEFORE any database writes
+      this.websocketGateway.emitDeviceUpdate(
+        topic,
+        deviceId,
+        parsedState,
+        payload.registers,
+      );
 
-      // 5. Update DeviceState using the dynamic mapped keys
-      if (Object.keys(parsedState).length > 1) { // more than just deviceId
-        await this.prisma.deviceState.upsert({
-          where: { deviceId },
-          update: parsedState,
-          create: parsedState,
-        });
-      }
-
-      // 6. Update latestData and lastSeen on Device
-      await this.prisma.device.update({
-        where: { deviceId },
-        data: {
-          latestData: parsedState,
-          lastSeen: new Date(),
-        }
+      // 4. Perform database operations asynchronously in the background to prevent pool starvation and latency
+      this.saveToDatabaseBackground(
+        deviceId,
+        payload,
+        parsedState,
+        registerValuesToUpsert,
+      ).catch((dbErr) => {
+        this.logger.error(
+          `Database background save error for device ${deviceId}:`,
+          dbErr,
+        );
       });
-
-      // 6. Emit to websocket using isolated topic room
-      this.websocketGateway.emitDeviceUpdate(topic, deviceId, parsedState, payload.registers);
-
     } catch (error) {
-      this.logger.error(`Failed to handle message for device ${deviceId}`, error);
+      this.logger.error(
+        `Failed to handle message for device ${deviceId}`,
+        error,
+      );
     }
+  }
+
+  private async saveToDatabaseBackground(
+    deviceId: string,
+    payload: any,
+    parsedState: any,
+    registerValuesToUpsert: any[],
+  ) {
+    // A. Save snapshot
+    await this.prisma.deviceSnapshot.create({
+      data: {
+        deviceId,
+        payload,
+      },
+    });
+
+    // B. Save to DeviceRegisterValue concurrently
+    if (registerValuesToUpsert.length > 0) {
+      await Promise.all(
+        registerValuesToUpsert.map((val) =>
+          this.prisma.deviceRegisterValue.upsert({
+            where: {
+              deviceId_registerId: {
+                deviceId: val.deviceId,
+                registerId: val.registerId,
+              },
+            },
+            update: { value: val.value },
+            create: val,
+          }),
+        ),
+      );
+    }
+
+    // C. Update DeviceState using the dynamic mapped keys
+    if (Object.keys(parsedState).length > 1) {
+      // more than just deviceId
+      await this.prisma.deviceState.upsert({
+        where: { deviceId },
+        update: parsedState,
+        create: parsedState,
+      });
+    }
+
+    // D. Update latestData and lastSeen on Device
+    await this.prisma.device.update({
+      where: { deviceId },
+      data: {
+        latestData: parsedState,
+        lastSeen: new Date(),
+      },
+    });
   }
 }

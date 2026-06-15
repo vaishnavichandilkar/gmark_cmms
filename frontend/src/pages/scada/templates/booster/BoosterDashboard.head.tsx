@@ -55,6 +55,7 @@ interface DashboardState {
   nextFillingTime?: number;
   overloadResetDelay?: number;
   underloadResetDelay?: number;
+  vfdResetAfter?: number;
 }
 
 export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
@@ -89,7 +90,8 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
     averageVoltage: 0, ryVoltage: 0, ybVoltage: 0, rbVoltage: 0,
     pressureBar: 0, transmitterConnected: false, waterAvailable: false,
     deviceActive: false, inputPowerFaultType: 0,
-    pumpOnDelay: 0, nextFillingTime: 0, overloadResetDelay: 0, underloadResetDelay: 0
+    pumpOnDelay: 0, nextFillingTime: 0, overloadResetDelay: 0, underloadResetDelay: 0,
+    vfdResetAfter: 0
   });
 
   // Drag-to-scroll state and handlers
@@ -131,7 +133,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
       const d3 = pump3Id ? results[2] : null;
 
       if (d1 && !d1.error) {
-        const data = d1.latestData || {};
+        const data = d1 || {};
         setPump1((prev: PumpState) => ({
           ...prev,
           status: data.motor1Status ? 'RUNNING' : d1.status === 'online' ? 'ONLINE' : 'OFFLINE',
@@ -151,11 +153,16 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
           transmitterConnected: data.transmitterConnected || false,
           waterAvailable: data.waterAvailable || false,
           deviceActive: data.deviceActive || false,
-          inputPowerFaultType: data.inputPowerFaultType || 0
+          inputPowerFaultType: data.inputPowerFaultType || 0,
+          pumpOnDelay: data.pumpOnDelay || 0,
+          nextFillingTime: data.nextFillingTime || 0,
+          overloadResetDelay: data.overloadResetDelay || 0,
+          underloadResetDelay: data.underloadResetDelay || 0,
+          vfdResetAfter: data.vfdResetAfter || 0
         });
       }
       if (d2 && !d2.error) {
-        const data = d2.latestData || {};
+        const data = d2 || {};
         setPump2((prev: PumpState) => ({
           ...prev,
           status: data.motor2Status ? 'RUNNING' : d2.status === 'online' ? 'ONLINE' : 'OFFLINE',
@@ -168,7 +175,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
         }));
       }
       if (d3 && !d3.error) {
-        const data = d3.latestData || {};
+        const data = d3 || {};
         setPump3((prev: PumpState) => ({
           ...prev,
           status: data.motor1Status ? 'RUNNING' : d3.status === 'online' ? 'ONLINE' : 'OFFLINE',
@@ -206,7 +213,12 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
           transmitterConnected: data.transmitterConnected ?? prev.transmitterConnected,
           waterAvailable: data.waterAvailable ?? prev.waterAvailable,
           deviceActive: data.deviceActive ?? prev.deviceActive,
-          inputPowerFaultType: data.inputPowerFaultType ?? prev.inputPowerFaultType
+          inputPowerFaultType: data.inputPowerFaultType ?? prev.inputPowerFaultType,
+          pumpOnDelay: data.pumpOnDelay ?? prev.pumpOnDelay,
+          nextFillingTime: data.nextFillingTime ?? prev.nextFillingTime,
+          overloadResetDelay: data.overloadResetDelay ?? prev.overloadResetDelay,
+          underloadResetDelay: data.underloadResetDelay ?? prev.underloadResetDelay,
+          vfdResetAfter: data.vfdResetAfter ?? prev.vfdResetAfter
         }));
       }
       if (update.deviceId === pump2Id) {
@@ -252,7 +264,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
   const isTankOutlet = outletType === 'tank';
   const hasPump3 = !!pump3Id;
   const canvasWidth = hasPump3 ? 1150 : 880;
-  
+
   let leftTankLeft = 20;
   let pump1Left = 175;
   let pump2Left = 445;
@@ -310,7 +322,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
             currentR={pump1.currentR + pump2.currentR + (hasPump3 ? pump3.currentR : 0)}
             currentY={pump1.currentY + pump2.currentY + (hasPump3 ? pump3.currentY : 0)}
             currentB={pump1.currentB + pump2.currentB + (hasPump3 ? pump3.currentB : 0)}
-            power={dashboardData.averageVoltage > 0 ? ((pump1.currentR + pump2.currentR + (hasPump3 ? pump3.currentR : 0)) * dashboardData.averageVoltage * 1.732 * 0.8 / 1000) : 0}
+            inputPowerStatus={dashboardData.inputPowerFaultType}
           />
           {showPressureCard && (
             <PressureCard
@@ -318,18 +330,19 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
               isConnected={dashboardData.transmitterConnected}
             />
           )}
-          <DelaySettingsCard 
+          <DelaySettingsCard
             pumpOnDelay={dashboardData.pumpOnDelay || 0}
             nextFillingTime={dashboardData.nextFillingTime || 0}
             overloadResetDelay={dashboardData.overloadResetDelay || 0}
             underloadResetDelay={dashboardData.underloadResetDelay || 0}
+            vfdResetAfter={dashboardData.vfdResetAfter || 0}
           />
           <FaultResetCard hasFault={totalFaults > 0 || dashboardData.inputPowerFaultType > 0} />
         </div>
 
         {/* CENTER PROCESS FLOW */}
         <div className="w-full flex-initial flex flex-col overflow-hidden max-w-full" style={{ flexBasis: `${canvasWidth}px` }}>
-          <div 
+          <div
             ref={scrollRef}
             className={`w-full overflow-x-auto pb-2 custom-scrollbar relative rounded-[20px] ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
             onMouseDown={handleMouseDown}
@@ -345,14 +358,14 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
                     <div className="absolute text-[10px] text-gray-400 font-bold whitespace-nowrap leading-tight text-left z-0" style={{ left: `${leftTankLeft}px`, top: fromTankLabelTop }}>FROM<br />TANK</div>
                     <Pipe x1={leftTankCenter} y1={tankBottomY} x2={leftTankCenter} y2={630} flowDirection={hasFlow ? 'forward' : 'none'} />
                     <Pipe x1={leftTankCenter} y1={630} x2={pump1Center} y2={630} flowDirection={hasFlow ? 'forward' : 'none'} />
-                    
+
                     <Pipe x1={pump1Center} y1={630} x2={pump1Center} y2={555} flowDirection={pump1Running ? 'forward' : 'none'} />
-                    
+
                     <Pipe x1={pump2Center} y1={630} x2={pump2Center} y2={555} flowDirection={pump2Running ? 'forward' : 'none'} />
                     <Pipe x1={pump1Center} y1={145} x2={pump1Center} y2={manifoldY} flowDirection={pump1Running ? 'forward' : 'none'} />
                     <Pipe x1={pump2Center} y1={145} x2={pump2Center} y2={manifoldY} flowDirection={pump2Running ? 'forward' : 'none'} />
                     <Pipe x1={pump1Center} y1={manifoldY} x2={pump2Center} y2={manifoldY} flowDirection={pump1Running ? 'forward' : 'none'} />
-                    
+
                     {hasPump3 && (
                       <>
                         <Pipe x1={pump2Center} y1={630} x2={pump3Center} y2={630} flowDirection={pump3Running ? 'forward' : 'none'} />

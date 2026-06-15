@@ -21,7 +21,7 @@ export function DeviceCard({ deviceId, name, building, topic, status, lastSeen }
   const isOnline = status === 'online';
 
   return (
-    <div 
+    <div
       onClick={() => navigate(`/devices/${deviceId}`)}
       className={cn(
         "group rounded-[24px] p-6 border shadow-[0_8px_32px_rgba(0,0,0,0.4)] transition-all duration-300 cursor-pointer relative overflow-hidden",
@@ -29,7 +29,7 @@ export function DeviceCard({ deviceId, name, building, topic, status, lastSeen }
       )}
     >
       <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/5 to-transparent rounded-bl-full opacity-50 -z-10 group-hover:scale-110 transition-transform duration-500" />
-      
+
       <div className="flex justify-between items-start mb-6">
         <div className="flex items-center gap-3">
           <div className={cn(
@@ -45,7 +45,7 @@ export function DeviceCard({ deviceId, name, building, topic, status, lastSeen }
             </p>
           </div>
         </div>
-        
+
         <div className={cn(
           "px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm backdrop-blur-md",
           isOnline ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-rose-500/20 text-rose-400 border border-rose-500/30"
