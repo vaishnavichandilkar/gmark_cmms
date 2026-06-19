@@ -15,7 +15,7 @@ export function FacilityOverview() {
   const [buildings, setBuildings] = useState<Building[]>([]);
 
   useEffect(() => {
-    fetch('http://localhost:3000/buildings')
+    fetch('http://localhost:3001/buildings')
       .then(res => res.json())
       .then(data => {
         const mapped = data.map((b: any) => ({
@@ -63,7 +63,7 @@ export function FacilityOverview() {
   const filteredBuildings = useMemo(() => {
     return buildings.filter(b => {
       const matchesSearch = b.name.toLowerCase().includes(search.toLowerCase());
-      
+
       let matchesFilter = true;
       if (filter === 'healthy') matchesFilter = b.healthPercentage === 100;
       if (filter === 'warning') matchesFilter = b.healthPercentage > 90 && b.healthPercentage < 100;
@@ -81,34 +81,34 @@ export function FacilityOverview() {
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <KpiCard 
-          title="Total Buildings" 
-          value={buildings.length} 
-          icon={<Building2 size={28} strokeWidth={2.5} />} 
+        <KpiCard
+          title="Total Buildings"
+          value={buildings.length}
+          icon={<Building2 size={28} strokeWidth={2.5} />}
           colorScheme="blue"
           subtitle="All Buildings"
           subtitleColor="text-blue-500"
         />
-        <KpiCard 
-          title="Total Devices" 
-          value={stats.totalDevices} 
-          icon={<Box size={28} strokeWidth={2.5} />} 
+        <KpiCard
+          title="Total Devices"
+          value={stats.totalDevices}
+          icon={<Box size={28} strokeWidth={2.5} />}
           colorScheme="green"
           subtitle="Across All Buildings"
           subtitleColor="text-emerald-500"
         />
-        <KpiCard 
-          title="Online Devices" 
-          value={stats.onlineDevices} 
-          icon={<Wifi size={28} strokeWidth={2.5} />} 
+        <KpiCard
+          title="Online Devices"
+          value={stats.onlineDevices}
+          icon={<Wifi size={28} strokeWidth={2.5} />}
           colorScheme="purple"
           subtitle={`${percentageOnline}% Online`}
           subtitleColor="text-emerald-500"
         />
-        <KpiCard 
-          title="Active Faults" 
-          value={stats.activeFaults} 
-          icon={<AlertTriangle size={28} strokeWidth={2.5} />} 
+        <KpiCard
+          title="Active Faults"
+          value={stats.activeFaults}
+          icon={<AlertTriangle size={28} strokeWidth={2.5} />}
           colorScheme="red"
           subtitle={stats.activeFaults > 0 ? "Requires Attention" : "All Systems Normal"}
           subtitleColor={stats.activeFaults > 0 ? "text-red-500" : "text-gray-500"}
@@ -117,11 +117,11 @@ export function FacilityOverview() {
 
       {/* Controls */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
-        <SearchBar 
-          value={search} 
-          onChange={(e) => setSearch(e.target.value)} 
+        <SearchBar
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
         />
-        
+
         <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
           {(['all', 'healthy', 'warning', 'critical'] as const).map(f => {
             const colors = {
@@ -140,9 +140,8 @@ export function FacilityOverview() {
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`flex items-center px-5 py-2.5 rounded-full text-xs font-bold capitalize transition-all border shadow-sm ${
-                  filter === f ? colors.all : colors[f]
-                }`}
+                className={`flex items-center px-5 py-2.5 rounded-full text-xs font-bold capitalize transition-all border shadow-sm ${filter === f ? colors.all : colors[f]
+                  }`}
               >
                 {dots[f]}
                 {f}
@@ -153,16 +152,16 @@ export function FacilityOverview() {
       </div>
 
       {/* Grid */}
-      <motion.div 
+      <motion.div
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ staggerChildren: 0.1 }}
       >
         {filteredBuildings.map(building => (
-          <BuildingCard 
-            key={building.id} 
-            building={building} 
+          <BuildingCard
+            key={building.id}
+            building={building}
             onDelete={building.id.startsWith('local-') ? (e) => handleDeleteLocalBuilding(building.id, e) : undefined}
           />
         ))}

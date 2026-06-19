@@ -21,7 +21,7 @@ export function DevicesPage() {
   const fetchDevices = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3000/devices');
+      const res = await fetch('http://localhost:3001/devices');
       const data = await res.json();
       setDevices(data);
     } catch (error) {

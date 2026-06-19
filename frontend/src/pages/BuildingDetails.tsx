@@ -9,7 +9,7 @@ import type { Device } from '../types';
 export function BuildingDetails() {
   const { buildingId } = useParams();
   const navigate = useNavigate();
-  
+
   const [buildingName, setBuildingName] = useState<string>('Loading Building...');
   const [buildingDetails, setBuildingDetails] = useState<any>(null);
   const [devices, setDevices] = useState<Device[]>([]);
@@ -17,7 +17,7 @@ export function BuildingDetails() {
 
   useEffect(() => {
     // 1. Fetch buildings to get current building name
-    fetch('http://localhost:3000/buildings')
+    fetch('http://localhost:3001/buildings')
       .then(res => res.json())
       .then(data => {
         const b = data.find((x: any) => x.id.toString() === buildingId);
@@ -49,12 +49,12 @@ export function BuildingDetails() {
       });
 
     // 2. Fetch devices for this building
-    fetch(`http://localhost:3000/buildings/${buildingId}/devices`)
+    fetch(`http://localhost:3001/buildings/${buildingId}/devices`)
       .then(res => res.json())
       .then(deviceList => {
         // Fetch dashboard data for each device
-        Promise.all(deviceList.map((d: any) => 
-          fetch(`http://localhost:3000/devices/${d.deviceId}/dashboard`)
+        Promise.all(deviceList.map((d: any) =>
+          fetch(`http://localhost:3001/devices/${d.deviceId}/dashboard`)
             .then(res => res.json())
         )).then(dashboardData => {
           const mappedDevices: Device[] = dashboardData
@@ -74,7 +74,7 @@ export function BuildingDetails() {
               }
             }));
           setDevices(mappedDevices);
-          
+
           const fetchedTopics = dashboardData
             .filter((d: any) => !d.error && d.topic)
             .map((d: any) => d.topic);
@@ -86,8 +86,8 @@ export function BuildingDetails() {
 
   useEffect(() => {
     // Connect WebSocket for live updates
-    const socket = io('http://localhost:3000');
-    
+    const socket = io('http://localhost:3001');
+
     socket.on('connect', () => {
       topics.forEach(topic => {
         socket.emit('join-device', { topic });
@@ -139,13 +139,13 @@ export function BuildingDetails() {
     <div className="min-h-[calc(100vh-3.5rem)] lg:min-h-screen bg-black -m-4 sm:-m-6 md:-m-8 p-4 sm:p-6 md:p-8 text-white relative">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full mb-8 gap-4">
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          <button 
+          <button
             onClick={() => navigate('/')}
             className="w-11 h-11 liquid-glass rounded-full text-white hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center shrink-0"
           >
             <ArrowLeft size={20} />
           </button>
-          
+
           <div className="flex items-center gap-4 px-6 py-2.5 liquid-glass rounded-[24px] flex-1 sm:flex-initial">
             <h1 className="text-lg md:text-xl font-bold text-white tracking-wider uppercase truncate max-w-[200px] md:max-w-none">
               {buildingName} - Systems

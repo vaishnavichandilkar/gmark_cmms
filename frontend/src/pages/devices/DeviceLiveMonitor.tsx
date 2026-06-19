@@ -84,7 +84,7 @@ export function DeviceLiveMonitor() {
   useEffect(() => {
     const fetchSnapshot = async () => {
       try {
-        const res = await fetch(`http://localhost:3000/devices/${deviceId}/snapshot`);
+        const res = await fetch(`http://localhost:3001/devices/${deviceId}/snapshot`);
         if (res.status === 404) {
           setRegisters([]);
           setLoading(false);
@@ -125,7 +125,7 @@ export function DeviceLiveMonitor() {
     if (!deviceId) return;
 
     // Assuming backend is on same host or handled by proxy
-    const socket: Socket = io(window.location.origin.replace('5173', '3000'), {
+    const socket: Socket = io(window.location.origin.replace('5173', '3001'), {
       transports: ['websocket'],
     });
 

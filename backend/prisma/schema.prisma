@@ -7,29 +7,72 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Society {
+  id        Int        @id @default(autoincrement())
+  name      String
+  city      String
+  buildings Building[]
+  users     User[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model User {
+  id              Int      @id @default(autoincrement())
+  username        String   @unique
+  mobileNumber    String
+  email           String   @unique
+  password        String
+  firstName       String?
+  lastName        String?
+  profileTitle    String?
+  profileDetail   String?
+  profileImageUrl String?
+  floorNo         String?
+  city            String?
+  state           String?
+  country         String?
+  pincode         String?
+  role            String   @default("COMMUNITY_USER") // e.g. COMMUNITY_ADMIN, COMMUNITY_WORKER, COMMUNITY_USER
+  isActive        Boolean  @default(true)
+  societyId       Int
+  society         Society  @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
 model Building {
-  id      Int      @id @default(autoincrement())
-  name    String
-  devices Device[]
+  id        Int      @id @default(autoincrement())
+  name      String
+  info      String?  @default("0F - 0 flats")
+  societyId Int
+  society   Society  @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  devices   Device[]
 }
 
 model Device {
-  id         Int      @id @default(autoincrement())
-  deviceId   String   @unique
-  name       String
-  template   String?
-  systemName String?
-  cardNo     String?
-  topic      String?
-  buildingId Int
+  id          Int      @id @default(autoincrement())
+  deviceId    String   @unique
+  name        String
+  template    String?
+  systemName  String?
+  cardNo      String?
+  topic       String?
+  buildingId  Int
   
-  building   Building @relation(fields: [buildingId], references: [id])
+  // Frontend integration fields
+  application String?  @default("DOMESTIC_WATER_SYS")
+  pumpType    String?  @default("WMP_BOOSTER_PUMP")
+  controller  String?  @default("AIPCU")
+  macType     String?  @default("Primary MAC")
   
-  latestData Json?
-  lastSeen   DateTime?
+  building    Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
   
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  latestData  Json?
+  lastSeen    DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   
   registerValues DeviceRegisterValue[]
 }
@@ -119,7 +162,7 @@ model DeviceRegisterValue {
   updatedAt    DateTime @updatedAt
 
   register     RegisterDefinition @relation(fields: [registerId], references: [id])
-  device       Device             @relation(fields: [deviceId], references: [deviceId])
+  device       Device             @relation(fields: [deviceId], references: [deviceId], onDelete: Cascade)
 
   @@unique([deviceId, registerId])
 }

@@ -6,6 +6,7 @@ import { DashboardLayout } from './layouts/DashboardLayout';
 import { BoosterDashboard } from './pages/scada/templates/booster/BoosterDashboard';
 import { DevicesPage } from './pages/devices/DevicesPage';
 import { DeviceLiveMonitor } from './pages/devices/DeviceLiveMonitor';
+import { AdminPage } from './pages/AdminPage';
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
         <Route path="/scada/sump-pump-06" element={<BoosterDashboard title="Sump Pump-06 (Basement-03)" panelId="20260506027" buildingName="B Building" inletTankTitle="Underground Sump" showPressureCard={false} />} />
         <Route path="/devices" element={<DashboardLayout><DevicesPage /></DashboardLayout>} />
         <Route path="/devices/:deviceId" element={<DashboardLayout><DeviceLiveMonitor /></DashboardLayout>} />
+        <Route path="/admin" element={<DashboardLayout><AdminPage /></DashboardLayout>} />
       </Routes>
     </BrowserRouter>
   );

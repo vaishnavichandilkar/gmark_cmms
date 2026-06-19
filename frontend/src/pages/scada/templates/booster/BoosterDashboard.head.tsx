@@ -65,7 +65,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
   pump1Id = '20260508012',
   pump2Id = '20260508045',
   pump3Id,
-  inletTankTitle = 'Inlet Water',
+  inletTankTitle = 'Underground Tank',
   outletType = 'label',
   outletTitle = 'OUTLET',
   showPressureCard = true
@@ -120,11 +120,11 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
 
   useEffect(() => {
     const fetchPromises = [
-      fetch(`http://localhost:3000/devices/${pump1Id}/dashboard`).then(r => r.json()).catch(() => null),
-      fetch(`http://localhost:3000/devices/${pump2Id}/dashboard`).then(r => r.json()).catch(() => null)
+      fetch(`http://localhost:3001/devices/${pump1Id}/dashboard`).then(r => r.json()).catch(() => null),
+      fetch(`http://localhost:3001/devices/${pump2Id}/dashboard`).then(r => r.json()).catch(() => null)
     ];
     if (pump3Id) {
-      fetchPromises.push(fetch(`http://localhost:3000/devices/${pump3Id}/dashboard`).then(r => r.json()).catch(() => null));
+      fetchPromises.push(fetch(`http://localhost:3001/devices/${pump3Id}/dashboard`).then(r => r.json()).catch(() => null));
     }
 
     Promise.all(fetchPromises).then((results) => {
@@ -189,7 +189,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
       }
     });
 
-    const socket = io('http://localhost:3000');
+    const socket = io('http://localhost:3001');
     socket.on('device-update', (update: DeviceUpdate) => {
       const data = update.registers || {};
 

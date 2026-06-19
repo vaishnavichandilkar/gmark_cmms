@@ -4,15 +4,24 @@ const prisma = new PrismaClient();
 
 async function main() {
   console.log('Clearing existing data...');
-  await prisma.$executeRawUnsafe(`TRUNCATE TABLE "DeviceRegisterValue", "RegisterDefinition", "Device", "Building", "DeviceState", "DeviceSnapshot" CASCADE;`);
+  await prisma.$executeRawUnsafe(`TRUNCATE TABLE "DeviceRegisterValue", "RegisterDefinition", "Device", "Building", "DeviceState", "DeviceSnapshot", "Society" CASCADE;`);
+
+  console.log('Seeding societies...');
+  await prisma.society.create({
+    data: {
+      id: 4,
+      name: 'Gera Imperium',
+      city: 'Pune',
+    },
+  });
 
   console.log('Seeding buildings...');
-  const buildings = await prisma.building.createMany({
+  await prisma.building.createMany({
     data: [
-      { id: 1, name: 'A Building' },
-      { id: 2, name: 'B Building' },
-      { id: 3, name: 'C Building' },
-      { id: 4, name: 'STP' },
+      { id: 1, name: 'A Building', societyId: 4, info: '12F - 132 flats' },
+      { id: 2, name: 'B Building', societyId: 4, info: '3F - 3 flats' },
+      { id: 3, name: 'C Building', societyId: 4, info: '9F - 315 flats' },
+      { id: 4, name: 'STP', societyId: 4, info: '1F - 0 flats' },
     ],
   });
 
@@ -104,7 +113,7 @@ async function main() {
     { address: 32, name: 'Over Load Reset Delay', range: '0-1440', units: 'Minutes', mappedKey: 'overloadResetDelay' },
     { address: 33, name: 'Under Load Reset Delay', range: '0-1440', units: 'Minutes', mappedKey: 'underloadResetDelay' },
     { address: 34, name: 'VFD Reset After', range: '0-1440', units: 'Minutes', mappedKey: 'vfdResetAfter' },
-    { address: 35, name: 'Under Ground Tank Full/Empty', range: '0-1', description: '0 = INLET WATER NOT AVAILABLE, 1 = INLET WATER AVAILABLE', mappedKey: 'waterAvailable' },
+    { address: 35, name: 'Under Ground Tank Full/Empty', range: '0-1', description: '0 = UNDERGROUND TANK WATER NOT AVAILABLE, 1 = UNDERGROUND TANK WATER AVAILABLE', mappedKey: 'waterAvailable' },
     { address: 36, name: 'Pressure Tank Pressure %', range: '0-100', units: '%', mappedKey: 'pressureTankPressure' },
     { address: 43, name: 'Pump 1 Fault Type', range: '0-5', mappedKey: 'pump1FaultType' },
     { address: 44, name: 'Pump 2 Fault Type', range: '0-5', mappedKey: 'pump2FaultType' },
@@ -123,6 +132,11 @@ async function main() {
   await prisma.registerDefinition.createMany({
     data: registerDefinitions
   });
+
+  console.log('Resetting autoincrement sequences...');
+  await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('"Society"', 'id'), coalesce(max(id), 1)) FROM "Society";`);
+  await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('"Building"', 'id'), coalesce(max(id), 1)) FROM "Building";`);
+  await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('"Device"', 'id'), coalesce(max(id), 1)) FROM "Device";`);
 
   console.log('Seeding completed successfully!');
 }

@@ -56,7 +56,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
   title: initialTitle,
   panelId: initialPanelId,
   buildingName: initialBuildingName,
-  inletTankTitle: initialInletTankTitle = 'Inlet Water',
+  inletTankTitle: initialInletTankTitle = 'Underground Tank',
   outletType: initialOutletType = 'label',
   outletTitle: initialOutletTitle = 'OUTLET',
   showPressureCard: initialShowPressureCard = true
@@ -191,7 +191,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
   useEffect(() => {
     if (!panelId) return;
 
-    fetch(`http://localhost:3000/devices/${panelId}/dashboard`)
+    fetch(`http://localhost:3001/devices/${panelId}/dashboard`)
       .then(r => r.json())
       .then(res => {
         if (res && !res.error) {
@@ -200,7 +200,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
       })
       .catch(console.error);
 
-    const socket = io('http://localhost:3000');
+    const socket = io('http://localhost:3001');
 
     socket.on('connect', () => {
       socket.emit('join-device', { topic: deviceTopic });

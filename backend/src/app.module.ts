@@ -5,6 +5,8 @@ import { DevicesModule } from './modules/devices/devices.module';
 import { MqttModule } from './modules/mqtt/mqtt.module';
 import { WebsocketModule } from './modules/websocket/websocket.module';
 import { ParserModule } from './modules/parser/parser.module';
+import { SocietiesModule } from './modules/societies/societies.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -12,8 +14,10 @@ import { ParserModule } from './modules/parser/parser.module';
     WebsocketModule,
     BuildingsModule,
     DevicesModule,
+    SocietiesModule,
+    UsersModule,
     MqttModule,
     ParserModule,
   ],
 })
-export class AppModule {}
+export class AppModule { }
