@@ -1,23 +1,53 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useMemo, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { motion } from 'framer-motion';
 import { Building2, Box, Wifi, AlertTriangle } from 'lucide-react';
 import { Header } from '../components/Header';
 import { KpiCard } from '../components/KpiCard';
 import { BuildingCard } from '../components/BuildingCard';
 import { SearchBar } from '../components/SearchBar';
-import { facilityName } from '../data/mock';
 import type { Building } from '../types';
+import { api } from '../lib/api';
+import type { RootState } from '../store';
 
 export function FacilityOverview() {
+  const { societyId } = useParams<{ societyId: string }>();
+  const navigate = useNavigate();
+  const { user } = useSelector((state: RootState) => state.auth);
+
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'healthy' | 'warning' | 'critical'>('all');
   const [buildings, setBuildings] = useState<Building[]>([]);
+  const [societyName, setSocietyName] = useState('Loading...');
 
   useEffect(() => {
-    fetch('http://localhost:3001/buildings')
-      .then(res => res.json())
-      .then(data => {
+    if (user && user.role !== 'SUPER_ADMIN' && user.societyId !== Number(societyId)) {
+      navigate(`/society/${user.societyId}`, { replace: true });
+    }
+  }, [user, societyId, navigate]);
+
+  useEffect(() => {
+    if (!societyId) return;
+
+    // Fetch society details
+    api.get(`/societies/${societyId}`)
+      .then(res => {
+        const data = res.data;
+        if (data && data.name) {
+          setSocietyName(data.name);
+        }
+      })
+      .catch(err => {
+        console.error("Failed to fetch society", err);
+        setSocietyName("Society Overview");
+      });
+
+    // Fetch buildings of this society
+    api.get(`/buildings?societyId=${societyId}`)
+      .then(res => {
+        const data = res.data;
         const mapped = data.map((b: any) => ({
           id: b.id.toString(),
           name: b.name,
@@ -30,15 +60,15 @@ export function FacilityOverview() {
         }));
         const localBuildingsStr = localStorage.getItem('local_buildings');
         const localBuildings = localBuildingsStr ? JSON.parse(localBuildingsStr) : [];
-        setBuildings([...mapped, ...localBuildings]);
+        setBuildings([...mapped, ...localBuildings.filter((b: any) => b.societyId === Number(societyId))]);
       })
       .catch(err => {
         console.error("Failed to fetch buildings", err);
         const localBuildingsStr = localStorage.getItem('local_buildings');
         const localBuildings = localBuildingsStr ? JSON.parse(localBuildingsStr) : [];
-        setBuildings(localBuildings);
+        setBuildings(localBuildings.filter((b: any) => b.societyId === Number(societyId)));
       });
-  }, []);
+  }, [societyId]);
 
   const handleDeleteLocalBuilding = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -77,7 +107,7 @@ export function FacilityOverview() {
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] lg:min-h-screen bg-black -m-4 sm:-m-6 md:-m-8 p-4 sm:p-6 md:p-8 pb-12 text-white relative">
-      <Header facilityName={facilityName} />
+      <Header facilityName={societyName} />
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

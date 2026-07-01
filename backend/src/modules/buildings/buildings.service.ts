@@ -5,9 +5,22 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 export class BuildingsService {
   constructor(private readonly prisma: PrismaService) { }
 
-  async findAll(societyId?: number) {
+  async findAll(user: any, societyId?: number) {
+    const whereClause: any = {};
+
+    if (user.role === 'SUPER_ADMIN') {
+      if (societyId !== undefined) {
+        whereClause.societyId = societyId;
+      }
+    } else if (user.role === 'SOCIETY_ADMIN') {
+      whereClause.societyId = user.societyId;
+    } else {
+      whereClause.societyId = user.societyId;
+      whereClause.id = { in: user.buildingIds || [] };
+    }
+
     const buildings = await this.prisma.building.findMany({
-      where: societyId !== undefined ? { societyId } : {},
+      where: whereClause,
       include: {
         _count: {
           select: { devices: true },
@@ -101,6 +114,14 @@ export class BuildingsService {
         status,
         lastSeen,
       };
+    });
+  }
+
+  async update(id: number, data: { name?: string; info?: string; societyId?: number }) {
+    await this.findOne(id);
+    return this.prisma.building.update({
+      where: { id },
+      data,
     });
   }
 }

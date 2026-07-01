@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DeviceCard } from '../../components/devices/DeviceCard';
 import { Search, Filter, RefreshCw } from 'lucide-react';
+import { api } from '../../lib/api';
 
 interface DeviceData {
   id: number;
@@ -21,8 +22,8 @@ export function DevicesPage() {
   const fetchDevices = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3001/devices');
-      const data = await res.json();
+      const res = await api.get('/devices');
+      const data = res.data;
       setDevices(data);
     } catch (error) {
       console.error('Failed to fetch devices', error);

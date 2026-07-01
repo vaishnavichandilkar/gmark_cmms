@@ -1,14 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { ArrowLeft } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { DeviceCard } from '../components/device/DeviceCard';
 import type { Device } from '../types';
+import { api } from '../lib/api';
+import type { RootState } from '../store';
 
 export function BuildingDetails() {
   const { buildingId } = useParams();
   const navigate = useNavigate();
+  const { user, buildingIds } = useSelector((state: RootState) => state.auth);
 
   const [buildingName, setBuildingName] = useState<string>('Loading Building...');
   const [buildingDetails, setBuildingDetails] = useState<any>(null);
@@ -16,13 +20,23 @@ export function BuildingDetails() {
   const [topics, setTopics] = useState<string[]>([]);
 
   useEffect(() => {
+    if (user && user.role !== 'SUPER_ADMIN' && user.role !== 'SOCIETY_ADMIN') {
+      const numericId = Number(buildingId);
+      if (!buildingIds?.includes(numericId)) {
+        navigate('/', { replace: true });
+      }
+    }
+  }, [user, buildingIds, buildingId, navigate]);
+
+  useEffect(() => {
     // 1. Fetch buildings to get current building name
-    fetch('http://localhost:3001/buildings')
-      .then(res => res.json())
-      .then(data => {
+    api.get('/buildings')
+      .then(res => {
+        const data = res.data;
         const b = data.find((x: any) => x.id.toString() === buildingId);
         if (b) {
           setBuildingName(b.name);
+          setBuildingDetails(b);
         } else {
           const localBuildingsStr = localStorage.getItem('local_buildings');
           const localBuildings = localBuildingsStr ? JSON.parse(localBuildingsStr) : [];
@@ -49,13 +63,13 @@ export function BuildingDetails() {
       });
 
     // 2. Fetch devices for this building
-    fetch(`http://localhost:3001/buildings/${buildingId}/devices`)
-      .then(res => res.json())
-      .then(deviceList => {
+    api.get(`/buildings/${buildingId}/devices`)
+      .then(res => {
+        const deviceList = res.data;
         // Fetch dashboard data for each device
         Promise.all(deviceList.map((d: any) =>
-          fetch(`http://localhost:3001/devices/${d.deviceId}/dashboard`)
-            .then(res => res.json())
+          api.get(`/devices/${d.deviceId}/dashboard`)
+            .then(resDashboard => resDashboard.data)
         )).then(dashboardData => {
           const mappedDevices: Device[] = dashboardData
             .filter((data: any) => !data.error && data.deviceId)
@@ -82,11 +96,14 @@ export function BuildingDetails() {
         });
       })
       .catch(console.error);
-  }, [buildingId]);
+  }, [buildingId, user]);
 
   useEffect(() => {
-    // Connect WebSocket for live updates
-    const socket = io('http://localhost:3001');
+    // Connect WebSocket for live updates with JWT Auth token
+    const token = localStorage.getItem('token');
+    const socket = io('http://localhost:3001', {
+      auth: { token },
+    });
 
     socket.on('connect', () => {
       topics.forEach(topic => {
@@ -127,7 +144,7 @@ export function BuildingDetails() {
     return (
       <div className="min-h-screen p-8 max-w-7xl mx-auto text-center">
         <h2 className="text-2xl text-textMain mb-4">Building not found</h2>
-        <button onClick={() => navigate('/')} className="text-healthy hover:underline">
+        <button onClick={() => navigate(buildingDetails?.societyId ? `/society/${buildingDetails.societyId}` : '/')} className="text-healthy hover:underline">
           Return to Overview
         </button>
       </div>
@@ -140,7 +157,7 @@ export function BuildingDetails() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full mb-8 gap-4">
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate(buildingDetails?.societyId ? `/society/${buildingDetails.societyId}` : '/')}
             className="w-11 h-11 liquid-glass rounded-full text-white hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center shrink-0"
           >
             <ArrowLeft size={20} />
@@ -154,30 +171,6 @@ export function BuildingDetails() {
         </div>
       </div>
 
-      {/* Building Details Info Card */}
-      {buildingDetails && (
-        <div className="mb-10 p-6 liquid-glass rounded-[24px] border border-white/10 max-w-4xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest leading-none">Tagline</span>
-            <p className="text-lg font-medium text-white italic">"{buildingDetails.tagline}"</p>
-          </div>
-          <div className="h-px bg-white/10 w-full" />
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Description</span>
-              <span className="text-sm font-semibold text-white">{buildingDetails.description}</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Floors</span>
-              <span className="text-sm font-semibold text-white">{buildingDetails.floors}</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Total Flats</span>
-              <span className="text-sm font-semibold text-white">{buildingDetails.totalFlats}</span>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-16">
         {devices.map((device) => (

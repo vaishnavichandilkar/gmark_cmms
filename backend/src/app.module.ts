@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { BuildingsModule } from './modules/buildings/buildings.module';
 import { DevicesModule } from './modules/devices/devices.module';
@@ -7,9 +9,15 @@ import { WebsocketModule } from './modules/websocket/websocket.module';
 import { ParserModule } from './modules/parser/parser.module';
 import { SocietiesModule } from './modules/societies/societies.module';
 import { UsersModule } from './modules/users/users.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { AuditLogModule } from './modules/audit-log/audit-log.module';
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot([{
+      ttl: 60000,
+      limit: 100,
+    }]),
     PrismaModule,
     WebsocketModule,
     BuildingsModule,
@@ -18,6 +26,14 @@ import { UsersModule } from './modules/users/users.module';
     UsersModule,
     MqttModule,
     ParserModule,
+    AuthModule,
+    AuditLogModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule { }

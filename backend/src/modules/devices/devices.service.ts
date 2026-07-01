@@ -5,8 +5,24 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 export class DevicesService {
   constructor(private readonly prisma: PrismaService) { }
 
-  async getAllDevices() {
+  async getAllDevices(user: any) {
+    let whereClause: any = {};
+
+    if (user.role === 'SUPER_ADMIN') {
+      whereClause = {};
+    } else if (user.role === 'SOCIETY_ADMIN') {
+      whereClause = {
+        building: { societyId: user.societyId },
+      };
+    } else {
+      whereClause = {
+        building: { societyId: user.societyId },
+        buildingId: { in: user.buildingIds || [] },
+      };
+    }
+
     const devices = await this.prisma.device.findMany({
+      where: whereClause,
       include: { building: true },
     });
 

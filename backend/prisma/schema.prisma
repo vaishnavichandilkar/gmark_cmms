@@ -17,11 +17,19 @@ model Society {
   updatedAt DateTime   @updatedAt
 }
 
+enum UserRole {
+  SUPER_ADMIN
+  SOCIETY_ADMIN
+  BUILDING_ADMIN
+  OPERATOR
+  VIEWER
+}
+
 model User {
-  id              Int      @id @default(autoincrement())
-  username        String   @unique
-  mobileNumber    String
-  email           String   @unique
+  id              Int            @id @default(autoincrement())
+  username        String         @unique
+  mobileNumber    String?
+  email           String         @unique
   password        String
   firstName       String?
   lastName        String?
@@ -33,21 +41,43 @@ model User {
   state           String?
   country         String?
   pincode         String?
-  role            String   @default("COMMUNITY_USER") // e.g. COMMUNITY_ADMIN, COMMUNITY_WORKER, COMMUNITY_USER
-  isActive        Boolean  @default(true)
-  societyId       Int
-  society         Society  @relation(fields: [societyId], references: [id], onDelete: Cascade)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  role            UserRole       @default(VIEWER)
+  isActive        Boolean        @default(true)
+  societyId       Int?
+  society         Society?       @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  buildings       UserBuilding[]
+  refreshToken    String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model UserBuilding {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  buildingId  Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  building    Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, buildingId])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  action    String
+  module    String
+  ipAddress String
+  createdAt DateTime @default(now())
 }
 
 model Building {
-  id        Int      @id @default(autoincrement())
+  id        Int            @id @default(autoincrement())
   name      String
-  info      String?  @default("0F - 0 flats")
+  info      String?        @default("0F - 0 flats")
   societyId Int
-  society   Society  @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  society   Society        @relation(fields: [societyId], references: [id], onDelete: Cascade)
   devices   Device[]
+  users     UserBuilding[]
 }
 
 model Device {

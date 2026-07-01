@@ -1,6 +1,9 @@
-import React from 'react';
-import { ArrowLeft, Bell, Settings, Clock } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowLeft, Bell, Settings, Clock, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { logout } from '../../../../../store/slices/authSlice';
+import { LogoutConfirmModal } from '../../../../../components/LogoutConfirmModal';
 
 interface ScadaHeaderProps {
   title: string;
@@ -8,6 +11,14 @@ interface ScadaHeaderProps {
 
 export const ScadaHeader: React.FC<ScadaHeaderProps> = ({ title }) => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleLogoutConfirm = () => {
+    setIsModalOpen(false);
+    dispatch(logout());
+    navigate('/login');
+  };
 
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full mb-6 gap-4">
@@ -47,8 +58,24 @@ export const ScadaHeader: React.FC<ScadaHeaderProps> = ({ title }) => {
           <button className="w-11 h-11 liquid-glass rounded-full text-white hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center">
             <Settings size={20} />
           </button>
+
+          {/* Logout Button */}
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 liquid-glass px-4 py-2.5 rounded-full text-zinc-400 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20 transition-all cursor-pointer"
+          >
+            <LogOut size={16} />
+            <span className="text-[11px] font-bold uppercase tracking-wider">Logout</span>
+          </button>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      <LogoutConfirmModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onConfirm={handleLogoutConfirm}
+      />
     </div>
   );
 };

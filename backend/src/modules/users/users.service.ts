@@ -1,20 +1,40 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { randomBytes, pbkdf2Sync } from 'crypto';
+import * as bcrypt from 'bcrypt';
+import { validatePasswordStrength } from '../auth/utils/password.validator';
+import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) { }
 
-  private hashPassword(password: string): string {
-    const salt = randomBytes(16).toString('hex');
-    const hash = pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
-    return `${salt}:${hash}`;
+  private async hashPassword(password: string): Promise<string> {
+    const salt = await bcrypt.genSalt(10);
+    return bcrypt.hash(password, salt);
   }
 
-  async findAllBySociety(societyId: number) {
+  async findAll(currentUser: any, societyId?: number) {
+    let whereClause: any = {};
+
+    if (currentUser.role === UserRole.SUPER_ADMIN) {
+      if (societyId !== undefined) {
+        whereClause.societyId = societyId;
+      }
+    } else if (currentUser.role === UserRole.SOCIETY_ADMIN) {
+      whereClause.societyId = currentUser.societyId;
+    } else {
+      throw new ForbiddenException('Access denied');
+    }
+
     return this.prisma.user.findMany({
-      where: { societyId },
+      where: whereClause,
+      include: {
+        buildings: {
+          include: {
+            building: true,
+          },
+        },
+      },
       orderBy: { id: 'asc' },
     });
   }
@@ -22,16 +42,23 @@ export class UsersService {
   async findOne(id: number) {
     const user = await this.prisma.user.findUnique({
       where: { id },
+      include: {
+        buildings: {
+          include: {
+            building: true,
+          },
+        },
+      },
     });
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
-    return user;
+    return this.sanitizeUser(user);
   }
 
   async create(data: {
     username: string;
-    mobileNumber: string;
+    mobileNumber?: string;
     email: string;
     password: string;
     firstName?: string;
@@ -44,11 +71,12 @@ export class UsersService {
     state?: string;
     country?: string;
     pincode?: string;
-    role?: string;
+    role?: UserRole;
     isActive?: boolean;
-    societyId: number;
+    societyId?: number;
+    buildingIds?: number[];
   }) {
-    // Check if email already exists
+    // Validate email uniqueness
     const existingEmail = await this.prisma.user.findUnique({
       where: { email: data.email },
     });
@@ -56,7 +84,7 @@ export class UsersService {
       throw new BadRequestException(`User with email ${data.email} already exists`);
     }
 
-    // Check if username already exists
+    // Validate username uniqueness
     const existingUsername = await this.prisma.user.findUnique({
       where: { username: data.username },
     });
@@ -64,9 +92,16 @@ export class UsersService {
       throw new BadRequestException(`User with username ${data.username} already exists`);
     }
 
-    const hashedPassword = this.hashPassword(data.password);
+    // Validate password complexity
+    if (!validatePasswordStrength(data.password)) {
+      throw new BadRequestException(
+        'Password must be at least 8 characters long and contain uppercase, lowercase, numbers, and special characters.',
+      );
+    }
 
-    return this.prisma.user.create({
+    const hashedPassword = await this.hashPassword(data.password);
+
+    const user = await this.prisma.user.create({
       data: {
         username: data.username,
         mobileNumber: data.mobileNumber,
@@ -82,11 +117,22 @@ export class UsersService {
         state: data.state || null,
         country: data.country || null,
         pincode: data.pincode || null,
-        role: data.role || 'COMMUNITY_USER',
+        role: data.role || UserRole.VIEWER,
         isActive: data.isActive !== undefined ? data.isActive : true,
         societyId: data.societyId,
       },
     });
+
+    if (data.buildingIds && data.buildingIds.length > 0) {
+      await this.prisma.userBuilding.createMany({
+        data: data.buildingIds.map((buildingId) => ({
+          userId: user.id,
+          buildingId,
+        })),
+      });
+    }
+
+    return this.findOne(user.id);
   }
 
   async update(
@@ -106,15 +152,18 @@ export class UsersService {
       state?: string;
       country?: string;
       pincode?: string;
-      role?: string;
+      role?: UserRole;
       isActive?: boolean;
+      buildingIds?: number[];
+      societyId?: number;
     },
   ) {
-    await this.findOne(id);
+    const existingUser = await this.findOne(id);
 
     const updateData: any = { ...data };
+    delete updateData.buildingIds;
 
-    if (data.email) {
+    if (data.email && data.email !== existingUser.email) {
       const existing = await this.prisma.user.findFirst({
         where: {
           email: data.email,
@@ -126,7 +175,7 @@ export class UsersService {
       }
     }
 
-    if (data.username) {
+    if (data.username && data.username !== existingUser.username) {
       const existing = await this.prisma.user.findFirst({
         where: {
           username: data.username,
@@ -139,19 +188,50 @@ export class UsersService {
     }
 
     if (data.password) {
-      updateData.password = this.hashPassword(data.password);
+      if (!validatePasswordStrength(data.password)) {
+        throw new BadRequestException(
+          'Password must be at least 8 characters long and contain uppercase, lowercase, numbers, and special characters.',
+        );
+      }
+      updateData.password = await this.hashPassword(data.password);
     }
 
-    return this.prisma.user.update({
+    await this.prisma.user.update({
       where: { id },
       data: updateData,
     });
+
+    if (data.buildingIds !== undefined) {
+      // Delete old associations
+      await this.prisma.userBuilding.deleteMany({
+        where: { userId: id },
+      });
+      // Add new associations
+      if (data.buildingIds.length > 0) {
+        await this.prisma.userBuilding.createMany({
+          data: data.buildingIds.map((buildingId) => ({
+            userId: id,
+            buildingId,
+          })),
+        });
+      }
+    }
+
+    return this.findOne(id);
   }
 
   async remove(id: number) {
-    await this.findOne(id);
-    return this.prisma.user.delete({
+    const user = await this.findOne(id);
+    await this.prisma.user.delete({
       where: { id },
     });
+    return user;
+  }
+
+  private sanitizeUser(user: any) {
+    const sanitized = { ...user };
+    delete sanitized.password;
+    delete sanitized.refreshToken;
+    return sanitized;
   }
 }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { io } from 'socket.io-client';
 import { ScadaHeader } from './components/ScadaHeader';
 import { PerformanceCard } from './components/PerformanceCard';
@@ -11,6 +12,8 @@ import { SystemInfoCard } from './components/SystemInfoCard';
 import { ProcessFlowContainer, Pipe } from './components/ProcessFlow/PipeNetwork';
 import { Tank } from './components/ProcessFlow/Tank';
 import { PumpUnit } from './components/ProcessFlow/PumpUnit';
+import { api } from '../../../../lib/api';
+import type { RootState } from '../../../../store';
 
 export interface BoosterDashboardProps {
   title: string;
@@ -62,6 +65,8 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
   showPressureCard: initialShowPressureCard = true
 }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, buildingIds } = useSelector((state: RootState) => state.auth);
   const state = location.state as any;
 
   const title = state?.title ?? initialTitle;
@@ -189,18 +194,35 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
   };
 
   useEffect(() => {
+    if (user && user.role !== 'SUPER_ADMIN' && user.role !== 'SOCIETY_ADMIN') {
+      let bId = 0;
+      if (buildingName === 'A Building') bId = 1;
+      else if (buildingName === 'B Building') bId = 2;
+      else if (buildingName === 'C Building') bId = 3;
+      else if (buildingName === 'STP') bId = 4;
+
+      if (bId > 0 && !buildingIds?.includes(bId)) {
+        navigate('/', { replace: true });
+      }
+    }
+  }, [user, buildingIds, buildingName, navigate]);
+
+  useEffect(() => {
     if (!panelId) return;
 
-    fetch(`http://localhost:3001/devices/${panelId}/dashboard`)
-      .then(r => r.json())
-      .then(res => {
+    api.get(`/devices/${panelId}/dashboard`)
+      .then(r => {
+        const res = r.data;
         if (res && !res.error) {
           processPayload(res, true);
         }
       })
       .catch(console.error);
 
-    const socket = io('http://localhost:3001');
+    const token = localStorage.getItem('token');
+    const socket = io('http://localhost:3001', {
+      auth: { token },
+    });
 
     socket.on('connect', () => {
       socket.emit('join-device', { topic: deviceTopic });

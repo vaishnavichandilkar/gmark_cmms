@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Activity, Clock, Database } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
+import { api } from '../../lib/api';
 
 interface Register {
   register: string | number;
@@ -84,16 +85,8 @@ export function DeviceLiveMonitor() {
   useEffect(() => {
     const fetchSnapshot = async () => {
       try {
-        const res = await fetch(`http://localhost:3001/devices/${deviceId}/snapshot`);
-        if (res.status === 404) {
-          setRegisters([]);
-          setLoading(false);
-          return;
-        }
-        if (!res.ok) {
-          throw new Error('Failed to fetch snapshot');
-        }
-        const data: SnapshotData = await res.json();
+        const res = await api.get(`/devices/${deviceId}/snapshot`);
+        const data: SnapshotData = res.data;
 
         if (data.payload && Array.isArray(data.payload.registers)) {
           setRegisters(data.payload.registers);
@@ -110,8 +103,12 @@ export function DeviceLiveMonitor() {
           setRegisters(rawRegs);
         }
         setLastUpdate(new Date(data.createdAt));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
+      } catch (err: any) {
+        if (err.response?.status === 404) {
+          setRegisters([]);
+        } else {
+          setError(err.response?.data?.message || err.message || 'Unknown error');
+        }
       } finally {
         setLoading(false);
       }
@@ -124,9 +121,10 @@ export function DeviceLiveMonitor() {
   useEffect(() => {
     if (!deviceId) return;
 
-    // Assuming backend is on same host or handled by proxy
-    const socket: Socket = io(window.location.origin.replace('5173', '3001'), {
+    const token = localStorage.getItem('token');
+    const socket: Socket = io('http://localhost:3001', {
       transports: ['websocket'],
+      auth: { token },
     });
 
     socket.on('connect', () => {

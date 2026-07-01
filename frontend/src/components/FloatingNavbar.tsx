@@ -1,93 +1,84 @@
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { motion } from 'framer-motion';
 import { Settings, Building2, AlertCircle, User } from 'lucide-react';
+import type { RootState } from '../store';
 
 export function FloatingNavbar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
 
-  const getActiveIndex = (pathname: string) => {
-    if (pathname === '/admin') return 0;
-    if (pathname === '/devices' || pathname.startsWith('/devices/')) return 2;
-    if (pathname === '/add-building') return 3;
-    return 1; // Default to Societies (Overview)
-  };
+  if (!isAuthenticated || !user) return null;
 
-  const activeIndex = getActiveIndex(location.pathname);
-  const X = (activeIndex * 105) + 52.5;
+  const tabs: { label: string; path: string; icon: React.ReactNode; activeColor: string }[] = [];
 
-  const tabs = [
-    { label: 'Admin', path: '/admin', icon: <Settings size={20} /> },
-    { label: 'Societies', path: '/', icon: <Building2 size={20} /> },
-    { label: 'Alerts', path: '/devices', icon: <AlertCircle size={20} className="text-red-500" /> },
-    { label: 'Profile', path: '/add-building', icon: <User size={20} /> },
-  ];
+  // Admin access
+  if (user.role === 'SUPER_ADMIN' || user.role === 'SOCIETY_ADMIN') {
+    tabs.push({
+      label: 'Admin',
+      path: '/admin',
+      icon: <Settings size={22} />,
+      activeColor: 'from-blue-500/25 to-indigo-500/25 text-blue-300 border-blue-400/50 shadow-[0_0_20px_rgba(59,130,246,0.3)]'
+    });
+  }
 
-  // Dynamic SVG path for the capsule shape with a smooth concave notch/cut-out around the active tab center X
-  // Adjusted curves (width = 80px, depth = 32px) and corner radius = 12px for a perfect fit
-  const pathD = `
-    M 12 24
-    L ${X - 40} 24
-    C ${X - 24} 24, ${X - 20} 56, ${X} 56
-    C ${X + 20} 56, ${X + 24} 24, ${X + 40} 24
-    L 408 24
-    A 12 12 0 0 1 420 36
-    L 420 84
-    A 12 12 0 0 1 408 96
-    L 12 96
-    A 12 12 0 0 1 0 84
-    L 0 36
-    A 12 12 0 0 1 12 24
-  `.replace(/\s+/g, ' ').trim();
+  // General tabs
+  tabs.push({
+    label: 'Societies',
+    path: '/',
+    icon: <Building2 size={22} />,
+    activeColor: 'from-teal-500/25 to-cyan-500/25 text-teal-300 border-teal-400/50 shadow-[0_0_20px_rgba(20,184,166,0.3)]'
+  });
+  tabs.push({
+    label: 'Alerts',
+    path: '/devices',
+    icon: <AlertCircle size={22} />,
+    activeColor: 'from-red-500/25 to-rose-500/25 text-red-300 border-red-400/50 shadow-[0_0_20px_rgba(239,68,68,0.3)]'
+  });
+  tabs.push({
+    label: 'Profile',
+    path: '/profile',
+    icon: <User size={22} />,
+    activeColor: 'from-violet-500/25 to-fuchsia-500/25 text-violet-300 border-violet-400/50 shadow-[0_0_20px_rgba(139,92,246,0.3)]'
+  });
+
+  // Resolve active index dynamically
+  let activeIndex = tabs.findIndex((tab) => {
+    if (tab.path === '/') {
+      return location.pathname === '/' || location.pathname.startsWith('/society') || location.pathname.startsWith('/building');
+    }
+    return location.pathname.startsWith(tab.path);
+  });
+
+  if (activeIndex === -1) activeIndex = 0;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[420px] h-[100px] select-none filter drop-shadow-[0_12px_30px_rgba(0,0,0,0.6)] drop-shadow-[0_0_20px_rgba(59,130,246,0.12)]">
-      {/* Dynamic Curved Glass Container */}
-      <svg
-        width="420"
-        height="100"
-        viewBox="0 0 420 100"
-        className="absolute inset-0 z-10 backdrop-blur-xl"
-      >
-        <path
-          d={pathD}
-          fill="rgba(24, 24, 27, 0.95)"
-          stroke="rgba(255, 255, 255, 0.15)"
-          strokeWidth="1.2"
-          style={{ transition: 'd 300ms cubic-bezier(0.4, 0, 0.2, 1)' }}
-        />
-      </svg>
-
-      {/* Tabs Layout */}
-      <div className="absolute top-[24px] left-0 w-[420px] h-[72px] z-20 flex items-center">
-        {/* Active Protruding Circular Button */}
-        <div
-          className="absolute top-[-22px] w-14 h-14 rounded-full bg-zinc-950 border border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.35)] flex items-center justify-center transition-all duration-300 ease-out z-30 cursor-pointer hover:bg-zinc-900 active:scale-95"
-          style={{ left: `${(activeIndex * 105) + 24.5}px` }}
-          onClick={() => navigate(tabs[activeIndex].path)}
-        >
-          <div className="text-blue-400">
-            {tabs[activeIndex].icon}
-          </div>
-        </div>
-
-        {/* Regular Tabs */}
+    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 select-none">
+      <div className="backdrop-blur-2xl bg-[#090a0e]/98 border border-white/20 rounded-[36px] p-2 flex items-center gap-1.5 shadow-[0_24px_50px_rgba(0,0,0,0.95)]">
         {tabs.map((tab, i) => {
           const isActive = activeIndex === i;
           return (
             <button
               key={tab.path}
               onClick={() => navigate(tab.path)}
-              className="w-[105px] h-full flex flex-col items-center justify-center gap-1 cursor-pointer relative focus:outline-none"
+              className="relative flex items-center justify-center h-14 transition-all duration-300 focus:outline-none cursor-pointer"
             >
-              {!isActive && (
-                <>
-                  <div className="text-zinc-400 hover:text-white transition-colors duration-200">
-                    {tab.icon}
-                  </div>
-                  <span className="text-xs font-bold text-zinc-400 hover:text-white tracking-tight transition-colors duration-200">
+              {isActive ? (
+                <motion.div
+                  layoutId="activeTabPill"
+                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  className={`h-full flex items-center gap-2.5 px-6 py-3.5 rounded-[28px] bg-gradient-to-r border ${tab.activeColor}`}
+                >
+                  <span className="shrink-0">{tab.icon}</span>
+                  <span className="text-[13px] font-bold uppercase tracking-wider whitespace-nowrap">
                     {tab.label}
                   </span>
-                </>
+                </motion.div>
+              ) : (
+                <div className="flex items-center justify-center w-16 h-full text-zinc-400 hover:text-white transition-colors duration-200">
+                  {tab.icon}
+                </div>
               )}
             </button>
           );

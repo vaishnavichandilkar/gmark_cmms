@@ -1,17 +1,27 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 @Injectable()
 export class SocietiesService {
   constructor(private readonly prisma: PrismaService) { }
 
-  async findAll() {
+  async findAll(user: any) {
+    if (user.role === 'SUPER_ADMIN') {
+      return this.prisma.society.findMany({
+        orderBy: { id: 'asc' },
+      });
+    }
     return this.prisma.society.findMany({
+      where: { id: user.societyId || 0 },
       orderBy: { id: 'asc' },
     });
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, user?: any) {
+    if (user && user.role !== 'SUPER_ADMIN' && user.societyId !== id) {
+      throw new ForbiddenException('Access denied to other societies');
+    }
+
     const society = await this.prisma.society.findUnique({
       where: { id },
     });

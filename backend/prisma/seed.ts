@@ -1,10 +1,11 @@
 import { PrismaClient } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('Clearing existing data...');
-  await prisma.$executeRawUnsafe(`TRUNCATE TABLE "DeviceRegisterValue", "RegisterDefinition", "Device", "Building", "DeviceState", "DeviceSnapshot", "Society" CASCADE;`);
+  await prisma.$executeRawUnsafe(`TRUNCATE TABLE "DeviceRegisterValue", "RegisterDefinition", "Device", "Building", "DeviceState", "DeviceSnapshot", "Society", "User", "UserBuilding", "AuditLog" CASCADE;`);
 
   console.log('Seeding societies...');
   await prisma.society.create({
@@ -133,10 +134,107 @@ async function main() {
     data: registerDefinitions
   });
 
+  console.log('Seeding users...');
+  const salt = bcrypt.genSaltSync(10);
+  const hashedPassword = bcrypt.hashSync('Admin@123', salt);
+
+  // Seed superadmin
+  await prisma.user.create({
+    data: {
+      username: 'superadmin',
+      email: 'superadmin@hypn.com',
+      mobileNumber: '1234567890',
+      password: hashedPassword,
+      role: 'SUPER_ADMIN',
+      firstName: 'Super',
+      lastName: 'Admin',
+      isActive: true,
+    }
+  });
+
+  // Seed societyadmin
+  await prisma.user.create({
+    data: {
+      username: 'societyadmin',
+      email: 'societyadmin@hypn.com',
+      mobileNumber: '1234567891',
+      password: hashedPassword,
+      role: 'SOCIETY_ADMIN',
+      firstName: 'Society',
+      lastName: 'Admin',
+      societyId: 4,
+      isActive: true,
+    }
+  });
+
+  // Seed buildingadmin
+  await prisma.user.create({
+    data: {
+      username: 'buildingadmin',
+      email: 'buildingadmin@hypn.com',
+      mobileNumber: '1234567892',
+      password: hashedPassword,
+      role: 'BUILDING_ADMIN',
+      firstName: 'Building',
+      lastName: 'Admin',
+      societyId: 4,
+      isActive: true,
+      buildings: {
+        create: [
+          { buildingId: 1 },
+          { buildingId: 2 },
+        ]
+      }
+    }
+  });
+
+  // Seed operator
+  await prisma.user.create({
+    data: {
+      username: 'operator',
+      email: 'operator@hypn.com',
+      mobileNumber: '1234567893',
+      password: hashedPassword,
+      role: 'OPERATOR',
+      firstName: 'Operator',
+      lastName: 'Staff',
+      societyId: 4,
+      isActive: true,
+      buildings: {
+        create: [
+          { buildingId: 1 },
+        ]
+      }
+    }
+  });
+
+  // Seed viewer
+  await prisma.user.create({
+    data: {
+      username: 'viewer',
+      email: 'viewer@hypn.com',
+      mobileNumber: '1234567894',
+      password: hashedPassword,
+      role: 'VIEWER',
+      firstName: 'Viewer',
+      lastName: 'User',
+      societyId: 4,
+      isActive: true,
+      buildings: {
+        create: [
+          { buildingId: 2 },
+        ]
+      }
+    }
+  });
+
   console.log('Resetting autoincrement sequences...');
   await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('"Society"', 'id'), coalesce(max(id), 1)) FROM "Society";`);
   await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('"Building"', 'id'), coalesce(max(id), 1)) FROM "Building";`);
   await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('"Device"', 'id'), coalesce(max(id), 1)) FROM "Device";`);
+  await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('"User"', 'id'), coalesce(max(id), 1)) FROM "User";`);
+  await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('"UserBuilding"', 'id'), coalesce(max(id), 1)) FROM "UserBuilding";`);
+  await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('"AuditLog"', 'id'), coalesce(max(id), 1)) FROM "AuditLog";`);
 
   console.log('Seeding completed successfully!');
 }

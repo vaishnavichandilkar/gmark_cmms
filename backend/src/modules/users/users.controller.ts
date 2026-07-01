@@ -1,26 +1,56 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, UseGuards, ForbiddenException, Ip } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { UserRole } from '@prisma/client';
+import { AuditLogService } from '../audit-log/audit-log.service';
 
+@ApiTags('users')
+@ApiBearerAuth('JWT-auth')
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) { }
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly auditLogService: AuditLogService,
+  ) { }
 
   @Get()
-  async findAll(@Query('societyId', ParseIntPipe) societyId: number) {
-    return this.usersService.findAllBySociety(societyId);
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN)
+  @ApiOperation({ summary: 'Get all users' })
+  @ApiResponse({ status: 200, description: 'Return all users.' })
+  async findAll(@CurrentUser() user: any, @Query('societyId') societyId?: string) {
+    const parsedId = societyId ? parseInt(societyId, 10) : undefined;
+    return this.usersService.findAll(user, parsedId);
   }
 
   @Get(':id')
-  async findOne(@Param('id', ParseIntPipe) id: number) {
+  @ApiOperation({ summary: 'Get user by ID' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'Return user details.' })
+  async findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() currentUser: any) {
+    if (
+      currentUser.role !== UserRole.SUPER_ADMIN &&
+      currentUser.role !== UserRole.SOCIETY_ADMIN &&
+      currentUser.userId !== id
+    ) {
+      throw new ForbiddenException('Access denied');
+    }
     return this.usersService.findOne(id);
   }
 
   @Post()
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN)
+  @ApiOperation({ summary: 'Create a new user' })
+  @ApiResponse({ status: 201, description: 'User created successfully.' })
   async create(
     @Body()
     body: {
       username: string;
-      mobileNumber: string;
+      mobileNumber?: string;
       email: string;
       password: string;
       firstName?: string;
@@ -33,15 +63,24 @@ export class UsersController {
       state?: string;
       country?: string;
       pincode?: string;
-      role?: string;
+      role?: UserRole;
       isActive?: boolean;
-      societyId: number;
+      societyId?: number;
+      buildingIds?: number[];
     },
+    @CurrentUser() currentUser: any,
+    @Ip() ip: string,
   ) {
-    return this.usersService.create(body);
+    const result = await this.usersService.create(body);
+    await this.auditLogService.create(currentUser.userId, `User Created: ${result.username} (${result.email})`, 'USERS', ip);
+    return result;
   }
 
   @Put(':id')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN)
+  @ApiOperation({ summary: 'Update an existing user' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'User updated successfully.' })
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body()
@@ -60,15 +99,31 @@ export class UsersController {
       state?: string;
       country?: string;
       pincode?: string;
-      role?: string;
+      role?: UserRole;
       isActive?: boolean;
+      buildingIds?: number[];
+      societyId?: number;
     },
+    @CurrentUser() currentUser: any,
+    @Ip() ip: string,
   ) {
-    return this.usersService.update(id, body);
+    const result = await this.usersService.update(id, body);
+    await this.auditLogService.create(currentUser.userId, `User Updated: ID ${id}`, 'USERS', ip);
+    return result;
   }
 
   @Delete(':id')
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    return this.usersService.remove(id);
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN)
+  @ApiOperation({ summary: 'Delete a user' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'User deleted successfully.' })
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() currentUser: any,
+    @Ip() ip: string,
+  ) {
+    const result = await this.usersService.remove(id);
+    await this.auditLogService.create(currentUser.userId, `User Deleted: ID ${id}`, 'USERS', ip);
+    return result;
   }
 }
