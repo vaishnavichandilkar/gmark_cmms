@@ -1,5 +1,24 @@
-import { Controller, Get, Param, Post, Put, Delete, Body, Query, ParseIntPipe, UseGuards, Ip } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Param,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Query,
+  ParseIntPipe,
+  UseGuards,
+  Ip,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { BuildingsService } from './buildings.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -17,11 +36,15 @@ export class BuildingsController {
   constructor(
     private readonly buildingsService: BuildingsService,
     private readonly auditLogService: AuditLogService,
-  ) { }
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Get all buildings' })
-  @ApiQuery({ name: 'societyId', required: false, description: 'Filter buildings by society ID' })
+  @ApiQuery({
+    name: 'societyId',
+    required: false,
+    description: 'Filter buildings by society ID',
+  })
   @ApiResponse({
     status: 200,
     description: 'Return all buildings and their device count.',
@@ -44,7 +67,12 @@ export class BuildingsController {
     @Ip() ip: string,
   ) {
     const result = await this.buildingsService.create(body);
-    await this.auditLogService.create(user.userId, `Building Created: ${result.name} (ID: ${result.id})`, 'BUILDINGS', ip);
+    await this.auditLogService.create(
+      user.userId,
+      `Building Created: ${result.name} (ID: ${result.id})`,
+      'BUILDINGS',
+      ip,
+    );
     return result;
   }
 
@@ -61,7 +89,12 @@ export class BuildingsController {
     @Ip() ip: string,
   ) {
     const result = await this.buildingsService.update(id, body);
-    await this.auditLogService.create(user.userId, `Building Updated: ${result.name} (ID: ${result.id})`, 'BUILDINGS', ip);
+    await this.auditLogService.create(
+      user.userId,
+      `Building Updated: ${result.name} (ID: ${result.id})`,
+      'BUILDINGS',
+      ip,
+    );
     return result;
   }
 
@@ -77,7 +110,12 @@ export class BuildingsController {
     @Ip() ip: string,
   ) {
     const result = await this.buildingsService.remove(id);
-    await this.auditLogService.create(user.userId, `Building Deleted: ID ${id}`, 'BUILDINGS', ip);
+    await this.auditLogService.create(
+      user.userId,
+      `Building Deleted: ID ${id}`,
+      'BUILDINGS',
+      ip,
+    );
     return result;
   }
 

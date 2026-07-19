@@ -9,11 +9,10 @@ import { DelaySettingsCard } from './components/DelaySettingsCard';
 import { FaultResetCard } from './components/FaultResetCard';
 import { QuickStatusCard } from './components/QuickStatusCard';
 import { SystemInfoCard } from './components/SystemInfoCard';
-import { ProcessFlowContainer, Pipe } from './components/ProcessFlow/PipeNetwork';
-import { Tank } from './components/ProcessFlow/Tank';
-import { PumpUnit } from './components/ProcessFlow/PumpUnit';
+import { ProcessFlowContainer } from './components/ProcessFlow/PipeNetwork';
 import { api } from '../../../../lib/api';
 import type { RootState } from '../../../../store';
+import './scada.css'; // Will create this
 
 export interface BoosterDashboardProps {
   title: string;
@@ -35,7 +34,7 @@ interface PumpState {
   mode: 'AUTO' | 'MANUAL' | 'OFF';
   runOnTime: string;
   faults: number;
-  isVisible: boolean; // Based on motorXConfigActivate
+  isVisible: boolean;
 }
 
 interface DashboardState {
@@ -78,7 +77,6 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
   const showPressureCard = state?.showPressureCard ?? initialShowPressureCard;
   const deviceTopic = panelId;
 
-  // Initialize all 4 pumps
   const [pumps, setPumps] = useState<PumpState[]>([
     { id: '1', name: 'Pump 1', status: 'OFFLINE', currentR: 0, currentY: 0, currentB: 0, mode: 'AUTO', runOnTime: '0:0 Hrs', faults: 0, isVisible: true },
     { id: '2', name: 'Pump 2', status: 'OFFLINE', currentR: 0, currentY: 0, currentB: 0, mode: 'AUTO', runOnTime: '0:0 Hrs', faults: 0, isVisible: true },
@@ -86,43 +84,17 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
     { id: '4', name: 'Pump 4', status: 'OFFLINE', currentR: 0, currentY: 0, currentB: 0, mode: 'AUTO', runOnTime: '0:0 Hrs', faults: 0, isVisible: false },
   ]);
 
-  const [dashboardData, setDashboardData] = useState<DashboardState>(({
+  const [dashboardData, setDashboardData] = useState<DashboardState>({
     averageVoltage: 0, ryVoltage: 0, ybVoltage: 0, rbVoltage: 0,
     pressureBar: 0, transmitterConnected: false, waterAvailable: false,
     deviceActive: false, inputPowerFaultType: 0,
     pumpOnDelay: 0, nextFillingTime: 0, overloadResetDelay: 0, underloadResetDelay: 0,
     vfdResetAfter: 0
-  }) as any);
-
-  // Drag-to-scroll state and handlers
-  const scrollRef = React.useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = React.useState(false);
-  const [startX, setStartX] = React.useState(0);
-  const [scrollLeft, setScrollLeft] = React.useState(0);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!scrollRef.current) return;
-    setIsDragging(true);
-    setStartX(e.pageX - scrollRef.current.offsetLeft);
-    setScrollLeft(scrollRef.current.scrollLeft);
-  };
-
-  const handleMouseLeave = () => setIsDragging(false);
-  const handleMouseUp = () => setIsDragging(false);
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || !scrollRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - scrollRef.current.offsetLeft;
-    const walk = (x - startX) * 2;
-    scrollRef.current.scrollLeft = scrollLeft - walk;
-  };
+  });
 
   const processPayload = (data: any, isInitial: boolean) => {
     setPumps(prev => {
       const newPumps = [...prev];
-
-      // Helper to safely extract boolean
       const getBool = (val: any) => typeof val === 'boolean' ? val : (Number(val) > 0);
 
       for (let i = 0; i < 4; i++) {
@@ -159,13 +131,11 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
           }
         }
 
-        // Apply Priority Logic
         if (p.faults > 0) {
           p.status = 'FAULT';
         } else if (data[statusKey] !== undefined) {
           p.status = getBool(data[statusKey]) ? 'RUNNING' : 'OFF';
         } else if (isInitial) {
-          // If this is initial load and no status was provided but pump doesn't have a fault, fallback to OFF
           p.status = 'OFF';
         }
 
@@ -240,52 +210,19 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
     };
   }, [panelId, deviceTopic]);
 
-  // Filter visible pumps dynamically
   const visiblePumps = pumps.filter(p => p.isVisible);
-
-  // To avoid breaking the UI before data arrives or if all are disabled, 
-  // we can show a placeholder or just render whatever is visible.
-
   const totalFaults = visiblePumps.reduce((sum, p) => sum + p.faults, 0);
   const totalCurrentR = visiblePumps.reduce((sum, p) => sum + p.currentR, 0);
   const totalCurrentY = visiblePumps.reduce((sum, p) => sum + p.currentY, 0);
   const totalCurrentB = visiblePumps.reduce((sum, p) => sum + p.currentB, 0);
 
-  const hasFlow = visiblePumps.some(p => p.status === 'RUNNING');
-
-  // Dynamic layout calculations
-  const pumpSpacing = 270;
-  const isTankOutlet = outletType === 'tank';
-
-  const leftTankLeft = 20;
-  const leftTankCenter = leftTankLeft + 64;
-
-  // Calculate X positions for pumps based on index
-  const pumpLefts = visiblePumps.map((_, idx) => leftTankLeft + 155 + (idx * pumpSpacing));
-  const pumpCenters = pumpLefts.map(left => left + 130);
-
-  // Determine canvas width based on the last pump
-  const numPumps = visiblePumps.length || 1; // Minimum width calculation safety
-  let rightTankLeft = leftTankLeft + 155 + (numPumps * pumpSpacing) + 17;
-  let outletEndX = rightTankLeft + 2;
-
-  const canvasWidth = rightTankLeft + (isTankOutlet ? 150 : 100);
-
-  const tankBottomY = 550;
-  const manifoldY = isTankOutlet ? 85 : 55;
   return (
-    <div
-      className="min-h-screen p-4 md:p-6 lg:p-8 overflow-hidden font-sans relative"
-      style={{
-        backgroundColor: '#000000'
-      }}
-    >
-      <ScadaHeader title={title} />
+    <div className="scada-dashboard">
+      <ScadaHeader title={title} isOnline={dashboardData.deviceActive} />
 
-      <div className="flex flex-col lg:flex-row gap-6">
-
-        {/* LEFT PANEL */}
-        <div className="w-full flex-1 flex flex-col min-w-[300px]">
+      <div className="scada-grid-layout">
+        {/* LEFT COLUMN: Metrics & Settings */}
+        <div className="scada-left-panel">
           <PerformanceCard
             voltageR={dashboardData.ryVoltage}
             voltageY={dashboardData.ybVoltage}
@@ -295,12 +232,14 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
             currentB={totalCurrentB}
             inputPowerStatus={dashboardData.inputPowerFaultType}
           />
+
           {showPressureCard && (
             <PressureCard
               pressure={dashboardData.pressureBar}
               isConnected={dashboardData.transmitterConnected}
             />
           )}
+
           <DelaySettingsCard
             pumpOnDelay={dashboardData.pumpOnDelay}
             nextFillingTime={dashboardData.nextFillingTime}
@@ -308,177 +247,26 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
             underloadResetDelay={dashboardData.underloadResetDelay}
             vfdResetAfter={dashboardData.vfdResetAfter}
           />
+
           <FaultResetCard hasFault={totalFaults > 0 || dashboardData.inputPowerFaultType > 0} />
-        </div>
-
-        {/* CENTER PROCESS FLOW */}
-        <div className="w-full flex-initial flex flex-col overflow-hidden max-w-full" style={{ flexBasis: `${canvasWidth}px` }}>
-          <div
-            ref={scrollRef}
-            className={`w-full overflow-x-auto pb-2 custom-scrollbar relative rounded-[20px] ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-            onMouseDown={handleMouseDown}
-            onMouseLeave={handleMouseLeave}
-            onMouseUp={handleMouseUp}
-            onMouseMove={handleMouseMove}
-          >
-            <div style={{ minWidth: `${canvasWidth}px`, width: `${canvasWidth}px` }}>
-              <ProcessFlowContainer>
-                <div className="absolute right-0 top-0 h-full" style={{ width: `${canvasWidth}px` }}>
-                  {/* Draw Pipes via absolute overlay */}
-                  <div className="absolute inset-0 z-0">
-                    <div className="absolute text-[10px] text-gray-400 font-bold whitespace-nowrap leading-tight text-left z-0" style={{ left: `${leftTankCenter + 16}px`, top: '560px' }}>FROM<br />TANK</div>
-
-                    {visiblePumps.length > 0 && (
-                      <>
-                        <Pipe
-                          path={`M ${leftTankCenter} ${tankBottomY} L ${leftTankCenter} ${680 - 16} A 16 16 0 0 0 ${leftTankCenter + 16} 680 L ${visiblePumps.length === 1 ? pumpCenters[0] - 16 : pumpCenters[0]} 680`}
-                          flowDirection={hasFlow ? 'forward' : 'none'}
-                        />
-
-                        {/* Connecting Inlet manifold to all pumps */}
-                        {/* Vertical branches (rendered first to sit behind the main manifold) */}
-                        {visiblePumps.map((p, i) => {
-                          const isRunning = p.status === 'RUNNING';
-                          const isLast = i === visiblePumps.length - 1;
-                          return (
-                            <React.Fragment key={`inlet-pipe-vert-${p.id}`}>
-                              {isLast ? (
-                                <Pipe path={`M ${pumpCenters[i] - 16} 680 A 16 16 0 0 0 ${pumpCenters[i]} ${680 - 16} L ${pumpCenters[i]} 585`} flowDirection={isRunning ? 'forward' : 'none'} />
-                              ) : (
-                                <Pipe path={`M ${pumpCenters[i]} 680 L ${pumpCenters[i]} 585`} flowDirection={isRunning ? 'forward' : 'none'} capStyle="butt" />
-                              )}
-                            </React.Fragment>
-                          );
-                        })}
-
-                        {/* Horizontal manifold segments (rendered on top for a clean continuous line) */}
-                        {visiblePumps.map((p, i) => {
-                          const isLast = i === visiblePumps.length - 1;
-                          const nextRunning = visiblePumps.slice(i + 1).some(op => op.status === 'RUNNING');
-                          return (
-                            <React.Fragment key={`inlet-pipe-horiz-${p.id}`}>
-                              {!isLast && (
-                                <Pipe path={`M ${pumpCenters[i]} 680 L ${i + 1 === visiblePumps.length - 1 ? pumpCenters[i + 1] - 16 : pumpCenters[i + 1]} 680`} flowDirection={nextRunning ? 'forward' : 'none'} />
-                              )}
-                            </React.Fragment>
-                          );
-                        })}
-
-                        {/* Connecting Outlet manifold to all pumps */}
-                        {/* Vertical branches (rendered first to sit behind the main manifold) */}
-                        {visiblePumps.map((p, i) => {
-                          const isRunning = p.status === 'RUNNING';
-                          return (
-                            <React.Fragment key={`outlet-pipe-vert-${p.id}`}>
-                              {i === 0 ? (
-                                <Pipe path={`M ${pumpCenters[i]} 145 L ${pumpCenters[i]} ${manifoldY + 16} A 16 16 0 0 1 ${pumpCenters[i] + 16} ${manifoldY}`} flowDirection={isRunning ? 'forward' : 'none'} />
-                              ) : (
-                                <Pipe path={`M ${pumpCenters[i]} 145 L ${pumpCenters[i]} ${manifoldY}`} flowDirection={isRunning ? 'forward' : 'none'} capStyle="butt" />
-                              )}
-                            </React.Fragment>
-                          );
-                        })}
-
-                        {/* Horizontal manifold segments (rendered on top for a clean continuous line) */}
-                        {visiblePumps.map((p, i) => {
-                          const isLast = i === visiblePumps.length - 1;
-                          const currentOrPrevRunning = visiblePumps.slice(0, i + 1).some(op => op.status === 'RUNNING');
-                          return (
-                            <React.Fragment key={`outlet-pipe-horiz-${p.id}`}>
-                              <Pipe
-                                path={`M ${i === 0 ? pumpCenters[i] + 16 : pumpCenters[i]} ${manifoldY} L ${isLast ? (isTankOutlet ? rightTankLeft + 64 - 16 : outletEndX) : pumpCenters[i + 1]} ${manifoldY}`}
-                                flowDirection={currentOrPrevRunning ? 'forward' : 'none'}
-                              />
-                            </React.Fragment>
-                          );
-                        })}
-
-                        {/* Final tank connection */}
-                        {isTankOutlet && (
-                          <Pipe
-                            path={`M ${rightTankLeft + 64 - 16} ${manifoldY} A 16 16 0 0 1 ${rightTankLeft + 64} ${manifoldY + 16} L ${rightTankLeft + 64} ${manifoldY + 55}`}
-                            flowDirection={hasFlow ? 'forward' : 'none'}
-                          />
-                        )}
-                      </>
-                    )}
-                  </div>
-
-                  {/* Elements */}
-                  <div className="absolute z-10" style={{ left: `${leftTankLeft}px`, top: '285px' }}>
-                    <Tank level={dashboardData.waterAvailable ? 100 : 0} title={inletTankTitle} />
-                  </div>
-
-                  {isTankOutlet ? (
-                    <>
-                      <div className="absolute z-10 w-32 flex justify-center text-center" style={{ left: `${rightTankLeft}px`, top: '45px' }}>
-                        <h3 className="text-white text-xs font-bold tracking-widest uppercase leading-tight">
-                          {outletTitle.split(' ').map((word: string, index: number) => (
-                            <React.Fragment key={index}>
-                              {word}
-                              {index < outletTitle.split(' ').length - 1 && <br />}
-                            </React.Fragment>
-                          ))}
-                        </h3>
-                      </div>
-                      <div className="absolute z-10" style={{ left: `${rightTankLeft}px`, top: '110px' }}>
-                        <Tank level={75} title="" />
-                      </div>
-                    </>
-                  ) : (
-                    <div className="absolute top-[55px] z-10 -translate-y-1/2 flex items-center" style={{ left: `${outletEndX + 10}px` }}>
-                      <h3 className="text-white text-xs font-bold tracking-widest uppercase whitespace-nowrap">{outletTitle}</h3>
-                    </div>
-                  )}
-
-                  {visiblePumps.map((p, idx) => (
-                    <div key={p.id} className="absolute top-[145px] z-10" style={{ left: `${pumpLefts[idx]}px` }}>
-                      <PumpUnit
-                        name={p.name}
-                        status={p.status}
-                        currentR={p.currentR}
-                        currentY={p.currentY}
-                        currentB={p.currentB}
-                        mode={p.mode}
-                        runOnTime={p.runOnTime}
-                      />
-                    </div>
-                  ))}
-
-                  {visiblePumps.length === 0 && (
-                    <div
-                      className="absolute z-10 flex items-center justify-center pointer-events-none"
-                      style={{
-                        left: `${leftTankLeft + 155}px`,
-                        top: '145px',
-                        width: '260px',
-                        height: '350px'
-                      }}
-                    >
-                      <div className="bg-[#0f172a]/80 px-6 py-6 rounded-[24px] border border-white/10 text-[rgba(255,255,255,0.45)] font-bold text-[14px] uppercase tracking-widest text-center shadow-[0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur-md">
-                        No Pumps Configured in Panel
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </ProcessFlowContainer>
-            </div>
+          
+          <div className="scada-footer-row">
+            <QuickStatusCard powerStatus={dashboardData.inputPowerFaultType === 0 ? 'OK' : 'FAULT'} />
+            <SystemInfoCard systemName={title} location={buildingName} panelId={panelId} />
           </div>
         </div>
-      </div>
 
-      {/* BOTTOM PANELS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mt-4 md:mt-6">
-        <div className="flex flex-col">
-          <QuickStatusCard
-            powerStatus={dashboardData.inputPowerFaultType === 0 ? 'OK' : 'FAULT'}
+        {/* RIGHT COLUMN: Process Flow / Diagram */}
+        <div className="scada-right-panel">
+          <ProcessFlowContainer 
+            pumps={visiblePumps}
+            dashboardData={dashboardData}
+            inletTankTitle={inletTankTitle}
+            outletTitle={outletTitle}
+            outletType={outletType}
           />
         </div>
-        <div className="flex flex-col">
-          <SystemInfoCard systemName={title} location={buildingName} panelId={panelId} />
-        </div>
       </div>
-
     </div>
   );
 };

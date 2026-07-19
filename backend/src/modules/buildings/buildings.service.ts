@@ -3,7 +3,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 
 @Injectable()
 export class BuildingsService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async findAll(user: any, societyId?: number) {
     const whereClause: any = {};
@@ -117,7 +117,10 @@ export class BuildingsService {
     });
   }
 
-  async update(id: number, data: { name?: string; info?: string; societyId?: number }) {
+  async update(
+    id: number,
+    data: { name?: string; info?: string; societyId?: number },
+  ) {
     await this.findOne(id);
     return this.prisma.building.update({
       where: { id },

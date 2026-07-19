@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Bell, Settings, Clock, LogOut } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Bell, Settings, LogOut, Wifi } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { logout } from '../../../../../store/slices/authSlice';
@@ -7,12 +7,19 @@ import { LogoutConfirmModal } from '../../../../../components/LogoutConfirmModal
 
 interface ScadaHeaderProps {
   title: string;
+  isOnline?: boolean;
 }
 
-export const ScadaHeader: React.FC<ScadaHeaderProps> = ({ title }) => {
+export const ScadaHeader: React.FC<ScadaHeaderProps> = ({ title, isOnline = true }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const handleLogoutConfirm = () => {
     setIsModalOpen(false);
@@ -21,56 +28,78 @@ export const ScadaHeader: React.FC<ScadaHeaderProps> = ({ title }) => {
   };
 
   return (
-    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full mb-6 gap-4">
-      {/* Left side: Back button and Title/Status in separate floating containers */}
-      <div className="flex items-center gap-3 w-full sm:w-auto">
+    <div 
+      className="flex items-center justify-between w-full px-4 rounded-[18px] border border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.4)]"
+      style={{ height: '60px', backgroundColor: '#101010', flexShrink: 0 }}
+    >
+      {/* LEFT */}
+      <div className="flex items-center gap-4 h-full">
         <button 
           onClick={() => navigate(-1)}
-          className="w-11 h-11 liquid-glass rounded-full text-white hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center shrink-0"
+          className="w-8 h-8 rounded-full bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors flex items-center justify-center cursor-pointer"
         >
-          <ArrowLeft size={20} />
+          <ArrowLeft size={16} />
         </button>
         
-        <div className="flex items-center gap-4 px-6 py-2.5 liquid-glass rounded-[24px] flex-1 sm:flex-initial">
-          <h1 className="text-lg md:text-xl font-bold text-white tracking-wider uppercase truncate max-w-[200px] md:max-w-none">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded bg-[#00D4FF] flex items-center justify-center text-black font-bold text-[10px]">
+            H
+          </div>
+          <h1 className="text-[13px] font-[600] text-white tracking-wider uppercase">
             {title}
           </h1>
-          <div className="flex items-center gap-2 px-3 py-1 bg-[#30D158]/10 rounded-full border border-[#30D158]/20 shrink-0">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#30D158] animate-pulse"></div>
-            <span className="text-[#30D158] text-[9px] font-bold tracking-widest">ONLINE</span>
-          </div>
+        </div>
+
+        <div className="h-6 w-[1px] bg-white/10 mx-2"></div>
+
+        <div className={`flex items-center gap-2 px-2 py-1 rounded border ${isOnline ? 'bg-[#00FF95]/10 border-[#00FF95]/20' : 'bg-[#FF4D4D]/10 border-[#FF4D4D]/20'}`}>
+          <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${isOnline ? 'bg-[#00FF95]' : 'bg-[#FF4D4D]'}`}></div>
+          <span className={`text-[11px] font-[500] tracking-widest uppercase ${isOnline ? 'text-[#00FF95]' : 'text-[#FF4D4D]'}`}>
+            {isOnline ? 'ONLINE' : 'OFFLINE'}
+          </span>
         </div>
       </div>
 
-      {/* Right side: Last Updated and control actions in separate floating containers */}
-      <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
-        <div className="flex items-center gap-2 px-5 py-2.5 liquid-glass rounded-[24px] text-sm text-[rgba(255,255,255,0.75)]">
-          <Clock size={16} className="text-[rgba(255,255,255,0.45)] shrink-0" />
-          <span className="whitespace-nowrap">Last Updated: <strong className="text-white font-semibold">2 sec ago</strong></span>
+      {/* RIGHT */}
+      <div className="flex items-center gap-4 h-full">
+        <div className="flex flex-col items-end justify-center">
+          <span className="text-[11px] font-[500] text-[#AAAAAA]">
+            {time.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+          </span>
+          <span className="text-[13px] font-[600] text-[#00D4FF]">
+            {time.toLocaleTimeString('en-US', { hour12: false })}
+          </span>
         </div>
-        
-        <div className="flex items-center gap-3 shrink-0">
-          <button className="relative w-11 h-11 liquid-glass rounded-full text-white hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center">
-            <Bell size={20} />
-            <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-[#FF453A] rounded-full border border-black animate-pulse"></span>
+
+        <div className="h-6 w-[1px] bg-white/10 mx-1"></div>
+
+        <div className="flex items-center gap-2 text-[#AAAAAA]">
+          <Wifi size={14} className="text-[#00FF95]" />
+          <span className="text-[11px] font-[500]">Connected</span>
+        </div>
+
+        <div className="h-6 w-[1px] bg-white/10 mx-1"></div>
+
+        <div className="flex items-center gap-2">
+          <button className="relative w-8 h-8 rounded bg-white/5 border border-white/10 text-[#AAAAAA] hover:text-white transition-colors flex items-center justify-center cursor-pointer">
+            <Bell size={14} />
+            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#FF4D4D] rounded-full"></span>
           </button>
           
-          <button className="w-11 h-11 liquid-glass rounded-full text-white hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center">
-            <Settings size={20} />
+          <button className="w-8 h-8 rounded bg-white/5 border border-white/10 text-[#AAAAAA] hover:text-white transition-colors flex items-center justify-center cursor-pointer">
+            <Settings size={14} />
           </button>
 
-          {/* Logout Button */}
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 liquid-glass px-4 py-2.5 rounded-full text-zinc-400 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20 transition-all cursor-pointer"
+            className="flex items-center gap-2 px-3 h-8 rounded bg-white/5 border border-white/10 text-[#AAAAAA] hover:text-[#FF4D4D] hover:bg-[#FF4D4D]/10 hover:border-[#FF4D4D]/30 transition-all cursor-pointer"
           >
-            <LogOut size={16} />
-            <span className="text-[11px] font-bold uppercase tracking-wider">Logout</span>
+            <LogOut size={14} />
+            <span className="text-[11px] font-[500] uppercase">Logout</span>
           </button>
         </div>
       </div>
 
-      {/* Confirmation Modal */}
       <LogoutConfirmModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

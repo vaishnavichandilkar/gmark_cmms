@@ -1,5 +1,22 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe, UseGuards, Ip } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  ParseIntPipe,
+  UseGuards,
+  Ip,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { SocietiesService } from './societies.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -16,7 +33,7 @@ export class SocietiesController {
   constructor(
     private readonly societiesService: SocietiesService,
     private readonly auditLogService: AuditLogService,
-  ) { }
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Get all societies' })
@@ -30,7 +47,10 @@ export class SocietiesController {
   @ApiParam({ name: 'id', description: 'Society ID' })
   @ApiResponse({ status: 200, description: 'Return society details.' })
   @ApiResponse({ status: 404, description: 'Society not found.' })
-  async getSocietyById(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  async getSocietyById(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: any,
+  ) {
     return this.societiesService.findOne(id, user);
   }
 
@@ -44,7 +64,12 @@ export class SocietiesController {
     @Ip() ip: string,
   ) {
     const result = await this.societiesService.create(body);
-    await this.auditLogService.create(user.userId, `Society Created: ${result.name} (ID: ${result.id})`, 'SOCIETIES', ip);
+    await this.auditLogService.create(
+      user.userId,
+      `Society Created: ${result.name} (ID: ${result.id})`,
+      'SOCIETIES',
+      ip,
+    );
     return result;
   }
 
@@ -61,7 +86,12 @@ export class SocietiesController {
     @Ip() ip: string,
   ) {
     const result = await this.societiesService.update(id, body);
-    await this.auditLogService.create(user.userId, `Society Updated: ${result.name} (ID: ${result.id})`, 'SOCIETIES', ip);
+    await this.auditLogService.create(
+      user.userId,
+      `Society Updated: ${result.name} (ID: ${result.id})`,
+      'SOCIETIES',
+      ip,
+    );
     return result;
   }
 
@@ -77,7 +107,12 @@ export class SocietiesController {
     @Ip() ip: string,
   ) {
     const result = await this.societiesService.remove(id);
-    await this.auditLogService.create(user.userId, `Society Deleted: ID ${id}`, 'SOCIETIES', ip);
+    await this.auditLogService.create(
+      user.userId,
+      `Society Deleted: ID ${id}`,
+      'SOCIETIES',
+      ip,
+    );
     return result;
   }
 }

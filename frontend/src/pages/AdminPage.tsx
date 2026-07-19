@@ -101,7 +101,6 @@ export function AdminPage() {
 
   // Users State
   const [users, setUsers] = useState<User[]>([]);
-  const [isUsersDrawerOpen, setIsUsersDrawerOpen] = useState(false);
   const [isUserFormOpen, setIsUserFormOpen] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -320,7 +319,6 @@ export function AdminPage() {
       fetchUsers(selectedSocietyId);
     } else {
       setUsers([]);
-      setIsUsersDrawerOpen(false);
     }
   }, [selectedSocietyId, fetchUsers]);
 
@@ -611,398 +609,482 @@ export function AdminPage() {
   const currentTowerName = towers.find(t => t.id === selectedTowerId)?.name || '';
 
   // Filtered devices based on top-right search input query
-  const filteredDevices = devices.filter(d =>
-    d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    d.deviceId.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredUsers = users.filter(u => 
+    u.username?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    u.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    u.lastName?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const filteredDevices = devices.filter(d => 
+    d.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    d.deviceId?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+
   return (
-    <div className="min-h-screen bg-black -m-4 sm:-m-6 md:-m-8 p-4 sm:p-6 md:p-8 text-white relative flex flex-col">
-      {/* Top Header Bar */}
-      <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-6">
-        {/* Breadcrumbs / Dynamic Header title */}
-        <div className="flex items-center gap-1.5 text-sm font-semibold select-none">
-          {selectedSocietyId ? (
-            <>
-              <span
-                className="text-zinc-400 hover:text-white cursor-pointer transition-colors"
-                onClick={() => {
-                  setSelectedSocietyId('');
-                  localStorage.removeItem('admin_selected_society');
-                  setSelectedTowerId('');
-                  localStorage.removeItem('admin_selected_tower');
-                }}
-              >
-                All
-              </span>
-              <ChevronRight size={14} className="text-zinc-600" />
-              <span
-                className={`cursor-pointer transition-colors ${selectedTowerId ? 'text-zinc-400 hover:text-white' : 'text-white font-bold'}`}
-                onClick={() => {
-                  setSelectedTowerId('');
-                  localStorage.removeItem('admin_selected_tower');
-                }}
-              >
-                {currentSocietyName}
-              </span>
-              {selectedTowerId && (
-                <>
-                  <ChevronRight size={14} className="text-zinc-600" />
-                  <span className="text-white font-bold">{currentTowerName}</span>
-                </>
-              )}
-            </>
-          ) : (
-            <span className="text-white font-black text-lg">Admin Panel</span>
+    <>
+      <div className="h-[calc(100vh-8rem)] bg-transparent -m-4 sm:-m-6 md:-m-8 p-4 sm:p-6 md:p-8 text-gray-900 relative flex flex-col md:flex-row gap-6">
+      
+      {/* LEFT SIDEBAR: MASTER VIEW */}
+      <div className="w-full md:w-[320px] flex-shrink-0 flex flex-col bg-white border border-gray-200 shadow-sm rounded-3xl overflow-hidden h-full">
+        <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+          <div className="flex items-center gap-2">
+            <Building2 className="text-emerald-600" size={18} />
+            <span className="text-xs font-bold text-emerald-700 tracking-wider uppercase">Hierarchy</span>
+          </div>
+          {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'SOCIETY_ADMIN') && (
+            <button
+              onClick={() => setIsAddSocietyOpen(true)}
+              className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-full text-[10px] font-bold text-white transition-all shadow-sm"
+            >
+              <Plus size={12} /> Society
+            </button>
           )}
         </div>
-
-        {/* Global Toolbar */}
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
-            <input
-              type="text"
-              placeholder="Search devices..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-zinc-900/50 border border-white/5 focus:border-blue-500/50 rounded-full pl-9 pr-4 py-1.5 text-xs text-white focus:outline-none transition-all w-48 sm:w-64"
-            />
-          </div>
-          <button className="p-2 bg-zinc-900/60 border border-white/5 hover:border-zinc-700 rounded-lg text-zinc-400 hover:text-white transition-all">
-            <Wrench size={16} />
-          </button>
-        </div>
-      </div>
-
-      {/* 3-Column Core Dashboard Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 items-stretch mb-24">
-
-        {/* COLUMN 1: SOCIETIES */}
-        <div className="liquid-glass border border-white/5 bg-zinc-950/20 rounded-[20px] p-4 flex flex-col min-h-[500px]">
-          <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
-            <div className="flex items-center gap-2">
-              <Building2 className="text-amber-500" size={18} />
-              <span className="text-xs font-bold text-amber-500 tracking-wider uppercase">Societies</span>
-            </div>
-            {currentUser?.role === 'SUPER_ADMIN' && (
-              <button
-                onClick={() => setIsAddSocietyOpen(true)}
-                className="p-1 hover:bg-white/5 border border-white/10 rounded text-zinc-400 hover:text-white transition-colors cursor-pointer"
-              >
-                <Plus size={14} />
-              </button>
-            )}
-          </div>
-
-          <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[580px] custom-scrollbar">
-            {societies.map(soc => {
-              const isSelected = selectedSocietyId === soc.id;
-              return (
-                <div
-                  key={soc.id}
+        
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-1">
+          {societies.length === 0 ? (
+            <div className="text-center py-10 text-gray-400 text-xs italic">No societies found</div>
+          ) : (
+            societies.map(soc => (
+              <div key={soc.id} className="flex flex-col">
+                {/* Society Row */}
+                <div 
+                  className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${selectedSocietyId === soc.id ? 'bg-emerald-50 border border-emerald-100' : 'hover:bg-gray-50 border border-transparent'}`}
                   onClick={() => {
-                    if (currentUser?.role === 'SOCIETY_ADMIN') return; // Locked selection
-                    setSelectedSocietyId(soc.id);
-                    localStorage.setItem('admin_selected_society', soc.id);
-                    setSelectedTowerId('');
-                    localStorage.removeItem('admin_selected_tower');
+                    if (selectedSocietyId === soc.id) {
+                      setSelectedSocietyId('');
+                      localStorage.removeItem('admin_selected_society');
+                      setSelectedTowerId('');
+                      localStorage.removeItem('admin_selected_tower');
+                    } else {
+                      setSelectedSocietyId(soc.id);
+                      localStorage.setItem('admin_selected_society', soc.id);
+                      setSelectedTowerId('');
+                      localStorage.removeItem('admin_selected_tower');
+                    }
                   }}
-                  className={`flex items-center justify-between p-3 rounded-xl border transition-all select-none ${
-                    currentUser?.role === 'SOCIETY_ADMIN' ? 'cursor-default' : 'cursor-pointer'
-                  } ${isSelected
-                      ? 'bg-amber-500/10 border-amber-500/30'
-                      : 'bg-zinc-900/30 border-white/5 hover:bg-zinc-900/60'
-                    }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${isSelected ? 'bg-amber-500/20 text-amber-400' : 'bg-zinc-800 text-zinc-400'}`}>
+                    <div className={`p-2 rounded-lg transition-colors ${selectedSocietyId === soc.id ? 'bg-emerald-600 text-white shadow-sm' : 'bg-gray-100 text-gray-500'}`}>
                       <Building2 size={16} />
                     </div>
-                    <div>
-                      <h4 className="font-bold text-sm text-white">{soc.name}</h4>
-                      <p className="text-[10px] text-zinc-500 capitalize">{soc.city}</p>
-                    </div>
+                    <span className={`text-sm font-bold truncate max-w-[150px] transition-colors ${selectedSocietyId === soc.id ? 'text-emerald-900' : 'text-gray-700'}`}>{soc.name}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {currentUser?.role === 'SUPER_ADMIN' && (
-                      <>
+                  <ChevronRight size={16} className={`transition-transform ${selectedSocietyId === soc.id ? 'rotate-90 text-emerald-600' : 'text-gray-300'}`} />
+                </div>
+                
+                {/* Towers List (Expanded if selected) */}
+                {selectedSocietyId === soc.id && (
+                  <div className="pl-11 pr-2 py-2 space-y-1 mb-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase">Towers</span>
+                      {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'SOCIETY_ADMIN') && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            setIsAddTowerOpen(true);
+                          }}
+                          className="text-emerald-600 hover:text-emerald-700 p-1 bg-emerald-50 rounded hover:bg-emerald-100 transition-colors"
+                        >
+                          <Plus size={12} />
+                        </button>
+                      )}
+                    </div>
+                    
+                    {loadingTowers ? (
+                      <div className="text-xs text-gray-400 py-2">Loading towers...</div>
+                    ) : towers.length === 0 ? (
+                      <div className="text-xs text-gray-400 italic py-2">No towers found</div>
+                    ) : (
+                      towers.map(tower => (
+                        <div
+                          key={tower.id}
+                          className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${selectedTowerId === tower.id ? 'bg-gray-100/80 font-bold text-gray-900 shadow-sm border border-gray-200' : 'hover:bg-gray-50 text-gray-600 font-medium border border-transparent'}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (selectedTowerId === tower.id) {
+                              setSelectedTowerId('');
+                              localStorage.removeItem('admin_selected_tower');
+                            } else {
+                              setSelectedTowerId(tower.id);
+                              localStorage.setItem('admin_selected_tower', tower.id);
+                            }
+                          }}
+                        >
+                          <div className={`w-1.5 h-1.5 rounded-full transition-colors ${selectedTowerId === tower.id ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+                          <span className="text-xs truncate">{tower.name}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* RIGHT MAIN AREA: DETAIL VIEW */}
+      <div className="flex-1 flex flex-col bg-white border border-gray-200 shadow-sm rounded-3xl overflow-hidden h-full min-w-0">
+        {!selectedSocietyId ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-gray-400 p-8 text-center bg-gray-50/30">
+            <div className="w-24 h-24 bg-white shadow-sm border border-gray-100 rounded-full flex items-center justify-center mb-6">
+              <Building2 size={40} className="text-gray-300" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-700 mb-2">Welcome to Admin Panel</h3>
+            <p className="text-sm max-w-sm">Select a society from the left sidebar to view its details, manage towers, devices, and user access.</p>
+          </div>
+        ) : !selectedTowerId ? (
+          // Society Details & User Management
+          <div className="flex flex-col h-full bg-gray-50/30">
+            <div className="p-8 border-b border-gray-200 bg-white">
+              <div className="flex items-center gap-2 text-sm font-semibold select-none mb-4">
+                <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">All Societies</span>
+                <ChevronRight size={14} className="text-gray-400" />
+                <span className="text-gray-900 font-bold">{currentSocietyName}</span>
+              </div>
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                  <h2 className="text-3xl font-black text-gray-900 tracking-tight">{currentSocietyName}</h2>
+                  <p className="text-sm text-gray-500 mt-1">Manage society details, settings, and users.</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'SOCIETY_ADMIN') && (
+                    <>
+                      <button
+                        onClick={() => {
+                          const soc = societies.find(s => s.id === selectedSocietyId);
+                          if (soc) {
                             setEditSocietyData(soc);
                             setIsEditSocietyOpen(true);
-                          }}
-                          className="text-zinc-500 hover:text-white p-1 rounded"
-                        >
-                          <Pencil size={12} />
-                        </button>
-                        {soc.id !== '4' && (
-                          <button
-                            onClick={(e) => handleDeleteSociety(soc.id, e)}
-                            className="text-zinc-600 hover:text-red-500 p-1 rounded"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        )}
-                      </>
-                    )}
-                    <ChevronRight size={14} className={isSelected ? 'text-amber-400' : 'text-zinc-600'} />
-                  </div>
+                          }
+                        }}
+                        className="px-4 py-2 bg-white border border-gray-200 hover:border-gray-300 rounded-xl text-xs font-bold text-gray-700 transition-all shadow-sm flex items-center gap-2"
+                      >
+                        <Pencil size={14} /> Edit Society
+                      </button>
+                      <button
+                        onClick={(e) => handleDeleteSociety(selectedSocietyId, e)}
+                        className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-xs font-bold transition-all flex items-center gap-2"
+                      >
+                        <Trash2 size={14} /> Delete
+                      </button>
+                    </>
+                  )}
                 </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* COLUMN 2: TOWERS */}
-        <div className="liquid-glass border border-white/5 bg-zinc-950/20 rounded-[20px] p-4 flex flex-col min-h-[500px]">
-          <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
-            <div className="flex items-center gap-2">
-              <Building2 className="text-purple-500" size={18} />
-              <span className="text-xs font-bold text-purple-500 tracking-wider uppercase">Towers</span>
+              </div>
             </div>
-            {selectedSocietyId && (
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setIsUsersDrawerOpen(true)}
-                  className="flex items-center gap-1 px-2.5 py-1 border border-white/10 hover:border-zinc-500 rounded-full text-[10px] font-bold text-zinc-300 hover:text-white transition-all cursor-pointer"
-                >
-                  <Users size={10} />
-                  Users
-                </button>
-                <button
-                  onClick={() => {
-                    setEditingUser(null);
-                    setUserFormData({
-                      username: '',
-                      mobileNumber: '',
-                      email: '',
-                      password: '',
-                      firstName: '',
-                      lastName: '',
-                      profileTitle: '',
-                      profileDetail: '',
-                      profileImageUrl: '',
-                      floorNo: '',
-                      city: '',
-                      state: '',
-                      country: '',
-                      pincode: '',
-                      role: 'VIEWER',
-                      isActive: true,
-                      buildingIds: []
-                    });
-                    setIsUserFormOpen(true);
-                  }}
-                  className="p-1 hover:bg-white/5 border border-white/10 rounded text-zinc-400 hover:text-white transition-colors cursor-pointer"
-                  title="Add User"
-                >
-                  <UserPlus size={12} />
-                </button>
-                <button
-                  onClick={() => setIsAddTowerOpen(true)}
-                  className="p-1 hover:bg-white/5 border border-white/10 rounded text-zinc-400 hover:text-white transition-colors cursor-pointer"
-                >
-                  <Plus size={12} />
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[580px] custom-scrollbar">
-            {!selectedSocietyId ? (
-              <div className="h-full flex items-center justify-center text-zinc-600 text-xs italic">
-                &larr; Select a society
-              </div>
-            ) : loadingTowers ? (
-              <div className="h-full flex items-center justify-center text-zinc-500 text-xs">
-                Loading towers...
-              </div>
-            ) : towers.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-zinc-600 text-xs italic">
-                No towers defined
-              </div>
-            ) : (
-              towers.map(tower => {
-                const isSelected = selectedTowerId === tower.id;
-                return (
-                  <div
-                    key={tower.id}
-                    onClick={() => {
-                      setSelectedTowerId(tower.id);
-                      localStorage.setItem('admin_selected_tower', tower.id);
-                    }}
-                    className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer select-none ${isSelected
-                        ? 'bg-purple-500/10 border-purple-500/30'
-                        : 'bg-zinc-900/30 border-white/5 hover:bg-zinc-900/60'
-                      }`}
+            
+            {/* Society Users Section */}
+            <div className="flex-1 flex flex-col min-h-0 m-6 bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+              <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 gap-4">
+                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2 uppercase tracking-wider">
+                  <Users size={16} className="text-emerald-600" /> Users Access List
+                </h3>
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                    <input
+                      type="text"
+                      placeholder="Search users..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all w-full sm:w-64"
+                    />
+                  </div>
+                  <button
+                    onClick={() => setIsUserFormOpen(true)}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-lg text-xs font-bold text-white transition-all shadow-sm flex items-center gap-2 whitespace-nowrap"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${isSelected ? 'bg-purple-500/20 text-purple-400' : 'bg-zinc-800 text-zinc-400'}`}>
-                        <Building2 size={16} />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-sm text-white">{tower.name}</h4>
-                        {tower.info && <p className="text-[10px] text-zinc-500">{tower.info}</p>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditTowerData(tower);
-                          setIsEditTowerOpen(true);
-                        }}
-                        className="text-zinc-500 hover:text-white p-1 rounded"
-                        title="Edit Tower"
-                      >
-                        <Pencil size={12} />
-                      </button>
-                      <button
-                        onClick={(e) => handleDeleteTower(tower.id, e)}
-                        className="text-zinc-600 hover:text-red-500 p-1 rounded"
-                        title="Delete Tower"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                      <ChevronRight size={14} className={isSelected ? 'text-purple-400' : 'text-zinc-600'} />
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-        {/* COLUMN 3: DEVICES */}
-        <div className="liquid-glass border border-white/5 bg-zinc-950/20 rounded-[20px] p-4 flex flex-col min-h-[500px]">
-          <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
-            <div className="flex items-center gap-2">
-              <Building2 className="text-emerald-500" size={18} />
-              <span className="text-xs font-bold text-emerald-500 tracking-wider uppercase">Devices</span>
-            </div>
-            {selectedTowerId && (
-              <button
-                onClick={() => setIsAddDeviceOpen(true)}
-                className="flex items-center gap-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-full text-[10px] font-bold text-white transition-all cursor-pointer"
-              >
-                <Plus size={10} />
-                Device
-              </button>
-            )}
-          </div>
-
-          <div className="flex-1 overflow-y-auto space-y-3 pr-2 max-h-[580px] custom-scrollbar">
-            {!selectedTowerId ? (
-              <div className="h-full flex items-center justify-center text-zinc-600 text-xs italic">
-                &larr; Select a tower
-              </div>
-            ) : loadingDevices ? (
-              <div className="h-full flex items-center justify-center text-zinc-500 text-xs">
-                Loading devices...
-              </div>
-            ) : filteredDevices.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-zinc-600 text-xs italic">
-                No devices found
-              </div>
-            ) : (
-              filteredDevices.map(dev => (
-                <div
-                  key={dev.id}
-                  onClick={() => {
-                    setSelectedActionDevice(dev);
-                    setIsDeviceActionSheetOpen(true);
-                  }}
-                  className="p-4 rounded-xl border border-white/5 bg-zinc-900/20 hover:bg-zinc-900/40 relative flex flex-col gap-3 transition-all cursor-pointer hover:border-white/10"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg">
-                        <Wifi size={16} />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-[11px] text-white uppercase tracking-wider leading-tight">{dev.name}</h4>
-                        <p className="text-[9px] text-zinc-500 mt-1 font-medium">@ {dev.deviceId}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditDeviceData(dev);
-                          setIsEditDeviceOpen(true);
-                        }}
-                        className="text-zinc-400 hover:text-white p-1 rounded hover:bg-white/5 transition-colors"
-                        title="Edit Device"
-                      >
-                        <Pencil size={12} />
-                      </button>
-                      <button
-                        onClick={(e) => handleDeleteDevice(dev.id, e)}
-                        className="text-zinc-400 hover:text-red-400 p-1 rounded hover:bg-white/5 transition-colors"
-                        title="Delete Device"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                      <span
-                        className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ml-1 ${dev.status === 'online'
-                            ? 'bg-emerald-500 shadow-[0_0_8px_#10b981,0_0_4px_#10b981]'
-                            : 'bg-red-500 shadow-[0_0_8px_#ef4444,0_0_4px_#ef4444]'
-                          }`}
-                        title={dev.status === 'online' ? 'Online' : 'Offline'}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Metadata tags */}
-                  <div className="flex flex-wrap gap-1 text-[9px] font-bold text-zinc-400 select-none">
-                    <span className="px-2 py-0.5 bg-zinc-800/80 rounded border border-white/5">{dev.application}</span>
-                    <span className="px-2 py-0.5 bg-zinc-800/80 rounded border border-white/5">{dev.pumpType}</span>
-                    <span className="px-2 py-0.5 bg-zinc-800/80 rounded border border-white/5">{dev.controller}</span>
-                    <span className="px-2 py-0.5 bg-zinc-800/80 rounded border border-white/5">{dev.macType}</span>
-                  </div>
+                    <Plus size={14} /> Add User
+                  </button>
                 </div>
-              ))
-            )}
-          </div>
-        </div>
+              </div>
+              <div className="flex-1 overflow-auto custom-scrollbar">
+                
+                <table className="w-full text-left text-sm text-gray-500">
+                  <thead className="text-[10px] text-gray-400 uppercase bg-gray-50 border-b border-gray-100 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-6 py-4 font-extrabold tracking-wider">User</th>
+                      <th className="px-6 py-4 font-extrabold tracking-wider">Contact</th>
+                      <th className="px-6 py-4 font-extrabold tracking-wider">Role</th>
+                      <th className="px-6 py-4 font-extrabold tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-right font-extrabold tracking-wider w-24">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 bg-white">
+                    {loadingUsers ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-xs">
+                          Loading users...
+                        </td>
+                      </tr>
+                    ) : filteredUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-xs italic">
+                          No users found in this society.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredUsers.map((user) => (
+                        <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              {user.profileImageUrl ? (
+                                <img src={user.profileImageUrl} alt={user.username} className="w-10 h-10 rounded-full object-cover border border-gray-200" />
+                              ) : (
+                                <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-lg border border-emerald-200">
+                                  {user.username.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              <div>
+                                <h4 className="font-bold text-gray-900 text-sm">{user.firstName} {user.lastName}</h4>
+                                <p className="text-[10px] text-gray-500 font-medium">@{user.username}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-xs text-gray-900">{user.email}</span>
+                              <span className="text-[10px] text-gray-500 font-mono">{user.mobileNumber}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-full border border-emerald-100">
+                              {user.role}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-1.5">
+                              <div className={`w-2 h-2 rounded-full ${user.isActive ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                              <span className="text-[11px] font-bold text-gray-500 uppercase">{user.isActive ? 'Active' : 'Inactive'}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center justify-end gap-2">
+                              {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'SOCIETY_ADMIN') && (
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      setEditingUser(user);
+                                      setUserFormData({ ...userFormData, ...user, password: '', buildingIds: user.buildingIds || [] } as any);
+                                      setIsUserFormOpen(true);
+                                    }}
+                                    className="text-gray-400 hover:text-gray-900 p-1.5 rounded transition-colors"
+                                  >
+                                    <Pencil size={14} />
+                                  </button>
+                                  <button
+                                    onClick={(e) => handleDeleteUser(user.id, e)}
+                                    className="text-gray-400 hover:text-red-500 p-1.5 rounded transition-colors"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
 
+              </div>
+            </div>
+          </div>
+        ) : (
+          // Tower Details & Devices
+          <div className="flex flex-col h-full bg-gray-50/30">
+            <div className="p-8 border-b border-gray-200 bg-white">
+              <div className="flex items-center gap-2 text-sm font-semibold select-none mb-4">
+                <span 
+                  className="text-gray-500 hover:text-emerald-600 cursor-pointer transition-colors px-2 py-0.5 rounded hover:bg-emerald-50"
+                  onClick={() => {
+                    setSelectedTowerId('');
+                    localStorage.removeItem('admin_selected_tower');
+                  }}
+                >
+                  {currentSocietyName}
+                </span>
+                <ChevronRight size={14} className="text-gray-400" />
+                <span className="text-gray-900 font-bold bg-gray-100 px-2 py-0.5 rounded">{currentTowerName}</span>
+              </div>
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                  <h2 className="text-3xl font-black text-gray-900 tracking-tight">{currentTowerName}</h2>
+                  <p className="text-sm text-gray-500 mt-1">Manage connected IoT devices in this tower.</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'SOCIETY_ADMIN') && (
+                    <>
+                      <button
+                        onClick={() => {
+                          const tow = towers.find(t => t.id === selectedTowerId);
+                          if (tow) {
+                            setEditTowerData(tow);
+                            setIsEditTowerOpen(true);
+                          }
+                        }}
+                        className="px-4 py-2 bg-white border border-gray-200 hover:border-gray-300 rounded-xl text-xs font-bold text-gray-700 transition-all shadow-sm flex items-center gap-2"
+                      >
+                        <Pencil size={14} /> Edit Tower
+                      </button>
+                      <button
+                        onClick={(e) => handleDeleteTower(selectedTowerId, e)}
+                        className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-xs font-bold transition-all flex items-center gap-2"
+                      >
+                        <Trash2 size={14} /> Delete
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Devices Section */}
+            <div className="flex-1 flex flex-col min-h-0 m-6 bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+              <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 gap-4">
+                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2 uppercase tracking-wider">
+                  <Wifi size={16} className="text-emerald-600" /> Connected Devices
+                </h3>
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                    <input
+                      type="text"
+                      placeholder="Search devices..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all w-full sm:w-64"
+                    />
+                  </div>
+                  <button
+                    onClick={() => setIsAddDeviceOpen(true)}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-lg text-xs font-bold text-white transition-all shadow-sm flex items-center gap-2 whitespace-nowrap"
+                  >
+                    <Plus size={14} /> Add Device
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-auto custom-scrollbar">
+                
+                <table className="w-full text-left text-sm text-gray-500">
+                  <thead className="text-[10px] text-gray-400 uppercase bg-gray-50 border-b border-gray-100 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-6 py-4 font-extrabold tracking-wider">Device Details</th>
+                      <th className="px-6 py-4 font-extrabold tracking-wider">MAC Address</th>
+                      <th className="px-6 py-4 font-extrabold tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-right font-extrabold tracking-wider w-24">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 bg-white">
+                    {loadingDevices ? (
+                      <tr>
+                        <td colSpan={4} className="px-6 py-12 text-center text-gray-400 text-xs">
+                          Loading devices...
+                        </td>
+                      </tr>
+                    ) : filteredDevices.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-6 py-12 text-center text-gray-400 font-medium text-xs">
+                          No devices found for this tower.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredDevices.map(dev => (
+                        <tr key={dev.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => {
+                            setSelectedActionDevice(dev);
+                            setIsDeviceActionSheetOpen(true);
+                          }}>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2.5 bg-emerald-500/10 text-emerald-600 rounded-xl">
+                                <Wifi size={16} />
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-gray-900 text-sm">{dev.name}</h4>
+                                <p className="text-[10px] text-gray-400 font-medium">{dev.deviceId}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 font-medium text-xs font-mono text-gray-500">{dev.macType || '-'}</td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-1.5">
+                              <div className={`w-2 h-2 rounded-full ${dev.status === 'online' ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+                              <span className="text-[11px] font-bold text-gray-500 uppercase">{dev.status}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center justify-end gap-2">
+                              {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'SOCIETY_ADMIN') && (
+                                <>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditDeviceData(dev);
+                                      setIsEditDeviceOpen(true);
+                                    }}
+                                    className="text-gray-400 hover:text-gray-900 p-1.5 rounded transition-colors"
+                                  >
+                                    <Pencil size={14} />
+                                  </button>
+                                  <button
+                                    onClick={(e) => handleDeleteDevice(dev.id, e)}
+                                    className="text-gray-400 hover:text-red-500 p-1.5 rounded transition-colors"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
+    </div>
 
       {/* --- MODALS --- */}
 
       {/* Add Society Modal */}
       {isAddSocietyOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-white/10 rounded-[20px] p-6 w-full max-w-sm shadow-2xl relative">
+          <div className="bg-gray-50 border border-gray-200 rounded-[20px] p-6 w-full max-w-sm shadow-2xl relative">
             <button
               onClick={() => setIsAddSocietyOpen(false)}
-              className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 transition-colors"
             >
               <X size={16} />
             </button>
             <h3 className="text-base font-bold mb-4">Add New Society</h3>
             <div className="space-y-4">
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase pl-1">Society Name</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase pl-1">Society Name</label>
                 <input
                   type="text"
                   placeholder="e.g. AGC House"
                   value={newSociety.name}
                   onChange={(e) => setNewSociety(prev => ({ ...prev, name: e.target.value }))}
-                  className="bg-black/40 border border-white/10 focus:border-blue-500 rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-all"
+                  className="bg-gray-50 border border-gray-300 focus:border-green-500 bg-white rounded-xl px-4 py-2 text-sm text-gray-900 focus:outline-none transition-all"
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase pl-1">City</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase pl-1">City</label>
                 <input
                   type="text"
                   placeholder="e.g. Pune"
                   value={newSociety.city}
                   onChange={(e) => setNewSociety(prev => ({ ...prev, city: e.target.value }))}
-                  className="bg-black/40 border border-white/10 focus:border-blue-500 rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-all"
+                  className="bg-gray-50 border border-gray-300 focus:border-green-500 bg-white rounded-xl px-4 py-2 text-sm text-gray-900 focus:outline-none transition-all"
                 />
               </div>
               <button
@@ -1019,31 +1101,31 @@ export function AdminPage() {
       {/* Edit Society Modal */}
       {isEditSocietyOpen && editSocietyData && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-white/10 rounded-[20px] p-6 w-full max-w-sm shadow-2xl relative">
+          <div className="bg-gray-50 border border-gray-200 rounded-[20px] p-6 w-full max-w-sm shadow-2xl relative">
             <button
               onClick={() => { setEditSocietyData(null); setIsEditSocietyOpen(false); }}
-              className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 transition-colors"
             >
               <X size={16} />
             </button>
             <h3 className="text-base font-bold mb-4">Edit Society</h3>
             <div className="space-y-4">
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase pl-1">Society Name</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase pl-1">Society Name</label>
                 <input
                   type="text"
                   value={editSocietyData.name}
                   onChange={(e) => setEditSocietyData(prev => prev ? ({ ...prev, name: e.target.value }) : null)}
-                  className="bg-black/40 border border-white/10 focus:border-blue-500 rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-all"
+                  className="bg-gray-50 border border-gray-300 focus:border-green-500 bg-white rounded-xl px-4 py-2 text-sm text-gray-900 focus:outline-none transition-all"
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase pl-1">City</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase pl-1">City</label>
                 <input
                   type="text"
                   value={editSocietyData.city}
                   onChange={(e) => setEditSocietyData(prev => prev ? ({ ...prev, city: e.target.value }) : null)}
-                  className="bg-black/40 border border-white/10 focus:border-blue-500 rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-all"
+                  className="bg-gray-50 border border-gray-300 focus:border-green-500 bg-white rounded-xl px-4 py-2 text-sm text-gray-900 focus:outline-none transition-all"
                 />
               </div>
               <button
@@ -1060,33 +1142,33 @@ export function AdminPage() {
       {/* Add Tower Modal */}
       {isAddTowerOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-white/10 rounded-[20px] p-6 w-full max-w-sm shadow-2xl relative">
+          <div className="bg-gray-50 border border-gray-200 rounded-[20px] p-6 w-full max-w-sm shadow-2xl relative">
             <button
               onClick={() => setIsAddTowerOpen(false)}
-              className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 transition-colors"
             >
               <X size={16} />
             </button>
             <h3 className="text-base font-bold mb-4">Add New Tower</h3>
             <div className="space-y-4">
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase pl-1">Tower Name</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase pl-1">Tower Name</label>
                 <input
                   type="text"
                   placeholder="e.g. Tower D"
                   value={newTower.name}
                   onChange={(e) => setNewTower(prev => ({ ...prev, name: e.target.value }))}
-                  className="bg-black/40 border border-white/10 focus:border-blue-500 rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-all"
+                  className="bg-gray-50 border border-gray-300 focus:border-green-500 bg-white rounded-xl px-4 py-2 text-sm text-gray-900 focus:outline-none transition-all"
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase pl-1">Floors / Flats Info</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase pl-1">Floors / Flats Info</label>
                 <input
                   type="text"
                   placeholder="e.g. 14F - 120 flats"
                   value={newTower.info}
                   onChange={(e) => setNewTower(prev => ({ ...prev, info: e.target.value }))}
-                  className="bg-black/40 border border-white/10 focus:border-blue-500 rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-all"
+                  className="bg-gray-50 border border-gray-300 focus:border-green-500 bg-white rounded-xl px-4 py-2 text-sm text-gray-900 focus:outline-none transition-all"
                 />
               </div>
               <button
@@ -1103,31 +1185,31 @@ export function AdminPage() {
       {/* Edit Tower Modal */}
       {isEditTowerOpen && editTowerData && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-white/10 rounded-[20px] p-6 w-full max-w-sm shadow-2xl relative">
+          <div className="bg-gray-50 border border-gray-200 rounded-[20px] p-6 w-full max-w-sm shadow-2xl relative">
             <button
               onClick={() => { setEditTowerData(null); setIsEditTowerOpen(false); }}
-              className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 transition-colors"
             >
               <X size={16} />
             </button>
             <h3 className="text-base font-bold mb-4">Edit Tower</h3>
             <div className="space-y-4">
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase pl-1">Tower Name</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase pl-1">Tower Name</label>
                 <input
                   type="text"
                   value={editTowerData.name}
                   onChange={(e) => setEditTowerData(prev => prev ? ({ ...prev, name: e.target.value }) : null)}
-                  className="bg-black/40 border border-white/10 focus:border-blue-500 rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-all"
+                  className="bg-gray-50 border border-gray-300 focus:border-green-500 bg-white rounded-xl px-4 py-2 text-sm text-gray-900 focus:outline-none transition-all"
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase pl-1">Floors / Flats Info</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase pl-1">Floors / Flats Info</label>
                 <input
                   type="text"
                   value={editTowerData.info}
                   onChange={(e) => setEditTowerData(prev => prev ? ({ ...prev, info: e.target.value }) : null)}
-                  className="bg-black/40 border border-white/10 focus:border-blue-500 rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-all"
+                  className="bg-gray-50 border border-gray-300 focus:border-green-500 bg-white rounded-xl px-4 py-2 text-sm text-gray-900 focus:outline-none transition-all"
                 />
               </div>
               <button
@@ -1144,51 +1226,51 @@ export function AdminPage() {
       {/* Add Device Modal */}
       {isAddDeviceOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-white/10 rounded-[20px] p-6 w-full max-w-sm shadow-2xl relative">
+          <div className="bg-gray-50 border border-gray-200 rounded-[20px] p-6 w-full max-w-sm shadow-2xl relative">
             <button
               onClick={() => setIsAddDeviceOpen(false)}
-              className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 transition-colors"
             >
               <X size={16} />
             </button>
             <h3 className="text-base font-bold mb-4">Add New Device</h3>
             <div className="space-y-4">
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase pl-1">Device Name</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase pl-1">Device Name</label>
                 <input
                   type="text"
                   placeholder="e.g. SUB SOIL PUMP-02"
                   value={newDevice.name}
                   onChange={(e) => setNewDevice(prev => ({ ...prev, name: e.target.value }))}
-                  className="bg-black/40 border border-white/10 focus:border-blue-500 rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-all"
+                  className="bg-gray-50 border border-gray-300 focus:border-green-500 bg-white rounded-xl px-4 py-2 text-sm text-gray-900 focus:outline-none transition-all"
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase pl-1">Device ID / Serial</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase pl-1">Device ID / Serial</label>
                 <input
                   type="text"
                   placeholder="e.g. 2026050902"
                   value={newDevice.deviceId}
                   onChange={(e) => setNewDevice(prev => ({ ...prev, deviceId: e.target.value }))}
-                  className="bg-black/40 border border-white/10 focus:border-blue-500 rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-all"
+                  className="bg-gray-50 border border-gray-300 focus:border-green-500 bg-white rounded-xl px-4 py-2 text-sm text-gray-900 focus:outline-none transition-all"
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase pl-1">Application</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase pl-1">Application</label>
                 <input
                   type="text"
                   value={newDevice.application}
                   onChange={(e) => setNewDevice(prev => ({ ...prev, application: e.target.value }))}
-                  className="bg-black/40 border border-white/10 focus:border-blue-500 rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-all"
+                  className="bg-gray-50 border border-gray-300 focus:border-green-500 bg-white rounded-xl px-4 py-2 text-sm text-gray-900 focus:outline-none transition-all"
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase pl-1">Pump Type</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase pl-1">Pump Type</label>
                 <input
                   type="text"
                   value={newDevice.pumpType}
                   onChange={(e) => setNewDevice(prev => ({ ...prev, pumpType: e.target.value }))}
-                  className="bg-black/40 border border-white/10 focus:border-blue-500 rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-all"
+                  className="bg-gray-50 border border-gray-300 focus:border-green-500 bg-white rounded-xl px-4 py-2 text-sm text-gray-900 focus:outline-none transition-all"
                 />
               </div>
               <button
@@ -1205,49 +1287,49 @@ export function AdminPage() {
       {/* Edit Device Modal */}
       {isEditDeviceOpen && editDeviceData && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-white/10 rounded-[20px] p-6 w-full max-w-sm shadow-2xl relative">
+          <div className="bg-gray-50 border border-gray-200 rounded-[20px] p-6 w-full max-w-sm shadow-2xl relative">
             <button
               onClick={() => { setEditDeviceData(null); setIsEditDeviceOpen(false); }}
-              className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 transition-colors"
             >
               <X size={16} />
             </button>
             <h3 className="text-base font-bold mb-4">Edit Device</h3>
             <div className="space-y-4">
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase pl-1">Device Name</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase pl-1">Device Name</label>
                 <input
                   type="text"
                   value={editDeviceData.name}
                   onChange={(e) => setEditDeviceData(prev => prev ? ({ ...prev, name: e.target.value }) : null)}
-                  className="bg-black/40 border border-white/10 focus:border-blue-500 rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-all"
+                  className="bg-gray-50 border border-gray-300 focus:border-green-500 bg-white rounded-xl px-4 py-2 text-sm text-gray-900 focus:outline-none transition-all"
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase pl-1">Device ID / Serial</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase pl-1">Device ID / Serial</label>
                 <input
                   type="text"
                   value={editDeviceData.deviceId}
                   onChange={(e) => setEditDeviceData(prev => prev ? ({ ...prev, deviceId: e.target.value }) : null)}
-                  className="bg-black/40 border border-white/10 focus:border-blue-500 rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-all"
+                  className="bg-gray-50 border border-gray-300 focus:border-green-500 bg-white rounded-xl px-4 py-2 text-sm text-gray-900 focus:outline-none transition-all"
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase pl-1">Application</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase pl-1">Application</label>
                 <input
                   type="text"
                   value={editDeviceData.application}
                   onChange={(e) => setEditDeviceData(prev => prev ? ({ ...prev, application: e.target.value }) : null)}
-                  className="bg-black/40 border border-white/10 focus:border-blue-500 rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-all"
+                  className="bg-gray-50 border border-gray-300 focus:border-green-500 bg-white rounded-xl px-4 py-2 text-sm text-gray-900 focus:outline-none transition-all"
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase pl-1">Pump Type</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase pl-1">Pump Type</label>
                 <input
                   type="text"
                   value={editDeviceData.pumpType}
                   onChange={(e) => setEditDeviceData(prev => prev ? ({ ...prev, pumpType: e.target.value }) : null)}
-                  className="bg-black/40 border border-white/10 focus:border-blue-500 rounded-xl px-4 py-2 text-sm text-white focus:outline-none transition-all"
+                  className="bg-gray-50 border border-gray-300 focus:border-green-500 bg-white rounded-xl px-4 py-2 text-sm text-gray-900 focus:outline-none transition-all"
                 />
               </div>
               <button
@@ -1262,237 +1344,43 @@ export function AdminPage() {
       )}
 
       {/* Users Drawer Panel */}
-      {isUsersDrawerOpen && (
-        <>
-          {/* Backdrop */}
-          <div
-            onClick={() => setIsUsersDrawerOpen(false)}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity duration-300"
-          />
-          {/* Sliding Panel */}
-          <div className="fixed top-0 right-0 h-screen w-full sm:w-[480px] bg-zinc-950/90 border-l border-white/10 backdrop-blur-xl z-50 p-6 flex flex-col shadow-2xl transition-all duration-300 transform translate-x-0">
-            {/* Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-6">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-cyan-500/10 text-cyan-400 rounded-lg">
-                  <Users size={20} />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-white">Society Users</h3>
-                  <p className="text-[10px] text-zinc-500 font-medium">Manage members and access levels</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setEditingUser(null);
-                    setUserFormData({
-                      username: '',
-                      mobileNumber: '',
-                      email: '',
-                      password: '',
-                      firstName: '',
-                      lastName: '',
-                      profileTitle: '',
-                      profileDetail: '',
-                      profileImageUrl: '',
-                      floorNo: '',
-                      city: '',
-                      state: '',
-                      country: '',
-                      pincode: '',
-                      role: 'VIEWER',
-                      isActive: true,
-                      buildingIds: []
-                    });
-                    setIsUserFormOpen(true);
-                  }}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 active:scale-95 rounded-full text-[10px] font-bold text-white transition-all cursor-pointer shadow-[0_0_10px_rgba(6,182,212,0.15)]"
-                >
-                  <Plus size={12} />
-                  Add User
-                </button>
-                <button
-                  onClick={() => setIsUsersDrawerOpen(false)}
-                  className="p-1.5 hover:bg-white/5 border border-white/10 rounded-lg text-zinc-400 hover:text-white transition-colors cursor-pointer"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            </div>
-
-            {/* List Body */}
-            <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
-              {loadingUsers ? (
-                <div className="h-40 flex items-center justify-center text-zinc-500 text-xs">
-                  Loading users...
-                </div>
-              ) : users.length === 0 ? (
-                <div className="h-40 flex flex-col items-center justify-center text-zinc-600 text-xs italic gap-2">
-                  <Users size={24} className="text-zinc-700" />
-                  No users registered in this society
-                </div>
-              ) : (
-                users.map(user => {
-                  const displayName = (user.firstName || user.lastName)
-                    ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
-                    : user.username;
-
-                  return (
-                    <div
-                      key={user.id}
-                      className={`p-4 rounded-xl border flex items-start justify-between transition-all ${user.isActive
-                          ? 'border-white/5 bg-zinc-900/30 hover:bg-zinc-900/50'
-                          : 'border-red-500/10 bg-red-950/5 hover:bg-red-950/10'
-                        }`}
-                    >
-                      <div className="flex items-start gap-3 min-w-0 flex-1">
-                        {/* Profile Image / Avatar */}
-                        {user.profileImageUrl ? (
-                          <img
-                            src={user.profileImageUrl}
-                            alt={displayName}
-                            className="w-10 h-10 rounded-xl object-cover border border-white/10 mt-0.5"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&h=80&fit=crop';
-                            }}
-                          />
-                        ) : (
-                          <div className="w-10 h-10 bg-cyan-500/10 text-cyan-400 rounded-xl flex items-center justify-center text-xs font-bold border border-cyan-500/20 mt-0.5 uppercase">
-                            {displayName.substring(0, 2)}
-                          </div>
-                        )}
-
-                        <div className="space-y-1 min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <h4 className="font-bold text-xs text-white truncate uppercase tracking-wider">{displayName}</h4>
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full ${user.isActive
-                                  ? 'bg-emerald-500 shadow-[0_0_6px_#10b981]'
-                                  : 'bg-red-500'
-                                }`}
-                              title={user.isActive ? 'Active' : 'Inactive'}
-                            />
-                          </div>
-
-                          <p className="text-[10px] text-zinc-500 font-medium truncate">@{user.username}</p>
-
-                          {user.profileTitle && (
-                            <p className="text-[9px] text-cyan-400/80 font-semibold">{user.profileTitle}</p>
-                          )}
-
-                          <div className="flex flex-col gap-0.5 pt-1 text-[10px] text-zinc-400 font-medium">
-                            <div className="flex items-center gap-1.5">
-                              <Mail size={10} className="text-zinc-600 flex-shrink-0" />
-                              <span className="truncate">{user.email}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <Phone size={10} className="text-zinc-600 flex-shrink-0" />
-                              <span>{user.mobileNumber}</span>
-                            </div>
-                            {(user.floorNo || user.city) && (
-                              <div className="flex items-center gap-1.5 text-zinc-500 text-[9px] pt-0.5">
-                                <span>{user.floorNo ? `Floor ${user.floorNo}` : ''}</span>
-                                {user.floorNo && user.city && <span>•</span>}
-                                <span>{user.city || ''}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="pt-1.5">
-                            <span className={`px-2 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wide border ${
-                              ['SUPER_ADMIN', 'SOCIETY_ADMIN'].includes(user.role)
-                                ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                                : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                              }`}>
-                              {user.role}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => {
-                            setEditingUser(user);
-                            setUserFormData({
-                              username: user.username,
-                              mobileNumber: user.mobileNumber,
-                              email: user.email,
-                              password: '', // blank by default on edit
-                              firstName: user.firstName || '',
-                              lastName: user.lastName || '',
-                              profileTitle: user.profileTitle || '',
-                              profileDetail: user.profileDetail || '',
-                              profileImageUrl: user.profileImageUrl || '',
-                              floorNo: user.floorNo || '',
-                              city: user.city || '',
-                              state: user.state || '',
-                              country: user.country || '',
-                              pincode: user.pincode || '',
-                              role: user.role,
-                              isActive: user.isActive,
-                              buildingIds: user.buildingIds || []
-                            });
-                            setIsUserFormOpen(true);
-                          }}
-                          className="text-zinc-400 hover:text-white p-1.5 rounded hover:bg-white/5 transition-colors"
-                          title="Edit User"
-                        >
-                          <Pencil size={12} />
-                        </button>
-                        <button
-                          onClick={(e) => handleDeleteUser(user.id, e)}
-                          className="text-zinc-400 hover:text-red-400 p-1.5 rounded hover:bg-white/5 transition-colors"
-                          title="Delete User"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </>
-      )}
+      
 
       {/* User Form Modal (Add / Edit) */}
       {isUserFormOpen && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-950/95 border border-white/10 rounded-[24px] p-6 w-full max-w-lg shadow-[0_20px_50px_rgba(0,0,0,0.7)] hover:shadow-[0_20px_50px_rgba(6,182,212,0.15)] relative backdrop-blur-xl text-white flex flex-col max-h-[85vh] transition-all duration-300">
+          <div className="bg-zinc-950/95 border border-gray-200 rounded-[24px] p-6 w-full max-w-lg shadow-[0_20px_50px_rgba(0,0,0,0.7)] hover:shadow-[0_20px_50px_rgba(6,182,212,0.15)] relative backdrop-blur-xl text-gray-900 flex flex-col max-h-[85vh] transition-all duration-300">
             <button
               onClick={() => setIsUserFormOpen(false)}
-              className="absolute top-5 right-5 text-zinc-500 hover:text-white transition-colors"
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-900 transition-colors"
             >
               <X size={18} />
             </button>
 
             {/* Modal Header */}
-            <div className="flex items-center gap-3 mb-4 pb-3 border-b border-white/5">
-              <div className="p-2.5 bg-cyan-500/10 text-cyan-400 rounded-xl">
+            <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-100">
+              <div className="p-2.5 bg-cyan-500/10 text-green-600 rounded-xl">
                 <UserIcon size={20} />
               </div>
               <div>
                 <h3 className="text-base font-black tracking-tight">
                   {editingUser ? 'Edit Society User' : 'Add New User'}
                 </h3>
-                <p className="text-[10px] text-zinc-500 font-medium">
+                <p className="text-[10px] text-gray-400 font-medium">
                   {editingUser ? 'Update access permissions and profile details' : 'Configure credentials and profile info'}
                 </p>
               </div>
             </div>
 
             {/* Tab Switcher */}
-            <div className="flex p-1 bg-zinc-900/60 border border-white/5 rounded-xl mb-5 flex-shrink-0">
+            <div className="flex p-1 bg-gray-50 border border-gray-100 rounded-xl mb-5 flex-shrink-0">
               <button
                 type="button"
                 onClick={() => setUserFormTab('credentials')}
                 className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${
                   userFormTab === 'credentials'
-                    ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20'
-                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                    ? 'bg-cyan-600 text-gray-900 shadow-lg shadow-cyan-600/20'
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-white/5'
                 }`}
               >
                 <Sliders size={14} />
@@ -1503,8 +1391,8 @@ export function AdminPage() {
                 onClick={() => setUserFormTab('profile')}
                 className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${
                   userFormTab === 'profile'
-                    ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20'
-                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                    ? 'bg-cyan-600 text-gray-900 shadow-lg shadow-cyan-600/20'
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-white/5'
                 }`}
               >
                 <UserIcon size={14} />
@@ -1525,40 +1413,40 @@ export function AdminPage() {
                     className="space-y-4 py-1"
                   >
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase pl-1 tracking-wider">Username *</label>
+                      <label className="text-[10px] font-bold text-gray-500 uppercase pl-1 tracking-wider">Username *</label>
                       <input
                         type="text"
                         placeholder="e.g. johndoe"
                         value={userFormData.username}
                         onChange={(e) => setUserFormData(prev => ({ ...prev, username: e.target.value }))}
-                        className="w-full bg-zinc-900/40 border border-white/10 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-white placeholder-zinc-700 focus:outline-none transition-all"
+                        className="w-full bg-gray-50/40 border border-gray-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-gray-900 placeholder-zinc-700 focus:outline-none transition-all"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase pl-1 tracking-wider">Email Address *</label>
+                      <label className="text-[10px] font-bold text-gray-500 uppercase pl-1 tracking-wider">Email Address *</label>
                       <input
                         type="email"
                         placeholder="e.g. john@example.com"
                         value={userFormData.email}
                         onChange={(e) => setUserFormData(prev => ({ ...prev, email: e.target.value }))}
-                        className="w-full bg-zinc-900/40 border border-white/10 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-white placeholder-zinc-700 focus:outline-none transition-all"
+                        className="w-full bg-gray-50/40 border border-gray-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-gray-900 placeholder-zinc-700 focus:outline-none transition-all"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase pl-1 tracking-wider">Mobile Number *</label>
+                      <label className="text-[10px] font-bold text-gray-500 uppercase pl-1 tracking-wider">Mobile Number *</label>
                       <input
                         type="tel"
                         placeholder="e.g. +91 9876543210"
                         value={userFormData.mobileNumber}
                         onChange={(e) => setUserFormData(prev => ({ ...prev, mobileNumber: e.target.value }))}
-                        className="w-full bg-zinc-900/40 border border-white/10 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-white placeholder-zinc-700 focus:outline-none transition-all"
+                        className="w-full bg-gray-50/40 border border-gray-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-gray-900 placeholder-zinc-700 focus:outline-none transition-all"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase pl-1 tracking-wider">
+                      <label className="text-[10px] font-bold text-gray-500 uppercase pl-1 tracking-wider">
                         Password {editingUser ? '(Leave blank to keep current)' : '*'}
                       </label>
                       <input
@@ -1566,17 +1454,17 @@ export function AdminPage() {
                         placeholder={editingUser ? "••••••••" : "Enter password"}
                         value={userFormData.password}
                         onChange={(e) => setUserFormData(prev => ({ ...prev, password: e.target.value }))}
-                        className="w-full bg-zinc-900/40 border border-white/10 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-white placeholder-zinc-700 focus:outline-none transition-all"
+                        className="w-full bg-gray-50/40 border border-gray-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-gray-900 placeholder-zinc-700 focus:outline-none transition-all"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase pl-1 tracking-wider">User Role</label>
+                      <label className="text-[10px] font-bold text-gray-500 uppercase pl-1 tracking-wider">User Role</label>
                       <div className="relative">
                         <select
                           value={userFormData.role}
                           onChange={(e) => setUserFormData(prev => ({ ...prev, role: e.target.value }))}
-                          className="w-full bg-zinc-900/40 border border-white/10 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none transition-all cursor-pointer appearance-none"
+                          className="w-full bg-gray-50/40 border border-gray-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-gray-900 focus:outline-none transition-all cursor-pointer appearance-none"
                         >
                           {currentUser?.role === 'SUPER_ADMIN' && (
                             <option value="SUPER_ADMIN" className="bg-zinc-950">Super Admin (SUPER_ADMIN)</option>
@@ -1586,7 +1474,7 @@ export function AdminPage() {
                           <option value="OPERATOR" className="bg-zinc-950">Operator (OPERATOR)</option>
                           <option value="VIEWER" className="bg-zinc-950">Viewer (VIEWER)</option>
                         </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-zinc-400">
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
                           <svg className="fill-current h-3.5 w-3.5" viewBox="0 0 20 20">
                             <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
                           </svg>
@@ -1596,7 +1484,7 @@ export function AdminPage() {
 
                     {['BUILDING_ADMIN', 'OPERATOR', 'VIEWER'].includes(userFormData.role) && (
                       <div className="flex flex-col gap-2">
-                        <label className="text-[10px] font-bold text-zinc-400 uppercase pl-1 tracking-wider">Assigned Buildings *</label>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase pl-1 tracking-wider">Assigned Buildings *</label>
                         <div className="max-h-[140px] overflow-y-auto pr-1 custom-scrollbar">
                           <div className="grid grid-cols-2 gap-2">
                             {towers.map(t => {
@@ -1606,8 +1494,8 @@ export function AdminPage() {
                                   key={t.id}
                                   className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border cursor-pointer select-none transition-all duration-200 ${
                                     isChecked
-                                      ? 'bg-cyan-500/10 border-cyan-500/30 text-white shadow-[0_0_12px_rgba(6,182,212,0.05)]'
-                                      : 'bg-zinc-900/30 border-white/5 text-zinc-400 hover:bg-zinc-900/50 hover:text-zinc-200'
+                                      ? 'bg-green-50 border-green-200 text-gray-900 shadow-[0_0_12px_rgba(6,182,212,0.05)]'
+                                      : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50 hover:text-zinc-200'
                                   }`}
                                 >
                                   <input
@@ -1627,13 +1515,13 @@ export function AdminPage() {
                                   <div
                                     className={`w-3.5 h-3.5 rounded-md border flex items-center justify-center transition-all ${
                                       isChecked
-                                        ? 'border-cyan-500 bg-cyan-600 text-white'
-                                        : 'border-zinc-700 bg-black/40'
+                                        ? 'border-cyan-500 bg-cyan-600 text-gray-900'
+                                        : 'border-zinc-700 bg-gray-50'
                                     }`}
                                   >
                                     {isChecked && (
                                       <svg
-                                        className="w-2 h-2 fill-current text-white stroke-2"
+                                        className="w-2 h-2 fill-current text-gray-900 stroke-2"
                                         viewBox="0 0 20 20"
                                       >
                                         <path d="M0 11l2-2 5 5L18 3l2 2L7 18z" />
@@ -1646,16 +1534,16 @@ export function AdminPage() {
                             })}
                           </div>
                           {towers.length === 0 && (
-                            <p className="text-[10px] text-zinc-500 italic text-center p-3 border border-white/5 rounded-xl bg-zinc-900/20">No buildings available in this society</p>
+                            <p className="text-[10px] text-gray-400 italic text-center p-3 border border-gray-100 rounded-xl bg-gray-50/20">No buildings available in this society</p>
                           )}
                         </div>
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between p-3.5 rounded-xl bg-zinc-900/30 border border-white/5">
+                    <div className="flex items-center justify-between p-3.5 rounded-xl bg-white border border-gray-100">
                       <div>
-                        <span className="text-xs font-bold text-white block">Is Active Status</span>
-                        <span className="text-[10px] text-zinc-500 font-medium">Toggle user platform access</span>
+                        <span className="text-xs font-bold text-gray-900 block">Is Active Status</span>
+                        <span className="text-[10px] text-gray-400 font-medium">Toggle user platform access</span>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer select-none">
                         <input
@@ -1664,7 +1552,7 @@ export function AdminPage() {
                           onChange={(e) => setUserFormData(prev => ({ ...prev, isActive: e.target.checked }))}
                           className="sr-only peer"
                         />
-                        <div className="w-10 h-6 bg-zinc-800 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500 peer-checked:after:bg-white peer-checked:after:translate-x-4 shadow-[inset_0_1px_3px_rgba(0,0,0,0.4)]" />
+                        <div className="w-10 h-6 bg-gray-100 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500 peer-checked:after:bg-white peer-checked:after:translate-x-4 shadow-[inset_0_1px_3px_rgba(0,0,0,0.4)]" />
                       </label>
                     </div>
                   </motion.div>
@@ -1679,112 +1567,112 @@ export function AdminPage() {
                   >
                     <div className="grid grid-cols-2 gap-3">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-bold text-zinc-400 uppercase pl-1 tracking-wider">First Name</label>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase pl-1 tracking-wider">First Name</label>
                         <input
                           type="text"
                           placeholder="John"
                           value={userFormData.firstName}
                           onChange={(e) => setUserFormData(prev => ({ ...prev, firstName: e.target.value }))}
-                          className="w-full bg-zinc-900/40 border border-white/10 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-white placeholder-zinc-700 focus:outline-none transition-all"
+                          className="w-full bg-gray-50/40 border border-gray-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-gray-900 placeholder-zinc-700 focus:outline-none transition-all"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-bold text-zinc-400 uppercase pl-1 tracking-wider">Last Name</label>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase pl-1 tracking-wider">Last Name</label>
                         <input
                           type="text"
                           placeholder="Doe"
                           value={userFormData.lastName}
                           onChange={(e) => setUserFormData(prev => ({ ...prev, lastName: e.target.value }))}
-                          className="w-full bg-zinc-900/40 border border-white/10 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-white placeholder-zinc-700 focus:outline-none transition-all"
+                          className="w-full bg-gray-50/40 border border-gray-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-gray-900 placeholder-zinc-700 focus:outline-none transition-all"
                         />
                       </div>
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase pl-1 tracking-wider">Profile Title</label>
+                      <label className="text-[10px] font-bold text-gray-500 uppercase pl-1 tracking-wider">Profile Title</label>
                       <input
                         type="text"
                         placeholder="e.g. Senior Electrician, Resident"
                         value={userFormData.profileTitle}
                         onChange={(e) => setUserFormData(prev => ({ ...prev, profileTitle: e.target.value }))}
-                        className="w-full bg-zinc-900/40 border border-white/10 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-white placeholder-zinc-700 focus:outline-none transition-all"
+                        className="w-full bg-gray-50/40 border border-gray-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-gray-900 placeholder-zinc-700 focus:outline-none transition-all"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase pl-1 tracking-wider">Profile Detail</label>
+                      <label className="text-[10px] font-bold text-gray-500 uppercase pl-1 tracking-wider">Profile Detail</label>
                       <input
                         type="text"
                         placeholder="e.g. In charge of subsoil pump maintenance"
                         value={userFormData.profileDetail}
                         onChange={(e) => setUserFormData(prev => ({ ...prev, profileDetail: e.target.value }))}
-                        className="w-full bg-zinc-900/40 border border-white/10 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-white placeholder-zinc-700 focus:outline-none transition-all"
+                        className="w-full bg-gray-50/40 border border-gray-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-gray-900 placeholder-zinc-700 focus:outline-none transition-all"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase pl-1 tracking-wider">Profile Image URL</label>
+                      <label className="text-[10px] font-bold text-gray-500 uppercase pl-1 tracking-wider">Profile Image URL</label>
                       <input
                         type="url"
                         placeholder="https://example.com/photo.jpg"
                         value={userFormData.profileImageUrl}
                         onChange={(e) => setUserFormData(prev => ({ ...prev, profileImageUrl: e.target.value }))}
-                        className="w-full bg-zinc-900/40 border border-white/10 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-white placeholder-zinc-700 focus:outline-none transition-all"
+                        className="w-full bg-gray-50/40 border border-gray-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-gray-900 placeholder-zinc-700 focus:outline-none transition-all"
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-bold text-zinc-400 uppercase pl-1 tracking-wider">Floor No</label>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase pl-1 tracking-wider">Floor No</label>
                         <input
                           type="text"
                           placeholder="e.g. 5th Floor"
                           value={userFormData.floorNo}
                           onChange={(e) => setUserFormData(prev => ({ ...prev, floorNo: e.target.value }))}
-                          className="w-full bg-zinc-900/40 border border-white/10 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-white placeholder-zinc-700 focus:outline-none transition-all"
+                          className="w-full bg-gray-50/40 border border-gray-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-gray-900 placeholder-zinc-700 focus:outline-none transition-all"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-bold text-zinc-400 uppercase pl-1 tracking-wider">Pincode</label>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase pl-1 tracking-wider">Pincode</label>
                         <input
                           type="text"
                           placeholder="e.g. 411001"
                           value={userFormData.pincode}
                           onChange={(e) => setUserFormData(prev => ({ ...prev, pincode: e.target.value }))}
-                          className="w-full bg-zinc-900/40 border border-white/10 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-white placeholder-zinc-700 focus:outline-none transition-all"
+                          className="w-full bg-gray-50/40 border border-gray-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-4 py-2.5 text-xs text-gray-900 placeholder-zinc-700 focus:outline-none transition-all"
                         />
                       </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-bold text-zinc-400 uppercase pl-1 tracking-wider">City</label>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase pl-1 tracking-wider">City</label>
                         <input
                           type="text"
                           placeholder="Pune"
                           value={userFormData.city}
                           onChange={(e) => setUserFormData(prev => ({ ...prev, city: e.target.value }))}
-                          className="w-full bg-zinc-900/40 border border-white/10 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-3 py-2.5 text-xs text-white placeholder-zinc-700 focus:outline-none transition-all"
+                          className="w-full bg-gray-50/40 border border-gray-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-3 py-2.5 text-xs text-gray-900 placeholder-zinc-700 focus:outline-none transition-all"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-bold text-zinc-400 uppercase pl-1 tracking-wider">State</label>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase pl-1 tracking-wider">State</label>
                         <input
                           type="text"
                           placeholder="MH"
                           value={userFormData.state}
                           onChange={(e) => setUserFormData(prev => ({ ...prev, state: e.target.value }))}
-                          className="w-full bg-zinc-900/40 border border-white/10 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-3 py-2.5 text-xs text-white placeholder-zinc-700 focus:outline-none transition-all"
+                          className="w-full bg-gray-50/40 border border-gray-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-3 py-2.5 text-xs text-gray-900 placeholder-zinc-700 focus:outline-none transition-all"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-bold text-zinc-400 uppercase pl-1 tracking-wider">Country</label>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase pl-1 tracking-wider">Country</label>
                         <input
                           type="text"
                           placeholder="India"
                           value={userFormData.country}
                           onChange={(e) => setUserFormData(prev => ({ ...prev, country: e.target.value }))}
-                          className="w-full bg-zinc-900/40 border border-white/10 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-3 py-2.5 text-xs text-white placeholder-zinc-700 focus:outline-none transition-all"
+                          className="w-full bg-gray-50/40 border border-gray-200 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 rounded-xl px-3 py-2.5 text-xs text-gray-900 placeholder-zinc-700 focus:outline-none transition-all"
                         />
                       </div>
                     </div>
@@ -1795,11 +1683,11 @@ export function AdminPage() {
 
             {/* Action Footer */}
             {userFormTab === 'credentials' ? (
-              <div className="border-t border-white/5 pt-4 mt-5 flex justify-between items-center flex-shrink-0">
+              <div className="border-t border-gray-100 pt-4 mt-5 flex justify-between items-center flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsUserFormOpen(false)}
-                  className="px-5 py-2.5 border border-white/10 hover:border-zinc-500 rounded-xl text-xs font-bold text-zinc-400 hover:text-white transition-all cursor-pointer"
+                  className="px-5 py-2.5 border border-gray-200 hover:border-zinc-500 rounded-xl text-xs font-bold text-gray-500 hover:text-gray-900 transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1807,32 +1695,32 @@ export function AdminPage() {
                   <button
                     type="button"
                     onClick={editingUser ? handleEditUser : handleAddUser}
-                    className="px-5 py-2.5 border border-cyan-500/30 hover:border-cyan-500/80 rounded-xl text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-all cursor-pointer"
+                    className="px-5 py-2.5 border border-cyan-500/30 hover:border-cyan-500/80 rounded-xl text-xs font-bold text-green-600 hover:text-cyan-300 transition-all cursor-pointer"
                   >
                     {editingUser ? 'Save' : 'Create Now'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setUserFormTab('profile')}
-                    className="px-5 py-2.5 bg-cyan-600 hover:bg-cyan-700 active:scale-[0.98] rounded-xl text-xs font-bold text-white transition-all shadow-[0_0_12px_rgba(6,182,212,0.2)] cursor-pointer"
+                    className="px-5 py-2.5 bg-cyan-600 hover:bg-cyan-700 active:scale-[0.98] rounded-xl text-xs font-bold text-gray-900 transition-all shadow-[0_0_12px_rgba(6,182,212,0.2)] cursor-pointer"
                   >
                     Next: Profile Info
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="border-t border-white/5 pt-4 mt-5 flex justify-between items-center flex-shrink-0">
+              <div className="border-t border-gray-100 pt-4 mt-5 flex justify-between items-center flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => setUserFormTab('credentials')}
-                  className="px-5 py-2.5 border border-white/10 hover:border-zinc-500 rounded-xl text-xs font-bold text-zinc-400 hover:text-white transition-all cursor-pointer"
+                  className="px-5 py-2.5 border border-gray-200 hover:border-zinc-500 rounded-xl text-xs font-bold text-gray-500 hover:text-gray-900 transition-all cursor-pointer"
                 >
                   Back
                 </button>
                 <button
                   type="button"
                   onClick={editingUser ? handleEditUser : handleAddUser}
-                  className="px-6 py-2.5 bg-cyan-600 hover:bg-cyan-700 active:scale-[0.98] rounded-xl text-xs font-bold text-white transition-all shadow-[0_0_12px_rgba(6,182,212,0.2)] cursor-pointer"
+                  className="px-6 py-2.5 bg-cyan-600 hover:bg-cyan-700 active:scale-[0.98] rounded-xl text-xs font-bold text-gray-900 transition-all shadow-[0_0_12px_rgba(6,182,212,0.2)] cursor-pointer"
                 >
                   {editingUser ? 'Save Changes' : 'Create User'}
                 </button>
@@ -1860,17 +1748,17 @@ export function AdminPage() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 220 }}
-              className="fixed bottom-0 left-0 right-0 max-h-[85vh] bg-[#090a0e]/98 border-t border-white/10 backdrop-blur-2xl z-50 rounded-t-[32px] p-6 pb-8 flex flex-col shadow-2xl max-w-lg mx-auto"
+              className="fixed bottom-0 left-0 right-0 max-h-[85vh] bg-white/98 border-t border-gray-200 backdrop-blur-2xl z-50 rounded-t-[32px] p-6 pb-8 flex flex-col shadow-2xl max-w-lg mx-auto"
             >
               {/* Drag Handle */}
               <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4" />
 
               {/* Title Section */}
-              <div className="text-center pb-4 border-b border-white/10 mb-5">
-                <h3 className="text-sm font-extrabold text-white tracking-widest uppercase mb-1">
+              <div className="text-center pb-4 border-b border-gray-200 mb-5">
+                <h3 className="text-sm font-extrabold text-gray-900 tracking-widest uppercase mb-1">
                   {selectedActionDevice.name}
                 </h3>
-                <p className="text-[10px] text-zinc-500 font-medium tracking-wider">
+                <p className="text-[10px] text-gray-400 font-medium tracking-wider">
                   DEVICE ID: {selectedActionDevice.deviceId}
                 </p>
               </div>
@@ -1884,8 +1772,8 @@ export function AdminPage() {
                     desc: 'Configure device settings and parameters',
                     icon: <Settings className="w-5 h-5" />,
                     onClick: () => showToast('Config Editor is coming soon!'),
-                    color: 'text-zinc-300',
-                    bg: 'bg-white/5 hover:bg-white/10 border-white/5 hover:border-white/10'
+                    color: 'text-gray-600',
+                    bg: 'bg-white/5 hover:bg-white/10 border-gray-100 hover:border-gray-200'
                   },
                   {
                     id: 'device-settings',
@@ -1897,8 +1785,8 @@ export function AdminPage() {
                       setIsEditDeviceOpen(true);
                       setIsDeviceActionSheetOpen(false);
                     },
-                    color: 'text-zinc-300',
-                    bg: 'bg-white/5 hover:bg-white/10 border-white/5 hover:border-white/10'
+                    color: 'text-gray-600',
+                    bg: 'bg-white/5 hover:bg-white/10 border-gray-100 hover:border-gray-200'
                   },
                   {
                     id: 'view-configer',
@@ -1906,8 +1794,8 @@ export function AdminPage() {
                     desc: 'Customize view settings and switch titles',
                     icon: <LayoutGrid className="w-5 h-5" />,
                     onClick: () => showToast('View Configer is coming soon!'),
-                    color: 'text-zinc-300',
-                    bg: 'bg-white/5 hover:bg-white/10 border-white/5 hover:border-white/10'
+                    color: 'text-gray-600',
+                    bg: 'bg-white/5 hover:bg-white/10 border-gray-100 hover:border-gray-200'
                   },
                   {
                     id: 'edit-screen-view',
@@ -1915,8 +1803,8 @@ export function AdminPage() {
                     desc: 'Customise the device screen layout for this device only',
                     icon: <FileEdit className="w-5 h-5" />,
                     onClick: () => showToast('Edit Screen View is coming soon!'),
-                    color: 'text-zinc-300',
-                    bg: 'bg-white/5 hover:bg-white/10 border-white/5 hover:border-white/10'
+                    color: 'text-gray-600',
+                    bg: 'bg-white/5 hover:bg-white/10 border-gray-100 hover:border-gray-200'
                   },
                   {
                     id: 'user-preferences',
@@ -1924,8 +1812,8 @@ export function AdminPage() {
                     desc: 'Manage user-specific settings',
                     icon: <UserIcon className="w-5 h-5" />,
                     onClick: () => showToast('User Preferences is coming soon!'),
-                    color: 'text-zinc-300',
-                    bg: 'bg-white/5 hover:bg-white/10 border-white/5 hover:border-white/10'
+                    color: 'text-gray-600',
+                    bg: 'bg-white/5 hover:bg-white/10 border-gray-100 hover:border-gray-200'
                   },
                   {
                     id: 'mqtt-debugger',
@@ -1936,8 +1824,8 @@ export function AdminPage() {
                       setIsDeviceActionSheetOpen(false);
                       navigate(`/devices/${selectedActionDevice.deviceId}`);
                     },
-                    color: 'text-zinc-300',
-                    bg: 'bg-white/5 hover:bg-white/10 border-white/5 hover:border-white/10'
+                    color: 'text-gray-600',
+                    bg: 'bg-white/5 hover:bg-white/10 border-gray-100 hover:border-gray-200'
                   },
                   {
                     id: 'delete-device',
@@ -1961,15 +1849,15 @@ export function AdminPage() {
                     className={`w-full flex items-center justify-between p-4 rounded-2xl border text-left transition-all active:scale-[0.99] cursor-pointer ${opt.bg}`}
                   >
                     <div className="flex items-center gap-4">
-                      <div className={`p-2.5 bg-black/40 rounded-xl ${opt.color}`}>
+                      <div className={`p-2.5 bg-gray-50 rounded-xl ${opt.color}`}>
                         {opt.icon}
                       </div>
                       <div>
-                        <h4 className="font-bold text-sm text-white tracking-wide">{opt.title}</h4>
-                        <p className="text-[10px] text-zinc-500 font-medium mt-0.5">{opt.desc}</p>
+                        <h4 className="font-bold text-sm text-gray-900 tracking-wide">{opt.title}</h4>
+                        <p className="text-[10px] text-gray-400 font-medium mt-0.5">{opt.desc}</p>
                       </div>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-zinc-600" />
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
                   </button>
                 ))}
               </div>
@@ -1977,7 +1865,7 @@ export function AdminPage() {
               {/* Cancel Button */}
               <button
                 onClick={() => setIsDeviceActionSheetOpen(false)}
-                className="w-full py-3.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-xs font-bold text-white transition-all active:scale-[0.98] cursor-pointer text-center"
+                className="w-full py-3.5 bg-white/5 hover:bg-white/10 border border-gray-200 rounded-2xl text-xs font-bold text-gray-900 transition-all active:scale-[0.98] cursor-pointer text-center"
               >
                 Cancel
               </button>
@@ -1993,7 +1881,7 @@ export function AdminPage() {
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.9 }}
-            className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/15 px-5 py-3 rounded-full text-xs font-bold text-white shadow-2xl backdrop-blur-xl z-[60] flex items-center gap-2"
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-gray-50 border border-white/15 px-5 py-3 rounded-full text-xs font-bold text-gray-900 shadow-2xl backdrop-blur-xl z-[60] flex items-center gap-2"
           >
             <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
             {toastMessage}
@@ -2001,6 +1889,6 @@ export function AdminPage() {
         )}
       </AnimatePresence>
 
-    </div>
+    </>
   );
 }

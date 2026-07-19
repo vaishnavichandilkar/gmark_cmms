@@ -1,9 +1,20 @@
-import { Injectable, UnauthorizedException, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { validatePasswordStrength } from './utils/password.validator';
-import { LoginDto, RegisterDto, ChangePasswordDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto';
+import {
+  LoginDto,
+  RegisterDto,
+  ChangePasswordDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+} from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -80,7 +91,13 @@ export class AuthService {
     }
 
     const buildingIds = user.buildings.map((b) => b.buildingId);
-    const tokens = await this.generateTokens(user.id, user.email, user.role, user.societyId, buildingIds);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      user.role,
+      user.societyId,
+      buildingIds,
+    );
     await this.updateRefreshToken(user.id, tokens.refreshToken);
 
     return {
@@ -113,13 +130,22 @@ export class AuthService {
         throw new UnauthorizedException('Access Denied');
       }
 
-      const isRefreshTokenMatching = await bcrypt.compare(refreshToken, user.refreshToken);
+      const isRefreshTokenMatching = await bcrypt.compare(
+        refreshToken,
+        user.refreshToken,
+      );
       if (!isRefreshTokenMatching) {
         throw new UnauthorizedException('Access Denied');
       }
 
       const buildingIds = user.buildings.map((b) => b.buildingId);
-      const tokens = await this.generateTokens(user.id, user.email, user.role, user.societyId, buildingIds);
+      const tokens = await this.generateTokens(
+        user.id,
+        user.email,
+        user.role,
+        user.societyId,
+        buildingIds,
+      );
       await this.updateRefreshToken(user.id, tokens.refreshToken);
 
       return tokens;
@@ -137,7 +163,10 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
-    const isCurrentPasswordValid = await bcrypt.compare(dto.currentPassword, user.password);
+    const isCurrentPasswordValid = await bcrypt.compare(
+      dto.currentPassword,
+      user.password,
+    );
     if (!isCurrentPasswordValid) {
       throw new BadRequestException('Incorrect current password');
     }

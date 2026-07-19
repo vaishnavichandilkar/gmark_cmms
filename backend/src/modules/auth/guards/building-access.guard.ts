@@ -1,4 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 
 @Injectable()
@@ -22,7 +27,7 @@ export class BuildingAccessGuard implements CanActivate {
     if (path.includes('/buildings') && (params.buildingId || params.id)) {
       const rawBuildingId = params.buildingId || params.id;
       buildingId = parseInt(rawBuildingId, 10);
-    } 
+    }
     // 2. If route specifies device details
     else if (path.includes('/devices')) {
       const rawDeviceId = params.id || params.deviceId;
@@ -35,7 +40,7 @@ export class BuildingAccessGuard implements CanActivate {
             where: { id: parsedId },
           });
         }
-        
+
         // Try deviceId string if not found by ID
         if (!device) {
           device = await this.prisma.device.findUnique({
@@ -61,14 +66,18 @@ export class BuildingAccessGuard implements CanActivate {
 
       // Check society isolation
       if (user.societyId && building.societyId !== user.societyId) {
-        throw new ForbiddenException('Access denied: building does not belong to your society');
+        throw new ForbiddenException(
+          'Access denied: building does not belong to your society',
+        );
       }
 
       // Check building-level assignment (SOCIETY_ADMIN is unrestricted within their society)
       if (user.role !== 'SOCIETY_ADMIN') {
         const hasAccess = user.buildingIds?.includes(buildingId);
         if (!hasAccess) {
-          throw new ForbiddenException('Access denied: you are not assigned to this building');
+          throw new ForbiddenException(
+            'Access denied: you are not assigned to this building',
+          );
         }
       }
     }

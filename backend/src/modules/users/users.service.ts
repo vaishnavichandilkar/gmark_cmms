@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { validatePasswordStrength } from '../auth/utils/password.validator';
@@ -6,7 +11,7 @@ import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   private async hashPassword(password: string): Promise<string> {
     const salt = await bcrypt.genSalt(10);
@@ -34,6 +39,8 @@ export class UsersService {
             building: true,
           },
         },
+        employee: true,
+        mainFacility: true,
       },
       orderBy: { id: 'asc' },
     });
@@ -48,6 +55,8 @@ export class UsersService {
             building: true,
           },
         },
+        employee: true,
+        mainFacility: true,
       },
     });
     if (!user) {
@@ -60,7 +69,7 @@ export class UsersService {
     username: string;
     mobileNumber?: string;
     email: string;
-    password: string;
+    password?: string;
     firstName?: string;
     lastName?: string;
     profileTitle?: string;
@@ -74,6 +83,8 @@ export class UsersService {
     role?: UserRole;
     isActive?: boolean;
     societyId?: number;
+    employeeId?: number;
+    mainFacilityId?: number;
     buildingIds?: number[];
   }) {
     // Validate email uniqueness
@@ -81,7 +92,9 @@ export class UsersService {
       where: { email: data.email },
     });
     if (existingEmail) {
-      throw new BadRequestException(`User with email ${data.email} already exists`);
+      throw new BadRequestException(
+        `User with email ${data.email} already exists`,
+      );
     }
 
     // Validate username uniqueness
@@ -89,17 +102,20 @@ export class UsersService {
       where: { username: data.username },
     });
     if (existingUsername) {
-      throw new BadRequestException(`User with username ${data.username} already exists`);
+      throw new BadRequestException(
+        `User with username ${data.username} already exists`,
+      );
     }
 
+    const rawPassword = data.password || 'Welcome@123';
     // Validate password complexity
-    if (!validatePasswordStrength(data.password)) {
+    if (!validatePasswordStrength(rawPassword)) {
       throw new BadRequestException(
         'Password must be at least 8 characters long and contain uppercase, lowercase, numbers, and special characters.',
       );
     }
 
-    const hashedPassword = await this.hashPassword(data.password);
+    const hashedPassword = await this.hashPassword(rawPassword);
 
     const user = await this.prisma.user.create({
       data: {
@@ -120,6 +136,8 @@ export class UsersService {
         role: data.role || UserRole.VIEWER,
         isActive: data.isActive !== undefined ? data.isActive : true,
         societyId: data.societyId,
+        employeeId: data.employeeId,
+        mainFacilityId: data.mainFacilityId,
       },
     });
 
@@ -156,6 +174,8 @@ export class UsersService {
       isActive?: boolean;
       buildingIds?: number[];
       societyId?: number;
+      employeeId?: number;
+      mainFacilityId?: number;
     },
   ) {
     const existingUser = await this.findOne(id);
@@ -171,7 +191,9 @@ export class UsersService {
         },
       });
       if (existing) {
-        throw new BadRequestException(`User with email ${data.email} already exists`);
+        throw new BadRequestException(
+          `User with email ${data.email} already exists`,
+        );
       }
     }
 
@@ -183,7 +205,9 @@ export class UsersService {
         },
       });
       if (existing) {
-        throw new BadRequestException(`User with username ${data.username} already exists`);
+        throw new BadRequestException(
+          `User with username ${data.username} already exists`,
+        );
       }
     }
 

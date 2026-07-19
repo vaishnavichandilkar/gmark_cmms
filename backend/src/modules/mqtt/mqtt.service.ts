@@ -182,7 +182,9 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
       const registerValuesToUpsert = [];
 
       for (const reg of payload.registers) {
-        const address = Number(reg.register);
+        const rawAddress = Number(reg.register);
+        const address = rawAddress < 40000 ? rawAddress + 40000 : rawAddress;
+        reg.register = address; // Normalize it in the payload to be sent to UI
         const value = Number(reg.value);
 
         const def = this.registerDefinitions[address];

@@ -13,15 +13,26 @@ import { FacilityOverview } from './pages/FacilityOverview';
 import { BuildingDetails } from './pages/BuildingDetails';
 import { AddTower } from './pages/AddTower';
 import { DashboardLayout } from './layouts/DashboardLayout';
+import { DashboardHub } from './pages/DashboardHub';
 import { BoosterDashboard } from './pages/scada/templates/booster/BoosterDashboard';
 import { DevicesPage } from './pages/devices/DevicesPage';
 import { DeviceLiveMonitor } from './pages/devices/DeviceLiveMonitor';
 import { AdminPage } from './pages/AdminPage';
+import { ScrollToTop } from './components/ScrollToTop';
+import { AddEmployee } from './pages/master/AddEmployee';
+import { EmployeeMaster } from './pages/master/EmployeeMaster';
+import { AddMainFacility } from './pages/master/AddMainFacility';
+import { MainFacilityMaster } from './pages/master/MainFacilityMaster';
+import { UserManagement } from './pages/UserManagement';
+import { AddUser } from './pages/AddUser';
+import { FacilityManagement } from './pages/FacilityManagement';
+import { AddFacility } from './pages/master/AddFacility';
 
 function App() {
   return (
     <Provider store={store}>
       <BrowserRouter>
+        <ScrollToTop />
         <Routes>
           {/* Public Auth Routes */}
           <Route path="/login" element={<LoginPage />} />
@@ -35,6 +46,16 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <SocietiesPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <DashboardHub />
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -254,6 +275,156 @@ function App() {
               <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'SOCIETY_ADMIN']}>
                 <DashboardLayout>
                   <AdminPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/master/employee"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <EmployeeMaster />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/master/employee/new"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AddEmployee />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/master/employee/edit/:id"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AddEmployee />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/master/employee/view/:id"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AddEmployee />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/master/main-facility"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <MainFacilityMaster />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/master/main-facility/new"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AddMainFacility />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/master/main-facility/edit/:id"
+            element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+                <DashboardLayout>
+                  <AddMainFacility />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/master/facility/new"
+            element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+                <DashboardLayout>
+                  <AddFacility />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/master/facility/edit/:id"
+            element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+                <DashboardLayout>
+                  <AddFacility />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/master/main-facility/view/:id"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AddMainFacility />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/user-management"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <UserManagement />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/user-management/new"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AddUser />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/user-management/edit/:id"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AddUser />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/user-management/view/:id"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AddUser />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/facility-management"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <FacilityManagement />
                 </DashboardLayout>
               </ProtectedRoute>
             }

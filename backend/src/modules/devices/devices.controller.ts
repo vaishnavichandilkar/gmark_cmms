@@ -1,5 +1,22 @@
-import { Controller, Get, Param, Post, Put, Delete, Body, ParseIntPipe, UseGuards, Ip } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Param,
+  Post,
+  Put,
+  Delete,
+  Body,
+  ParseIntPipe,
+  UseGuards,
+  Ip,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { DevicesService } from './devices.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -17,7 +34,7 @@ export class DevicesController {
   constructor(
     private readonly devicesService: DevicesService,
     private readonly auditLogService: AuditLogService,
-  ) { }
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Get all devices' })
@@ -31,7 +48,8 @@ export class DevicesController {
   @ApiOperation({ summary: 'Create a new device' })
   @ApiResponse({ status: 201, description: 'Device created successfully.' })
   async createDevice(
-    @Body() body: {
+    @Body()
+    body: {
       name: string;
       deviceId: string;
       buildingId: number;
@@ -44,7 +62,12 @@ export class DevicesController {
     @Ip() ip: string,
   ) {
     const result = await this.devicesService.create(body);
-    await this.auditLogService.create(user.userId, `Device Created: ${result.name} (ID: ${result.id}, Device ID: ${result.deviceId})`, 'DEVICES', ip);
+    await this.auditLogService.create(
+      user.userId,
+      `Device Created: ${result.name} (ID: ${result.id}, Device ID: ${result.deviceId})`,
+      'DEVICES',
+      ip,
+    );
     return result;
   }
 
@@ -56,7 +79,8 @@ export class DevicesController {
   @ApiResponse({ status: 404, description: 'Device not found.' })
   async updateDevice(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: {
+    @Body()
+    body: {
       name: string;
       deviceId: string;
       application?: string;
@@ -68,7 +92,12 @@ export class DevicesController {
     @Ip() ip: string,
   ) {
     const result = await this.devicesService.update(id, body);
-    await this.auditLogService.create(user.userId, `Device Updated: ${result.name} (ID: ${result.id}, Device ID: ${result.deviceId})`, 'DEVICES', ip);
+    await this.auditLogService.create(
+      user.userId,
+      `Device Updated: ${result.name} (ID: ${result.id}, Device ID: ${result.deviceId})`,
+      'DEVICES',
+      ip,
+    );
     return result;
   }
 
@@ -84,7 +113,12 @@ export class DevicesController {
     @Ip() ip: string,
   ) {
     const result = await this.devicesService.remove(id);
-    await this.auditLogService.create(user.userId, `Device Deleted: ID ${id}`, 'DEVICES', ip);
+    await this.auditLogService.create(
+      user.userId,
+      `Device Deleted: ID ${id}`,
+      'DEVICES',
+      ip,
+    );
     return result;
   }
 

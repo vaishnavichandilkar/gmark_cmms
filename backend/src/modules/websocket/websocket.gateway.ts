@@ -19,7 +19,8 @@ import { PrismaService } from '../../common/prisma/prisma.service';
   },
 })
 export class WebsocketGateway
-  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
@@ -44,7 +45,9 @@ export class WebsocketGateway
       }
 
       if (!token) {
-        this.logger.warn(`Client connection rejected: No token provided (${client.id})`);
+        this.logger.warn(
+          `Client connection rejected: No token provided (${client.id})`,
+        );
         client.disconnect(true);
         return;
       }
@@ -54,9 +57,13 @@ export class WebsocketGateway
       });
 
       client.data.user = payload;
-      this.logger.log(`Client authenticated: ${client.id} (User: ${payload.email})`);
+      this.logger.log(
+        `Client authenticated: ${client.id} (User: ${payload.email})`,
+      );
     } catch (err) {
-      this.logger.warn(`Client connection rejected: Invalid token (${client.id})`);
+      this.logger.warn(
+        `Client connection rejected: Invalid token (${client.id})`,
+      );
       client.disconnect(true);
     }
   }
@@ -74,7 +81,9 @@ export class WebsocketGateway
 
     const user = client.data.user;
     if (!user) {
-      this.logger.warn(`Unauthorized subscription attempt: Unauthenticated socket client`);
+      this.logger.warn(
+        `Unauthorized subscription attempt: Unauthenticated socket client`,
+      );
       client.disconnect(true);
       return;
     }
@@ -82,16 +91,15 @@ export class WebsocketGateway
     // Resolve the device and building ID
     const device = await this.prisma.device.findFirst({
       where: {
-        OR: [
-          { topic: payload.topic },
-          { deviceId: payload.topic },
-        ],
+        OR: [{ topic: payload.topic }, { deviceId: payload.topic }],
       },
       include: { building: true },
     });
 
     if (!device) {
-      this.logger.warn(`Subscribe attempt to non-existing device/topic: ${payload.topic}`);
+      this.logger.warn(
+        `Subscribe attempt to non-existing device/topic: ${payload.topic}`,
+      );
       return;
     }
 

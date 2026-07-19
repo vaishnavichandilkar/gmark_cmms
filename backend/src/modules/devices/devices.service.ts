@@ -3,7 +3,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 
 @Injectable()
 export class DevicesService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async getAllDevices(user: any) {
     let whereClause: any = {};
@@ -33,6 +33,17 @@ export class DevicesService {
       const diffMs = now.getTime() - lastSeen.getTime();
       const status = diffMs <= 60000 ? 'online' : 'offline';
 
+      const latestData: any = device.latestData || {};
+      const alerts: string[] = [];
+      
+      if (latestData.inputPowerFaultType) alerts.push('Input Power Fault');
+      if (latestData.pump1FaultType) alerts.push('Pump 1 Fault');
+      if (latestData.pump2FaultType) alerts.push('Pump 2 Fault');
+      if (latestData.pump3FaultType) alerts.push('Pump 3 Fault');
+      if (latestData.pump4FaultType) alerts.push('Pump 4 Fault');
+
+      // Also check if pressure is abnormal if we had rules, but let's stick to explicit faults
+
       return {
         id: device.id,
         deviceId: device.deviceId,
@@ -41,6 +52,8 @@ export class DevicesService {
         topic: device.topic,
         status,
         lastSeen,
+        alerts,
+        alertCount: alerts.length,
       };
     });
   }

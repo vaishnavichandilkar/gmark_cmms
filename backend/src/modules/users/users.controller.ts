@@ -1,5 +1,24 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, UseGuards, ForbiddenException, Ip } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  ParseIntPipe,
+  UseGuards,
+  ForbiddenException,
+  Ip,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -16,13 +35,16 @@ export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly auditLogService: AuditLogService,
-  ) { }
+  ) {}
 
   @Get()
   @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN)
   @ApiOperation({ summary: 'Get all users' })
   @ApiResponse({ status: 200, description: 'Return all users.' })
-  async findAll(@CurrentUser() user: any, @Query('societyId') societyId?: string) {
+  async findAll(
+    @CurrentUser() user: any,
+    @Query('societyId') societyId?: string,
+  ) {
     const parsedId = societyId ? parseInt(societyId, 10) : undefined;
     return this.usersService.findAll(user, parsedId);
   }
@@ -31,7 +53,10 @@ export class UsersController {
   @ApiOperation({ summary: 'Get user by ID' })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiResponse({ status: 200, description: 'Return user details.' })
-  async findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() currentUser: any) {
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() currentUser: any,
+  ) {
     if (
       currentUser.role !== UserRole.SUPER_ADMIN &&
       currentUser.role !== UserRole.SOCIETY_ADMIN &&
@@ -52,7 +77,7 @@ export class UsersController {
       username: string;
       mobileNumber?: string;
       email: string;
-      password: string;
+      password?: string;
       firstName?: string;
       lastName?: string;
       profileTitle?: string;
@@ -66,13 +91,20 @@ export class UsersController {
       role?: UserRole;
       isActive?: boolean;
       societyId?: number;
+      employeeId?: number;
+      mainFacilityId?: number;
       buildingIds?: number[];
     },
     @CurrentUser() currentUser: any,
     @Ip() ip: string,
   ) {
     const result = await this.usersService.create(body);
-    await this.auditLogService.create(currentUser.userId, `User Created: ${result.username} (${result.email})`, 'USERS', ip);
+    await this.auditLogService.create(
+      currentUser.userId,
+      `User Created: ${result.username} (${result.email})`,
+      'USERS',
+      ip,
+    );
     return result;
   }
 
@@ -103,12 +135,19 @@ export class UsersController {
       isActive?: boolean;
       buildingIds?: number[];
       societyId?: number;
+      employeeId?: number;
+      mainFacilityId?: number;
     },
     @CurrentUser() currentUser: any,
     @Ip() ip: string,
   ) {
     const result = await this.usersService.update(id, body);
-    await this.auditLogService.create(currentUser.userId, `User Updated: ID ${id}`, 'USERS', ip);
+    await this.auditLogService.create(
+      currentUser.userId,
+      `User Updated: ID ${id}`,
+      'USERS',
+      ip,
+    );
     return result;
   }
 
@@ -123,7 +162,12 @@ export class UsersController {
     @Ip() ip: string,
   ) {
     const result = await this.usersService.remove(id);
-    await this.auditLogService.create(currentUser.userId, `User Deleted: ID ${id}`, 'USERS', ip);
+    await this.auditLogService.create(
+      currentUser.userId,
+      `User Deleted: ID ${id}`,
+      'USERS',
+      ip,
+    );
     return result;
   }
 }

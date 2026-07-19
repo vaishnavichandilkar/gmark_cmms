@@ -8,10 +8,10 @@ export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(ROLES_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
+      ROLES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
     if (!requiredRoles || requiredRoles.length === 0) {
       return true;
     }
@@ -20,7 +20,7 @@ export class RolesGuard implements CanActivate {
     if (!user) {
       return false;
     }
-    
+
     // SUPER_ADMIN has platform-wide unrestricted access
     if (user.role === UserRole.SUPER_ADMIN) {
       return true;

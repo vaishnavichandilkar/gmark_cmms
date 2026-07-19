@@ -8,16 +8,20 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Security headers
-  app.use(helmet({
-    contentSecurityPolicy: false, // Turn off CSP if it interferes with Swagger UI
-  }));
+  app.use(
+    helmet({
+      contentSecurityPolicy: false, // Turn off CSP if it interferes with Swagger UI
+    }),
+  );
 
   // Global DTO Validation
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    transform: true,
-    forbidNonWhitelisted: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
 
   // Enable CORS
   app.enableCors({

@@ -11,13 +11,18 @@ import { SocietiesModule } from './modules/societies/societies.module';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AuditLogModule } from './modules/audit-log/audit-log.module';
+import { EmployeesModule } from './modules/employees/employees.module';
+import { MainFacilitiesModule } from './modules/main-facilities/main-facilities.module';
+import { FacilitiesModule } from './modules/facilities/facilities.module';
 
 @Module({
   imports: [
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 100,
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
     PrismaModule,
     WebsocketModule,
     BuildingsModule,
@@ -28,6 +33,9 @@ import { AuditLogModule } from './modules/audit-log/audit-log.module';
     ParserModule,
     AuthModule,
     AuditLogModule,
+    EmployeesModule,
+    MainFacilitiesModule,
+    FacilitiesModule,
   ],
   providers: [
     {
@@ -36,4 +44,4 @@ import { AuditLogModule } from './modules/audit-log/audit-log.module';
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}

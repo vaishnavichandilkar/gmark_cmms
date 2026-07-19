@@ -45,6 +45,10 @@ model User {
   isActive        Boolean        @default(true)
   societyId       Int?
   society         Society?       @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  employeeId      Int?
+  employee        Employee?      @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  mainFacilityId  Int?
+  mainFacility    MainFacility?  @relation(fields: [mainFacilityId], references: [id], onDelete: SetNull)
   buildings       UserBuilding[]
   refreshToken    String?
   createdAt       DateTime       @default(now())
@@ -195,4 +199,72 @@ model DeviceRegisterValue {
   device       Device             @relation(fields: [deviceId], references: [deviceId], onDelete: Cascade)
 
   @@unique([deviceId, registerId])
+}
+
+model Employee {
+  id              Int      @id @default(autoincrement())
+  employeeCode    String   @unique
+  fullName        String
+  mobileNumber    String
+  officialEmail   String   @unique
+  personalEmail   String?
+  dateOfJoining   DateTime
+  dateOfBirth     DateTime
+  department      String
+  designation     String
+  salaryPayout    Float?
+  role            String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  users           User[]
+}
+
+model MainFacility {
+  id               Int      @id @default(autoincrement())
+  mainFacilityCode String   @unique
+  mainFacilityName String
+  mainFacilityHead String
+  gstNumber        String?
+  category         String
+  subcategory      String
+  status           String
+  description      String?
+  latitude         String?
+  longitude        String?
+  postalCode       String?
+  users            User[]
+  facilities       Facility[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Facility {
+  id               Int          @id @default(autoincrement())
+  facilityCode     String       @unique
+  facilityName     String
+  category         String
+  description      String?
+  
+  // Location & Hierarchy Fields
+  isLocationPart   Boolean      @default(false)
+  parentFacilityId Int?
+  parentFacility   Facility?    @relation("FacilityHierarchy", fields: [parentFacilityId], references: [id])
+  childFacilities  Facility[]   @relation("FacilityHierarchy")
+  
+  address          String?
+  country          String?
+  state            String?
+  city             String?
+  postalCode       String?
+  subCategory      String?
+  latitude         String?
+  longitude        String?
+  facilityHeadName String?
+  notes            String?
+  
+  mainFacilityId   Int
+  mainFacility     MainFacility @relation(fields: [mainFacilityId], references: [id], onDelete: Cascade)
+  
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 }
