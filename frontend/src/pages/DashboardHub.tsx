@@ -25,7 +25,7 @@ export function DashboardHub() {
       description: 'Manage hydrostatic pressure nodes, users, and active alerts.',
       children: [
         { label: 'User Master', icon: <Users size={18} />, path: '/admin' },
-        { label: 'Societies', icon: <Building2 size={18} />, path: '/' },
+        { label: 'Societies', icon: <Building2 size={18} />, path: '/societies' },
         { label: 'Alerts', icon: <AlertCircle size={18} />, path: '/devices' },
       ]
     },

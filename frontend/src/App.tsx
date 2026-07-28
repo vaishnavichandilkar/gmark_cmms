@@ -27,6 +27,12 @@ import { UserManagement } from './pages/UserManagement';
 import { AddUser } from './pages/AddUser';
 import { FacilityManagement } from './pages/FacilityManagement';
 import { AddFacility } from './pages/master/AddFacility';
+import { AssetsManagement } from './pages/AssetsManagement';
+import { MachineManagement } from './pages/MachineManagement';
+import { AddMachine } from './pages/machines/AddMachine';
+import { EditMachine } from './pages/machines/EditMachine';
+import { ManageAccess } from './pages/ManageAccess';
+import { AddRole } from './pages/AddRole';
 
 function App() {
   return (
@@ -45,17 +51,17 @@ function App() {
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <SocietiesPage />
+                  <DashboardHub />
                 </DashboardLayout>
               </ProtectedRoute>
             }
           />
           <Route
-            path="/dashboard"
+            path="/societies"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <DashboardHub />
+                  <SocietiesPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -380,6 +386,46 @@ function App() {
             }
           />
           <Route
+            path="/manage-access"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ManageAccess />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/manage-access/new"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AddRole />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/manage-access/edit/:id"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AddRole />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/manage-access/view/:id"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AddRole />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/user-management"
             element={
               <ProtectedRoute>
@@ -425,6 +471,46 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <FacilityManagement />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/machine-management"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <MachineManagement />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/machine-management/new"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AddMachine />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/machine-management/edit/:id"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <EditMachine />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/assets"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AssetsManagement />
                 </DashboardLayout>
               </ProtectedRoute>
             }

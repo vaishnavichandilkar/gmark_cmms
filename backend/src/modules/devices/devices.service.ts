@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 @Injectable()
@@ -23,7 +23,7 @@ export class DevicesService {
 
     const devices = await this.prisma.device.findMany({
       where: whereClause,
-      include: { building: true },
+      include: { building: true, facility: true },
     });
 
     const now = new Date();
@@ -48,7 +48,9 @@ export class DevicesService {
         id: device.id,
         deviceId: device.deviceId,
         name: device.name,
-        building: device.building.name,
+        building: device.building?.name || device.facility?.facilityName || 'Unassigned',
+        buildingId: device.buildingId,
+        facilityId: device.facilityId,
         topic: device.topic,
         status,
         lastSeen,
@@ -93,7 +95,7 @@ export class DevicesService {
   async getDeviceDashboard(deviceId: string) {
     const device = await this.prisma.device.findUnique({
       where: { deviceId },
-      include: { building: true },
+      include: { building: true, facility: true },
     });
 
     if (!device) {
@@ -112,7 +114,7 @@ export class DevicesService {
     return {
       deviceId: device.deviceId,
       topic: device.topic,
-      building: device.building.name,
+      building: device.building?.name || device.facility?.facilityName || 'Unassigned',
       system: device.systemName || device.name,
       status,
       ...latestData,
@@ -127,17 +129,34 @@ export class DevicesService {
   async create(data: {
     name: string;
     deviceId: string;
-    buildingId: number;
+    buildingId?: number;
+    facilityId?: number;
     application?: string;
     pumpType?: string;
     controller?: string;
     macType?: string;
+    company?: string;
+    maintenanceHead?: string;
+    machineCode?: string;
+    serialNumber?: string;
+    make?: string;
+    modelNumber?: string;
+    machineCategory?: string;
+    machineSubCategory?: string;
+    description?: string;
+    isLocationPart?: boolean;
+    costCenter?: string;
+    headOfDepartment?: string;
+    machineOwner?: string;
+    latitude?: string;
+    longitude?: string;
+    notes?: string;
   }) {
     const existing = await this.prisma.device.findUnique({
       where: { deviceId: data.deviceId },
     });
     if (existing) {
-      throw new Error(`Device with ID ${data.deviceId} already exists`);
+      throw new BadRequestException(`Device with Code ${data.deviceId} already exists`);
     }
 
     const device = await this.prisma.device.create({
@@ -145,6 +164,7 @@ export class DevicesService {
         deviceId: data.deviceId,
         name: data.name,
         buildingId: data.buildingId,
+        facilityId: data.facilityId,
         topic: `AGC/SE-${data.deviceId}`,
         systemName: data.name,
         template: 'booster',
@@ -152,6 +172,22 @@ export class DevicesService {
         pumpType: data.pumpType || 'WMP_BOOSTER_PUMP',
         controller: data.controller || 'AIPCU',
         macType: data.macType || 'Primary MAC',
+        company: data.company,
+        maintenanceHead: data.maintenanceHead,
+        machineCode: data.machineCode,
+        serialNumber: data.serialNumber,
+        make: data.make,
+        modelNumber: data.modelNumber,
+        machineCategory: data.machineCategory,
+        machineSubCategory: data.machineSubCategory,
+        description: data.description,
+        isLocationPart: data.isLocationPart,
+        costCenter: data.costCenter,
+        headOfDepartment: data.headOfDepartment,
+        machineOwner: data.machineOwner,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        notes: data.notes,
       },
     });
 
@@ -169,10 +205,28 @@ export class DevicesService {
     data: {
       name: string;
       deviceId: string;
+      buildingId?: number;
+      facilityId?: number;
       application?: string;
       pumpType?: string;
       controller?: string;
       macType?: string;
+      company?: string;
+      maintenanceHead?: string;
+      machineCode?: string;
+      serialNumber?: string;
+      make?: string;
+      modelNumber?: string;
+      machineCategory?: string;
+      machineSubCategory?: string;
+      description?: string;
+      isLocationPart?: boolean;
+      costCenter?: string;
+      headOfDepartment?: string;
+      machineOwner?: string;
+      latitude?: string;
+      longitude?: string;
+      notes?: string;
     },
   ) {
     const device = await this.prisma.device.findUnique({
@@ -187,7 +241,7 @@ export class DevicesService {
         where: { deviceId: data.deviceId },
       });
       if (existing) {
-        throw new Error(`Device with ID ${data.deviceId} already exists`);
+        throw new BadRequestException(`Device with Code ${data.deviceId} already exists`);
       }
     }
 
@@ -196,12 +250,30 @@ export class DevicesService {
       data: {
         name: data.name,
         deviceId: data.deviceId,
+        buildingId: data.buildingId,
+        facilityId: data.facilityId,
         topic: `AGC/SE-${data.deviceId}`,
         systemName: data.name,
         application: data.application,
         pumpType: data.pumpType,
         controller: data.controller,
         macType: data.macType,
+        company: data.company,
+        maintenanceHead: data.maintenanceHead,
+        machineCode: data.machineCode,
+        serialNumber: data.serialNumber,
+        make: data.make,
+        modelNumber: data.modelNumber,
+        machineCategory: data.machineCategory,
+        machineSubCategory: data.machineSubCategory,
+        description: data.description,
+        isLocationPart: data.isLocationPart,
+        costCenter: data.costCenter,
+        headOfDepartment: data.headOfDepartment,
+        machineOwner: data.machineOwner,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        notes: data.notes,
       },
     });
 

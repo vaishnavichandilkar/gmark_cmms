@@ -7,7 +7,7 @@ import {
   ChevronRight, ChevronLeft, LogOut, 
   LayoutDashboard, Wrench, Cpu, Droplet, 
   Flame, ArrowUpDown, MoreHorizontal, Users, 
-  ChevronDown
+  ChevronDown, Boxes, ShieldCheck
 } from 'lucide-react';
 import { logout } from '../store/slices/authSlice';
 import { LogoutConfirmModal } from './LogoutConfirmModal';
@@ -54,8 +54,13 @@ export function FloatingNavbar() {
   const menuData: MenuItem[] = [
     {
       label: 'Dashboard',
-      path: '/dashboard', 
+      path: '/', 
       icon: <LayoutDashboard size={20} />
+    },
+    {
+      label: 'All Assets',
+      path: '/assets',
+      icon: <Boxes size={20} />
     },
     {
       label: 'Master',
@@ -74,6 +79,11 @@ export function FloatingNavbar() {
       ]
     },
     {
+      label: 'Manage Access',
+      path: '/manage-access',
+      icon: <ShieldCheck size={20} />
+    },
+    {
       label: 'User Management',
       path: '/user-management',
       icon: <Users size={20} />
@@ -82,13 +92,18 @@ export function FloatingNavbar() {
       label: 'Facility Management',
       path: '/facility-management',
       icon: <Building2 size={20} />
+    },
+    {
+      label: 'Machine Management',
+      path: '/machine-management',
+      icon: <Cpu size={20} />
     }
   ];
 
   const isPathActive = (path?: string) => {
     if (!path) return false;
     if (path === '/') {
-      return location.pathname === '/' || location.pathname.startsWith('/society') || location.pathname.startsWith('/building');
+      return location.pathname === '/' || location.pathname.startsWith('/society') || location.pathname.startsWith('/societies') || location.pathname.startsWith('/building');
     }
     return location.pathname.startsWith(path);
   };
@@ -245,7 +260,7 @@ export function FloatingNavbar() {
         <div className="bg-white border border-gray-200 rounded-full p-2 flex flex-row items-center justify-around shadow-lg">
            {[
              { path: '/admin', icon: <LayoutDashboard size={20} /> },
-             { path: '/', icon: <Building2 size={20} /> },
+             { path: '/societies', icon: <Building2 size={20} /> },
              { path: '/devices', icon: <AlertCircle size={20} /> },
              { path: '/profile', icon: <User size={20} /> }
            ].map((tab) => {

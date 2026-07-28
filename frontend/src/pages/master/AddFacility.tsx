@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Plus, Edit } from 'lucide-react';
 import { CustomSelect } from '../../components/CustomSelect';
 import { api } from '../../lib/api';
 
@@ -10,6 +10,9 @@ export function AddFacility() {
   const isViewMode = window.location.pathname.includes('/view/');
 
   const [currentStep, setCurrentStep] = useState(1);
+  const [activeTab, setActiveTab] = useState('General');
+  const [isUploadMenuOpen, setIsUploadMenuOpen] = useState(false);
+  const [_uploadModalType, setUploadModalType] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     mainFacilityId: '',
@@ -35,7 +38,6 @@ export function AddFacility() {
   });
 
   const [mainFacilities, setMainFacilities] = useState<any[]>([]);
-  const [facilitiesList, setFacilitiesList] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(false);
@@ -44,7 +46,6 @@ export function AddFacility() {
 
   useEffect(() => {
     fetchMainFacilities();
-    fetchFacilitiesList();
     fetchEmployees();
     if (id) {
       fetchFacility();
@@ -59,15 +60,6 @@ export function AddFacility() {
       setMainFacilities(response.data);
     } catch (error) {
       console.error('Failed to fetch main facilities:', error);
-    }
-  };
-
-  const fetchFacilitiesList = async () => {
-    try {
-      const response = await api.get('/facilities');
-      setFacilitiesList(response.data);
-    } catch (error) {
-      console.error('Failed to fetch facilities list:', error);
     }
   };
 
@@ -171,17 +163,17 @@ export function AddFacility() {
       }
 
       if (name === 'parentFacilityId' && newData.isLocationPart === 'true') {
-        const parentFacility = facilitiesList.find(f => f.id.toString() === value);
+        const parentFacility = mainFacilities.find(f => f.id.toString() === value);
         if (parentFacility) {
           newData.address = parentFacility.address || '';
           newData.country = parentFacility.country || 'India';
           newData.state = parentFacility.state || '';
           newData.city = parentFacility.city || '';
           newData.postalCode = parentFacility.postalCode || '';
-          newData.subCategory = parentFacility.subCategory || '';
+          newData.subCategory = parentFacility.subcategory || ''; // MainFacility uses 'subcategory'
           newData.latitude = parentFacility.latitude || '';
           newData.longitude = parentFacility.longitude || '';
-          newData.facilityHeadName = parentFacility.facilityHeadName || '';
+          newData.facilityHeadName = parentFacility.mainFacilityHead || ''; // MainFacility uses 'mainFacilityHead'
         }
       }
 
@@ -238,7 +230,7 @@ export function AddFacility() {
         category: formData.category,
         description: formData.description,
         isLocationPart: formData.isLocationPart === 'true',
-        parentFacilityId: formData.isLocationPart === 'true' && formData.parentFacilityId && formData.parentFacilityId !== 'self' ? parseInt(formData.parentFacilityId, 10) : null,
+        parentFacilityId: null, // We are using this as an address template from MainFacility, not a DB relationship
         address: formData.address,
         country: formData.country,
         state: formData.state,
@@ -272,11 +264,9 @@ export function AddFacility() {
   }));
 
   const parentFacilityOptions = [
-    ...(formData.facilityName ? [{ label: `${formData.facilityName} (Current Facility)`, value: 'self' }] : []),
-    ...facilitiesList
-      .filter(f => f.id.toString() !== id) // Prevent self-referencing
+    ...mainFacilities
       .map(f => ({
-        label: f.facilityName,
+        label: f.mainFacilityName,
         value: f.id.toString()
       }))
   ];
@@ -296,7 +286,7 @@ export function AddFacility() {
   }
 
   return (
-    <div className="w-full p-6 bg-gray-50 min-h-screen">
+    <div className="w-full p-6 min-h-screen">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <button 
@@ -317,7 +307,25 @@ export function AddFacility() {
       )}
 
       {/* Form Card */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden w-full">
+        {currentStep === 2 && (
+          <div className="flex overflow-x-auto border-b border-gray-200">
+            {['General', 'Document'].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`flex-1 min-w-[120px] py-3.5 px-4 text-sm font-semibold border-r border-gray-200 transition-colors ${
+                  activeTab === tab
+                    ? 'bg-[#00a651] text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        )}
+
         {currentStep === 1 && (
           <div className="p-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 mb-6">
@@ -429,14 +437,14 @@ export function AddFacility() {
               <button
                 type="button"
                 onClick={handleBack}
-                className="px-6 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95"
               >
                 Back
               </button>
               <button
                 type="button"
                 onClick={handleNext}
-                className="px-6 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors"
+                className="flex items-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
               >
                 Next
               </button>
@@ -444,7 +452,7 @@ export function AddFacility() {
           </div>
         )}
 
-        {currentStep === 2 && (
+        {currentStep === 2 && activeTab === 'General' && (
           <form onSubmit={handleSubmit} className="p-8">
             <h3 className="text-sm font-semibold text-gray-700 mb-4">Location <span className="text-red-500">*</span></h3>
             
@@ -672,7 +680,7 @@ export function AddFacility() {
               <button
                 type="button"
                 onClick={handleBack}
-                className="px-6 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95"
               >
                 Back
               </button>
@@ -694,6 +702,111 @@ export function AddFacility() {
               )}
             </div>
           </form>
+        )}
+
+        {currentStep === 2 && activeTab === 'Document' && (
+          <div className="space-y-6 w-full p-8">
+            {/* Toolbar */}
+            <div className="flex justify-start items-center mb-6">
+              <div className="relative">
+                <button 
+                  type="button"
+                  onClick={() => setIsUploadMenuOpen(!isUploadMenuOpen)}
+                  className="px-4 py-2 bg-gray-200 text-gray-800 font-semibold text-sm rounded-xl flex items-center gap-2 hover:bg-gray-300 transition-colors"
+                >
+                  <Plus size={16} className="text-[#00a651] stroke-[3]" /> Upload
+                </button>
+                
+                {/* Upload Dropdown */}
+                {isUploadMenuOpen && (
+                  <div className="absolute top-full left-0 mt-2 w-32 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-20">
+                    <button 
+                      type="button"
+                      onClick={() => { setUploadModalType('File'); setIsUploadMenuOpen(false); }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      File
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => { setUploadModalType('Link'); setIsUploadMenuOpen(false); }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Link
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => { setUploadModalType('Note'); setIsUploadMenuOpen(false); }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Notes
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-x-auto w-full">
+              <table className="w-full text-left whitespace-nowrap">
+                <thead className="bg-gray-100 rounded-lg">
+                  <tr>
+                    <th className="px-4 py-3 rounded-l-lg w-12"><input type="checkbox" className="rounded border-gray-300" disabled /></th>
+                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">No.</th>
+                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Name</th>
+                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Document Type</th>
+                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Document Details</th>
+                    <th className="px-4 py-3 rounded-r-lg text-xs font-bold text-gray-500 uppercase text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[1, 2, 3, 4, 5, 6].map((num) => (
+                    <tr key={num} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-4"><input type="checkbox" className="rounded border-gray-300 text-green-500 focus:ring-green-500" /></td>
+                      <td className="px-4 py-4 text-sm text-gray-500">{num}</td>
+                      <td className="px-4 py-4 text-sm text-gray-700">Facility Name</td>
+                      <td className="px-4 py-4 text-sm text-gray-700">Spare Name</td>
+                      <td className="px-4 py-4 text-sm text-gray-700">Spare Name</td>
+                      <td className="px-4 py-4 text-sm text-gray-700">
+                        <div className="flex justify-center">
+                          <button type="button" className="text-gray-400 hover:text-gray-800 transition-colors">
+                            <Edit size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex items-center justify-end gap-4 mt-8 pt-6 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={handleBack}
+                className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95"
+              >
+                Back
+              </button>
+              {!isViewMode && (
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={loading}
+                  className="px-6 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Saving...
+                    </>
+                  ) : (
+                    'Save'
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
         )}
       </div>
     </div>

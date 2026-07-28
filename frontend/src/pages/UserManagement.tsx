@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Pencil, ChevronDown, ChevronLeft, ChevronRight, Eye, Trash2 } from 'lucide-react';
+import { Plus, Search, Pencil, Eye, Trash2, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
+import { TablePagination } from '../components/TablePagination';
 
 export function UserManagement() {
   const navigate = useNavigate();
@@ -11,6 +12,13 @@ export function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<number | null>(null);
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   useEffect(() => {
     fetchUsers();
@@ -47,6 +55,12 @@ export function UserManagement() {
   };
 
   const filteredUsers = users.filter(user => {
+    // Hide default seed system users from this list
+    const seedUsernames = ['superadmin', 'societyadmin', 'buildingadmin', 'operator', 'viewer'];
+    if (seedUsernames.includes(user.username)) {
+      return false;
+    }
+    
     const searchString = searchQuery.toLowerCase();
     const name = (user.employee?.fullName || (user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : user.username)).toLowerCase();
     const role = (user.employee?.role || user.role || '').toLowerCase();
@@ -61,17 +75,23 @@ export function UserManagement() {
            dept.includes(searchString);
   });
 
+  const totalItems = filteredUsers.length;
+  const totalPages = Math.ceil(totalItems / rowsPerPage);
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const endIndex = Math.min(startIndex + rowsPerPage, totalItems);
+  const currentUsers = filteredUsers.slice(startIndex, endIndex);
+
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-6 bg-white min-h-screen">
       {/* Header Section */}
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Users</h1>
-          <p className="text-gray-500 text-sm mt-1">Users Assign to mainfacilites</p>
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Users</h1>
+          <p className="text-sm font-medium text-gray-500 mt-1">Users assigned to main facilities</p>
         </div>
         <button 
           onClick={() => navigate('/user-management/new')}
-          className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full text-sm font-medium transition-colors"
+          className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
         >
           <Plus className="w-4 h-4" />
           Add New User
@@ -96,8 +116,8 @@ export function UserManagement() {
 
       {/* Table Section */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-800">Users assign to mainfacility</h2>
+        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
+          <h2 className="text-base font-semibold text-gray-800">Users assigned to main facility</h2>
         </div>
         
         <div className="overflow-x-auto">
@@ -107,7 +127,7 @@ export function UserManagement() {
                 <th className="px-6 py-4">Name</th>
                 <th className="px-6 py-4">Job Role</th>
                 <th className="px-6 py-4">Main Facility Name</th>
-                <th className="px-6 py-4">Company Mail ID</th>
+                <th className="px-6 py-4">Official Email</th>
                 <th className="px-6 py-4">Department</th>
                 <th className="px-6 py-4">Date of Joining</th>
                 <th className="px-6 py-4">Status</th>
@@ -123,8 +143,8 @@ export function UserManagement() {
                     </div>
                   </td>
                 </tr>
-              ) : filteredUsers.length > 0 ? (
-                filteredUsers.map((user, index) => (
+              ) : currentUsers.length > 0 ? (
+                currentUsers.map((user, index) => (
                   <tr key={user.id || index} className="hover:bg-gray-50/50 transition-colors group">
                     <td className="px-6 py-4 whitespace-nowrap">
                       {user.employee?.fullName || (user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : user.username)}
@@ -173,8 +193,16 @@ export function UserManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
-                    No users found.
+                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500 bg-gray-50/30">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                        <Users className="w-6 h-6 text-gray-400" />
+                      </div>
+                      <p className="text-base font-medium text-gray-900 mb-1">No users found</p>
+                      <p className="text-sm text-gray-500 max-w-sm">
+                        Get started by adding a new user to the system.
+                      </p>
+                    </div>
                   </td>
                 </tr>
               )}
@@ -182,25 +210,19 @@ export function UserManagement() {
           </table>
         </div>
 
-        {/* Pagination */}
-        <div className="px-6 py-3 border-t border-gray-200 flex items-center justify-end gap-6 text-sm text-gray-500">
-          <div className="flex items-center gap-2">
-            <span>Rows per page:</span>
-            <div className="flex items-center gap-1 cursor-pointer">
-              <span className="font-medium text-gray-700">5</span>
-              <ChevronDown className="w-4 h-4" />
-            </div>
-          </div>
-          <span>0-0 of 0</span>
-          <div className="flex items-center gap-4">
-            <button className="text-gray-300 cursor-not-allowed">
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <button className="text-gray-300 cursor-not-allowed">
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
+        <TablePagination 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          rowsPerPage={rowsPerPage}
+          onPageChange={setCurrentPage}
+          onRowsPerPageChange={(rows) => {
+            setRowsPerPage(rows);
+            setCurrentPage(1);
+          }}
+        />
       </div>
 
       <DeleteConfirmModal 

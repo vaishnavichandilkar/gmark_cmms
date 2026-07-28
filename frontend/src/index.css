@@ -4,6 +4,33 @@
 @theme {
   --font-sans: 'Plus Jakarta Sans', sans-serif;
   --font-title: 'Geist', sans-serif;
+
+  /* 4M Brand Logo Color Overrides */
+  --color-green-50: #edfcf4;
+  --color-green-100: #d3f9e2;
+  --color-green-200: #aaf0cc;
+  --color-green-300: #70e2b0;
+  --color-green-400: #31ca8f;
+  --color-green-500: #0cae74;
+  --color-green-600: #009a43;
+  --color-green-700: #037b3b;
+  --color-green-800: #066132;
+  --color-green-900: #07502a;
+  --color-green-950: #022d16;
+
+  --color-emerald-50: #edfcf4;
+  --color-emerald-100: #d3f9e2;
+  --color-emerald-200: #aaf0cc;
+  --color-emerald-300: #70e2b0;
+  --color-emerald-400: #31ca8f;
+  --color-emerald-500: #0cae74;
+  --color-emerald-600: #009a43;
+  --color-emerald-700: #037b3b;
+  --color-emerald-800: #066132;
+  --color-emerald-900: #07502a;
+  --color-emerald-950: #022d16;
+  
+  --color-healthy: #009a43;
 }
 
 @layer base {

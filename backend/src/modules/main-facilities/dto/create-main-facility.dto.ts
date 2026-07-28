@@ -44,4 +44,20 @@ export class CreateMainFacilityDto {
   @IsString()
   @IsOptional()
   postalCode?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  address?: string;
+
+  @IsString()
+  @IsOptional()
+  country?: string;
+
+  @IsString()
+  @IsOptional()
+  state?: string;
+
+  @IsString()
+  @IsOptional()
+  city?: string;
 }

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Pencil, Eye, Trash2 } from 'lucide-react';
+import { Plus, Search, Pencil, Eye, Trash2, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
+import { TablePagination } from '../components/TablePagination';
 
 export function FacilityManagement() {
   const navigate = useNavigate();
@@ -12,6 +13,13 @@ export function FacilityManagement() {
   
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [facilityToDelete, setFacilityToDelete] = useState<number | null>(null);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   useEffect(() => {
     fetchFacilities();
@@ -60,17 +68,23 @@ export function FacilityManagement() {
            category.includes(searchString);
   });
 
+  const totalItems = filteredFacilities.length;
+  const totalPages = Math.ceil(totalItems / rowsPerPage);
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const endIndex = Math.min(startIndex + rowsPerPage, totalItems);
+  const currentFacilities = filteredFacilities.slice(startIndex, endIndex);
+
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-6 bg-white min-h-screen">
       {/* Header Section */}
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Facility Management</h1>
-          <p className="text-gray-500 text-sm mt-1">Manage facilities and infrastructure</p>
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Facility Management</h1>
+          <p className="text-sm font-medium text-gray-500 mt-1">Manage facilities and infrastructure</p>
         </div>
         <button 
           onClick={() => navigate('/master/facility/new')}
-          className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full text-sm font-medium transition-colors"
+          className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
         >
           <Plus className="w-4 h-4" />
           Add New Facility
@@ -95,7 +109,7 @@ export function FacilityManagement() {
 
       {/* Table Section */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
+        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
           <h2 className="text-base font-semibold text-gray-800">Facilities List</h2>
         </div>
         
@@ -120,8 +134,8 @@ export function FacilityManagement() {
                     </div>
                   </td>
                 </tr>
-              ) : filteredFacilities.length > 0 ? (
-                filteredFacilities.map((facility, index) => (
+              ) : currentFacilities.length > 0 ? (
+                currentFacilities.map((facility, index) => (
                   <tr key={facility.id || index} className="hover:bg-gray-50/50 transition-colors group">
                     <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
                       {facility.facilityCode}
@@ -158,14 +172,36 @@ export function FacilityManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                    No facilities found.
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500 bg-gray-50/30">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                        <Building2 className="w-6 h-6 text-gray-400" />
+                      </div>
+                      <p className="text-base font-medium text-gray-900 mb-1">No facilities found</p>
+                      <p className="text-sm text-gray-500 max-w-sm">
+                        Get started by adding a new facility to the system.
+                      </p>
+                    </div>
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+
+        <TablePagination 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          rowsPerPage={rowsPerPage}
+          onPageChange={setCurrentPage}
+          onRowsPerPageChange={(rows) => {
+            setRowsPerPage(rows);
+            setCurrentPage(1);
+          }}
+        />
       </div>
 
       <DeleteConfirmModal 

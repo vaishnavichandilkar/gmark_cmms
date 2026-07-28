@@ -92,15 +92,36 @@ model Device {
   systemName  String?
   cardNo      String?
   topic       String?
-  buildingId  Int
+  buildingId  Int?
   
   // Frontend integration fields
   application String?  @default("DOMESTIC_WATER_SYS")
   pumpType    String?  @default("WMP_BOOSTER_PUMP")
   controller  String?  @default("AIPCU")
   macType     String?  @default("Primary MAC")
+
+  // Machine Management Extended Fields
+  company             String?
+  maintenanceHead     String?
+  machineCode         String?
+  serialNumber        String?
+  make                String?
+  modelNumber         String?
+  machineCategory     String?
+  machineSubCategory  String?
+  description         String?
+  isLocationPart      Boolean? @default(false)
+  costCenter          String?
+  headOfDepartment    String?
+  machineOwner        String?
+  latitude            String?
+  longitude           String?
+  notes               String?
+
   
-  building    Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  building    Building? @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  facilityId  Int?
+  facility    Facility? @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   
   latestData  Json?
   lastSeen    DateTime?
@@ -232,6 +253,10 @@ model MainFacility {
   latitude         String?
   longitude        String?
   postalCode       String?
+  address          String?
+  country          String?
+  state            String?
+  city             String?
   users            User[]
   facilities       Facility[]
   createdAt        DateTime @default(now())
@@ -264,6 +289,7 @@ model Facility {
   
   mainFacilityId   Int
   mainFacility     MainFacility @relation(fields: [mainFacilityId], references: [id], onDelete: Cascade)
+  devices          Device[]
   
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt

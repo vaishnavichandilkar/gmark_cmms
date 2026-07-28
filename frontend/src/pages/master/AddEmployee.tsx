@@ -152,7 +152,7 @@ export function AddEmployee() {
       </div>
 
       {/* Form Container */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 flex-1 overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
         
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">
@@ -325,7 +325,7 @@ export function AddEmployee() {
             type="button" 
             onClick={() => navigate(-1)}
             disabled={loading}
-            className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:opacity-50"
+            className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
           >
             Back
           </button>
@@ -334,7 +334,7 @@ export function AddEmployee() {
               type="button" 
               onClick={handleSave}
               disabled={loading}
-              className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 disabled:opacity-50 flex items-center justify-center min-w-[100px]"
+              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm disabled:opacity-70 min-w-[100px]"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

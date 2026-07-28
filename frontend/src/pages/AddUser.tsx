@@ -191,7 +191,7 @@ export function AddUser() {
   }));
 
   return (
-    <div className="p-6 w-full h-full flex flex-col overflow-y-auto bg-gray-50">
+    <div className="p-6 w-full h-full flex flex-col overflow-y-auto">
       {/* Header */}
       <div className="flex items-center mb-6">
         <button 
@@ -206,7 +206,7 @@ export function AddUser() {
       </div>
 
       {/* Form Container */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 flex-1">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
         
         {globalError && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">
@@ -315,13 +315,13 @@ export function AddUser() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Company Mail Id <span className="text-red-500">*</span>
+              Official Email <span className="text-red-500">*</span>
             </label>
             <input 
               type="email" 
               name="companyMailId"
               value={formData.companyMailId}
-              placeholder="Company Mail ID"
+              placeholder="Enter Official Email"
               onChange={handleChange}
               readOnly
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 outline-none transition-all"
@@ -363,7 +363,7 @@ export function AddUser() {
             type="button" 
             onClick={() => navigate(-1)}
             disabled={loading}
-            className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:opacity-50"
+            className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
           >
             Back
           </button>
@@ -372,7 +372,7 @@ export function AddUser() {
               type="button" 
               onClick={handleSave}
               disabled={loading}
-              className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 disabled:opacity-50 flex items-center justify-center min-w-[100px]"
+              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm disabled:opacity-70 min-w-[100px]"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
