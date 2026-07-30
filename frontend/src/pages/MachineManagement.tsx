@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Pencil, Trash2, Cpu } from 'lucide-react';
+import { Plus, Pencil, Trash2, Cpu } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';

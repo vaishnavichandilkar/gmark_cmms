@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Filter, RefreshCw, Activity, AlertTriangle, CheckCircle2, WifiOff, ChevronRight, Server, Clock, Download, Upload, Printer, FileText, FileSpreadsheet } from 'lucide-react';
+import { Search, Filter, RefreshCw, Activity, AlertTriangle, CheckCircle2, WifiOff, ChevronRight, Server, Clock, Upload, Printer, FileText, FileSpreadsheet } from 'lucide-react';
 import { api } from '../../lib/api';
 import { TableSkeleton } from '../../components/ui/TableSkeleton';
 import { exportData } from '../../utils/exportUtils';
