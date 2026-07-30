@@ -1,7 +1,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Filter, RefreshCw, Activity, AlertTriangle, CheckCircle2, WifiOff, ChevronRight, Server, Clock } from 'lucide-react';
+import { Search, Filter, RefreshCw, Activity, AlertTriangle, CheckCircle2, WifiOff, ChevronRight, Server, Clock, Download, Upload, Printer, FileText, FileSpreadsheet } from 'lucide-react';
 import { api } from '../../lib/api';
+import { TableSkeleton } from '../../components/ui/TableSkeleton';
+import { exportData } from '../../utils/exportUtils';
 
 interface DeviceData {
   id: number;
@@ -70,15 +72,44 @@ export function DevicesPage() {
     return matchesSearch && matchesFilter;
   });
 
+  const handleExport = (format: 'pdf' | 'excel') => {
+    const headers = ['Device Name', 'Device ID', 'Building', 'Topic', 'Status', 'Alerts'];
+    const rows = filteredDevices.map(device => [
+      device.name || '-',
+      device.deviceId || '-',
+      device.building || '-',
+      device.topic || '-',
+      device.status || '-',
+      device.alertCount?.toString() || '0'
+    ]);
+    exportData(headers, rows, 'Devices_Alerts_List', 'System Alerts & Monitoring', format);
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div className="w-full px-1 md:px-2 py-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 print:hidden">
         <div>
           <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-2">System Alerts & Monitoring</h1>
           <p className="text-sm font-medium text-gray-500">Enterprise-grade device registry and real-time fault detection.</p>
         </div>
         <div className="flex items-center gap-3">
+          <button className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:text-emerald-800 hover:border-emerald-300 hover:bg-emerald-100 rounded-xl transition-all shadow-sm flex items-center justify-center cursor-pointer" title="Import">
+            <Upload size={16} />
+          </button>
+          <button onClick={() => handleExport('pdf')} className="p-2.5 bg-blue-50 border border-blue-200 text-blue-700 hover:text-blue-800 hover:border-blue-300 hover:bg-blue-100 rounded-xl transition-all shadow-sm flex items-center justify-center cursor-pointer" title="Export PDF">
+            <FileText size={16} />
+          </button>
+          <button onClick={() => handleExport('excel')} className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:text-emerald-800 hover:border-emerald-300 hover:bg-emerald-100 rounded-xl transition-all shadow-sm flex items-center justify-center cursor-pointer" title="Export Excel">
+            <FileSpreadsheet size={16} />
+          </button>
+          <button onClick={handlePrint} className="p-2.5 bg-white border border-gray-200 text-gray-700 hover:text-gray-900 hover:border-gray-300 hover:bg-gray-50 rounded-xl transition-all shadow-sm flex items-center justify-center cursor-pointer" title="Print">
+            <Printer size={16} />
+          </button>
           <button
             onClick={fetchDevices}
             className="px-4 py-2 bg-white border border-gray-200 text-gray-700 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50 rounded-xl transition-all shadow-sm flex items-center gap-2 font-bold text-sm"
@@ -91,7 +122,7 @@ export function DevicesPage() {
       </div>
 
       {/* KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 print:hidden">
         {/* Health Score */}
         <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4 relative overflow-hidden group hover:shadow-md transition-all">
           <div className="absolute -right-6 -top-6 w-24 h-24 bg-emerald-50 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500" />
@@ -199,16 +230,7 @@ export function DevicesPage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
-                [...Array(5)].map((_, i) => (
-                  <tr key={i} className="animate-pulse">
-                    <td className="px-6 py-5"><div className="h-10 bg-gray-100 rounded-lg w-48"></div></td>
-                    <td className="px-6 py-5"><div className="h-6 bg-gray-100 rounded-full w-20"></div></td>
-                    <td className="px-6 py-5"><div className="h-6 bg-gray-100 rounded w-32"></div></td>
-                    <td className="px-6 py-5"><div className="h-4 bg-gray-100 rounded w-24"></div></td>
-                    <td className="px-6 py-5"><div className="h-4 bg-gray-100 rounded w-28"></div></td>
-                    <td className="px-6 py-5"><div className="h-8 bg-gray-100 rounded-lg w-8 ml-auto"></div></td>
-                  </tr>
-                ))
+                <TableSkeleton columns={6} rows={5} />
               ) : filteredDevices.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-16 text-center">

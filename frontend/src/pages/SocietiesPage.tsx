@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Building2, ArrowRight, MapPin, Search } from 'lucide-react';
 import { api } from '../lib/api';
-
+import { CardSkeleton } from '../components/ui/CardSkeleton';
 import buildingA from '../assets/building/building A.png';
 import buildingC from '../assets/building/building  C.png';
 
@@ -74,8 +74,10 @@ export function SocietiesPage() {
       </div>
 
       {loading ? (
-        <div className="h-64 flex items-center justify-center">
-          <div className="w-10 h-10 border-4 border-zinc-800 border-t-blue-500 rounded-full animate-spin" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <CardSkeleton key={i} />
+          ))}
         </div>
       ) : filteredSocieties.length === 0 ? (
         <div className="h-64 flex flex-col items-center justify-center text-center text-zinc-500 bg-zinc-950/20 border border-white/5 rounded-3xl p-8">

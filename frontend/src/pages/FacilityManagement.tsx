@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 import { TablePagination } from '../components/TablePagination';
+import { TableSkeleton } from '../components/ui/TableSkeleton';
+import { TableActions } from '../components/TableActions';
+import { exportData } from '../utils/exportUtils';
 
 export function FacilityManagement() {
   const navigate = useNavigate();
@@ -55,6 +58,22 @@ export function FacilityManagement() {
     }
   };
 
+  const handleExport = (format: 'pdf' | 'excel') => {
+    const headers = ['Facility Code', 'Facility Name', 'Main Facility', 'Category', 'Date Added'];
+    const rows = filteredFacilities.map(facility => [
+      facility.facilityCode || '-',
+      facility.facilityName || '-',
+      facility.mainFacility?.mainFacilityName || '-',
+      facility.category || '-',
+      facility.createdAt ? new Date(facility.createdAt).toLocaleDateString('en-GB').replace(/\//g, '-') : '-'
+    ]);
+    exportData(headers, rows, 'Facility_List', 'Facility Management List', format);
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
   const filteredFacilities = facilities.filter(facility => {
     const searchString = searchQuery.toLowerCase();
     const code = (facility.facilityCode || '').toLowerCase();
@@ -75,16 +94,16 @@ export function FacilityManagement() {
   const currentFacilities = filteredFacilities.slice(startIndex, endIndex);
 
   return (
-    <div className="p-6 bg-white min-h-screen">
+    <div className="sm:p-2 md:p-4 bg-white min-h-screen">
       {/* Header Section */}
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 print:hidden">
         <div>
           <h1 className="text-3xl font-black text-gray-900 tracking-tight">Facility Management</h1>
           <p className="text-sm font-medium text-gray-500 mt-1">Manage facilities and infrastructure</p>
         </div>
         <button 
           onClick={() => navigate('/master/facility/new')}
-          className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
+          className="flex items-center justify-center w-full sm:w-auto gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
         >
           <Plus className="w-4 h-4" />
           Add New Facility
@@ -92,20 +111,13 @@ export function FacilityManagement() {
       </div>
 
       {/* Search Section */}
-      <div className="flex justify-end mb-6">
-        <div className="relative w-72">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-4 w-4 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm transition-all"
-            placeholder="Search facilities..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-      </div>
+      <TableActions
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        searchPlaceholder="Search facilities..."
+        onExport={handleExport}
+        onPrint={handlePrint}
+      />
 
       {/* Table Section */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
@@ -119,7 +131,7 @@ export function FacilityManagement() {
               <tr>
                 <th className="px-6 py-4">Facility Code</th>
                 <th className="px-6 py-4">Facility Name</th>
-                <th className="px-6 py-4">Main Facility</th>
+                <th className="px-6 py-4">Facility</th>
                 <th className="px-6 py-4">Category</th>
                 <th className="px-6 py-4">Date Added</th>
                 <th className="px-6 py-4 w-12"></th>
@@ -127,13 +139,7 @@ export function FacilityManagement() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                    <div className="flex justify-center items-center h-16">
-                      <div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                  </td>
-                </tr>
+                <TableSkeleton columns={6} rows={5} />
               ) : currentFacilities.length > 0 ? (
                 currentFacilities.map((facility, index) => (
                   <tr key={facility.id || index} className="hover:bg-gray-50/50 transition-colors group">

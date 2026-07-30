@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, User, Mail, Phone, Building2, Shield, Briefcase, CheckCircle2 } from 'lucide-react';
 import { api } from '../lib/api';
+import { FacilityHierarchyPicker } from '../components/FacilityHierarchyPicker';
 import { CustomSelect } from '../components/CustomSelect';
 
 export function AddUser() {
@@ -128,7 +129,7 @@ export function AddUser() {
       setGlobalError('');
       
       if (!formData.username || !formData.companyMailId || !formData.mainFacilityId || !formData.employeeId) {
-        setGlobalError('Please fill in all required fields (Main Facility, Employee, Username, and Email).');
+        setGlobalError('Please fill in all required fields (Facility, Employee, Username, and Email).');
         setLoading(false);
         return;
       }
@@ -173,7 +174,7 @@ export function AddUser() {
 
   if (initialLoading) {
     return (
-      <div className="p-6 w-full h-full flex items-center justify-center">
+      <div className="sm:p-6 w-full h-full flex items-center justify-center">
         <div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
@@ -186,12 +187,12 @@ export function AddUser() {
   }));
 
   const employeeOptions = employees.map(emp => ({
-    label: emp.fullName,
+    label: `${emp.fullName} (${emp.department || 'N/A'} - ${emp.designation || emp.role || 'N/A'})`,
     value: emp.id.toString()
   }));
 
   return (
-    <div className="p-6 w-full h-full flex flex-col overflow-y-auto">
+    <div className="sm:p-6 pb-10 w-full h-full flex flex-col overflow-y-auto">
       {/* Header */}
       <div className="flex items-center mb-6">
         <button 
@@ -206,7 +207,7 @@ export function AddUser() {
       </div>
 
       {/* Form Container */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+      <div className={isViewMode ? "" : "bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-8"}>
         
         {globalError && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">
@@ -214,25 +215,127 @@ export function AddUser() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
+        {isViewMode ? (
+          <div className="space-y-8">
+            {/* Profile Header */}
+            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-6 sm:p-8 text-white shadow-lg flex flex-col sm:flex-row items-center gap-6">
+              <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md border-2 border-white/40 shadow-inner flex-shrink-0">
+                <User size={48} className="text-white" />
+              </div>
+              <div className="text-center sm:text-left">
+                <h2 className="text-3xl font-bold mb-2">{formData.username || 'Unknown User'}</h2>
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-emerald-50 font-medium">
+                  <div className="flex items-center gap-1.5">
+                    <Shield size={18} />
+                    <span>{formData.employeeRole || 'No Role'}</span>
+                  </div>
+                  <span className="hidden sm:inline">•</span>
+                  <div className="flex items-center gap-1.5">
+                    {formData.isActive ? <CheckCircle2 size={18} className="text-green-300" /> : <CheckCircle2 size={18} className="text-gray-300" />}
+                    <span>{formData.isActive ? 'Active' : 'Inactive'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Details Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Contact Information */}
+              <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2 border-b pb-3">
+                  <User size={20} className="text-emerald-500" />
+                  Employee Details
+                </h3>
+                <div className="space-y-5">
+                  <div className="flex items-start gap-4">
+                    <div className="bg-emerald-50 p-2.5 rounded-lg">
+                      <Phone size={18} className="text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Contact Number</p>
+                      <p className="text-base text-gray-900 font-semibold">{formData.employeeContactNumber || '-'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="bg-emerald-50 p-2.5 rounded-lg">
+                      <Mail size={18} className="text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Email Address</p>
+                      <p className="text-base text-gray-900 font-semibold">{formData.companyMailId || '-'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="bg-gray-50 p-2.5 rounded-lg">
+                      <Briefcase size={18} className="text-gray-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Department</p>
+                      <p className="text-base text-gray-900 font-semibold">{formData.department || '-'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Work Information */}
+              <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2 border-b pb-3">
+                  <Building2 size={20} className="text-emerald-500" />
+                  Facility Information
+                </h3>
+                <div className="space-y-5">
+                  <div className="flex items-start gap-4">
+                    <div className="bg-emerald-50 p-2.5 rounded-lg">
+                      <Building2 size={18} className="text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Main Facility</p>
+                      <p className="text-base text-gray-900 font-semibold">
+                         {facilityOptions.find(f => f.value === formData.mainFacilityId)?.label || '-'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="bg-emerald-50 p-2.5 rounded-lg">
+                      <User size={18} className="text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Facility Head</p>
+                      <p className="text-base text-gray-900 font-semibold">{formData.mainFacilityHead || '-'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="bg-gray-50 p-2.5 rounded-lg">
+                      <Briefcase size={18} className="text-gray-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Category</p>
+                      <p className="text-base text-gray-900 font-semibold">{formData.category || '-'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
           
           {/* Row 1 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Main Facility <span className="text-red-500">*</span>
+              Facility <span className="text-red-500">*</span>
             </label>
-            <CustomSelect 
+            <FacilityHierarchyPicker 
               name="mainFacilityId"
               value={formData.mainFacilityId}
               onChange={handleChange}
-              options={facilityOptions}
               disabled={isViewMode}
               placeholder="Select Facility"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Main Facility Head <span className="text-red-500">*</span>
+              Facility Head <span className="text-red-500">*</span>
             </label>
             <input 
               type="text" 
@@ -355,15 +458,16 @@ export function AddUser() {
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 outline-none transition-all"
             />
           </div>
-        </div>
+          </div>
+        )}
 
         {/* Buttons */}
-        <div className="flex justify-end gap-3 mt-10 border-t border-gray-100 pt-6">
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-10 border-t border-gray-100 pt-6">
           <button 
             type="button" 
             onClick={() => navigate(-1)}
             disabled={loading}
-            className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
+            className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
           >
             Back
           </button>
@@ -372,7 +476,7 @@ export function AddUser() {
               type="button" 
               onClick={handleSave}
               disabled={loading}
-              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm disabled:opacity-70 min-w-[100px]"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm disabled:opacity-70 min-w-[100px]"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

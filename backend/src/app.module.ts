@@ -14,6 +14,7 @@ import { AuditLogModule } from './modules/audit-log/audit-log.module';
 import { EmployeesModule } from './modules/employees/employees.module';
 import { MainFacilitiesModule } from './modules/main-facilities/main-facilities.module';
 import { FacilitiesModule } from './modules/facilities/facilities.module';
+import { DesignationsModule } from './modules/designations/designations.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { FacilitiesModule } from './modules/facilities/facilities.module';
     EmployeesModule,
     MainFacilitiesModule,
     FacilitiesModule,
+    DesignationsModule,
   ],
   providers: [
     {

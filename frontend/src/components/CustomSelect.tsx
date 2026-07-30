@@ -4,6 +4,7 @@ import { ChevronDown, X } from 'lucide-react';
 interface CustomSelectOption {
   label: string;
   value: string;
+  isAction?: boolean;
 }
 
 interface CustomSelectProps {
@@ -120,17 +121,24 @@ export function CustomSelect({ name, value, options, onChange, placeholder = 'Se
         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
           {filteredOptions.length > 0 ? (
             <div className="py-1">
-              {filteredOptions.map((option, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => handleSelect(option)}
-                  className={`px-4 py-2 cursor-pointer text-sm transition-colors ${
-                    value === (typeof option === 'string' ? option : option.value) ? 'bg-green-50 text-green-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  {typeof option === 'string' ? option : option.label}
-                </div>
-              ))}
+              {filteredOptions.map((option, idx) => {
+                const isAction = typeof option !== 'string' && option.isAction;
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => handleSelect(option)}
+                    className={
+                      isAction
+                        ? "mx-2 my-2 px-4 py-2.5 cursor-pointer text-sm font-semibold text-center text-white bg-green-600 hover:bg-green-700 rounded-lg shadow-sm transition-colors"
+                        : `px-4 py-2 cursor-pointer text-sm transition-colors ${
+                            value === (typeof option === 'string' ? option : option.value) ? 'bg-green-50 text-green-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
+                          }`
+                    }
+                  >
+                    {typeof option === 'string' ? option : option.label}
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div className="px-4 py-3 text-sm text-gray-500 text-center">

@@ -7,7 +7,7 @@ import {
   ChevronRight, ChevronLeft, LogOut, 
   LayoutDashboard, Wrench, Cpu, Droplet, 
   Flame, ArrowUpDown, MoreHorizontal, Users, 
-  ChevronDown, Boxes, ShieldCheck
+  ChevronDown, Boxes, ShieldCheck, Menu, X
 } from 'lucide-react';
 import { logout } from '../store/slices/authSlice';
 import { LogoutConfirmModal } from './LogoutConfirmModal';
@@ -30,6 +30,7 @@ export function FloatingNavbar() {
   
   const [isExpanded, setIsExpanded] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
     'IOT': true,
     'HYPN': true,
@@ -72,7 +73,7 @@ export function FloatingNavbar() {
           icon: <Users size={16} />
         },
         {
-          label: 'Main Facility Master',
+          label: 'Facility Master',
           path: '/master/main-facility',
           icon: <Building2 size={16} />
         }
@@ -140,6 +141,7 @@ export function FloatingNavbar() {
               toggleMenu(item.label);
             } else if (item.path) {
               navigate(item.path);
+              setIsMobileMenuOpen(false); // Close on mobile navigation
             }
           }}
           className={`relative flex items-center h-11 w-full transition-all duration-200 focus:outline-none cursor-pointer rounded-lg ${isExpanded ? 'justify-between px-3' : 'justify-center mx-auto w-11'}`}
@@ -205,7 +207,7 @@ export function FloatingNavbar() {
   return (
     <>
       {/* Desktop Sidebar */}
-      <div className={`hidden sm:flex flex-col bg-transparent transition-all duration-300 ease-in-out h-full shrink-0 relative ${isExpanded ? 'w-[260px]' : 'w-[88px]'}`}>
+      <div className={`hidden sm:flex flex-col bg-transparent transition-all duration-300 ease-in-out h-full shrink-0 relative print:hidden ${isExpanded ? 'w-[260px]' : 'w-[88px]'}`}>
         
         {/* Toggle Expand Button - perfectly centered on the boundary */}
         <button
@@ -239,7 +241,7 @@ export function FloatingNavbar() {
               {isExpanded && (
                 <div className="flex flex-col overflow-hidden">
                   <span className="text-sm font-bold text-gray-900 truncate">{user.name || 'Admin User'}</span>
-                  <span className="text-[10px] text-gray-500 uppercase tracking-wider">{user.role.replace('_', ' ')}</span>
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wider">{user.role?.replace('_', ' ') || 'User'}</span>
                 </div>
               )}
             </div>
@@ -255,42 +257,79 @@ export function FloatingNavbar() {
         </div>
       </div>
 
-      {/* Mobile Bottom Nav */}
-      <div className="sm:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 select-none w-[90%] max-w-sm">
-        <div className="bg-white border border-gray-200 rounded-full p-2 flex flex-row items-center justify-around shadow-lg">
-           {[
-             { path: '/admin', icon: <LayoutDashboard size={20} /> },
-             { path: '/societies', icon: <Building2 size={20} /> },
-             { path: '/devices', icon: <AlertCircle size={20} /> },
-             { path: '/profile', icon: <User size={20} /> }
-           ].map((tab) => {
-              const isActive = isPathActive(tab.path);
-              const textColor = isActive ? 'text-gray-900' : 'text-gray-400';
+      {/* Mobile Hamburger Button */}
+      <button
+        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        className="fixed top-[18px] right-4 sm:hidden z-[60] w-10 h-10 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-gray-600 hover:text-green-600 shadow-sm"
+      >
+        {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+      </button>
 
-              return (
-                 <button
-                   key={tab.path}
-                   onClick={() => navigate(tab.path)}
-                   className="relative flex items-center justify-center h-12 w-12 transition-all duration-300 focus:outline-none cursor-pointer"
-                 >
-                   {isActive ? (
-                     <motion.div
-                       layoutId="mobileActiveTabPill"
-                       transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                       className={`w-full h-full flex items-center justify-center rounded-full bg-gray-100`}
-                     >
-                       <span className={`shrink-0 ${textColor}`}>{tab.icon}</span>
-                     </motion.div>
-                   ) : (
-                     <div className="flex items-center justify-center w-full h-full text-gray-400 hover:text-gray-900 transition-colors duration-200">
-                       {tab.icon}
-                     </div>
-                   )}
-                 </button>
-              )
-           })}
-        </div>
-      </div>
+      {/* Mobile Sidebar Drawer */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="fixed inset-0 bg-black/50 z-[55] sm:hidden backdrop-blur-sm"
+            />
+            
+            {/* Drawer */}
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed inset-y-0 left-0 w-[280px] bg-white z-[60] sm:hidden flex flex-col shadow-2xl"
+            >
+              {/* Logo Section */}
+              <div className="flex items-center select-none p-4 pb-2 h-24 border-b border-gray-100">
+                <img src={logo4m} alt="4M Logo" className="h-16 w-auto object-contain" />
+              </div>
+
+              {/* Navigation Accordions */}
+              <div className="flex-1 flex flex-col p-4 pt-2 overflow-y-auto space-y-1">
+                {menuData.map(item => renderMenuItem(item))}
+              </div>
+
+              {/* User Profile Section */}
+              <div className="p-4 border-t border-gray-100 pb-6 bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center shrink-0 cursor-pointer hover:bg-gray-100 transition-colors" 
+                      onClick={() => {
+                        navigate('/profile');
+                        setIsMobileMenuOpen(false);
+                      }} 
+                    >
+                      <User size={18} className="text-gray-500" />
+                    </div>
+                    <div className="flex flex-col overflow-hidden">
+                      <span className="text-sm font-bold text-gray-900 truncate">{user.name || 'Admin User'}</span>
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">{user.role?.replace('_', ' ') || 'User'}</span>
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={() => {
+                      setIsModalOpen(true);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                  >
+                    <LogOut size={16} />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       <LogoutConfirmModal
         isOpen={isModalOpen}

@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { CustomSelect } from '../../components/CustomSelect';
 import { api } from '../../lib/api';
+import { FacilityHierarchyPicker } from '../../components/FacilityHierarchyPicker';
 
 export function AddMachine() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [facilities, setFacilities] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     company: '',
@@ -26,15 +28,22 @@ export function AddMachine() {
   });
 
   useEffect(() => {
-    // Fetch facilities for the dropdown
-    api.get('/facilities').then((res) => {
-      setFacilities(res.data);
+    Promise.all([
+      api.get('/facilities'),
+      api.get('/employees')
+    ]).then(([facRes, empRes]) => {
+      setFacilities(facRes.data);
+      setEmployees(empRes.data);
     }).catch(console.error);
   }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  const handleChange = (e: any) => {
+    const { name, value, dataset } = e.target;
+    setFormData((prev) => ({ 
+      ...prev, 
+      [name]: value,
+      ...(dataset?.type ? { locationType: dataset.type } : {})
+    }));
   };
 
   const handleNext = () => {
@@ -55,8 +64,9 @@ export function AddMachine() {
       setLoading(true);
       const payload = {
         name: formData.name,
-        deviceId: formData.machineCode, // using machineCode as deviceId since it's required by backend
-        facilityId: parseInt(formData.facilityId),
+        deviceId: formData.machineCode,
+        facilityId: (formData as any).locationType === 'facility' || (formData as any).locationType === 'mainFacility' ? parseInt(formData.facilityId) : undefined,
+        buildingId: (formData as any).locationType === 'building' || (formData as any).locationType === 'society' ? parseInt(formData.facilityId) : undefined,
         company: formData.company,
         maintenanceHead: formData.maintenanceHead,
         machineCode: formData.machineCode,
@@ -83,7 +93,7 @@ export function AddMachine() {
   };
 
   return (
-    <div className="px-6 pb-6 pt-0 w-full flex flex-col bg-white">
+    <div className="sm:px-6 pb-6 pt-0 w-full flex flex-col bg-white">
       {/* Header */}
       <div className="flex items-center mb-6">
         <button
@@ -96,7 +106,7 @@ export function AddMachine() {
       </div>
 
       {/* Main Container */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 w-full">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-8 w-full">
         <div className="flex flex-col md:flex-row gap-10">
 
 
@@ -121,12 +131,11 @@ export function AddMachine() {
                     <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                       Select Facility<span className="text-red-500">*</span>
                     </label>
-                    <CustomSelect
+                    <FacilityHierarchyPicker
                       name="facilityId"
                       value={formData.facilityId}
                       onChange={handleChange}
                       placeholder="Select Facility"
-                      options={facilities.map(f => ({ label: f.facilityName, value: f.id.toString() }))}
                     />
                   </div>
                   <div>
@@ -138,10 +147,7 @@ export function AddMachine() {
                       value={formData.maintenanceHead}
                       onChange={handleChange}
                       placeholder="Select Head"
-                      options={[
-                        { label: 'Head 1', value: 'Head 1' },
-                        { label: 'Head 2', value: 'Head 2' }
-                      ]}
+                      options={employees.map(e => ({ label: `${e.fullName} (${e.department || 'N/A'} - ${e.designation || e.role || 'N/A'})`, value: e.fullName }))}
                     />
                   </div>
                 </div>
@@ -149,7 +155,7 @@ export function AddMachine() {
                 <div className="flex justify-end mt-12">
                   <button
                     onClick={handleNext}
-                    className="px-10 py-2.5 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors shadow-sm"
+                    className="w-full sm:w-auto px-10 py-2.5 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors shadow-sm"
                   >
                     Next
                   </button>
@@ -279,11 +285,11 @@ export function AddMachine() {
                   ></textarea>
                 </div>
 
-                <div className="flex justify-end mt-8">
+                <div className="flex flex-col-reverse sm:flex-row justify-end mt-8 gap-3 sm:gap-0">
                   <button
                     onClick={handleSave}
                     disabled={loading}
-                    className="px-10 py-2.5 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors shadow-sm disabled:opacity-50"
+                    className="w-full sm:w-auto px-10 py-2.5 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors shadow-sm disabled:opacity-50 flex justify-center items-center"
                   >
                     {loading ? 'Saving...' : 'Save'}
                   </button>

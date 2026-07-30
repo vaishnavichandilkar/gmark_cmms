@@ -252,3 +252,49 @@
 
 
 
+
+/* Print Styles */
+@media print {
+  @page {
+    size: landscape;
+    margin: 10mm;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  
+  /* Hide UI elements that shouldn't be printed */
+  nav, header, footer, .sidebar, .action-buttons, button {
+    display: none !important;
+  }
+  
+  /* Show only the main content */
+  main, .main-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    box-shadow: none !important;
+  }
+  
+  /* Fix overflow issues that cut off tables */
+  * {
+    overflow: visible !important;
+  }
+
+  /* Ensure tables look good and don't get cut off */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    table-layout: auto !important;
+    font-size: 10pt !important;
+  }
+  
+  th, td {
+    border: 1px solid #ccc !important;
+    padding: 6px !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+  }
+}

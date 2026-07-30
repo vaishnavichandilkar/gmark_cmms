@@ -4,6 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { DeleteConfirmModal } from '../../components/DeleteConfirmModal';
 import { TablePagination } from '../../components/TablePagination';
+import { TableSkeleton } from '../../components/ui/TableSkeleton';
+import { TableActions } from '../../components/TableActions';
+import type { FilterOption } from '../../components/TableActions';
+import { ImportModal } from '../../components/ImportModal';
+import type { ImportConfig } from '../../components/ImportModal';
+import { exportData } from '../../utils/exportUtils';
 
 export function EmployeeMaster() {
   const navigate = useNavigate();
@@ -13,27 +19,52 @@ export function EmployeeMaster() {
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState<number | null>(null);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
 
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, activeFilters]);
 
   const filteredEmployees = employees.filter(emp => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      (emp.employeeCode && emp.employeeCode.toLowerCase().includes(query)) ||
-      (emp.fullName && emp.fullName.toLowerCase().includes(query)) ||
-      (emp.mobileNumber && emp.mobileNumber.toLowerCase().includes(query)) ||
-      (emp.officialEmail && emp.officialEmail.toLowerCase().includes(query)) ||
-      (emp.department && emp.department.toLowerCase().includes(query)) ||
-      (emp.designation && emp.designation.toLowerCase().includes(query)) ||
-      (emp.role && emp.role.toLowerCase().includes(query))
-    );
+    // 1. Filter by Search Query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesSearch = (
+        (emp.employeeCode && emp.employeeCode.toLowerCase().includes(query)) ||
+        (emp.fullName && emp.fullName.toLowerCase().includes(query)) ||
+        (emp.mobileNumber && emp.mobileNumber.toLowerCase().includes(query)) ||
+        (emp.officialEmail && emp.officialEmail.toLowerCase().includes(query)) ||
+        (emp.department && emp.department.toLowerCase().includes(query)) ||
+        (emp.designation && emp.designation.toLowerCase().includes(query))
+      );
+      if (!matchesSearch) return false;
+    }
+
+    // 2. Filter by Active Filters
+    for (const [key, value] of Object.entries(activeFilters)) {
+      if (emp[key] !== value) return false;
+    }
+
+    return true;
   });
+
+  // Generate dynamic filter options based on available data
+  const filterOptions: FilterOption[] = [
+    {
+      key: 'department',
+      label: 'Department',
+      options: Array.from(new Set(employees.map(e => e.department).filter(Boolean)))
+    },
+    {
+      key: 'designation',
+      label: 'Designation',
+      options: Array.from(new Set(employees.map(e => e.designation).filter(Boolean)))
+    }
+  ];
 
   const totalItems = filteredEmployees.length;
   const totalPages = Math.ceil(totalItems / rowsPerPage);
@@ -70,42 +101,96 @@ export function EmployeeMaster() {
       setEmployeeToDelete(null);
       fetchEmployees();
     } catch (error) {
-      console.error('Failed to delete employee:', error);
       alert('Failed to delete employee.');
     }
   };
 
+  const handleExport = (format: 'pdf' | 'excel') => {
+    const headers = ['Emp Code', 'Full Name', 'Mobile Number', 'Official Email', 'Department', 'Designation'];
+    const rows = filteredEmployees.map(emp => [
+      emp.employeeCode || '-',
+      emp.fullName || '-',
+      emp.mobileNumber || '-',
+      emp.officialEmail || '-',
+      emp.department || '-',
+      emp.designation || '-'
+    ]);
+    exportData(headers, rows, 'Employee_List', 'Employee Master List', format);
+  };
+
+  const handleImportData = async (data: any[]) => {
+    // Process each row and create employee
+    for (const row of data) {
+      const payload = {
+        employeeCode: row['Emp Code'] || row['employeeCode'] || '',
+        fullName: row['Full Name'] || row['fullName'] || '',
+        mobileNumber: row['Mobile Number'] || row['mobileNumber'] || '',
+        officialEmail: row['Official Email'] || row['officialEmail'] || '',
+        department: row['Department'] || row['department'] || '',
+        designation: row['Designation'] || row['designation'] || '',
+        dateOfJoining: row['Date Of Joining'] || row['dateOfJoining'] || new Date().toISOString(),
+        dateOfBirth: row['Date Of Birth'] || row['dateOfBirth'] || '1990-01-01T00:00:00.000Z',
+      };
+      
+      // Skip empty rows
+      if (!payload.employeeCode && !payload.fullName) continue;
+
+      try {
+        await api.post('/employees', payload);
+      } catch (err) {
+        console.error('Failed to import row', row, err);
+        // Continue with other rows even if one fails
+      }
+    }
+    fetchEmployees();
+  };
+
+  const importConfig: ImportConfig = {
+    title: 'Employees',
+    expectedHeaders: ['Emp Code', 'Full Name', 'Mobile Number', 'Official Email', 'Department', 'Designation'],
+    onImport: handleImportData,
+    onClose: () => setIsImportOpen(false)
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
-    <div className="p-6 bg-white min-h-screen">
+    <div className="sm:p-2 md:p-4 bg-white min-h-screen">
       {/* Header Section */}
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 print:hidden">
         <div>
           <h1 className="text-3xl font-black text-gray-900 tracking-tight">Employee Master</h1>
           <p className="text-sm font-medium text-gray-500 mt-1">Manage all employees in the system</p>
         </div>
         <button 
           onClick={() => navigate('/master/employee/new')}
-          className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
+          className="flex items-center justify-center w-full sm:w-auto gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
         >
           <Plus className="w-4 h-4" />
           Add New Employee
         </button>
       </div>
 
+      <div className="print:hidden">
+        <TableActions
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          searchPlaceholder="Search employees..."
+          onImport={() => setIsImportOpen(true)}
+          onExport={handleExport}
+          onPrint={handlePrint}
+          filterOptions={filterOptions}
+          activeFilters={activeFilters}
+          onFilterChange={setActiveFilters}
+        />
+      </div>
+
       {/* Table Section */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
           <h2 className="text-base font-semibold text-gray-800">Employee List</h2>
-          <div className="relative">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input 
-              type="text" 
-              placeholder="Search employees..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all w-64"
-            />
-          </div>
         </div>
         
         <div className="flex-1 overflow-x-auto">
@@ -118,18 +203,12 @@ export function EmployeeMaster() {
                 <th className="px-6 py-4 whitespace-nowrap">Official Email</th>
                 <th className="px-6 py-4 whitespace-nowrap">Department</th>
                 <th className="px-6 py-4 whitespace-nowrap">Designation</th>
-                <th className="px-6 py-4 whitespace-nowrap">Role</th>
                 <th className="px-6 py-4 whitespace-nowrap w-16">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
               {loading ? (
-                <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500 bg-gray-50/30">
-                    <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                    Loading employees...
-                  </td>
-                </tr>
+                <TableSkeleton columns={7} rows={5} />
               ) : currentEmployees.length > 0 ? (
                 currentEmployees.map((emp, index) => (
                   <tr key={index} className="hover:bg-gray-50/50 transition-colors group">
@@ -143,11 +222,6 @@ export function EmployeeMaster() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">{emp.designation}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-purple-50 text-purple-700 border border-purple-100">
-                        {emp.role}
-                      </span>
-                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                         <button 
@@ -174,7 +248,7 @@ export function EmployeeMaster() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500 bg-gray-50/30">
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500 bg-gray-50/30">
                     <div className="flex flex-col items-center justify-center">
                       <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
                         <Search className="w-6 h-6 text-gray-400" />
@@ -216,6 +290,8 @@ export function EmployeeMaster() {
         }}
         onConfirm={handleDelete}
       />
+      
+      {isImportOpen && <ImportModal config={importConfig} />}
     </div>
   );
 }

@@ -54,9 +54,9 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       <FloatingNavbar />
 
       {/* Main Content Area - White rounded box */}
-      <div className="flex-1 flex flex-col min-w-0 bg-white rounded-l-2xl md:rounded-2xl shadow-sm my-0 md:my-3 mr-0 md:mr-3 overflow-hidden border border-gray-200/60">
+      <div className="main-content flex-1 flex flex-col min-w-0 bg-white rounded-l-2xl md:rounded-2xl shadow-sm my-0 md:my-3 mr-0 md:mr-3 overflow-hidden border border-gray-200/60 print:border-none print:m-0 print:shadow-none print:rounded-none">
         {/* Top Navbar */}
-        <header className="w-full bg-white border-b border-gray-100 p-4 sm:px-6 md:px-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 z-40 shrink-0 min-h-[76px]">
+        <header className="w-full bg-white border-b border-gray-100 p-4 pr-16 sm:px-6 md:px-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 z-40 shrink-0 min-h-[76px]">
           
           {/* Breadcrumbs */}
           <div className="flex items-center gap-2 text-[13px] font-semibold tracking-wide text-gray-500">
@@ -78,7 +78,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
         </header>
 
-        <div className="flex-1 p-4 sm:p-6 md:p-8 pb-32 sm:pb-8 overflow-y-auto">
+        <div className="flex-1 p-4 sm:p-6 md:p-8 pb-8 overflow-y-auto">
           {children}
         </div>
       </div>

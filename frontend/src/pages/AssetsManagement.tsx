@@ -3,6 +3,7 @@ import { AssetTree } from '../components/AssetTree';
 import type { TreeNodeData } from '../components/AssetTree';
 import { AssetDetails } from '../components/AssetDetails';
 import { api } from '../lib/api';
+import { Skeleton } from '../components/ui/Skeleton';
 
 export function AssetsManagement() {
   const [treeData, setTreeData] = useState<TreeNodeData[]>([]);
@@ -153,8 +154,13 @@ export function AssetsManagement() {
         </div>
         <div className="flex-1 overflow-hidden">
           {loading ? (
-            <div className="p-8 flex justify-center">
-              <div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="p-4 space-y-4">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="w-4 h-4 rounded shrink-0" />
+                  <Skeleton className={`h-4 rounded ${i % 2 === 0 ? 'w-3/4' : 'w-1/2'}`} />
+                </div>
+              ))}
             </div>
           ) : (
             <AssetTree 

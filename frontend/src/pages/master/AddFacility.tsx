@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Plus, Edit } from 'lucide-react';
+import { ChevronLeft, Plus, Edit, Building2, MapPin, Tag, FileText, Info, Globe, Hash } from 'lucide-react';
 import { CustomSelect } from '../../components/CustomSelect';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../../store';
 import { api } from '../../lib/api';
+import { FacilityHierarchyPicker } from '../../components/FacilityHierarchyPicker';
 
 export function AddFacility() {
   const navigate = useNavigate();
@@ -13,6 +16,7 @@ export function AddFacility() {
   const [activeTab, setActiveTab] = useState('General');
   const [isUploadMenuOpen, setIsUploadMenuOpen] = useState(false);
   const [_uploadModalType, setUploadModalType] = useState<string | null>(null);
+  const { user } = useSelector((state: RootState) => state.auth);
 
   const [formData, setFormData] = useState({
     mainFacilityId: '',
@@ -38,6 +42,7 @@ export function AddFacility() {
   });
 
   const [mainFacilities, setMainFacilities] = useState<any[]>([]);
+  const [facilities, setFacilities] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(false);
@@ -46,6 +51,7 @@ export function AddFacility() {
 
   useEffect(() => {
     fetchMainFacilities();
+    fetchFacilities();
     fetchEmployees();
     if (id) {
       fetchFacility();
@@ -60,6 +66,15 @@ export function AddFacility() {
       setMainFacilities(response.data);
     } catch (error) {
       console.error('Failed to fetch main facilities:', error);
+    }
+  };
+
+  const fetchFacilities = async () => {
+    try {
+      const response = await api.get('/facilities');
+      setFacilities(response.data);
+    } catch (error) {
+      console.error('Failed to fetch facilities:', error);
     }
   };
 
@@ -99,7 +114,7 @@ export function AddFacility() {
         category: data.category || '',
         description: data.description || '',
         isLocationPart: data.isLocationPart ? 'true' : 'false',
-        parentFacilityId: data.parentFacilityId ? data.parentFacilityId.toString() : '',
+        parentFacilityId: data.parentFacilityId ? `f-${data.parentFacilityId}` : (data.isLocationPart && data.mainFacilityId ? `mf-${data.mainFacilityId}` : ''),
         address: data.address || '',
         country: data.country || 'India',
         state: data.state || '',
@@ -121,7 +136,7 @@ export function AddFacility() {
 
   const validateStep1 = () => {
     const newErrors: { [key: string]: string } = {};
-    if (!formData.mainFacilityId) newErrors.mainFacilityId = 'Main Facility is required';
+    if (!formData.mainFacilityId) newErrors.mainFacilityId = 'Facility is required';
     if (!formData.facilityCode) newErrors.facilityCode = 'Facility Code is required';
     if (!formData.facilityName) newErrors.facilityName = 'Facility Name is required';
     if (!formData.category) newErrors.category = 'Category is required';
@@ -150,35 +165,58 @@ export function AddFacility() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+  const handleChange = (e: any) => {
+    const { name, value, dataset } = e.target;
     
     setFormData(prev => {
       const newData = { ...prev, [name]: value };
       
-      // Auto-fill Main Facility Head
+      // Auto-fill Facility Head
       if (name === 'mainFacilityId') {
         const facility = mainFacilities.find(f => f.id.toString() === value);
         newData.mainFacilityHead = facility ? facility.mainFacilityHead || '' : '';
       }
 
+      if (dataset?.type) {
+        newData[`${name}Type`] = dataset.type;
+      }
+
       if (name === 'parentFacilityId' && newData.isLocationPart === 'true') {
-        const parentFacility = mainFacilities.find(f => f.id.toString() === value);
-        if (parentFacility) {
-          newData.address = parentFacility.address || '';
-          newData.country = parentFacility.country || 'India';
-          newData.state = parentFacility.state || '';
-          newData.city = parentFacility.city || '';
-          newData.postalCode = parentFacility.postalCode || '';
-          newData.subCategory = parentFacility.subcategory || ''; // MainFacility uses 'subcategory'
-          newData.latitude = parentFacility.latitude || '';
-          newData.longitude = parentFacility.longitude || '';
-          newData.facilityHeadName = parentFacility.mainFacilityHead || ''; // MainFacility uses 'mainFacilityHead'
+        const type = dataset?.type || newData.parentFacilityIdType;
+        if (type === 'mainFacility') {
+          const mId = value;
+          const parentFacility = mainFacilities.find(f => f.id.toString() === mId);
+          if (parentFacility) {
+            newData.address = parentFacility.address || '';
+            newData.country = parentFacility.country || 'India';
+            newData.state = parentFacility.state || '';
+            newData.city = parentFacility.city || '';
+            newData.postalCode = parentFacility.postalCode || '';
+            newData.subCategory = parentFacility.subcategory || ''; // MainFacility uses 'subcategory'
+            newData.latitude = parentFacility.latitude || '';
+            newData.longitude = parentFacility.longitude || '';
+            newData.facilityHeadName = parentFacility.mainFacilityHead || ''; // MainFacility uses 'mainFacilityHead'
+          }
+        } else if (type === 'facility') {
+          const fId = value;
+          const parentFacility = facilities.find(f => f.id.toString() === fId);
+          if (parentFacility) {
+            newData.address = parentFacility.address || '';
+            newData.country = parentFacility.country || 'India';
+            newData.state = parentFacility.state || '';
+            newData.city = parentFacility.city || '';
+            newData.postalCode = parentFacility.postalCode || '';
+            newData.subCategory = parentFacility.subCategory || '';
+            newData.latitude = parentFacility.latitude || '';
+            newData.longitude = parentFacility.longitude || '';
+            newData.facilityHeadName = parentFacility.facilityHeadName || '';
+          }
         }
       }
 
       if (name === 'isLocationPart' && value === 'false') {
         newData.parentFacilityId = '';
+        newData.parentFacilityIdType = '';
         newData.address = '';
         newData.country = 'India';
         newData.state = '';
@@ -230,7 +268,7 @@ export function AddFacility() {
         category: formData.category,
         description: formData.description,
         isLocationPart: formData.isLocationPart === 'true',
-        parentFacilityId: null, // We are using this as an address template from MainFacility, not a DB relationship
+        parentFacilityId: formData.isLocationPart === 'true' && formData.parentFacilityId && (formData as any).parentFacilityIdType === 'facility' ? parseInt(formData.parentFacilityId, 10) : null,
         address: formData.address,
         country: formData.country,
         state: formData.state,
@@ -258,6 +296,14 @@ export function AddFacility() {
     }
   };
 
+  const availableCategories = user?.role !== 'SUPER_ADMIN' && formData.mainFacilityId
+    ? Array.from(new Set(facilities.filter(f => f.mainFacilityId?.toString() === formData.mainFacilityId).map(f => f.category).filter(Boolean)))
+    : [];
+
+  const availableSubCategories = user?.role !== 'SUPER_ADMIN' && formData.mainFacilityId
+    ? Array.from(new Set(facilities.filter(f => f.mainFacilityId?.toString() === formData.mainFacilityId).map(f => f.subCategory).filter(Boolean)))
+    : [];
+
   const mainFacilityOptions = mainFacilities.map(f => ({
     label: f.mainFacilityName,
     value: f.id.toString()
@@ -265,16 +311,18 @@ export function AddFacility() {
 
   const parentFacilityOptions = [
     ...mainFacilities
+      .filter(f => !formData.mainFacilityId || f.id.toString() === formData.mainFacilityId)
       .map(f => ({
-        label: f.mainFacilityName,
-        value: f.id.toString()
+        label: f.mainFacilityName + ' (Facility)',
+        value: `mf-${f.id}`
+      })),
+    ...facilities
+      .filter(f => !formData.mainFacilityId || f.mainFacilityId.toString() === formData.mainFacilityId)
+      .filter(f => f.id.toString() !== id)
+      .map(f => ({
+        label: f.facilityName + ' (Facility)',
+        value: `f-${f.id}`
       }))
-  ];
-
-  const categoryOptions = [
-    { label: 'Type A', value: 'Type A' },
-    { label: 'Type B', value: 'Type B' },
-    { label: 'Type C', value: 'Type C' }
   ];
 
   if (initialLoading) {
@@ -286,7 +334,7 @@ export function AddFacility() {
   }
 
   return (
-    <div className="w-full p-6 min-h-screen">
+    <div className="w-full sm:p-6 pb-10 min-h-screen">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <button 
@@ -307,7 +355,165 @@ export function AddFacility() {
       )}
 
       {/* Form Card */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden w-full">
+      <div className={isViewMode ? "" : "bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden w-full"}>
+        {isViewMode ? (
+          <div className="space-y-8">
+            {/* Header Card */}
+            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-6 sm:p-8 text-white shadow-lg flex flex-col sm:flex-row items-center gap-6">
+              <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md border-2 border-white/40 shadow-inner flex-shrink-0">
+                <Building2 size={48} className="text-white" />
+              </div>
+              <div className="text-center sm:text-left">
+                <h2 className="text-3xl font-bold mb-2">{formData.facilityName || 'Unknown Facility'}</h2>
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-emerald-50 font-medium">
+                  <div className="flex items-center gap-1.5">
+                    <Hash size={18} />
+                    <span>{formData.facilityCode || 'N/A'}</span>
+                  </div>
+                  <span className="hidden sm:inline">•</span>
+                  <div className="flex items-center gap-1.5">
+                    <Building2 size={18} />
+                    <span>{mainFacilities.find(f => f.id.toString() === formData.mainFacilityId)?.mainFacilityName || 'No Parent Facility'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Details Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Information Card */}
+              <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2 border-b pb-3">
+                  <Info size={20} className="text-emerald-500" />
+                  Facility Information
+                </h3>
+                <div className="space-y-5">
+                  <div className="flex items-start gap-4">
+                    <div className="bg-emerald-50 p-2.5 rounded-lg">
+                      <Tag size={18} className="text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Category</p>
+                      <p className="text-base text-gray-900 font-semibold">{formData.category || '-'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="bg-gray-50 p-2.5 rounded-lg">
+                      <Tag size={18} className="text-gray-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Sub-Category</p>
+                      <p className="text-base text-gray-900 font-semibold">{formData.subCategory || '-'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="bg-emerald-50 p-2.5 rounded-lg">
+                      <Globe size={18} className="text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Facility Head</p>
+                      <p className="text-base text-gray-900 font-semibold">{formData.facilityHeadName || '-'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="bg-gray-50 p-2.5 rounded-lg">
+                      <FileText size={18} className="text-gray-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Description</p>
+                      <p className="text-base text-gray-900 font-semibold">{formData.description || '-'}</p>
+                    </div>
+                  </div>
+                  {formData.notes && (
+                    <div className="flex items-start gap-4">
+                      <div className="bg-emerald-50 p-2.5 rounded-lg">
+                        <FileText size={18} className="text-emerald-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">Notes</p>
+                        <p className="text-base text-gray-900 font-semibold">{formData.notes}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Location Card */}
+              <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2 border-b pb-3">
+                  <MapPin size={20} className="text-emerald-500" />
+                  Location Details
+                </h3>
+                <div className="space-y-5">
+                  <div className="flex items-start gap-4">
+                    <div className="bg-emerald-50 p-2.5 rounded-lg">
+                      <Building2 size={18} className="text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Part of Location</p>
+                      <p className="text-base text-gray-900 font-semibold">
+                        {formData.isLocationPart === 'true' ? parentFacilityOptions.find(p => p.value === formData.parentFacilityId)?.label || 'Yes' : 'No'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="bg-gray-50 p-2.5 rounded-lg">
+                      <MapPin size={18} className="text-gray-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Address</p>
+                      <p className="text-base text-gray-900 font-semibold">{formData.address || '-'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="bg-emerald-50 p-2.5 rounded-lg">
+                      <Globe size={18} className="text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">City / Postal Code</p>
+                      <p className="text-base text-gray-900 font-semibold">
+                        {[formData.city, formData.postalCode].filter(Boolean).join(' - ') || '-'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="bg-gray-50 p-2.5 rounded-lg">
+                      <Globe size={18} className="text-gray-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">State / Country</p>
+                      <p className="text-base text-gray-900 font-semibold">
+                        {[formData.state, formData.country].filter(Boolean).join(', ') || '-'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="bg-emerald-50 p-2.5 rounded-lg">
+                      <MapPin size={18} className="text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Coordinates</p>
+                      <p className="text-base text-gray-900 font-semibold">
+                        {formData.latitude && formData.longitude ? `${formData.latitude}, ${formData.longitude}` : '-'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-3 sm:gap-4 pt-4">
+              <button
+                type="button"
+                onClick={handleBack}
+                className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 text-center"
+              >
+                Back
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
         {currentStep === 2 && (
           <div className="flex overflow-x-auto border-b border-gray-200">
             {['General', 'Document'].map((tab) => (
@@ -327,27 +533,27 @@ export function AddFacility() {
         )}
 
         {currentStep === 1 && (
-          <div className="p-8">
+          <div className="p-4 sm:p-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 mb-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Main Facility <span className="text-red-500">*</span>
+                  Facility <span className="text-red-500">*</span>
                 </label>
-                <CustomSelect 
+                <FacilityHierarchyPicker 
                   name="mainFacilityId"
                   value={formData.mainFacilityId}
                   onChange={handleChange}
-                  options={mainFacilityOptions}
                   disabled={isViewMode}
                   placeholder="Select Facility"
                   className={errors.mainFacilityId ? 'border-red-500' : ''}
+                  showSocietiesAndBuildings={false}
                 />
                 {errors.mainFacilityId && <p className="mt-1 text-sm text-red-500">{errors.mainFacilityId}</p>}
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Main Facility Head <span className="text-red-500">*</span>
+                  Facility Head <span className="text-red-500">*</span>
                 </label>
                 <input 
                   type="text" 
@@ -403,15 +609,21 @@ export function AddFacility() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Facility Category <span className="text-red-500">*</span>
                 </label>
-                <CustomSelect 
+                <input 
+                  list="facility-category-options"
+                  type="text" 
                   name="category"
+                  placeholder="Enter or select Category"
                   value={formData.category}
                   onChange={handleChange}
-                  options={categoryOptions}
                   disabled={isViewMode}
-                  placeholder="Select..."
-                  className={errors.category ? 'border-red-500' : ''}
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all ${
+                    errors.category ? 'border-red-500' : 'border-gray-300'
+                  } ${isViewMode ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
                 />
+                <datalist id="facility-category-options">
+                  {availableCategories.map(c => <option key={c as string} value={c as string} />)}
+                </datalist>
                 {errors.category && <p className="mt-1 text-sm text-red-500">{errors.category}</p>}
               </div>
             </div>
@@ -433,18 +645,18 @@ export function AddFacility() {
               />
             </div>
             
-            <div className="flex items-center justify-end gap-4 mt-8 pt-6 border-t border-gray-100">
+            <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-3 sm:gap-4 mt-8 pt-6 border-t border-gray-100">
               <button
                 type="button"
                 onClick={handleBack}
-                className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95"
+                className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 text-center"
               >
                 Back
               </button>
               <button
                 type="button"
                 onClick={handleNext}
-                className="flex items-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
               >
                 Next
               </button>
@@ -453,7 +665,7 @@ export function AddFacility() {
         )}
 
         {currentStep === 2 && activeTab === 'General' && (
-          <form onSubmit={handleSubmit} className="p-8">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-8">
             <h3 className="text-sm font-semibold text-gray-700 mb-4">Location <span className="text-red-500">*</span></h3>
             
             <div className="bg-gray-50 p-4 sm:p-6 rounded-xl border border-gray-200 space-y-5 mb-8">
@@ -474,14 +686,15 @@ export function AddFacility() {
                   </label>
                 </div>
                 <div className="flex-1 max-w-md">
-                  <CustomSelect 
+                  <FacilityHierarchyPicker 
                     name="parentFacilityId"
                     value={formData.parentFacilityId}
                     onChange={handleChange}
-                    options={parentFacilityOptions}
                     disabled={isViewMode || formData.isLocationPart === 'false'}
                     placeholder="Select"
                     className={errors.parentFacilityId ? 'border-red-500' : ''}
+                    showSocietiesAndBuildings={false}
+                    filterByMainFacilityId={formData.mainFacilityId}
                   />
                   {errors.parentFacilityId && <p className="mt-1 text-sm text-red-500">{errors.parentFacilityId}</p>}
                 </div>
@@ -596,15 +809,21 @@ export function AddFacility() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Facility Sub-Category <span className="text-red-500">*</span>
                 </label>
-                <CustomSelect 
+                <input 
+                  list="facility-subcategory-options"
+                  type="text" 
                   name="subCategory"
+                  placeholder="Enter or select Sub-Category"
                   value={formData.subCategory}
                   onChange={handleChange}
-                  options={categoryOptions}
                   disabled={isViewMode || formData.isLocationPart === 'true'}
-                  placeholder="Select..."
-                  className={errors.subCategory ? 'border-red-500' : ''}
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all ${
+                    errors.subCategory ? 'border-red-500' : 'border-gray-300'
+                  } ${(isViewMode || formData.isLocationPart === 'true') ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
                 />
+                <datalist id="facility-subcategory-options">
+                  {availableSubCategories.map(c => <option key={c as string} value={c as string} />)}
+                </datalist>
                 {errors.subCategory && <p className="mt-1 text-sm text-red-500">{errors.subCategory}</p>}
               </div>
             </div>
@@ -652,7 +871,7 @@ export function AddFacility() {
                   name="facilityHeadName"
                   value={formData.facilityHeadName}
                   onChange={handleChange}
-                  options={employees.map(emp => ({ label: emp.fullName, value: emp.fullName }))}
+                  options={employees.map(emp => ({ label: `${emp.fullName} (${emp.department || 'N/A'} - ${emp.designation || emp.role || 'N/A'})`, value: emp.fullName }))}
                   disabled={isViewMode || formData.isLocationPart === 'true'}
                   placeholder="Select Head Name"
                   className={errors.facilityHeadName ? 'border-red-500' : ''}
@@ -676,11 +895,11 @@ export function AddFacility() {
               />
             </div>
 
-            <div className="flex items-center justify-end gap-4 mt-8 pt-6 border-t border-gray-100">
+            <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-3 sm:gap-4 mt-8 pt-6 border-t border-gray-100">
               <button
                 type="button"
                 onClick={handleBack}
-                className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95"
+                className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 text-center"
               >
                 Back
               </button>
@@ -688,7 +907,7 @@ export function AddFacility() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-6 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                  className="w-full sm:w-auto flex justify-center px-6 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <>
@@ -705,7 +924,7 @@ export function AddFacility() {
         )}
 
         {currentStep === 2 && activeTab === 'Document' && (
-          <div className="space-y-6 w-full p-8">
+          <div className="space-y-6 w-full p-4 sm:p-8">
             {/* Toolbar */}
             <div className="flex justify-start items-center mb-6">
               <div className="relative">
@@ -807,6 +1026,8 @@ export function AddFacility() {
               )}
             </div>
           </div>
+        )}
+          </>
         )}
       </div>
     </div>

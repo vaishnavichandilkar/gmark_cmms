@@ -36,9 +36,9 @@ export function TablePagination({
   }, []);
 
   return (
-    <div className="px-6 py-3 border-t border-gray-200 bg-white flex items-center justify-between text-sm text-gray-500">
-      <div className="flex items-center gap-2">
-        <span>Rows per page:</span>
+    <div className="px-4 sm:px-6 py-3 border-t border-gray-200 bg-white flex items-center justify-between gap-2 text-xs sm:text-sm text-gray-500">
+      <div className="flex items-center gap-1 sm:gap-2">
+        <span className="whitespace-nowrap">Rows per page:</span>
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setIsOpen(!isOpen)}
@@ -71,8 +71,8 @@ export function TablePagination({
         </div>
       </div>
 
-      <div className="flex items-center gap-6">
-        <span>
+      <div className="flex items-center gap-2 sm:gap-6">
+        <span className="whitespace-nowrap">
           {totalItems === 0 ? '0-0 of 0' : `${startIndex + 1}-${endIndex} of ${totalItems}`}
         </span>
         <div className="flex items-center gap-2">

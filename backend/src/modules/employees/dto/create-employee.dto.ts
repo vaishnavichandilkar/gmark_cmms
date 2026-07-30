@@ -41,7 +41,4 @@ export class CreateEmployeeDto {
   @IsOptional()
   salaryPayout?: number;
 
-  @IsString()
-  @IsNotEmpty()
-  role: string;
 }

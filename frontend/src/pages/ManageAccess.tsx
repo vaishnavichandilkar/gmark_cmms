@@ -3,43 +3,15 @@ import { Plus, Search, Pencil, Eye, Trash2, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 import { TablePagination } from '../components/TablePagination';
+import { TableActions } from '../components/TableActions';
+import { exportData } from '../utils/exportUtils';
 
-// Mock data for Roles
-const initialRoles = [
-  {
-    id: 1,
-    roleName: 'Facility Admin',
-    description: 'Full access to facility management and users',
-    totalUsers: 5,
-    isActive: true,
-  },
-  {
-    id: 2,
-    roleName: 'Operator',
-    description: 'Can view and operate machines, no create/edit rights',
-    totalUsers: 24,
-    isActive: true,
-  },
-  {
-    id: 3,
-    roleName: 'Viewer',
-    description: 'Read-only access across all modules',
-    totalUsers: 12,
-    isActive: true,
-  },
-  {
-    id: 4,
-    roleName: 'Maintenance Staff',
-    description: 'Access to spares, AMC, and machine maintenance records',
-    totalUsers: 8,
-    isActive: false,
-  }
-];
+import { api } from '../lib/api';
 
 export function ManageAccess() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [roles, setRoles] = useState(initialRoles);
+  const [roles, setRoles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState<number | null>(null);
@@ -51,6 +23,27 @@ export function ManageAccess() {
     setCurrentPage(1);
   }, [searchQuery]);
 
+  const fetchDesignations = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/designations');
+      setRoles(response.data.map((d: any) => ({
+        id: d.id,
+        roleName: d.name,
+        totalUsers: d.totalUsers || 0,
+        isActive: d.isActive
+      })));
+    } catch (err) {
+      console.error('Failed to fetch designations', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDesignations();
+  }, []);
+
   const confirmDelete = (id: number) => {
     setRoleToDelete(id);
     setDeleteModalOpen(true);
@@ -58,17 +51,35 @@ export function ManageAccess() {
 
   const handleDelete = async () => {
     if (roleToDelete === null) return;
-    setRoles(roles.filter(r => r.id !== roleToDelete));
-    setDeleteModalOpen(false);
-    setRoleToDelete(null);
+    try {
+      await api.delete(`/designations/${roleToDelete}`);
+      setDeleteModalOpen(false);
+      setRoleToDelete(null);
+      fetchDesignations();
+    } catch (err) {
+      console.error('Failed to delete designation', err);
+    }
+  };
+
+  const handleExport = (format: 'pdf' | 'excel') => {
+    const headers = ['Designation Name', 'Total Users', 'Status'];
+    const rows = filteredRoles.map(role => [
+      role.roleName || '-',
+      role.totalUsers?.toString() || '0',
+      role.isActive ? 'Active' : 'Inactive'
+    ]);
+    exportData(headers, rows, 'Designation_List', 'Manage Access List', format);
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   const filteredRoles = roles.filter(role => {
     const searchString = searchQuery.toLowerCase();
     const name = role.roleName.toLowerCase();
-    const desc = role.description.toLowerCase();
 
-    return name.includes(searchString) || desc.includes(searchString);
+    return name.includes(searchString);
   });
 
   const totalItems = filteredRoles.length;
@@ -78,50 +89,42 @@ export function ManageAccess() {
   const currentRoles = filteredRoles.slice(startIndex, endIndex);
 
   return (
-    <div className="p-6 bg-white min-h-screen">
+    <div className="sm:p-2 md:p-4 bg-white min-h-screen">
       {/* Header Section */}
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 print:hidden">
         <div>
           <h1 className="text-3xl font-black text-gray-900 tracking-tight">Manage Access</h1>
-          <p className="text-sm font-medium text-gray-500 mt-1">Configure roles and module permissions</p>
+          <p className="text-sm font-medium text-gray-500 mt-1">Configure designations and module permissions</p>
         </div>
         <button 
           onClick={() => navigate('/manage-access/new')}
-          className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
+          className="flex items-center justify-center w-full sm:w-auto gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
         >
           <Plus className="w-4 h-4" />
-          Add New Role
+          Add New Designation
         </button>
       </div>
 
       {/* Search Section */}
-      <div className="flex justify-end mb-6">
-        <div className="relative w-72">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-4 w-4 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm transition-all"
-            placeholder="Search roles..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-      </div>
+      <TableActions
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        searchPlaceholder="Search designations..."
+        onExport={handleExport}
+        onPrint={handlePrint}
+      />
 
       {/* Table Section */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
-          <h2 className="text-base font-semibold text-gray-800">System Roles</h2>
+          <h2 className="text-base font-semibold text-gray-800">System Designations</h2>
         </div>
         
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-gray-600">
             <thead className="bg-gray-50/50 text-gray-700 font-medium text-xs border-b border-gray-200">
               <tr>
-                <th className="px-6 py-4">Role Name</th>
-                <th className="px-6 py-4">Description</th>
+                <th className="px-6 py-4">Designation Name</th>
                 <th className="px-6 py-4">Total Users</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4 w-12"></th>
@@ -141,9 +144,6 @@ export function ManageAccess() {
                   <tr key={role.id} className="hover:bg-gray-50/50 transition-colors group">
                     <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
                       {role.roleName}
-                    </td>
-                    <td className="px-6 py-4 text-gray-500 max-w-md truncate">
-                      {role.description}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {role.totalUsers}
@@ -188,9 +188,9 @@ export function ManageAccess() {
                       <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
                         <Shield className="w-6 h-6 text-gray-400" />
                       </div>
-                      <p className="text-base font-medium text-gray-900 mb-1">No roles found</p>
+                      <p className="text-base font-medium text-gray-900 mb-1">No designations found</p>
                       <p className="text-sm text-gray-500 max-w-sm">
-                        Get started by creating a new role.
+                        Get started by creating a new designation.
                       </p>
                     </div>
                   </td>
@@ -217,8 +217,8 @@ export function ManageAccess() {
 
       <DeleteConfirmModal 
         isOpen={deleteModalOpen}
-        title="Delete Role"
-        message="Are you sure you want to delete this role? Users assigned to this role may lose access."
+        title="Delete Designation"
+        message="Are you sure you want to delete this designation? Users assigned to this designation may lose access."
         onClose={() => {
           setDeleteModalOpen(false);
           setRoleToDelete(null);

@@ -18,13 +18,22 @@ import {
   Sliders,
   LayoutGrid,
   FileEdit,
-  Cpu
+  Cpu,
+  Upload,
+  Download,
+  Printer,
+  Filter,
+  FileText,
+  FileSpreadsheet
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../lib/api';
+import { Skeleton } from '../components/ui/Skeleton';
+import { TableSkeleton } from '../components/ui/TableSkeleton';
 import type { RootState } from '../store';
+import { exportData } from '../utils/exportUtils';
 
 interface Society {
   id: string;
@@ -619,13 +628,39 @@ export function AdminPage() {
     d.deviceId?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const handleExportUsers = (format: 'pdf' | 'excel') => {
+    const headers = ['User', 'Contact', 'Role', 'Status'];
+    const rows = filteredUsers.map(user => [
+      user.name || user.email || '-',
+      user.phone || '-',
+      user.role || '-',
+      user.isActive ? 'Active' : 'Inactive'
+    ]);
+    exportData(headers, rows, 'Admin_Users_List', 'Society Users List', format);
+  };
+
+  const handleExportDevices = (format: 'pdf' | 'excel') => {
+    const headers = ['Device Name', 'Device ID', 'Application', 'Pump Type', 'Status'];
+    const rows = filteredDevices.map(device => [
+      device.name || '-',
+      device.deviceId || '-',
+      device.application || '-',
+      device.pumpType || '-',
+      device.status || 'Active'
+    ]);
+    exportData(headers, rows, 'Admin_Devices_List', 'Society Devices List', format);
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   return (
     <>
       <div className="h-[calc(100vh-8rem)] bg-transparent -m-4 sm:-m-6 md:-m-8 p-4 sm:p-6 md:p-8 text-gray-900 relative flex flex-col md:flex-row gap-6">
       
       {/* LEFT SIDEBAR: MASTER VIEW */}
-      <div className="w-full md:w-[320px] flex-shrink-0 flex flex-col bg-white border border-gray-200 shadow-sm rounded-3xl overflow-hidden h-full">
+      <div className="w-full md:w-[320px] flex-shrink-0 flex flex-col bg-white border border-gray-200 shadow-sm rounded-3xl overflow-hidden h-full print:hidden">
         <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
           <div className="flex items-center gap-2">
             <Building2 className="text-emerald-600" size={18} />
@@ -692,7 +727,14 @@ export function AdminPage() {
                     </div>
                     
                     {loadingTowers ? (
-                      <div className="text-xs text-gray-400 py-2">Loading towers...</div>
+                      <div className="space-y-2 py-2">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <Skeleton className="w-1.5 h-1.5 rounded-full shrink-0" />
+                            <Skeleton className="h-3 w-3/4 rounded" />
+                          </div>
+                        ))}
+                      </div>
                     ) : towers.length === 0 ? (
                       <div className="text-xs text-gray-400 italic py-2">No towers found</div>
                     ) : (
@@ -737,7 +779,7 @@ export function AdminPage() {
         ) : !selectedTowerId ? (
           // Society Details & User Management
           <div className="flex flex-col h-full bg-gray-50/30">
-            <div className="p-8 border-b border-gray-200 bg-white">
+            <div className="p-8 border-b border-gray-200 bg-white print:hidden">
               <div className="flex items-center gap-2 text-sm font-semibold select-none mb-4">
                 <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">All Societies</span>
                 <ChevronRight size={14} className="text-gray-400" />
@@ -777,7 +819,7 @@ export function AdminPage() {
             
             {/* Society Users Section */}
             <div className="flex-1 flex flex-col min-h-0 m-6 bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-              <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 gap-4">
+              <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 gap-4 print:hidden">
                 <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2 uppercase tracking-wider">
                   <Users size={16} className="text-emerald-600" /> Users Access List
                 </h3>
@@ -792,9 +834,26 @@ export function AdminPage() {
                       className="pl-9 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all w-full sm:w-64"
                     />
                   </div>
+                  <div className="flex items-center gap-1.5 border-l border-gray-200 pl-3">
+                    <button className="p-1.5 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-700 rounded border border-emerald-200 transition-colors cursor-pointer" title="Import">
+                      <Upload size={14} />
+                    </button>
+                    <button onClick={() => handleExportUsers('pdf')} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 hover:text-blue-700 rounded border border-blue-200 transition-colors cursor-pointer" title="Export PDF">
+                      <FileText size={14} />
+                    </button>
+                    <button onClick={() => handleExportUsers('excel')} className="p-1.5 text-green-600 bg-green-50 hover:bg-green-100 hover:text-green-700 rounded border border-green-200 transition-colors cursor-pointer" title="Export Excel">
+                      <FileSpreadsheet size={14} />
+                    </button>
+                    <button onClick={handlePrint} className="p-1.5 text-gray-400 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition-colors cursor-pointer" title="Print">
+                      <Printer size={14} />
+                    </button>
+                    <button className="p-1.5 text-gray-400 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition-colors cursor-pointer" title="Filter">
+                      <Filter size={14} />
+                    </button>
+                  </div>
                   <button
                     onClick={() => setIsUserFormOpen(true)}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-lg text-xs font-bold text-white transition-all shadow-sm flex items-center gap-2 whitespace-nowrap"
+                    className="ml-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-lg text-xs font-bold text-white transition-all shadow-sm flex items-center gap-2 whitespace-nowrap"
                   >
                     <Plus size={14} /> Add User
                   </button>
@@ -814,11 +873,7 @@ export function AdminPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-white">
                     {loadingUsers ? (
-                      <tr>
-                        <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-xs">
-                          Loading users...
-                        </td>
-                      </tr>
+                      <TableSkeleton columns={5} rows={3} />
                     ) : filteredUsers.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-xs italic">
@@ -944,7 +999,7 @@ export function AdminPage() {
 
             {/* Devices Section */}
             <div className="flex-1 flex flex-col min-h-0 m-6 bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-              <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 gap-4">
+              <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 gap-4 print:hidden">
                 <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2 uppercase tracking-wider">
                   <Wifi size={16} className="text-emerald-600" /> Connected Devices
                 </h3>
@@ -959,9 +1014,26 @@ export function AdminPage() {
                       className="pl-9 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all w-full sm:w-64"
                     />
                   </div>
+                  <div className="flex items-center gap-1.5 border-l border-gray-200 pl-3">
+                    <button className="p-1.5 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-700 rounded border border-emerald-200 transition-colors cursor-pointer" title="Import">
+                      <Upload size={14} />
+                    </button>
+                    <button onClick={() => handleExportDevices('pdf')} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 hover:text-blue-700 rounded border border-blue-200 transition-colors cursor-pointer" title="Export PDF">
+                      <FileText size={14} />
+                    </button>
+                    <button onClick={() => handleExportDevices('excel')} className="p-1.5 text-green-600 bg-green-50 hover:bg-green-100 hover:text-green-700 rounded border border-green-200 transition-colors cursor-pointer" title="Export Excel">
+                      <FileSpreadsheet size={14} />
+                    </button>
+                    <button onClick={handlePrint} className="p-1.5 text-gray-400 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition-colors cursor-pointer" title="Print">
+                      <Printer size={14} />
+                    </button>
+                    <button className="p-1.5 text-gray-400 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition-colors cursor-pointer" title="Filter">
+                      <Filter size={14} />
+                    </button>
+                  </div>
                   <button
                     onClick={() => setIsAddDeviceOpen(true)}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-lg text-xs font-bold text-white transition-all shadow-sm flex items-center gap-2 whitespace-nowrap"
+                    className="ml-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-lg text-xs font-bold text-white transition-all shadow-sm flex items-center gap-2 whitespace-nowrap"
                   >
                     <Plus size={14} /> Add Device
                   </button>
@@ -980,11 +1052,7 @@ export function AdminPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-white">
                     {loadingDevices ? (
-                      <tr>
-                        <td colSpan={4} className="px-6 py-12 text-center text-gray-400 text-xs">
-                          Loading devices...
-                        </td>
-                      </tr>
+                      <TableSkeleton columns={4} rows={3} />
                     ) : filteredDevices.length === 0 ? (
                       <tr>
                         <td colSpan={4} className="px-6 py-12 text-center text-gray-400 font-medium text-xs">

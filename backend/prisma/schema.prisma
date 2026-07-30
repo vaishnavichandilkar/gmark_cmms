@@ -234,7 +234,6 @@ model Employee {
   department      String
   designation     String
   salaryPayout    Float?
-  role            String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   users           User[]
@@ -293,4 +292,29 @@ model Facility {
   
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
+}
+
+model Designation {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  isActive    Boolean      @default(true)
+  permissions Permission[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Permission {
+  id            Int         @id @default(autoincrement())
+  designationId Int
+  moduleId      String
+  canView       Boolean     @default(false)
+  canCreate     Boolean     @default(false)
+  canEdit       Boolean     @default(false)
+  canDelete     Boolean     @default(false)
+  canImport     Boolean     @default(false)
+  canExport     Boolean     @default(false)
+  canPrint      Boolean     @default(false)
+  designation   Designation @relation(fields: [designationId], references: [id], onDelete: Cascade)
+
+  @@unique([designationId, moduleId])
 }

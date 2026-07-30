@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 import { TablePagination } from '../components/TablePagination';
+import { TableSkeleton } from '../components/ui/TableSkeleton';
+import { TableActions } from '../components/TableActions';
+import { exportData } from '../utils/exportUtils';
 
 interface Device {
   id: string;
@@ -68,6 +71,23 @@ export function MachineManagement() {
     }
   };
 
+  const handleExport = (format: 'pdf' | 'excel') => {
+    const headers = ['Machine Name', 'Machine Code', 'Company', 'Facility', 'Make & Model', 'Category'];
+    const rows = filteredMachines.map(machine => [
+      machine.name || '-',
+      machine.machineCode || machine.deviceId || '-',
+      machine.company || '-',
+      machine.facility?.facilityName || '-',
+      `${machine.make || '-'} ${machine.modelNumber || ''}`.trim(),
+      machine.machineCategory || '-'
+    ]);
+    exportData(headers, rows, 'Machine_List', 'Machine Management List', format);
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
   const filteredMachines = machines.filter(machine => {
     const searchString = searchQuery.toLowerCase();
     const name = (machine.name || '').toLowerCase();
@@ -92,16 +112,16 @@ export function MachineManagement() {
   const currentMachines = filteredMachines.slice(startIndex, endIndex);
 
   return (
-    <div className="p-6 bg-white min-h-screen">
+    <div className="sm:p-2 md:p-4 bg-white min-h-screen">
       {/* Header Section */}
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 print:hidden">
         <div>
           <h1 className="text-3xl font-black text-gray-900 tracking-tight">Machines</h1>
           <p className="text-sm font-medium text-gray-500 mt-1">Add, edit, and monitor all hardware devices across your facilities</p>
         </div>
         <button 
           onClick={() => navigate('/machine-management/new')}
-          className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
+          className="flex items-center justify-center w-full sm:w-auto gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
         >
           <Plus className="w-4 h-4" />
           Add New Machine
@@ -109,20 +129,13 @@ export function MachineManagement() {
       </div>
 
       {/* Search Section */}
-      <div className="flex justify-end mb-6">
-        <div className="relative w-72">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-4 w-4 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm transition-all"
-            placeholder="Search machines..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-      </div>
+      <TableActions
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        searchPlaceholder="Search machines..."
+        onExport={handleExport}
+        onPrint={handlePrint}
+      />
 
       {/* Table Section */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
@@ -145,13 +158,7 @@ export function MachineManagement() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
-                    <div className="flex justify-center items-center h-16">
-                      <div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                  </td>
-                </tr>
+                <TableSkeleton columns={7} rows={5} />
               ) : currentMachines.length > 0 ? (
                 currentMachines.map((machine, index) => (
                   <tr key={machine.id || index} className="hover:bg-gray-50/50 transition-colors group">

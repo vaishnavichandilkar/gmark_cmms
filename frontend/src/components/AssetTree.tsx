@@ -13,13 +13,14 @@ interface AssetTreeProps {
   data: TreeNodeData[];
   onSelect: (node: TreeNodeData) => void;
   selectedId: string | null;
+  defaultExpanded?: boolean;
 }
 
-export const AssetTree = ({ data, onSelect, selectedId }: AssetTreeProps) => {
+export const AssetTree = ({ data, onSelect, selectedId, defaultExpanded = false }: AssetTreeProps) => {
   return (
     <div className="w-full bg-white h-full overflow-y-auto py-2">
       {data.map(node => (
-        <TreeNode key={node.id} node={node} onSelect={onSelect} selectedId={selectedId} />
+        <TreeNode key={node.id} node={node} onSelect={onSelect} selectedId={selectedId} defaultExpanded={defaultExpanded} />
       ))}
       {data.length === 0 && (
         <div className="p-4 text-sm text-gray-500 text-center">No assets found</div>
@@ -33,10 +34,11 @@ interface TreeNodeProps {
   onSelect: (node: TreeNodeData) => void;
   selectedId: string | null;
   level?: number;
+  defaultExpanded?: boolean;
 }
 
-const TreeNode = ({ node, onSelect, selectedId, level = 0 }: TreeNodeProps) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+const TreeNode = ({ node, onSelect, selectedId, level = 0, defaultExpanded = false }: TreeNodeProps) => {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const hasChildren = node.children && node.children.length > 0;
   const isSelected = selectedId === node.id;
 
@@ -105,6 +107,7 @@ const TreeNode = ({ node, onSelect, selectedId, level = 0 }: TreeNodeProps) => {
               onSelect={onSelect} 
               selectedId={selectedId} 
               level={level + 1} 
+              defaultExpanded={defaultExpanded}
             />
           ))}
         </div>

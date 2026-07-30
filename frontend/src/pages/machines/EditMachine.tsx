@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { CustomSelect } from '../../components/CustomSelect';
 import { ArrowLeft, Search, Plus, Edit, Eye, Calendar } from 'lucide-react';
 import { api } from '../../lib/api';
+import { FacilityHierarchyPicker } from '../../components/FacilityHierarchyPicker';
 
 export function EditMachine() {
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ export function EditMachine() {
   const [amcSubTab, setAmcSubTab] = useState('AMC');
   const [purchaseSubTab, setPurchaseSubTab] = useState('Machine Purchase');
   const [facilities, setFacilities] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
   const [locationSearch, setLocationSearch] = useState('');
 
   const [formData, setFormData] = useState({
@@ -49,13 +51,15 @@ export function EditMachine() {
 
   const fetchData = async () => {
     try {
-      const [deviceRes, facilitiesRes] = await Promise.all([
+      const [deviceRes, facilitiesRes, employeesRes] = await Promise.all([
         api.get(`/devices`), // In a real app we'd fetch the specific device by ID
-        api.get('/facilities')
+        api.get('/facilities'),
+        api.get('/employees')
       ]);
       
       const device = Array.isArray(deviceRes.data) ? deviceRes.data.find((d: any) => d.id === Number(id)) : null;
       setFacilities(Array.isArray(facilitiesRes.data) ? facilitiesRes.data : []);
+      setEmployees(Array.isArray(employeesRes.data) ? employeesRes.data : []);
       
       if (device) {
         setFormData(prev => ({
@@ -77,9 +81,13 @@ export function EditMachine() {
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  const handleChange = (e: any) => {
+    const { name, value, dataset } = e.target;
+    setFormData((prev) => ({ 
+      ...prev, 
+      [name]: value,
+      ...(dataset?.type ? { locationType: dataset.type } : {})
+    }));
   };
 
   const handleSave = async () => {
@@ -87,7 +95,8 @@ export function EditMachine() {
     try {
       await api.put(`/devices/${id}`, {
         isLocationPart: formData.isLocationPart,
-        facilityId: formData.locationId ? parseInt(formData.locationId) : undefined,
+        facilityId: (formData as any).locationType === 'facility' || (formData as any).locationType === 'mainFacility' ? (formData.locationId ? parseInt(formData.locationId) : undefined) : undefined,
+        buildingId: (formData as any).locationType === 'building' || (formData as any).locationType === 'society' ? (formData.locationId ? parseInt(formData.locationId) : undefined) : undefined,
         latitude: formData.latitude,
         longitude: formData.longitude,
         costCenter: formData.costCenter,
@@ -114,14 +123,14 @@ export function EditMachine() {
   };
 
   const filteredFacilities = facilities.filter(f => 
-    f.facilityName.toLowerCase().includes(locationSearch.toLowerCase()) || 
-    f.facilityCode.toLowerCase().includes(locationSearch.toLowerCase())
+    (f?.facilityName || '').toLowerCase().includes(locationSearch.toLowerCase()) || 
+    (f?.facilityCode || '').toLowerCase().includes(locationSearch.toLowerCase())
   );
 
   const tabs = ['General', 'Specification', 'Spares', 'AMC', 'Purchase', 'Documents', 'IOT'];
 
   return (
-    <div className="px-6 pb-6 pt-0 w-full flex flex-col bg-white">
+    <div className="sm:px-2 md:px-4 pb-6 pt-0 w-full flex flex-col bg-white">
       {/* Header */}
       <div className="flex items-center mb-6">
         <button
@@ -174,13 +183,12 @@ export function EditMachine() {
                       <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">This Machine is a part of</span>
                     </label>
                     <div className="flex-1 max-w-md">
-                      <CustomSelect
+                      <FacilityHierarchyPicker
                         name="locationId"
                         value={formData.locationId}
                         onChange={handleChange}
                         disabled={!formData.isLocationPart}
                         placeholder="Select"
-                        options={facilities.map(f => ({ label: f.facilityName, value: f.id.toString() }))}
                       />
                     </div>
                   </div>
@@ -205,12 +213,11 @@ export function EditMachine() {
                     <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                       Location<span className="text-red-500">*</span>
                     </label>
-                    <CustomSelect
+                    <FacilityHierarchyPicker
                       name="locationId"
                       value={formData.locationId}
                       onChange={handleChange}
                       placeholder="Select"
-                      options={facilities.map(f => ({ label: f.facilityName, value: f.id.toString() }))}
                     />
                   </div>
                   <div>
@@ -264,9 +271,7 @@ export function EditMachine() {
                       value={formData.headOfDepartment}
                       onChange={handleChange}
                       placeholder="Select"
-                      options={[
-                        { label: 'Head 1', value: 'Head 1' }
-                      ]}
+                      options={employees.map(e => ({ label: `${e.fullName} (${e.department || 'N/A'} - ${e.designation || e.role || 'N/A'})`, value: e.fullName }))}
                     />
                   </div>
                   <div>
@@ -278,9 +283,7 @@ export function EditMachine() {
                       value={formData.machineOwner}
                       onChange={handleChange}
                       placeholder="Select"
-                      options={[
-                        { label: 'Owner 1', value: 'Owner 1' }
-                      ]}
+                      options={employees.map(e => ({ label: `${e.fullName} (${e.department || 'N/A'} - ${e.designation || e.role || 'N/A'})`, value: e.fullName }))}
                     />
                   </div>
                   <div className="col-span-3">
