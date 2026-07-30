@@ -38,7 +38,8 @@ export function AddFacility() {
     latitude: '',
     longitude: '',
     facilityHeadName: '',
-    notes: ''
+    notes: '',
+    parentFacilityIdType: ''
   });
 
   const [mainFacilities, setMainFacilities] = useState<any[]>([]);
@@ -124,7 +125,8 @@ export function AddFacility() {
         latitude: data.latitude || '',
         longitude: data.longitude || '',
         facilityHeadName: data.facilityHeadName || '',
-        notes: data.notes || ''
+        notes: data.notes || '',
+        parentFacilityIdType: data.parentFacilityId ? 'facility' : ''
       });
     } catch (error) {
       console.error('Failed to fetch facility:', error);
@@ -303,11 +305,6 @@ export function AddFacility() {
   const availableSubCategories = user?.role !== 'SUPER_ADMIN' && formData.mainFacilityId
     ? Array.from(new Set(facilities.filter(f => f.mainFacilityId?.toString() === formData.mainFacilityId).map(f => f.subCategory).filter(Boolean)))
     : [];
-
-  const mainFacilityOptions = mainFacilities.map(f => ({
-    label: f.mainFacilityName,
-    value: f.id.toString()
-  }));
 
   const parentFacilityOptions = [
     ...mainFacilities
@@ -520,7 +517,7 @@ export function AddFacility() {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`flex-1 min-w-[120px] py-3.5 px-4 text-sm font-semibold border-r border-gray-200 transition-colors ${
+                className={`min-w-[120px] py-3.5 px-4 text-sm font-semibold border-r border-gray-200 transition-colors ${
                   activeTab === tab
                     ? 'bg-[#00a651] text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-50'

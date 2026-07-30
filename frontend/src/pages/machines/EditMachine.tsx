@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { CustomSelect } from '../../components/CustomSelect';
 import { ArrowLeft, Search, Plus, Edit, Eye, Calendar } from 'lucide-react';
@@ -149,7 +149,7 @@ export function EditMachine() {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`flex-1 min-w-[120px] py-3.5 px-4 text-sm font-semibold border-r border-gray-200 transition-colors ${
+              className={`min-w-[120px] py-3.5 px-4 text-sm font-semibold border-r border-gray-200 transition-colors ${
                 activeTab === tab 
                   ? 'bg-[#00a651] text-white' 
                   : 'bg-white text-gray-700 hover:bg-gray-50'
