@@ -191,147 +191,110 @@ export function AddEmployee() {
         )}
 
         {isViewMode ? (
-          <div className="space-y-6 sm:space-y-8 max-w-5xl mx-auto">
-            {/* Profile Header Banner */}
-            <div className="relative rounded-3xl overflow-hidden shadow-md bg-white">
-              {/* Animated Gradient Background Cover */}
-              <div className="h-32 sm:h-48 w-full bg-gradient-to-r from-teal-500 via-emerald-400 to-teal-500 bg-[length:200%_auto] animate-[gradient_4s_linear_infinite] relative overflow-hidden">
-                {/* Decorative overlapping circles */}
-                <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-white opacity-10 blur-2xl"></div>
-                <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-48 h-48 rounded-full bg-white opacity-10 blur-xl"></div>
+          <div className="space-y-8">
+            {/* Profile Header */}
+            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-6 sm:p-8 text-white shadow-lg flex flex-col sm:flex-row items-center gap-6">
+              <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md border-2 border-white/40 shadow-inner flex-shrink-0">
+                <User size={48} className="text-white" />
               </div>
-              
-              {/* Profile Details (Overlapping) */}
-              <div className="px-6 sm:px-10 pb-8 relative flex flex-col sm:flex-row items-center sm:items-end gap-6 sm:gap-8 -mt-16 sm:-mt-20">
-                {/* Avatar with Ring */}
-                <div className="relative group">
-                  <div className="absolute inset-0 bg-white rounded-full blur-sm opacity-50 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  <div className="relative w-32 h-32 sm:w-40 sm:h-40 bg-white rounded-full p-2 shadow-lg flex items-center justify-center flex-shrink-0">
-                    <div className="w-full h-full rounded-full bg-gradient-to-br from-gray-50 to-gray-200 flex items-center justify-center overflow-hidden border border-gray-100 relative group-hover:scale-[1.02] transition-transform duration-300">
-                      <User size={64} className="text-gray-400 drop-shadow-sm" />
-                    </div>
-                    {/* Status Indicator */}
-                    <div className="absolute bottom-3 right-3 w-5 h-5 bg-green-500 border-4 border-white rounded-full shadow-sm"></div>
+              <div className="text-center sm:text-left">
+                <h2 className="text-3xl font-bold mb-2">{formData.fullName || 'Unknown Employee'}</h2>
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-emerald-50 font-medium">
+                  <div className="flex items-center gap-1.5">
+                    <Briefcase size={18} />
+                    <span>{formData.designation || 'N/A'}</span>
                   </div>
-                </div>
-
-                {/* Name and Tags */}
-                <div className="flex-1 text-center sm:text-left mb-2 sm:mb-4">
-                  <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight mb-3">
-                    {formData.fullName || 'Unknown Employee'}
-                  </h2>
-                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
-                    <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-100 shadow-sm font-medium text-sm">
-                      <Briefcase size={16} />
-                      {formData.designation || 'N/A'}
-                    </div>
-                    <div className="flex items-center gap-2 px-4 py-1.5 bg-blue-50 text-blue-700 rounded-full border border-blue-100 shadow-sm font-medium text-sm">
-                      <Building2 size={16} />
-                      {formData.department || 'N/A'}
-                    </div>
+                  <span className="hidden sm:inline">•</span>
+                  <div className="flex items-center gap-1.5">
+                    <Building2 size={18} />
+                    <span>{formData.department || 'N/A'}</span>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Details Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-              
-              {/* Contact Information Card */}
-              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-sm hover:shadow-xl transition-shadow duration-300 group">
-                <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-50">
-                  <h3 className="text-xl font-bold text-gray-800 flex items-center gap-3">
-                    <div className="p-2 bg-emerald-50 rounded-xl">
-                      <Phone size={22} className="text-emerald-600" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Contact Information */}
+              <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2 border-b pb-3">
+                  <Phone size={20} className="text-emerald-500" />
+                  Contact Information
+                </h3>
+                <div className="space-y-5">
+                  <div className="flex items-start gap-4">
+                    <div className="bg-emerald-50 p-2.5 rounded-lg">
+                      <Phone size={18} className="text-emerald-600" />
                     </div>
-                    Contact Info
-                  </h3>
-                </div>
-
-                <div className="space-y-6">
-                  {/* Item */}
-                  <div className="flex items-center gap-5 p-3 -mx-3 rounded-2xl hover:bg-gray-50/80 transition-colors cursor-default">
-                    <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300 shadow-sm border border-gray-100">
-                      <Phone size={20} className="text-gray-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-bold tracking-wider text-gray-400 uppercase mb-1">Mobile Number</p>
-                      <p className="text-base text-gray-900 font-bold truncate">{formData.mobileNumber || '-'}</p>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Mobile Number</p>
+                      <p className="text-base text-gray-900 font-semibold">{formData.mobileNumber || '-'}</p>
                     </div>
                   </div>
-
-                  {/* Item */}
-                  <div className="flex items-center gap-5 p-3 -mx-3 rounded-2xl hover:bg-gray-50/80 transition-colors cursor-default">
-                    <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300 shadow-sm border border-gray-100">
-                      <Mail size={20} className="text-gray-500" />
+                  <div className="flex items-start gap-4">
+                    <div className="bg-emerald-50 p-2.5 rounded-lg">
+                      <Mail size={18} className="text-emerald-600" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-bold tracking-wider text-gray-400 uppercase mb-1">Official Email</p>
-                      <p className="text-base text-gray-900 font-bold truncate">{formData.officialEmail || '-'}</p>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Official Email</p>
+                      <p className="text-base text-gray-900 font-semibold">{formData.officialEmail || '-'}</p>
                     </div>
                   </div>
-
-                  {/* Item */}
-                  <div className="flex items-center gap-5 p-3 -mx-3 rounded-2xl hover:bg-gray-50/80 transition-colors cursor-default opacity-80 hover:opacity-100">
-                    <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300 shadow-sm border border-gray-100">
-                      <Mail size={20} className="text-gray-400" />
+                  <div className="flex items-start gap-4">
+                    <div className="bg-gray-50 p-2.5 rounded-lg">
+                      <Mail size={18} className="text-gray-500" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-bold tracking-wider text-gray-400 uppercase mb-1">Personal Email</p>
-                      <p className="text-base text-gray-600 font-semibold truncate">{formData.personalEmail || '-'}</p>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Personal Email</p>
+                      <p className="text-base text-gray-900 font-semibold">{formData.personalEmail || '-'}</p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Work Information Card */}
-              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-sm hover:shadow-xl transition-shadow duration-300 group">
-                <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-50">
-                  <h3 className="text-xl font-bold text-gray-800 flex items-center gap-3">
-                    <div className="p-2 bg-blue-50 rounded-xl">
-                      <Briefcase size={22} className="text-blue-600" />
+              {/* Work Information */}
+              <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2 border-b pb-3">
+                  <Briefcase size={20} className="text-emerald-500" />
+                  Work Details
+                </h3>
+                <div className="space-y-5">
+                  <div className="flex items-start gap-4">
+                    <div className="bg-emerald-50 p-2.5 rounded-lg">
+                      <User size={18} className="text-emerald-600" />
                     </div>
-                    Work Details
-                  </h3>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                  {/* Item */}
-                  <div className="flex flex-col gap-2 p-5 rounded-2xl bg-gray-50/50 hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100 group/item">
-                    <div className="flex items-center gap-2 mb-1">
-                      <User size={16} className="text-gray-400 group-hover/item:text-blue-500 transition-colors" />
-                      <p className="text-[11px] font-bold tracking-wider text-gray-400 uppercase">Employee Code</p>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Employee Code</p>
+                      <p className="text-base text-gray-900 font-semibold">{formData.employeeCode || '-'}</p>
                     </div>
-                    <p className="text-lg text-gray-900 font-black">{formData.employeeCode || '-'}</p>
                   </div>
-
-                  {/* Item */}
-                  <div className="flex flex-col gap-2 p-5 rounded-2xl bg-gray-50/50 hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100 group/item">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Wallet size={16} className="text-gray-400 group-hover/item:text-green-500 transition-colors" />
-                      <p className="text-[11px] font-bold tracking-wider text-gray-400 uppercase">Salary Payout</p>
+                  <div className="flex items-start gap-4">
+                    <div className="bg-emerald-50 p-2.5 rounded-lg">
+                      <Calendar size={18} className="text-emerald-600" />
                     </div>
-                    <p className="text-lg text-gray-900 font-black">{formData.salaryPayout ? `₹ ${formData.salaryPayout}` : '-'}</p>
-                  </div>
-
-                  {/* Item */}
-                  <div className="flex flex-col gap-2 p-5 rounded-2xl bg-gray-50/50 hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100 group/item">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Calendar size={16} className="text-gray-400 group-hover/item:text-purple-500 transition-colors" />
-                      <p className="text-[11px] font-bold tracking-wider text-gray-400 uppercase">Date of Joining</p>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Date of Joining</p>
+                      <p className="text-base text-gray-900 font-semibold">{formData.dateOfJoining || '-'}</p>
                     </div>
-                    <p className="text-base text-gray-900 font-bold">{formData.dateOfJoining || '-'}</p>
                   </div>
-
-                  {/* Item */}
-                  <div className="flex flex-col gap-2 p-5 rounded-2xl bg-gray-50/50 hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100 group/item">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Calendar size={16} className="text-gray-400 group-hover/item:text-orange-500 transition-colors" />
-                      <p className="text-[11px] font-bold tracking-wider text-gray-400 uppercase">Date of Birth</p>
+                  <div className="flex items-start gap-4">
+                    <div className="bg-gray-50 p-2.5 rounded-lg">
+                      <Calendar size={18} className="text-gray-500" />
                     </div>
-                    <p className="text-base text-gray-900 font-bold">{formData.dateOfBirth || '-'}</p>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Date of Birth</p>
+                      <p className="text-base text-gray-900 font-semibold">{formData.dateOfBirth || '-'}</p>
+                    </div>
                   </div>
-
+                  <div className="flex items-start gap-4">
+                    <div className="bg-emerald-50 p-2.5 rounded-lg">
+                      <Wallet size={18} className="text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Salary Payout</p>
+                      <p className="text-base text-gray-900 font-semibold">{formData.salaryPayout ? `₹ ${formData.salaryPayout}` : '-'}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
