@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Lock, Mail, ShieldAlert, Check } from 'lucide-react';
+import { Eye, EyeOff, Lock, User, ShieldAlert, Check } from 'lucide-react';
 import { api } from '../../lib/api';
 import { setCredentials } from '../../store/slices/authSlice';
 
 export function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -18,7 +18,7 @@ export function LoginPage() {
   const location = useLocation();
   const dispatch = useDispatch();
 
-  const from = (location.state as any)?.from?.pathname || '/';
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,11 +26,11 @@ export function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await api.post('/auth/login', { email, password });
+      const response = await api.post('/auth/login', { username, password });
       const { user, accessToken, refreshToken, buildingIds } = response.data;
 
       dispatch(setCredentials({ user, accessToken, refreshToken, buildingIds }));
-      navigate(from, { replace: true });
+      navigate('/', { replace: true });
     } catch (err: any) {
       setError(
         err.response?.data?.message || 'Login failed. Please check your credentials and try again.',
@@ -73,16 +73,16 @@ export function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
-                Email Address
+                USERNAME
               </label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
-                  type="email"
+                  type="text"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@company.com"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Enter your username"
                   className="w-full pl-10 pr-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-all"
                 />
               </div>

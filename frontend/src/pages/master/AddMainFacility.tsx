@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Building2, MapPin, Tag, CheckCircle2, User, Globe, Hash } from 'lucide-react';
 import { CustomSelect } from '../../components/CustomSelect';
+import { EmployeeHierarchyPicker } from '../../components/EmployeeHierarchyPicker';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../store';
 import { api } from '../../lib/api';
@@ -414,10 +415,9 @@ export function AddMainFacility() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Facility Head <span className="text-red-500">*</span>
             </label>
-            <CustomSelect 
+            <EmployeeHierarchyPicker 
               name="mainFacilityHead"
               value={formData.mainFacilityHead}
-              options={employees.map(emp => ({ label: `${emp.fullName} (${emp.department || 'N/A'} - ${emp.designation || emp.role || 'N/A'})`, value: emp.fullName }))}
               onChange={handleChange}
               placeholder="Select Head"
               disabled={isViewMode}

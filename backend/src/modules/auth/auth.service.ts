@@ -71,9 +71,10 @@ export class AuthService {
 
   async login(dto: LoginDto, ipAddress: string) {
     const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+      where: { username: dto.username },
       include: {
         buildings: true,
+        employee: true,
       },
     });
 
@@ -100,8 +101,24 @@ export class AuthService {
     );
     await this.updateRefreshToken(user.id, tokens.refreshToken);
 
+    let permissions = null;
+    if (user.employee?.designation) {
+      const designation = await this.prisma.designation.findUnique({
+        where: { name: user.employee.designation },
+        include: { permissions: true }
+      });
+      if (designation) {
+        permissions = designation.permissions;
+      }
+    }
+
+    const sanitizedUser = this.sanitizeUser(user);
+    if (permissions) {
+      (sanitizedUser as any).permissions = permissions;
+    }
+
     return {
-      user: this.sanitizeUser(user),
+      user: sanitizedUser,
       buildingIds,
       ...tokens,
     };
@@ -123,7 +140,7 @@ export class AuthService {
 
       const user = await this.prisma.user.findUnique({
         where: { id: payload.userId },
-        include: { buildings: true },
+        include: { buildings: true, employee: true },
       });
 
       if (!user || !user.refreshToken) {
@@ -148,7 +165,27 @@ export class AuthService {
       );
       await this.updateRefreshToken(user.id, tokens.refreshToken);
 
-      return tokens;
+      let permissions = null;
+      if (user.employee?.designation) {
+        const designation = await this.prisma.designation.findUnique({
+          where: { name: user.employee.designation },
+          include: { permissions: true }
+        });
+        if (designation) {
+          permissions = designation.permissions;
+        }
+      }
+
+      const sanitizedUser = this.sanitizeUser(user);
+      if (permissions) {
+        (sanitizedUser as any).permissions = permissions;
+      }
+
+      return {
+        user: sanitizedUser,
+        buildingIds,
+        ...tokens,
+      };
     } catch (e) {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }

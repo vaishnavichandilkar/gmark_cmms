@@ -64,9 +64,10 @@ export class RegisterDto {
 }
 
 export class LoginDto {
-  @ApiProperty({ example: 'superadmin@hypn.com' })
-  @IsEmail()
-  email: string;
+  @ApiProperty({ example: 'superadmin' })
+  @IsString()
+  @IsNotEmpty()
+  username: string;
 
   @ApiProperty({ example: 'Admin@123' })
   @IsString()

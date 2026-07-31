@@ -31,12 +31,23 @@ export class DesignationsService {
       orderBy: { id: 'asc' },
     });
     
-    // In a real scenario you would join the users/employees to get totalUsers.
-    // For now, we will just return a mocked totalUsers or 0 since we don't have a direct DB relation.
-    return designations.map(d => ({
-      ...d,
-      totalUsers: 0,
-    }));
+    const designationsWithCounts = await Promise.all(
+      designations.map(async (d) => {
+        const totalUsers = await this.prisma.user.count({
+          where: {
+            employee: {
+              designation: d.name
+            }
+          }
+        });
+        return {
+          ...d,
+          totalUsers,
+        };
+      })
+    );
+
+    return designationsWithCounts;
   }
 
   async findOne(id: number) {

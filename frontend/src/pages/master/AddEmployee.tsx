@@ -292,7 +292,14 @@ export function AddEmployee() {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-500">Salary Payout</p>
-                      <p className="text-base text-gray-900 font-semibold">{formData.salaryPayout ? `₹ ${formData.salaryPayout}` : '-'}</p>
+                      <p className="text-base text-gray-900 font-semibold">
+                        {formData.salaryPayout ? `₹ ${Number(formData.salaryPayout).toLocaleString()}` : '-'}
+                      </p>
+                      {formData.salaryPayout && (
+                        <p className="text-xs font-medium text-emerald-600 mt-0.5">
+                          ₹ {(Number(formData.salaryPayout) * 12).toLocaleString()} / year
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -443,6 +450,11 @@ export function AddEmployee() {
                 onChange={handleChange}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
               />
+              {formData.salaryPayout && (
+                <p className="text-xs font-medium text-emerald-600 mt-1.5 ml-1">
+                  ₹ {(Number(formData.salaryPayout) * 12).toLocaleString()} / year
+                </p>
+              )}
             </div>
           </div>
         )}

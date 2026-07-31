@@ -20,6 +20,7 @@ type MenuItem = {
   icon: React.ReactNode;
   children?: MenuItem[];
   isComingSoon?: boolean;
+  moduleId?: string;
 };
 
 export function FloatingNavbar() {
@@ -56,12 +57,14 @@ export function FloatingNavbar() {
     {
       label: 'Dashboard',
       path: '/', 
-      icon: <LayoutDashboard size={20} />
+      icon: <LayoutDashboard size={20} />,
+      moduleId: 'dashboard'
     },
     {
       label: 'All Assets',
       path: '/assets',
-      icon: <Boxes size={20} />
+      icon: <Boxes size={20} />,
+      moduleId: 'assets'
     },
     {
       label: 'Master',
@@ -70,36 +73,62 @@ export function FloatingNavbar() {
         {
           label: 'Employee Master',
           path: '/master/employee',
-          icon: <Users size={16} />
+          icon: <Users size={16} />,
+          moduleId: 'master_employee'
         },
         {
           label: 'Facility Master',
           path: '/master/main-facility',
-          icon: <Building2 size={16} />
+          icon: <Building2 size={16} />,
+          moduleId: 'master_main_facility'
         }
       ]
     },
     {
       label: 'Manage Access',
       path: '/manage-access',
-      icon: <ShieldCheck size={20} />
+      icon: <ShieldCheck size={20} />,
+      moduleId: 'manage_access'
     },
     {
       label: 'User Management',
       path: '/user-management',
-      icon: <Users size={20} />
+      icon: <Users size={20} />,
+      moduleId: 'user_management'
     },
     {
       label: 'Facility Management',
       path: '/facility-management',
-      icon: <Building2 size={20} />
+      icon: <Building2 size={20} />,
+      moduleId: 'facility_management'
     },
     {
       label: 'Machine Management',
       path: '/machine-management',
-      icon: <Cpu size={20} />
+      icon: <Cpu size={20} />,
+      moduleId: 'machine_management'
     }
   ];
+
+  const hasPermission = (moduleId?: string) => {
+    if (user?.role === 'SUPER_ADMIN') return true;
+    if (!moduleId) return true;
+    if (!user?.permissions) return true; // fallback
+
+    const perm = user.permissions.find((p: any) => p.moduleId === moduleId);
+    return perm ? perm.canView : false;
+  };
+
+  const filteredMenuData = menuData.map(item => {
+    if (item.children) {
+      const filteredChildren = item.children.filter(child => hasPermission(child.moduleId));
+      if (filteredChildren.length > 0) {
+        return { ...item, children: filteredChildren };
+      }
+      return null;
+    }
+    return hasPermission(item.moduleId) ? item : null;
+  }).filter(Boolean) as MenuItem[];
 
   const isPathActive = (path?: string) => {
     if (!path) return false;
@@ -224,7 +253,7 @@ export function FloatingNavbar() {
 
         {/* Navigation Accordions */}
         <div className="flex-1 flex flex-col p-4 pt-2 overflow-y-auto space-y-1">
-          {menuData.map(item => renderMenuItem(item))}
+          {filteredMenuData.map(item => renderMenuItem(item))}
         </div>
 
         {/* User Profile Section */}
@@ -293,7 +322,7 @@ export function FloatingNavbar() {
 
               {/* Navigation Accordions */}
               <div className="flex-1 flex flex-col p-4 pt-2 overflow-y-auto space-y-1">
-                {menuData.map(item => renderMenuItem(item))}
+                {filteredMenuData.map(item => renderMenuItem(item))}
               </div>
 
               {/* User Profile Section */}

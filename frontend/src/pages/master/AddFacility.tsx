@@ -6,6 +6,7 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '../../store';
 import { api } from '../../lib/api';
 import { FacilityHierarchyPicker } from '../../components/FacilityHierarchyPicker';
+import { EmployeeHierarchyPicker } from '../../components/EmployeeHierarchyPicker';
 
 export function AddFacility() {
   const navigate = useNavigate();
@@ -864,11 +865,10 @@ export function AddFacility() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Facility Head Name <span className="text-red-500">*</span>
                 </label>
-                <CustomSelect 
+                <EmployeeHierarchyPicker 
                   name="facilityHeadName"
                   value={formData.facilityHeadName}
                   onChange={handleChange}
-                  options={employees.map(emp => ({ label: `${emp.fullName} (${emp.department || 'N/A'} - ${emp.designation || emp.role || 'N/A'})`, value: emp.fullName }))}
                   disabled={isViewMode || formData.isLocationPart === 'true'}
                   placeholder="Select Head Name"
                   className={errors.facilityHeadName ? 'border-red-500' : ''}

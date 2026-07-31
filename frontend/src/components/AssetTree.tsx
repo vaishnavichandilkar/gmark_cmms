@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { ChevronRight, ChevronDown, Building, Building2, Cpu, Folder } from 'lucide-react';
+import { ChevronRight, ChevronDown, Building, Building2, Cpu, Folder, Briefcase, User } from 'lucide-react';
 
 export interface TreeNodeData {
   id: string;
   name: string;
-  type: 'society' | 'building' | 'mainFacility' | 'facility' | 'device';
+  type: 'society' | 'building' | 'mainFacility' | 'facility' | 'device' | 'department' | 'designation' | 'employee';
   originalData: any;
   children?: TreeNodeData[];
 }
@@ -52,6 +52,12 @@ const TreeNode = ({ node, onSelect, selectedId, level = 0, defaultExpanded = fal
         return <Building className="w-4 h-4 text-emerald-500" />;
       case 'device':
         return <Cpu className="w-4 h-4 text-orange-500" />;
+      case 'department':
+        return <Building className="w-4 h-4 text-blue-500" />;
+      case 'designation':
+        return <Briefcase className="w-4 h-4 text-purple-500" />;
+      case 'employee':
+        return <User className="w-4 h-4 text-emerald-500" />;
       default:
         return <Folder className="w-4 h-4 text-gray-400" />;
     }
