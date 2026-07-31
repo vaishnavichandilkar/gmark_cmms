@@ -1,10 +1,14 @@
 import { Injectable, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateMainFacilityDto } from './dto/create-main-facility.dto';
+import { CodeSequenceService } from '../../common/services/code-sequence.service';
 
 @Injectable()
 export class MainFacilitiesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly codeSequenceService: CodeSequenceService
+  ) {}
 
   async create(createDto: CreateMainFacilityDto) {
     const existingFacility = await this.prisma.mainFacility.findFirst({
@@ -17,16 +21,20 @@ export class MainFacilitiesService {
     });
 
     if (existingFacility) {
-      if (existingFacility.mainFacilityCode === createDto.mainFacilityCode) {
-        throw new ConflictException('Main Facility Code already exists');
-      }
       if (existingFacility.gstNumber === createDto.gstNumber) {
         throw new ConflictException('GST Number already exists');
       }
+      // If code exists, it will just get a new unique code anyway
     }
 
+    // Generate the real unique code at insertion time
+    const realFacilityCode = await this.codeSequenceService.generateNextCode('MAIN_FACILITY');
+
     return this.prisma.mainFacility.create({
-      data: createDto,
+      data: {
+        ...createDto,
+        mainFacilityCode: realFacilityCode,
+      },
     });
   }
 
@@ -37,24 +45,8 @@ export class MainFacilitiesService {
   }
 
   async getNextFacilityCode() {
-    const lastFacility = await this.prisma.mainFacility.findFirst({
-      orderBy: { id: 'desc' },
-    });
-
-    if (!lastFacility || !lastFacility.mainFacilityCode) {
-      return { nextCode: 'MF001' };
-    }
-
-    const lastCode = lastFacility.mainFacilityCode;
-    const match = lastCode.match(/(\d+)$/);
-    
-    if (match) {
-      const numStr = match[1];
-      const nextNum = parseInt(numStr, 10) + 1;
-      return { nextCode: `MF${nextNum.toString().padStart(3, '0')}` };
-    }
-
-    return { nextCode: 'MF001' };
+    const nextCode = await this.codeSequenceService.previewNextCode('MAIN_FACILITY');
+    return { nextCode };
   }
 
   async findOne(id: number) {

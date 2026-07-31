@@ -1,23 +1,23 @@
 import { Injectable, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { CodeSequenceService } from '../../common/services/code-sequence.service';
 
 @Injectable()
 export class FacilitiesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly codeSequenceService: CodeSequenceService
+  ) {}
 
   async create(createDto: any) {
-    const existingFacility = await this.prisma.facility.findFirst({
-      where: {
-        facilityCode: createDto.facilityCode
-      }
-    });
-
-    if (existingFacility) {
-      throw new ConflictException('Facility Code already exists');
-    }
+    // Generate the real unique code at insertion time
+    const realFacilityCode = await this.codeSequenceService.generateNextCode('FACILITY');
 
     return this.prisma.facility.create({
-      data: createDto,
+      data: {
+        ...createDto,
+        facilityCode: realFacilityCode,
+      },
     });
   }
 
@@ -31,22 +31,8 @@ export class FacilitiesService {
   }
 
   async getNextFacilityCode() {
-    const lastFacility = await this.prisma.facility.findFirst({
-      orderBy: { id: 'desc' }
-    });
-    
-    if (!lastFacility || !lastFacility.facilityCode) {
-      return { nextCode: 'FL001' };
-    }
-    
-    const match = lastFacility.facilityCode.match(/FL(\d+)/i);
-    
-    if (match && match[1]) {
-      const nextNum = parseInt(match[1], 10) + 1;
-      return { nextCode: `FL${nextNum.toString().padStart(3, '0')}` };
-    }
-    
-    return { nextCode: 'FL001' };
+    const nextCode = await this.codeSequenceService.previewNextCode('FACILITY');
+    return { nextCode };
   }
 
   async findOne(id: number) {

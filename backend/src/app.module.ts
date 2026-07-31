@@ -15,6 +15,7 @@ import { EmployeesModule } from './modules/employees/employees.module';
 import { MainFacilitiesModule } from './modules/main-facilities/main-facilities.module';
 import { FacilitiesModule } from './modules/facilities/facilities.module';
 import { DesignationsModule } from './modules/designations/designations.module';
+import { PostalCodesModule } from './modules/postal-codes/postal-codes.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { DesignationsModule } from './modules/designations/designations.module';
     MainFacilitiesModule,
     FacilitiesModule,
     DesignationsModule,
+    PostalCodesModule,
   ],
   providers: [
     {

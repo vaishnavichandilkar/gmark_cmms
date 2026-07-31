@@ -1,10 +1,14 @@
 import { Injectable, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
+import { CodeSequenceService } from '../../common/services/code-sequence.service';
 
 @Injectable()
 export class EmployeesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly codeSequenceService: CodeSequenceService
+  ) {}
 
   async create(createEmployeeDto: CreateEmployeeDto) {
     const existingEmployee = await this.prisma.employee.findFirst({
@@ -17,17 +21,19 @@ export class EmployeesService {
     });
 
     if (existingEmployee) {
-      if (existingEmployee.employeeCode === createEmployeeDto.employeeCode) {
-        throw new ConflictException('Employee code already exists');
-      }
       if (existingEmployee.officialEmail === createEmployeeDto.officialEmail) {
         throw new ConflictException('Official email already exists');
       }
+      // If code exists, we will just generate a new one anyway
     }
+
+    // Generate the real unique code at insertion time
+    const realEmployeeCode = await this.codeSequenceService.generateNextCode('EMPLOYEE');
 
     return this.prisma.employee.create({
       data: {
         ...createEmployeeDto,
+        employeeCode: realEmployeeCode,
         dateOfJoining: new Date(createEmployeeDto.dateOfJoining),
         dateOfBirth: new Date(createEmployeeDto.dateOfBirth),
         salaryPayout: createEmployeeDto.salaryPayout ? Number(createEmployeeDto.salaryPayout) : null,
@@ -101,26 +107,8 @@ export class EmployeesService {
   }
 
   async getNextEmployeeCode() {
-    const lastEmployee = await this.prisma.employee.findFirst({
-      orderBy: { id: 'desc' },
-    });
-
-    if (!lastEmployee || !lastEmployee.employeeCode) {
-      return { nextCode: 'E001' };
-    }
-
-    const lastCode = lastEmployee.employeeCode;
-    // Extract any numbers from the end of the string
-    const match = lastCode.match(/(\d+)$/);
-    
-    if (match) {
-      const numStr = match[1];
-      const nextNum = parseInt(numStr, 10) + 1;
-      return { nextCode: `E${nextNum.toString().padStart(3, '0')}` };
-    }
-
-  // Fallback
-    return { nextCode: 'E001' };
+    const nextCode = await this.codeSequenceService.previewNextCode('EMPLOYEE');
+    return { nextCode };
   }
 
   async remove(id: number) {

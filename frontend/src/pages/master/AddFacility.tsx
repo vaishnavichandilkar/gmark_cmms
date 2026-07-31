@@ -62,6 +62,31 @@ export function AddFacility() {
     }
   }, [id]);
 
+  useEffect(() => {
+    const fetchPostalCodeDetails = async () => {
+      if (formData.postalCode && formData.postalCode.length === 6 && formData.isLocationPart === 'false' && !isViewMode) {
+        try {
+          const response = await api.get(`/postal-codes/${formData.postalCode}`);
+          if (response.data) {
+            setFormData(prev => ({
+              ...prev,
+              city: response.data.city,
+              state: response.data.state,
+              country: response.data.country || 'India',
+            }));
+            // Clear any errors related to these fields
+            setErrors(prev => ({ ...prev, city: '', state: '', country: '' }));
+          }
+        } catch (error) {
+          console.error('Failed to fetch postal code details', error);
+          // Optional: handle not found
+        }
+      }
+    };
+
+    fetchPostalCodeDetails();
+  }, [formData.postalCode, formData.isLocationPart, isViewMode]);
+
   const fetchMainFacilities = async () => {
     try {
       const response = await api.get('/main-facilities');
@@ -220,15 +245,6 @@ export function AddFacility() {
       if (name === 'isLocationPart' && value === 'false') {
         newData.parentFacilityId = '';
         newData.parentFacilityIdType = '';
-        newData.address = '';
-        newData.country = 'India';
-        newData.state = '';
-        newData.city = '';
-        newData.postalCode = '';
-        newData.subCategory = '';
-        newData.latitude = '';
-        newData.longitude = '';
-        newData.facilityHeadName = '';
       }
       
       return newData;
@@ -735,62 +751,6 @@ export function AddFacility() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Country <span className="text-red-500">*</span>
-                </label>
-                <CustomSelect 
-                  name="country"
-                  value={formData.country}
-                  onChange={handleChange}
-                  options={[{label: 'India', value: 'India'}]}
-                  disabled={isViewMode || formData.isLocationPart === 'true'}
-                  placeholder="Select"
-                  className={errors.country ? 'border-red-500' : ''}
-                />
-                {errors.country && <p className="mt-1 text-sm text-red-500">{errors.country}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  State <span className="text-red-500">*</span>
-                </label>
-                <CustomSelect 
-                  name="state"
-                  value={formData.state}
-                  onChange={handleChange}
-                  options={[
-                    {label: 'Maharashtra', value: 'Maharashtra'},
-                    {label: 'Karnataka', value: 'Karnataka'},
-                    {label: 'Gujarat', value: 'Gujarat'}
-                  ]}
-                  disabled={isViewMode || formData.isLocationPart === 'true'}
-                  placeholder="Select"
-                  className={errors.state ? 'border-red-500' : ''}
-                />
-                {errors.state && <p className="mt-1 text-sm text-red-500">{errors.state}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  City <span className="text-red-500">*</span>
-                </label>
-                <CustomSelect 
-                  name="city"
-                  value={formData.city}
-                  onChange={handleChange}
-                  options={[
-                    {label: 'Mumbai', value: 'Mumbai'},
-                    {label: 'Pune', value: 'Pune'},
-                    {label: 'Kolhapur', value: 'Kolhapur'}
-                  ]}
-                  disabled={isViewMode || formData.isLocationPart === 'true'}
-                  placeholder="Select"
-                  className={errors.city ? 'border-red-500' : ''}
-                />
-                {errors.city && <p className="mt-1 text-sm text-red-500">{errors.city}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Postal Code
                 </label>
                 <input 
@@ -801,6 +761,57 @@ export function AddFacility() {
                   disabled={isViewMode || formData.isLocationPart === 'true'}
                   className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all border-gray-300 ${(isViewMode || formData.isLocationPart === 'true') ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Country <span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  name="country"
+                  value={formData.country}
+                  onChange={handleChange}
+                  disabled={isViewMode || formData.isLocationPart === 'true'}
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all ${
+                    errors.country ? 'border-red-500' : 'border-gray-300'
+                  } ${(isViewMode || formData.isLocationPart === 'true') ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+                />
+                {errors.country && <p className="mt-1 text-sm text-red-500">{errors.country}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  State <span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  name="state"
+                  value={formData.state}
+                  onChange={handleChange}
+                  disabled={isViewMode || formData.isLocationPart === 'true'}
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all ${
+                    errors.state ? 'border-red-500' : 'border-gray-300'
+                  } ${(isViewMode || formData.isLocationPart === 'true') ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+                />
+                {errors.state && <p className="mt-1 text-sm text-red-500">{errors.state}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  City <span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  name="city"
+                  value={formData.city}
+                  onChange={handleChange}
+                  disabled={isViewMode || formData.isLocationPart === 'true'}
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all ${
+                    errors.city ? 'border-red-500' : 'border-gray-300'
+                  } ${(isViewMode || formData.isLocationPart === 'true') ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+                />
+                {errors.city && <p className="mt-1 text-sm text-red-500">{errors.city}</p>}
               </div>
 
               <div>

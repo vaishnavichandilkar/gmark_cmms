@@ -318,3 +318,22 @@ model Permission {
 
   @@unique([designationId, moduleId])
 }
+
+model PostalCode {
+  id        Int      @id @default(autoincrement())
+  pincode   String   @unique
+  city      String
+  state     String
+  country   String   @default("India")
+  createdAt DateTime @default(now())
+
+  @@index([pincode])
+}
+
+model CodeSequence {
+  id        String   @id
+  prefix    String
+  lastValue Int      @default(0)
+  padding   Int      @default(3)
+  updatedAt DateTime @updatedAt
+}

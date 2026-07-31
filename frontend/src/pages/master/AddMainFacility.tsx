@@ -70,19 +70,18 @@ export function AddMainFacility() {
     if (formData.postalCode && formData.postalCode.length === 6 && !isViewMode) {
       const fetchLocationDetails = async () => {
         try {
-          const res = await fetch(`https://api.postalpincode.in/pincode/${formData.postalCode}`);
-          const data = await res.json();
-          if (data && data[0] && data[0].Status === 'Success' && data[0].PostOffice && data[0].PostOffice.length > 0) {
-            const postOffice = data[0].PostOffice[0];
+          const response = await api.get(`/postal-codes/${formData.postalCode}`);
+          if (response.data) {
             setFormData(prev => ({
               ...prev,
-              country: postOffice.Country || '',
-              state: postOffice.State || '',
-              city: postOffice.District || postOffice.Name || ''
+              city: response.data.city,
+              state: response.data.state,
+              country: response.data.country || 'India',
             }));
+            setErrors(prev => ({ ...prev, city: '', state: '', country: '' }));
           }
-        } catch (err) {
-          console.error('Failed to fetch location details', err);
+        } catch (error) {
+          console.error('Failed to fetch postal code details', error);
         }
       };
       fetchLocationDetails();

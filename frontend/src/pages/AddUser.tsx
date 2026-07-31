@@ -32,6 +32,8 @@ export function AddUser() {
 
   const [facilities, setFacilities] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [existingUserId, setExistingUserId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchInitialData();
@@ -42,13 +44,15 @@ export function AddUser() {
       setInitialLoading(true);
       
       // Fetch dependencies in parallel
-      const [facilitiesRes, employeesRes] = await Promise.all([
+      const [facilitiesRes, employeesRes, usersRes] = await Promise.all([
         api.get('/main-facilities'),
-        api.get('/employees')
+        api.get('/employees'),
+        api.get('/users')
       ]);
       
       setFacilities(facilitiesRes.data);
       setEmployees(employeesRes.data);
+      setUsers(usersRes.data);
 
       if (id) {
         const response = await api.get(`/users/${id}`);
@@ -139,8 +143,18 @@ export function AddUser() {
           newData.department = employee.department || '';
           newData.designation = employee.designation || '';
           
-          if (employee.fullName) {
-            newData.username = employee.fullName.toLowerCase().trim().replace(/\s+/g, '.');
+          // Check if employee already has a user account
+          // Since setUsers might be empty initially if they navigate from another page quickly,
+          // we should ideally wait for it, but fetchInitialData ensures it's populated.
+          const existingUser = users.find(u => u.employeeId?.toString() === value);
+          if (existingUser) {
+            setExistingUserId(existingUser.id);
+            newData.username = existingUser.username || '';
+          } else {
+            setExistingUserId(null);
+            if (employee.fullName) {
+              newData.username = employee.fullName.toLowerCase().trim().replace(/\s+/g, '.');
+            }
           }
         } else {
           newData.employeeContactNumber = '';
@@ -148,6 +162,7 @@ export function AddUser() {
           newData.department = '';
           newData.designation = '';
           newData.username = '';
+          setExistingUserId(null);
         }
       }
 
@@ -208,6 +223,8 @@ export function AddUser() {
 
       if (id) {
         await api.put(`/users/${id}`, payload);
+      } else if (existingUserId) {
+        await api.put(`/users/${existingUserId}`, payload);
       } else {
         await api.post('/users', payload);
       }
@@ -590,13 +607,28 @@ export function AddUser() {
               >
                 Cancel
               </button>
-              <button 
-                type="button" 
-                onClick={handleNext}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm min-w-[100px]"
-              >
-                Next
-              </button>
+              {existingUserId ? (
+                <button 
+                  type="button" 
+                  onClick={handleSave}
+                  disabled={loading}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm disabled:opacity-70 min-w-[100px]"
+                >
+                  {loading ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    'Save'
+                  )}
+                </button>
+              ) : (
+                <button 
+                  type="button" 
+                  onClick={handleNext}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm min-w-[100px]"
+                >
+                  Next
+                </button>
+              )}
             </>
           ) : (
             <>
