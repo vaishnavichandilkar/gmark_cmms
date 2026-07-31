@@ -5,12 +5,13 @@ import { api } from '../lib/api';
 
 const availableModules = [
   { id: 'dashboard', name: 'Dashboard' },
+  { id: 'assets', name: 'All Assets' },
   { id: 'master_employee', name: 'Master - Employee' },
   { id: 'master_main_facility', name: 'Master - Facility' },
+  { id: 'manage_access', name: 'Manage Access' },
   { id: 'user_management', name: 'User Management' },
   { id: 'facility_management', name: 'Facility Management' },
   { id: 'machine_management', name: 'Machine Management' },
-  { id: 'assets', name: 'All Assets' },
 ];
 
 export function AddRole() {

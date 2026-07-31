@@ -77,12 +77,23 @@ export function AddUser() {
   };
 
   const generatePassword = () => {
-    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const lowercase = "abcdefghijklmnopqrstuvwxyz";
+    const numbers = "0123456789";
+    const special = "!@#$%^&*";
+    const all = uppercase + lowercase + numbers + special;
+    
     let pass = "";
-    for(let i=0; i<12; i++){
-      pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    pass += uppercase.charAt(Math.floor(Math.random() * uppercase.length));
+    pass += lowercase.charAt(Math.floor(Math.random() * lowercase.length));
+    pass += numbers.charAt(Math.floor(Math.random() * numbers.length));
+    pass += special.charAt(Math.floor(Math.random() * special.length));
+    
+    for(let i=0; i<8; i++){
+      pass += all.charAt(Math.floor(Math.random() * all.length));
     }
-    return pass;
+    
+    return pass.split('').sort(() => 0.5 - Math.random()).join('');
   };
 
   const handleNext = () => {
@@ -157,6 +168,15 @@ export function AddUser() {
         setGlobalError('Please fill in all required fields (Username, Email).');
         setLoading(false);
         return;
+      }
+
+      if (formData.password) {
+        const p = formData.password;
+        if (p.length < 8 || !/[A-Z]/.test(p) || !/[a-z]/.test(p) || !/[0-9]/.test(p) || !/[^A-Za-z0-9]/.test(p)) {
+          setGlobalError('Password must be at least 8 characters long and contain uppercase, lowercase, numbers, and special characters.');
+          setLoading(false);
+          return;
+        }
       }
       
       const employee = employees.find(emp => emp.id.toString() === formData.employeeId);
