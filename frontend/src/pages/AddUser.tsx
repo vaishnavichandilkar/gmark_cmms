@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, User, Mail, Phone, Building2, Shield, Briefcase, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, User, Mail, Phone, Building2, Shield, Briefcase, CheckCircle2, Eye, EyeOff, Key } from 'lucide-react';
 import { api } from '../lib/api';
 import { FacilityHierarchyPicker } from '../components/FacilityHierarchyPicker';
 import { CustomSelect } from '../components/CustomSelect';
@@ -15,17 +15,20 @@ export function AddUser() {
     mainFacilityHead: '',
     category: '',
     employeeId: '',
-    employeeRole: '',
     employeeContactNumber: '',
     username: '',
     companyMailId: '',
     department: '',
+    designation: '',
+    password: '',
     isActive: true,
   });
 
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(false);
   const [globalError, setGlobalError] = useState('');
+  const [currentStep, setCurrentStep] = useState(1);
+  const [showPassword, setShowPassword] = useState(false);
 
   const [facilities, setFacilities] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
@@ -56,11 +59,12 @@ export function AddUser() {
           mainFacilityHead: user.mainFacility?.mainFacilityHead || '',
           category: user.mainFacility?.category || '',
           employeeId: user.employeeId ? user.employeeId.toString() : '',
-          employeeRole: user.employee?.role || '',
           employeeContactNumber: user.employee?.mobileNumber || '',
           username: user.username || '',
           companyMailId: user.employee?.officialEmail || user.email || '',
           department: user.employee?.department || '',
+          designation: user.employee?.designation || '',
+          password: '',
           isActive: user.isActive !== undefined ? user.isActive : true,
         });
       }
@@ -70,6 +74,27 @@ export function AddUser() {
     } finally {
       setInitialLoading(false);
     }
+  };
+
+  const generatePassword = () => {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let pass = "";
+    for(let i=0; i<12; i++){
+      pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return pass;
+  };
+
+  const handleNext = () => {
+    if (!formData.mainFacilityId || !formData.employeeId || !formData.companyMailId) {
+      setGlobalError('Please fill in all required fields (Facility, Employee, and Email) before continuing.');
+      return;
+    }
+    setGlobalError('');
+    if (!id && !formData.password) {
+      setFormData(prev => ({ ...prev, password: generatePassword() }));
+    }
+    setCurrentStep(2);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -98,19 +123,19 @@ export function AddUser() {
       if (name === 'employeeId') {
         const employee = employees.find(emp => emp.id.toString() === value);
         if (employee) {
-          newData.employeeRole = employee.role || '';
           newData.employeeContactNumber = employee.mobileNumber || '';
           newData.companyMailId = employee.officialEmail || '';
           newData.department = employee.department || '';
+          newData.designation = employee.designation || '';
           
           if (employee.fullName) {
             newData.username = employee.fullName.toLowerCase().trim().replace(/\s+/g, '.');
           }
         } else {
-          newData.employeeRole = '';
           newData.employeeContactNumber = '';
           newData.companyMailId = '';
           newData.department = '';
+          newData.designation = '';
           newData.username = '';
         }
       }
@@ -129,16 +154,16 @@ export function AddUser() {
       setGlobalError('');
       
       if (!formData.username || !formData.companyMailId || !formData.mainFacilityId || !formData.employeeId) {
-        setGlobalError('Please fill in all required fields (Facility, Employee, Username, and Email).');
+        setGlobalError('Please fill in all required fields (Username, Email).');
         setLoading(false);
         return;
       }
       
       const employee = employees.find(emp => emp.id.toString() === formData.employeeId);
       
-      // Determine UserRole mapping from Employee role, fallback to VIEWER
-      const mapRole = (empRole: string) => {
-        const roleStr = (empRole || '').toUpperCase();
+      // Determine UserRole mapping from Employee designation, fallback to VIEWER
+      const mapRole = (designation: string) => {
+        const roleStr = (designation || '').toUpperCase();
         if (roleStr.includes('ADMIN')) return 'SOCIETY_ADMIN';
         if (roleStr.includes('OPERATOR') || roleStr.includes('SUPERVISOR')) return 'OPERATOR';
         if (roleStr.includes('MANAGER')) return 'BUILDING_ADMIN';
@@ -151,11 +176,15 @@ export function AddUser() {
         firstName: employee ? employee.fullName.split(' ')[0] : undefined,
         lastName: employee ? employee.fullName.split(' ').slice(1).join(' ') : undefined,
         mobileNumber: formData.employeeContactNumber,
-        role: mapRole(formData.employeeRole),
+        role: mapRole(formData.designation),
         isActive: formData.isActive,
         employeeId: parseInt(formData.employeeId, 10),
         mainFacilityId: parseInt(formData.mainFacilityId, 10)
       };
+
+      if (formData.password) {
+        payload.password = formData.password;
+      }
 
       if (id) {
         await api.put(`/users/${id}`, payload);
@@ -227,7 +256,7 @@ export function AddUser() {
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-emerald-50 font-medium">
                   <div className="flex items-center gap-1.5">
                     <Shield size={18} />
-                    <span>{formData.employeeRole || 'No Role'}</span>
+                    <span>{formData.designation || 'No Designation'}</span>
                   </div>
                   <span className="hidden sm:inline">•</span>
                   <div className="flex items-center gap-1.5">
@@ -274,6 +303,15 @@ export function AddUser() {
                       <p className="text-base text-gray-900 font-semibold">{formData.department || '-'}</p>
                     </div>
                   </div>
+                  <div className="flex items-start gap-4">
+                    <div className="bg-gray-50 p-2.5 rounded-lg">
+                      <Briefcase size={18} className="text-gray-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Designation</p>
+                      <p className="text-base text-gray-900 font-semibold">{formData.designation || '-'}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -318,7 +356,9 @@ export function AddUser() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
+          <>
+          {currentStep === 1 && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
           
           {/* Row 1 */}
           <div>
@@ -376,17 +416,32 @@ export function AddUser() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Employee Role <span className="text-red-500">*</span>
+              Department <span className="text-red-500">*</span>
             </label>
             <input 
               type="text" 
-              name="employeeRole"
-              value={formData.employeeRole}
-              placeholder="Employee Role"
+              name="department"
+              value={formData.department}
+              placeholder="Department"
               readOnly
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 outline-none transition-all"
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Designation <span className="text-red-500">*</span>
+            </label>
+            <input 
+              type="text" 
+              name="designation"
+              value={formData.designation}
+              placeholder="Designation"
+              readOnly
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 outline-none transition-all"
+            />
+          </div>
+
+          {/* Row 3 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Employee Contact Number <span className="text-red-500">*</span>
@@ -398,22 +453,6 @@ export function AddUser() {
               placeholder="Contact Number"
               readOnly
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 outline-none transition-all"
-            />
-          </div>
-
-          {/* Row 3 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Username <span className="text-red-500">*</span>
-            </label>
-            <input 
-              type="text" 
-              name="username"
-              placeholder="user.name"
-              value={formData.username}
-              onChange={handleChange}
-              readOnly={isViewMode}
-              className={`w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
             />
           </div>
           <div>
@@ -432,21 +471,6 @@ export function AddUser() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Department <span className="text-red-500">*</span>
-            </label>
-            <input 
-              type="text" 
-              name="department"
-              value={formData.department}
-              placeholder="Department"
-              readOnly
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 outline-none transition-all"
-            />
-          </div>
-
-          {/* Row 4 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
               Status <span className="text-red-500">*</span>
             </label>
             <input 
@@ -459,31 +483,124 @@ export function AddUser() {
             />
           </div>
           </div>
+          )}
+
+          {currentStep === 2 && (
+            <div className="max-w-xl mx-auto mt-4 mb-4">
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-lg p-6 sm:p-10">
+                <div className="text-center mb-8">
+                  <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-100">
+                    <Key size={32} className="text-emerald-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-800">User Credentials</h2>
+                  <p className="text-gray-500 mt-2 text-sm">Review the username and set a password for this user account.</p>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Username <span className="text-red-500">*</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      name="username"
+                      placeholder="user.name"
+                      value={formData.username}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all bg-gray-50/50"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Password { !id && <span className="text-red-500">*</span> }
+                    </label>
+                    <div className="relative">
+                      <input 
+                        type={showPassword ? "text" : "password"} 
+                        name="password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        placeholder={id ? "Leave blank to keep unchanged" : "Password"}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none pr-24 transition-all"
+                      />
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-2 gap-2">
+                        <button 
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="p-1.5 text-gray-400 hover:text-gray-600 focus:outline-none transition-colors"
+                          title={showPassword ? "Hide Password" : "Show Password"}
+                        >
+                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, password: generatePassword() }))}
+                          className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg transition-colors focus:outline-none border border-emerald-200"
+                        >
+                          Generate
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          </>
         )}
 
         {/* Buttons */}
         <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-10 border-t border-gray-100 pt-6">
-          <button 
-            type="button" 
-            onClick={() => navigate(-1)}
-            disabled={loading}
-            className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
-          >
-            Back
-          </button>
-          {!isViewMode && (
+          {isViewMode ? (
             <button 
               type="button" 
-              onClick={handleSave}
-              disabled={loading}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm disabled:opacity-70 min-w-[100px]"
+              onClick={() => navigate(-1)}
+              className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
             >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                'Save'
-              )}
+              Back
             </button>
+          ) : currentStep === 1 ? (
+            <>
+              <button 
+                type="button" 
+                onClick={() => navigate(-1)}
+                disabled={loading}
+                className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                onClick={handleNext}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm min-w-[100px]"
+              >
+                Next
+              </button>
+            </>
+          ) : (
+            <>
+              <button 
+                type="button" 
+                onClick={() => setCurrentStep(1)}
+                disabled={loading}
+                className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
+              >
+                Back
+              </button>
+              <button 
+                type="button" 
+                onClick={handleSave}
+                disabled={loading}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm disabled:opacity-70 min-w-[100px]"
+              >
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  'Save'
+                )}
+              </button>
+            </>
           )}
         </div>
 
