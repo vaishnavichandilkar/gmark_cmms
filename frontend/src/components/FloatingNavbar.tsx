@@ -269,7 +269,9 @@ export function FloatingNavbar() {
               </div>
               {isExpanded && (
                 <div className="flex flex-col overflow-hidden">
-                  <span className="text-sm font-bold text-gray-900 truncate">{user.name || 'Admin User'}</span>
+                  <span className="text-sm font-bold text-gray-900 truncate">
+                    {user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.username || 'Admin User'}
+                  </span>
                   <span className="text-[10px] text-gray-500 uppercase tracking-wider">{user.role?.replace('_', ' ') || 'User'}</span>
                 </div>
               )}
@@ -339,7 +341,9 @@ export function FloatingNavbar() {
                       <User size={18} className="text-gray-500" />
                     </div>
                     <div className="flex flex-col overflow-hidden">
-                      <span className="text-sm font-bold text-gray-900 truncate">{user.name || 'Admin User'}</span>
+                      <span className="text-sm font-bold text-gray-900 truncate">
+                        {user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.username || 'Admin User'}
+                      </span>
                       <span className="text-[10px] text-gray-500 uppercase tracking-wider">{user.role?.replace('_', ' ') || 'User'}</span>
                     </div>
                   </div>
