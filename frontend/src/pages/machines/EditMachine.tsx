@@ -399,8 +399,8 @@ export function EditMachine() {
                 <h3 className="text-sm font-semibold text-gray-400 mb-4">Location</h3>
                 <button 
                   onClick={() => setIsSpecModalOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-200 text-sm font-semibold text-gray-800 rounded-lg transition-colors">
-                  <Plus size={18} className="text-[#00a651] stroke-[3]" />
+                  className="flex items-center gap-2 px-4 py-2 bg-[#00a651] hover:bg-[#009040] border border-transparent text-sm font-semibold text-white rounded-lg transition-colors shadow-sm">
+                  <Plus size={18} className="stroke-[3]" />
                   Add Specification Field
                 </button>
               </div>
@@ -411,7 +411,7 @@ export function EditMachine() {
               <div className="flex justify-end items-center gap-4">
                 <button 
                   onClick={() => setIsSparesModalOpen(true)}
-                  className="px-4 py-2 bg-green-50 text-green-600 font-semibold text-sm rounded-xl flex items-center gap-2 hover:bg-green-100 transition-colors"
+                  className="px-4 py-2 bg-[#00a651] hover:bg-[#009040] text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-colors shadow-sm"
                 >
                   <Plus size={16} className="stroke-[3]" /> Add Spare
                 </button>
@@ -479,7 +479,7 @@ export function EditMachine() {
                 <div className="flex items-center gap-4">
                   <button 
                     onClick={() => setIsAmcModalOpen(true)}
-                    className="px-4 py-2 bg-green-50 text-green-600 font-semibold text-sm rounded-xl flex items-center gap-2 hover:bg-green-100 transition-colors"
+                    className="px-4 py-2 bg-[#00a651] hover:bg-[#009040] text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-colors shadow-sm"
                   >
                     <Plus size={16} className="stroke-[3]" /> Add {amcSubTab}
                   </button>
@@ -547,7 +547,7 @@ export function EditMachine() {
                 <div className="flex items-center gap-4">
                   <button 
                     onClick={() => setIsPurchaseModalOpen(true)}
-                    className="px-4 py-2 bg-green-50 text-green-600 font-semibold text-sm rounded-xl flex items-center gap-2 hover:bg-green-100 transition-colors"
+                    className="px-4 py-2 bg-[#00a651] hover:bg-[#009040] text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-colors shadow-sm"
                   >
                     <Plus size={16} className="stroke-[3]" /> Add Purchase
                   </button>
@@ -599,7 +599,7 @@ export function EditMachine() {
                     onClick={() => setIsUploadMenuOpen(!isUploadMenuOpen)}
                     className="px-4 py-2 bg-gray-200 text-gray-800 font-semibold text-sm rounded-xl flex items-center gap-2 hover:bg-gray-300 transition-colors"
                   >
-                    <Plus size={16} className="text-[#00a651] stroke-[3]" /> Upload
+                    <Plus size={16} className="stroke-[3]" /> Upload
                   </button>
                   
                   {/* Upload Dropdown */}
@@ -706,7 +706,7 @@ export function EditMachine() {
                 />
               </div>
               
-              <button className="px-4 py-2 bg-green-50 text-green-600 font-semibold text-sm rounded-xl flex items-center gap-2 hover:bg-green-100 transition-colors">
+              <button className="px-4 py-2 bg-[#00a651] hover:bg-[#009040] text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-colors shadow-sm">
                 <Plus size={16} /> Add
               </button>
             </div>
@@ -755,16 +755,16 @@ export function EditMachine() {
             
             <div className="space-y-4 px-1">
               <div>
-                <label className="block text-xs font-bold text-gray-900 mb-1.5">Field Title</label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Field Title</label>
                 <input 
                   type="text" 
                   placeholder="Enter Title"
-                  className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-900 mb-1.5">Field Input Type</label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Field Input Type</label>
                 <CustomSelect
                   name="fieldInputType"
                   value=""
@@ -779,15 +779,15 @@ export function EditMachine() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-900 mb-1.5">Field Data</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Field Data</label>
                   <input 
                     type="text" 
                     placeholder="eg. 120"
-                    className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-900 mb-1.5">Field Unit</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Field Unit</label>
                   <CustomSelect
                     name="fieldUnit"
                     value=""
@@ -827,7 +827,7 @@ export function EditMachine() {
             
             <div className="space-y-4 px-1">
               <div>
-                <label className="block text-xs font-bold text-gray-900 mb-1.5">Spare Name</label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Spare Name</label>
                 <CustomSelect
                   name="spareName"
                   value=""
@@ -839,45 +839,45 @@ export function EditMachine() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-900 mb-1.5">Model Number</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Model Number</label>
                   <input 
                     type="text" 
                     placeholder="eg. 120"
-                    className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-900 mb-1.5">Make</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Make</label>
                   <input 
                     type="text" 
                     placeholder="Enter Make"
-                    className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-900 mb-1.5">Part Number</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Part Number</label>
                   <input 
                     type="text" 
                     placeholder="eg. 120"
-                    className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-900 mb-1.5">Quantity Used</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Quantity Used</label>
                   <input 
                     type="text" 
                     placeholder="Enter Quantity Used"
-                    className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-900 mb-1.5">Rate (INR)</label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Rate (INR)</label>
                 <input 
                   type="text" 
                   placeholder="Enter Rate"
-                  className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
                 />
               </div>
 
@@ -907,7 +907,7 @@ export function EditMachine() {
             
             <div className="grid grid-cols-2 gap-6 px-1">
               <div>
-                <label className="block text-xs font-bold text-gray-900 mb-1.5">{amcSubTab} Type<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">{amcSubTab} Type<span className="text-red-500">*</span></label>
                 <CustomSelect
                   name="amcType"
                   value=""
@@ -918,7 +918,7 @@ export function EditMachine() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-900 mb-1.5">Upload {amcSubTab} Contract</label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Upload {amcSubTab} Contract</label>
                 <input 
                   type="file"
                   className="block w-full text-sm text-gray-600 border border-gray-500 rounded-lg p-1 cursor-pointer focus:outline-none file:mr-4 file:py-1.5 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-200 file:text-gray-700 hover:file:bg-gray-300 transition-colors"
@@ -926,11 +926,11 @@ export function EditMachine() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-900 mb-1.5">Start Date<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Start Date<span className="text-red-500">*</span></label>
                 <div className="relative">
                   <input 
                     type="date" 
-                    className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 appearance-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-4 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer z-10"
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 appearance-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-4 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer z-10"
                     placeholder="Select Date"
                   />
                   <Calendar size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-0" />
@@ -938,11 +938,11 @@ export function EditMachine() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-900 mb-1.5">End Date<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">End Date<span className="text-red-500">*</span></label>
                 <div className="relative">
                   <input 
                     type="date" 
-                    className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 appearance-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-4 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer z-10"
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 appearance-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-4 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer z-10"
                     placeholder="Select Date"
                   />
                   <Calendar size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-0" />
@@ -950,7 +950,7 @@ export function EditMachine() {
               </div>
 
               <div className="col-span-2">
-                <label className="block text-xs font-bold text-gray-900 mb-1.5">{amcSubTab} Usage Terms<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">{amcSubTab} Usage Terms<span className="text-red-500">*</span></label>
                 <CustomSelect
                   name="usageTerms"
                   value=""
@@ -961,7 +961,7 @@ export function EditMachine() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-900 mb-1.5">Warranty Provider<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Warranty Provider<span className="text-red-500">*</span></label>
                 <CustomSelect
                   name="warrantyProvider"
                   value=""
@@ -972,11 +972,11 @@ export function EditMachine() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-900 mb-1.5">Warranty Contact Number<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Warranty Contact Number<span className="text-red-500">*</span></label>
                 <input 
                   type="text" 
                   placeholder="Enter Number"
-                  className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
                 />
               </div>
 
@@ -1006,7 +1006,7 @@ export function EditMachine() {
             
             <div className="grid grid-cols-2 gap-6 px-1">
               <div>
-                <label className="block text-xs font-bold text-gray-900 mb-1.5">Supplier Name<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Supplier Name<span className="text-red-500">*</span></label>
                 <CustomSelect
                   name="supplierName"
                   value=""
@@ -1017,34 +1017,34 @@ export function EditMachine() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-900 mb-1.5">Contact Number<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Contact Number<span className="text-red-500">*</span></label>
                 <input 
                   type="text" 
                   placeholder="Enter Number"
-                  className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
                 />
               </div>
 
               <div className="col-span-2">
-                <label className="block text-xs font-bold text-gray-900 mb-1.5">Email<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Email<span className="text-red-500">*</span></label>
                 <input 
                   type="email" 
                   placeholder="email@gmail.com"
-                  className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-900 mb-1.5">Address</label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Address</label>
                 <textarea 
                   placeholder="Address"
                   rows={2}
-                  className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400 resize-y min-h-[64px]"
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400 resize-y min-h-[64px]"
                 ></textarea>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-900 mb-1.5">Upload Purchase / Invoice</label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Upload Purchase / Invoice</label>
                 <input 
                   type="file"
                   className="block w-full h-[64px] text-sm text-gray-600 border border-gray-500 rounded-lg p-3 cursor-pointer focus:outline-none file:mr-4 file:py-1.5 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-200 file:text-gray-700 hover:file:bg-gray-300 transition-colors"
@@ -1081,7 +1081,7 @@ export function EditMachine() {
             
             <div className="space-y-6 px-1">
               <div>
-                <label className="block text-xs font-bold text-gray-900 mb-1.5">
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                   {uploadModalType === 'File' && 'File Name'}
                   {uploadModalType === 'Link' && 'Name'}
                   {uploadModalType === 'Note' && 'Name'}
@@ -1090,13 +1090,13 @@ export function EditMachine() {
                 <input 
                   type="text" 
                   placeholder="Enter Name"
-                  className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
                 />
               </div>
 
               {uploadModalType === 'File' && (
                 <div>
-                  <div className="border border-gray-400 rounded-xl p-2 flex items-center mb-2">
+                  <div className="border border-gray-300 rounded-xl p-2 flex items-center mb-2">
                     <input 
                       type="file"
                       className="block w-full text-sm text-gray-600 cursor-pointer focus:outline-none file:mr-4 file:py-2.5 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-gray-200 file:text-gray-700 hover:file:bg-gray-300 transition-colors"
@@ -1108,22 +1108,22 @@ export function EditMachine() {
 
               {uploadModalType === 'Link' && (
                 <div>
-                  <label className="block text-xs font-bold text-gray-900 mb-1.5">URL<span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">URL<span className="text-red-500">*</span></label>
                   <input 
                     type="url" 
                     placeholder="Enter URL"
-                    className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
                   />
                 </div>
               )}
 
               {uploadModalType === 'Note' && (
                 <div>
-                  <label className="block text-xs font-bold text-gray-900 mb-1.5">Notes<span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Notes<span className="text-red-500">*</span></label>
                   <input 
                     type="text" 
                     placeholder="Enter Notes"
-                    className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
                   />
                 </div>
               )}
@@ -1154,11 +1154,11 @@ export function EditMachine() {
             
             <div className="space-y-6 px-1">
               <div>
-                <label className="block text-xs font-bold text-gray-900 mb-1.5">MAC ID<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">MAC ID<span className="text-red-500">*</span></label>
                 <input 
                   type="text" 
                   placeholder="Enter"
-                  className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
                 />
               </div>
 
@@ -1248,9 +1248,9 @@ function IOTTabContent({
         <div className="flex justify-end w-full mb-8">
           <button 
             onClick={onAddSystem}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold text-sm rounded-lg transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-[#00a651] hover:bg-[#009040] text-white font-bold text-sm rounded-lg transition-colors shadow-sm"
           >
-            <Plus size={18} className="text-[#00a651] stroke-[3]" /> Add System
+            <Plus size={18} className="stroke-[3]" /> Add System
           </button>
         </div>
 
