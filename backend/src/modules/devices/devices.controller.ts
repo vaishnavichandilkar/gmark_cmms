@@ -43,6 +43,18 @@ export class DevicesController {
     return this.devicesService.getAllDevices(user);
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Get a specific device by ID' })
+  @ApiParam({ name: 'id', description: 'Device ID' })
+  @ApiResponse({ status: 200, description: 'Return the device.' })
+  @ApiResponse({ status: 404, description: 'Device not found.' })
+  async getDeviceById(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: any,
+  ) {
+    return this.devicesService.getDeviceById(id, user);
+  }
+
   @Post()
   @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN)
   @ApiOperation({ summary: 'Create a new device' })

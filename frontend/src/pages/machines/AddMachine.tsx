@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { CustomSelect } from '../../components/CustomSelect';
 import { api } from '../../lib/api';
 import { FacilityHierarchyPicker } from '../../components/FacilityHierarchyPicker';
+import toast from 'react-hot-toast';
 
 export function AddMachine() {
   const navigate = useNavigate();
@@ -48,7 +49,7 @@ export function AddMachine() {
 
   const handleNext = () => {
     if (!formData.company || !formData.facilityId) {
-      alert('Please fill out the required fields.');
+      toast.error('Please fill out the required fields.');
       return;
     }
     setStep(2);
@@ -56,7 +57,7 @@ export function AddMachine() {
 
   const handleSave = async () => {
     if (!formData.name || !formData.machineCode || !formData.serialNumber) {
-      alert('Please fill out the required fields.');
+      toast.error('Please fill out the required fields.');
       return;
     }
 
@@ -83,10 +84,11 @@ export function AddMachine() {
       };
 
       const res = await api.post('/devices', payload);
+      toast.success('Machine saved successfully!');
       navigate(`/machine-management/edit/${res.data.id}`);
     } catch (err: any) {
       console.error('Failed to create machine', err);
-      alert(err.response?.data?.message || 'Failed to save machine');
+      toast.error(err.response?.data?.message || 'Failed to save machine');
     } finally {
       setLoading(false);
     }
@@ -119,12 +121,13 @@ export function AddMachine() {
                     <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                       Select Company<span className="text-red-500">*</span>
                     </label>
-                    <CustomSelect
+                    <input
+                      type="text"
                       name="company"
                       value={formData.company}
                       onChange={handleChange}
-                      placeholder="Select Company"
-                      options={[{ label: 'Gritpulse', value: 'Gritpulse' }]}
+                      placeholder="Enter Company Name"
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
                     />
                   </div>
                   <div>

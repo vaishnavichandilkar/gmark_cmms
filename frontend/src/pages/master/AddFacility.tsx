@@ -7,6 +7,7 @@ import type { RootState } from '../../store';
 import { api } from '../../lib/api';
 import { FacilityHierarchyPicker } from '../../components/FacilityHierarchyPicker';
 import { EmployeeHierarchyPicker } from '../../components/EmployeeHierarchyPicker';
+import toast from 'react-hot-toast';
 
 export function AddFacility() {
   const navigate = useNavigate();
@@ -306,6 +307,7 @@ export function AddFacility() {
         await api.post('/facilities', submitData);
       }
 
+      toast.success('Facility saved successfully!');
       navigate('/facility-management');
     } catch (error: any) {
       console.error('Failed to save facility:', error);

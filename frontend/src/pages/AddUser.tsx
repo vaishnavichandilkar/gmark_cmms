@@ -4,6 +4,7 @@ import { ChevronLeft, User, Mail, Phone, Building2, Shield, Briefcase, CheckCirc
 import { api } from '../lib/api';
 import { FacilityHierarchyPicker } from '../components/FacilityHierarchyPicker';
 import { CustomSelect } from '../components/CustomSelect';
+import toast from 'react-hot-toast';
 
 export function AddUser() {
   const navigate = useNavigate();
@@ -229,6 +230,7 @@ export function AddUser() {
         await api.post('/users', payload);
       }
       
+      toast.success('User saved successfully!');
       navigate('/user-management');
     } catch (err: any) {
       console.error('Error saving user:', err);

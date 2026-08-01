@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ChevronLeft, Shield, CheckCircle2, XCircle } from 'lucide-react';
 import { api } from '../lib/api';
+import toast from 'react-hot-toast';
 
 const availableModules = [
   { id: 'dashboard', name: 'Dashboard' },
@@ -126,9 +127,11 @@ export function AddRole() {
       } else {
         await api.post('/designations', payload);
       }
+      toast.success('Designation saved successfully!');
       navigate(returnUrl || '/manage-access');
     } catch (err) {
       console.error('Failed to save designation', err);
+      toast.error('Failed to save designation.');
     }
   };
 

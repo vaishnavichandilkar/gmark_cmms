@@ -42,8 +42,6 @@ export class DevicesService {
       if (latestData.pump3FaultType) alerts.push('Pump 3 Fault');
       if (latestData.pump4FaultType) alerts.push('Pump 4 Fault');
 
-      // Also check if pressure is abnormal if we had rules, but let's stick to explicit faults
-
       return {
         id: device.id,
         deviceId: device.deviceId,
@@ -56,8 +54,45 @@ export class DevicesService {
         lastSeen,
         alerts,
         alertCount: alerts.length,
+        company: device.company,
+        make: device.make,
+        modelNumber: device.modelNumber,
+        machineCategory: device.machineCategory,
+        machineCode: device.machineCode,
       };
     });
+  }
+
+  async getDeviceById(id: number, user: any) {
+    let whereClause: any = { id };
+
+    if (user.role !== 'SUPER_ADMIN') {
+      if (user.role === 'SOCIETY_ADMIN') {
+        whereClause.building = { societyId: user.societyId };
+      } else {
+        whereClause.building = { societyId: user.societyId };
+        whereClause.buildingId = { in: user.buildingIds || [] };
+      }
+    }
+
+    const device = await this.prisma.device.findFirst({
+      where: whereClause,
+      include: { building: true, facility: true },
+    });
+
+    if (!device) {
+      throw new NotFoundException(`Device with ID ${id} not found`);
+    }
+
+    const now = new Date();
+    const lastSeen = device.lastSeen || device.updatedAt;
+    const diffMs = now.getTime() - lastSeen.getTime();
+    const status = diffMs <= 60000 ? 'online' : 'offline';
+
+    return {
+      ...device,
+      status,
+    };
   }
 
   async getDeviceSnapshot(deviceId: string) {

@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../lib/api';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -344,6 +345,7 @@ export function AdminPage() {
         fetchSocieties();
         setNewSociety({ name: '', city: '' });
         setIsAddSocietyOpen(false);
+        toast.success('Society added successfully!');
       })
       .catch(err => console.error('Failed to add society:', err));
   };
@@ -358,6 +360,7 @@ export function AdminPage() {
         fetchSocieties();
         setEditSocietyData(null);
         setIsEditSocietyOpen(false);
+        toast.success('Society updated successfully!');
       })
       .catch(err => console.error('Failed to edit society:', err));
   };
@@ -389,6 +392,7 @@ export function AdminPage() {
         fetchTowers(selectedSocietyId);
         setNewTower({ name: '', info: '' });
         setIsAddTowerOpen(false);
+        toast.success('Tower added successfully!');
       })
       .catch(err => console.error('Failed to add tower:', err));
   };
@@ -404,6 +408,7 @@ export function AdminPage() {
         fetchTowers(selectedSocietyId);
         setEditTowerData(null);
         setIsEditTowerOpen(false);
+        toast.success('Tower updated successfully!');
       })
       .catch(err => console.error('Failed to edit tower:', err));
   };
@@ -446,6 +451,7 @@ export function AdminPage() {
           macType: 'Primary MAC'
         });
         setIsAddDeviceOpen(false);
+        toast.success('Device added successfully!');
       })
       .catch(err => console.error('Failed to add device:', err));
   };
@@ -464,6 +470,7 @@ export function AdminPage() {
         fetchDevices(selectedTowerId);
         setEditDeviceData(null);
         setIsEditDeviceOpen(false);
+        toast.success('Device updated successfully!');
       })
       .catch(err => console.error('Failed to edit device:', err));
   };
@@ -486,7 +493,7 @@ export function AdminPage() {
       !userFormData.password.trim() ||
       !selectedSocietyId
     ) {
-      alert('Please fill in all required fields marked with *');
+      toast.error('Please fill in all required fields marked with *');
       return;
     }
 
@@ -534,16 +541,17 @@ export function AdminPage() {
           buildingIds: []
         });
         setIsUserFormOpen(false);
+        toast.success('User added successfully!');
       })
       .catch(err => {
         console.error('Failed to add user:', err);
-        alert(err.response?.data?.message || 'Failed to add user');
+        toast.error(err.response?.data?.message || 'Failed to add user');
       });
   };
 
   const handleEditUser = () => {
     if (!editingUser || !userFormData.username.trim() || !userFormData.mobileNumber.trim() || !userFormData.email.trim()) {
-      alert('Please fill in all required fields marked with *');
+      toast.error('Please fill in all required fields marked with *');
       return;
     }
 
@@ -596,10 +604,11 @@ export function AdminPage() {
           buildingIds: []
         });
         setIsUserFormOpen(false);
+        toast.success('User updated successfully!');
       })
       .catch(err => {
         console.error('Failed to edit user:', err);
-        alert(err.response?.data?.message || 'Failed to edit user');
+        toast.error(err.response?.data?.message || 'Failed to edit user');
       });
   };
 

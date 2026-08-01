@@ -6,6 +6,7 @@ import { EmployeeHierarchyPicker } from '../../components/EmployeeHierarchyPicke
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../store';
 import { api } from '../../lib/api';
+import toast from 'react-hot-toast';
 
 export function AddMainFacility() {
   const navigate = useNavigate();
@@ -197,6 +198,7 @@ export function AddMainFacility() {
       } else {
         await api.post('/main-facilities', payload);
       }
+      toast.success('Facility saved successfully!');
       navigate('/master/main-facility');
     } catch (err: any) {
       console.error('Error saving facility:', err);

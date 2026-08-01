@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { TreeNodeData } from './AssetTree';
-import { Building2, Building, Cpu, FileText, Settings, Wifi, Image as ImageIcon, QrCode, Activity, Wrench } from 'lucide-react';
+import { Building2, Building, Cpu, FileText, Settings, Wifi, Image as ImageIcon, QrCode, Activity, Wrench, MapPin, Tag, Hash, User, CheckCircle2, Navigation } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
@@ -22,7 +22,7 @@ export const AssetDetails = ({ node }: AssetDetailsProps) => {
   return (
     <div className="h-full overflow-y-auto bg-white flex flex-col">
       {/* Header */}
-      <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10 shadow-sm">
+      <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10 shadow-sm shrink-0">
         <div className="flex items-center gap-4">
           <div className={`p-3 rounded-xl ${
             node.type === 'device' ? 'bg-orange-50 text-orange-600' :
@@ -41,7 +41,7 @@ export const AssetDetails = ({ node }: AssetDetailsProps) => {
       </div>
 
       {/* Content */}
-      <div className="flex-1 p-6 bg-gray-50/30">
+      <div className="flex-1 p-6 bg-gray-50/50">
         {node.type === 'device' ? <DeviceDetails device={node.originalData} /> : <FacilityDetails node={node} />}
       </div>
     </div>
@@ -50,37 +50,110 @@ export const AssetDetails = ({ node }: AssetDetailsProps) => {
 
 const FacilityDetails = ({ node }: { node: TreeNodeData }) => {
   const data = node.originalData;
+  
+  const idCode = data.mainFacilityCode || data.facilityCode || data.id || 'N/A';
+  const name = node.name || 'N/A';
+  const type = node.type.replace(/([A-Z])/g, ' $1').trim();
+  const status = data.status || 'Active';
+  const headName = data.mainFacilityHead || data.facilityHeadName || 'Not Assigned';
+  const category = data.category || 'N/A';
+  const subCategory = data.subcategory || data.subCategory || 'N/A';
+  
+  const address = data.address || '';
+  const city = data.city || '';
+  const state = data.state || '';
+  const country = data.country || '';
+  const postalCode = data.postalCode || '';
+  
+  const fullAddress = [address, city, state, country, postalCode].filter(Boolean).join(', ') || 'Address not available';
+
+  const latitude = data.latitude;
+  const longitude = data.longitude;
+  const coordinates = latitude && longitude ? `${latitude}, ${longitude}` : 'Not available';
+
   return (
     <div className="space-y-6">
       <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-        <h3 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2">General Information</h3>
-        <div className="grid grid-cols-2 gap-y-4 gap-x-8">
+        <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-5">
+           <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+             <Building2 className="text-blue-500" size={20} />
+             General Information
+           </h3>
+           <div className={`px-3 py-1 rounded-full text-xs font-semibold ${status === 'Active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+              {status}
+           </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-6 gap-x-8">
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">ID / Code</p>
-            <p className="text-sm font-medium text-gray-900">{data.mainFacilityCode || data.facilityCode || data.id}</p>
+            <p className="text-sm font-medium text-gray-900">{idCode}</p>
           </div>
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Name</p>
-            <p className="text-sm font-medium text-gray-900">{node.name}</p>
+            <p className="text-sm font-medium text-gray-900">{name}</p>
           </div>
-          {data.city && (
-            <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">City</p>
-              <p className="text-sm font-medium text-gray-900">{data.city}</p>
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Type</p>
+            <p className="text-sm font-medium text-gray-900">{type}</p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Facility Head</p>
+            <div className="flex items-center gap-1.5 mt-0.5 text-sm font-medium text-gray-900">
+               <User size={14} className="text-gray-400" />
+               {headName}
             </div>
-          )}
-          {data.category && (
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Category</p>
+            <p className="text-sm font-medium text-gray-900">{category}</p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Subcategory</p>
+            <p className="text-sm font-medium text-gray-900">{subCategory}</p>
+          </div>
+          {data.gstNumber && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Category</p>
-              <p className="text-sm font-medium text-gray-900">{data.category}</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">GST Number</p>
+              <p className="text-sm font-medium text-gray-900">{data.gstNumber}</p>
             </div>
           )}
         </div>
       </div>
-      
-      <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm flex items-center justify-center h-48 text-gray-400 flex-col">
+
+      <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+        <h3 className="text-lg font-bold text-gray-900 mb-5 flex items-center gap-2 border-b border-gray-100 pb-4">
+          <MapPin className="text-blue-500" size={20} />
+          Location & Details
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
+           <div className="md:col-span-2">
+             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Full Address</p>
+             <p className="text-sm font-medium text-gray-900">{fullAddress}</p>
+           </div>
+           <div>
+             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Coordinates</p>
+             <div className="flex items-center gap-1.5 mt-0.5 text-sm font-medium text-gray-900 font-mono">
+               <Navigation size={14} className="text-gray-400" />
+               {coordinates}
+             </div>
+           </div>
+           {(data.description || data.notes) && (
+             <div className="md:col-span-2">
+               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Description / Notes</p>
+               <p className="text-sm font-medium text-gray-900 whitespace-pre-line">{data.description || data.notes}</p>
+             </div>
+           )}
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm flex items-center justify-center h-48 text-gray-400 flex-col group relative overflow-hidden">
         <ImageIcon className="w-12 h-12 mb-3 text-gray-300" />
-        <p className="text-sm font-medium">No Image Available</p>
+        <p className="text-sm font-medium">No Cover Image Available</p>
+        <div className="absolute inset-0 bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <button className="bg-white border border-gray-200 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm hover:text-blue-600 transition-colors">Upload Image</button>
+        </div>
       </div>
     </div>
   );
@@ -92,59 +165,60 @@ const DeviceDetails = ({ device }: { device: any }) => {
 
   const tabs = [
     { id: 'general', label: 'General', icon: <Settings className="w-4 h-4" /> },
-    { id: 'doc', label: 'Doc', icon: <FileText className="w-4 h-4" /> },
+    { id: 'doc', label: 'Documents', icon: <FileText className="w-4 h-4" /> },
     { id: 'specs', label: 'Specs', icon: <Activity className="w-4 h-4" /> },
-    { id: 'spl', label: 'Spl. Spt', icon: <Wrench className="w-4 h-4" /> },
+    { id: 'spl', label: 'Spl. Support', icon: <Wrench className="w-4 h-4" /> },
     { id: 'iot', label: 'IOT', icon: <Wifi className="w-4 h-4" /> },
   ];
 
   return (
     <div className="flex flex-col h-full gap-6">
-      {/* Top Section: Image & QR */}
-      <div className="flex gap-6 h-48">
+      {/* Top Section */}
+      <div className="flex gap-6 h-48 shrink-0">
         <div className="flex-1 bg-white border border-gray-200 rounded-xl shadow-sm flex items-center justify-center overflow-hidden relative group">
           <ImageIcon className="w-16 h-16 text-gray-200" />
-          <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-            <button className="bg-white text-gray-700 px-4 py-2 rounded-lg text-sm font-medium shadow-sm hover:text-green-600">Upload Image</button>
+          <p className="text-xs text-gray-400 mt-2 font-medium">No Image Uploaded</p>
+          <div className="absolute inset-0 bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <button className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium shadow-sm hover:text-blue-600">Upload Image</button>
           </div>
         </div>
-        <div className="w-48 bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col items-center justify-center p-4">
-           <QrCode className="w-24 h-24 text-gray-800 mb-2" />
-           <p className="text-xs text-gray-500 font-medium">Scan for details</p>
+        <div className="w-64 bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col items-center justify-center p-4">
+           <QrCode className="w-24 h-24 text-gray-800 mb-3" />
+           <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest">Scan for details</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex-1 flex flex-col">
-        <div className="flex border-b border-gray-200 bg-gray-50/50">
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
+        <div className="flex overflow-x-auto border-b border-gray-200 bg-gray-50 scrollbar-hide">
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-medium transition-colors relative ${activeTab === tab.id ? 'text-green-600 bg-white' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
+              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-3.5 text-sm font-medium transition-colors relative ${activeTab === tab.id ? 'text-blue-600 bg-white' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}`}
             >
               {tab.icon}
               {tab.label}
               {activeTab === tab.id && (
                 <motion.div 
                   layoutId="activeTabBottom"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-green-500"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500"
                 />
               )}
             </button>
           ))}
         </div>
 
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="p-6 overflow-y-auto flex-1 bg-white">
           {activeTab === 'general' && (
-            <div className="grid grid-cols-2 gap-y-6 gap-x-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-8 gap-x-8">
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Machine Name</p>
                 <p className="text-sm font-medium text-gray-900">{device.name}</p>
               </div>
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">MAC ID / Device ID</p>
-                <p className="text-sm font-medium text-gray-900 bg-gray-100 px-2 py-0.5 rounded inline-block">{device.deviceId}</p>
+                <p className="text-sm font-medium text-gray-900 bg-gray-100 px-2 py-0.5 rounded inline-block font-mono">{device.deviceId}</p>
               </div>
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Application</p>
@@ -162,24 +236,26 @@ const DeviceDetails = ({ device }: { device: any }) => {
           )}
 
           {activeTab === 'iot' && (
-            <div className="flex flex-col items-center justify-center h-full text-center max-w-md mx-auto">
-               <Wifi className="w-16 h-16 text-blue-500 mb-4 opacity-80" />
-               <h3 className="text-lg font-bold text-gray-900 mb-2">HYPN Cloud Connected</h3>
-               <p className="text-sm text-gray-500 mb-6">This device is connected to the cloud via MAC ID: <span className="font-mono bg-gray-100 px-1 rounded">{device.deviceId}</span></p>
+            <div className="flex flex-col items-center justify-center h-full text-center max-w-sm mx-auto">
+               <Wifi className="w-16 h-16 text-blue-500 mb-6 opacity-90" />
+               <h3 className="text-xl font-bold text-gray-900 mb-2">HYPN Cloud Connected</h3>
+               <p className="text-sm text-gray-500 mb-8 leading-relaxed">This device is connected to the cloud via MAC ID: <br/><span className="font-mono bg-gray-50 px-3 py-1 rounded text-gray-800 mt-2 inline-block border border-gray-200">{device.deviceId}</span></p>
                
                <button 
                   onClick={() => navigate(`/devices/${device.deviceId}`)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm w-full"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm w-full flex items-center justify-center gap-2"
                >
+                 <Activity size={18} />
                  Open Live Monitor
                </button>
             </div>
           )}
 
           {(activeTab === 'doc' || activeTab === 'specs' || activeTab === 'spl') && (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400">
-               <FileText className="w-12 h-12 mb-3 text-gray-300" />
-               <p className="text-sm font-medium">No documents uploaded yet</p>
+            <div className="flex flex-col items-center justify-center h-full text-gray-400 min-h-[200px]">
+               <FileText className="w-12 h-12 text-gray-300 mb-4" />
+               <p className="text-sm font-medium text-gray-500">No documents uploaded yet</p>
+               <button className="mt-4 text-blue-500 hover:text-blue-600 text-sm font-medium transition-colors">Upload Document</button>
             </div>
           )}
         </div>

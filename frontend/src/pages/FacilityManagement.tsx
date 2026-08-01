@@ -7,6 +7,7 @@ import { TablePagination } from '../components/TablePagination';
 import { TableSkeleton } from '../components/ui/TableSkeleton';
 import { TableActions } from '../components/TableActions';
 import { exportData } from '../utils/exportUtils';
+import toast from 'react-hot-toast';
 
 export function FacilityManagement() {
   const navigate = useNavigate();
@@ -54,7 +55,7 @@ export function FacilityManagement() {
       fetchFacilities();
     } catch (error) {
       console.error('Failed to delete facility:', error);
-      alert('Failed to delete facility. It might be linked to other records.');
+      toast.error('Failed to delete facility. It might be linked to other records.');
     }
   };
 

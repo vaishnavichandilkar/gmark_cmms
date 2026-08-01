@@ -108,10 +108,10 @@ export class WebsocketGateway
     if (user.role === 'SUPER_ADMIN') {
       hasAccess = true;
     } else if (user.role === 'SOCIETY_ADMIN') {
-      hasAccess = device.building.societyId === user.societyId;
+      hasAccess = device.building?.societyId === user.societyId;
     } else {
       hasAccess =
-        device.building.societyId === user.societyId &&
+        device.building?.societyId === user.societyId &&
         (user.buildingIds || []).includes(device.buildingId);
     }
 

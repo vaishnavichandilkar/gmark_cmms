@@ -3,6 +3,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ChevronLeft, User, Mail, Phone, Calendar, Briefcase, Building2, Wallet } from 'lucide-react';
 import { api } from '../../lib/api';
 import { CustomSelect } from '../../components/CustomSelect';
+import toast from 'react-hot-toast';
 
 export function AddEmployee() {
   const navigate = useNavigate();
@@ -148,6 +149,7 @@ export function AddEmployee() {
         await api.post('/employees', payload);
       }
       
+      toast.success('Employee saved successfully!');
       // Navigate back to the list on success
       navigate('/master/employee');
     } catch (err: any) {

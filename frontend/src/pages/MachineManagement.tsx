@@ -7,6 +7,7 @@ import { TablePagination } from '../components/TablePagination';
 import { TableSkeleton } from '../components/ui/TableSkeleton';
 import { TableActions } from '../components/TableActions';
 import { exportData } from '../utils/exportUtils';
+import toast from 'react-hot-toast';
 
 interface Device {
   id: string;
@@ -14,6 +15,7 @@ interface Device {
   name: string;
   machineCode?: string;
   company?: string;
+  building?: string;
   facility?: any;
   facilityId?: number;
   make?: string;
@@ -67,7 +69,7 @@ export function MachineManagement() {
       fetchMachines();
     } catch (error) {
       console.error('Failed to delete machine:', error);
-      alert('Failed to delete machine.');
+      toast.error('Failed to delete machine.');
     }
   };
 
@@ -77,7 +79,7 @@ export function MachineManagement() {
       machine.name || '-',
       machine.machineCode || machine.deviceId || '-',
       machine.company || '-',
-      machine.facility?.facilityName || '-',
+      machine.building || '-',
       `${machine.make || '-'} ${machine.modelNumber || ''}`.trim(),
       machine.machineCategory || '-'
     ]);
@@ -93,7 +95,7 @@ export function MachineManagement() {
     const name = (machine.name || '').toLowerCase();
     const code = (machine.machineCode || machine.deviceId || '').toLowerCase();
     const company = (machine.company || '').toLowerCase();
-    const facilityName = (machine.facility?.facilityName || '').toLowerCase();
+    const facilityName = (machine.building || '').toLowerCase();
     const make = (machine.make || '').toLowerCase();
     const category = (machine.machineCategory || '').toLowerCase();
 
@@ -172,7 +174,7 @@ export function MachineManagement() {
                       {machine.company || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {machine.facility?.facilityName || '-'}
+                      {machine.building || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {machine.make || machine.modelNumber ? `${machine.make || ''} ${machine.modelNumber ? `(${machine.modelNumber})` : ''}`.trim() : '-'}

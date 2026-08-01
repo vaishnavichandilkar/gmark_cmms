@@ -5,6 +5,7 @@ import { api } from '../../lib/api';
 import { DeleteConfirmModal } from '../../components/DeleteConfirmModal';
 import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/ui/TableSkeleton';
+import toast from 'react-hot-toast';
 import { TableActions } from '../../components/TableActions';
 import type { FilterOption } from '../../components/TableActions';
 import { ImportModal } from '../../components/ImportModal';
@@ -101,7 +102,7 @@ export function EmployeeMaster() {
       setEmployeeToDelete(null);
       fetchEmployees();
     } catch (error) {
-      alert('Failed to delete employee.');
+      toast.error('Failed to delete employee.');
     }
   };
 

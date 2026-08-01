@@ -5,6 +5,7 @@ import { api } from '../../lib/api';
 import { DeleteConfirmModal } from '../../components/DeleteConfirmModal';
 import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/ui/TableSkeleton';
+import toast from 'react-hot-toast';
 import { TableActions } from '../../components/TableActions';
 import type { FilterOption } from '../../components/TableActions';
 import { ImportModal } from '../../components/ImportModal';
@@ -59,7 +60,7 @@ export function MainFacilityMaster() {
       fetchFacilities();
     } catch (error) {
       console.error('Failed to delete facility:', error);
-      alert('Failed to delete facility.');
+      toast.error('Failed to delete facility.');
     }
   };
 

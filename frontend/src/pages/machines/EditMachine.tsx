@@ -4,6 +4,8 @@ import { CustomSelect } from '../../components/CustomSelect';
 import { ArrowLeft, Search, Plus, Edit, Eye, Calendar } from 'lucide-react';
 import { api } from '../../lib/api';
 import { FacilityHierarchyPicker } from '../../components/FacilityHierarchyPicker';
+import { io, Socket } from 'socket.io-client';
+import toast from 'react-hot-toast';
 
 export function EditMachine() {
   const navigate = useNavigate();
@@ -29,11 +31,21 @@ export function EditMachine() {
   const [formData, setFormData] = useState({
     status: 'Online',
     name: '',
+    deviceId: '',
+    company: '',
+    maintenanceHead: '',
+    machineCode: '',
+    serialNumber: '',
+    make: '',
+    modelNumber: '',
+    machineCategory: '',
+    machineSubCategory: '',
+    description: '',
     mainFacilityName: 'New Facility F1',
     facilityCategory: 'Facility Category',
     facilitySubCategory: 'Facility Sub-Category',
     
-    isLocationPart: false, // false means "not part of another location, is located at"
+    isLocationPart: false,
     locationId: '',
     locationName: '',
     
@@ -52,12 +64,12 @@ export function EditMachine() {
   const fetchData = async () => {
     try {
       const [deviceRes, facilitiesRes, employeesRes] = await Promise.all([
-        api.get(`/devices`), // In a real app we'd fetch the specific device by ID
+        api.get(`/devices/${id}`),
         api.get('/facilities'),
         api.get('/employees')
       ]);
       
-      const device = Array.isArray(deviceRes.data) ? deviceRes.data.find((d: any) => d.id === Number(id)) : null;
+      const device = deviceRes.data;
       setFacilities(Array.isArray(facilitiesRes.data) ? facilitiesRes.data : []);
       setEmployees(Array.isArray(employeesRes.data) ? employeesRes.data : []);
       
@@ -65,9 +77,20 @@ export function EditMachine() {
         setFormData(prev => ({
           ...prev,
           status: device.status === 'online' ? 'Online' : 'Offline',
+          name: device.name || '',
+          deviceId: device.deviceId || '',
+          company: device.company || '',
+          maintenanceHead: device.maintenanceHead || '',
+          machineCode: device.machineCode || '',
+          serialNumber: device.serialNumber || '',
+          make: device.make || '',
+          modelNumber: device.modelNumber || '',
+          machineCategory: device.machineCategory || '',
+          machineSubCategory: device.machineSubCategory || '',
+          description: device.description || '',
           isLocationPart: device.isLocationPart || false,
-          locationId: device.facilityId?.toString() || '',
-          locationName: device.facility?.facilityName || '',
+          locationId: device.facilityId?.toString() || device.buildingId?.toString() || '',
+          locationName: device.facility?.facilityName || device.building?.name || '',
           latitude: device.latitude || '',
           longitude: device.longitude || '',
           costCenter: device.costCenter || '',
@@ -94,6 +117,17 @@ export function EditMachine() {
     setSaving(true);
     try {
       await api.put(`/devices/${id}`, {
+        name: formData.name,
+        deviceId: formData.deviceId,
+        company: formData.company,
+        maintenanceHead: formData.maintenanceHead,
+        machineCode: formData.machineCode,
+        serialNumber: formData.serialNumber,
+        make: formData.make,
+        modelNumber: formData.modelNumber,
+        machineCategory: formData.machineCategory,
+        machineSubCategory: formData.machineSubCategory,
+        description: formData.description,
         isLocationPart: formData.isLocationPart,
         facilityId: (formData as any).locationType === 'facility' || (formData as any).locationType === 'mainFacility' ? (formData.locationId ? parseInt(formData.locationId) : undefined) : undefined,
         buildingId: (formData as any).locationType === 'building' || (formData as any).locationType === 'society' ? (formData.locationId ? parseInt(formData.locationId) : undefined) : undefined,
@@ -104,10 +138,10 @@ export function EditMachine() {
         machineOwner: formData.machineOwner,
         notes: formData.notes,
       });
-      alert('Machine saved successfully!');
+      toast.success('Machine saved successfully!');
     } catch (error) {
       console.error('Error saving machine:', error);
-      alert('Failed to save machine.');
+      toast.error('Failed to save machine.');
     } finally {
       setSaving(false);
     }
@@ -165,6 +199,53 @@ export function EditMachine() {
           {activeTab === 'General' ? (
             <div className="space-y-8">
               
+              {/* Machine Details Section */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-400 mb-4">Machine Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Name<span className="text-red-500">*</span></label>
+                    <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Code<span className="text-red-500">*</span></label>
+                    <input type="text" name="machineCode" value={formData.machineCode} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">MAC ID / Device ID<span className="text-red-500">*</span></label>
+                    <input type="text" name="deviceId" value={formData.deviceId} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Company<span className="text-red-500">*</span></label>
+                    <input type="text" name="company" value={formData.company} onChange={handleChange} placeholder="Enter Company Name" className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Maintenance Head</label>
+                    <CustomSelect name="maintenanceHead" value={formData.maintenanceHead} onChange={handleChange} placeholder="Select Head" options={employees.map(e => ({ label: `${e.fullName} (${e.department || 'N/A'} - ${e.designation || e.role || 'N/A'})`, value: e.fullName }))} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Serial Number<span className="text-red-500">*</span></label>
+                    <input type="text" name="serialNumber" value={formData.serialNumber} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Make<span className="text-red-500">*</span></label>
+                    <CustomSelect name="make" value={formData.make} onChange={handleChange} placeholder="Select" options={[{ label: 'Make 1', value: 'Make 1' }]} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Model Number<span className="text-red-500">*</span></label>
+                    <CustomSelect name="modelNumber" value={formData.modelNumber} onChange={handleChange} placeholder="Select" options={[{ label: 'Model 1', value: 'Model 1' }]} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Category<span className="text-red-500">*</span></label>
+                    <CustomSelect name="machineCategory" value={formData.machineCategory} onChange={handleChange} placeholder="Select" options={[{ label: 'Category 1', value: 'Category 1' }]} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Sub-Category<span className="text-red-500">*</span></label>
+                    <CustomSelect name="machineSubCategory" value={formData.machineSubCategory} onChange={handleChange} placeholder="Select" options={[{ label: 'Sub-Category 1', value: 'Sub-Category 1' }]} />
+                  </div>
+                </div>
+              </div>
+
               {/* Location Section */}
               <div>
                 <h3 className="text-sm font-semibold text-gray-400 mb-4">Location</h3>
@@ -361,25 +442,16 @@ export function EditMachine() {
                     </tr>
                   </thead>
                   <tbody>
-                    {[1, 2, 3, 4, 5, 6].map((num) => (
-                      <tr key={num} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-4"><input type="checkbox" className="rounded border-gray-300 text-green-500 focus:ring-green-500" /></td>
-                        <td className="px-4 py-4 text-sm text-gray-500">{num}</td>
-                        <td className="px-4 py-4 text-sm text-gray-700">Facility Name</td>
-                        <td className="px-4 py-4 text-sm text-gray-700">Spare Name</td>
-                        <td className="px-4 py-4 text-sm text-gray-700">Spare Name</td>
-                        <td className="px-4 py-4 text-sm text-gray-700 text-center">23</td>
-                        <td className="px-4 py-4 text-sm text-gray-700 text-right">₹ 1,000</td>
-                        <td className="px-4 py-4 text-sm text-gray-700 text-right">₹ 23,000</td>
-                        <td className="px-4 py-4 text-sm text-gray-700">
-                          <div className="flex justify-center">
-                            <button className="text-gray-400 hover:text-gray-800 transition-colors">
-                              <Edit size={18} />
-                            </button>
-                          </div>
+                    {[]?.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="px-4 py-8 text-center text-sm font-medium text-gray-500 bg-white">
+                          No spares added yet.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      // Map actual spares here
+                      null
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -438,27 +510,16 @@ export function EditMachine() {
                     </tr>
                   </thead>
                   <tbody>
-                    {[1, 2, 3, 4, 5, 6].map((num) => (
-                      <tr key={num} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-4"><input type="checkbox" className="rounded border-gray-300 text-green-500 focus:ring-green-500" /></td>
-                        <td className="px-4 py-4 text-sm text-gray-500">{num}</td>
-                        <td className="px-4 py-4 text-sm text-gray-700">Facility Name</td>
-                        <td className="px-4 py-4 text-sm text-gray-700">dd-mm-yyyy</td>
-                        <td className="px-4 py-4 text-sm text-gray-700">dd-mm-yyyy</td>
-                        <td className="px-4 py-4 text-sm text-gray-700">Spare Name</td>
-                        <td className="px-4 py-4 text-sm text-gray-700">Spare Name</td>
-                        <td className="px-4 py-4 text-sm text-gray-700 text-center">
-                          <div className="flex items-center justify-center gap-3">
-                            <button className="text-gray-400 hover:text-gray-800 transition-colors" title="View">
-                              <Eye size={18} />
-                            </button>
-                            <button className="text-[#a1a1aa] hover:text-[#00a651] transition-colors" title="Edit">
-                              <Edit size={18} />
-                            </button>
-                          </div>
+                    {[]?.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-8 text-center text-sm font-medium text-gray-500 bg-white">
+                          No {amcSubTab} added yet.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      // Map actual AMC data here
+                      null
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -515,25 +576,16 @@ export function EditMachine() {
                     </tr>
                   </thead>
                   <tbody>
-                    {[1, 2, 3, 4, 5, 6].map((num) => (
-                      <tr key={num} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-4"><input type="checkbox" className="rounded border-gray-300 text-green-500 focus:ring-green-500" /></td>
-                        <td className="px-4 py-4 text-sm text-gray-500">{num}</td>
-                        <td className="px-4 py-4 text-sm text-gray-700">Facility Name</td>
-                        <td className="px-4 py-4 text-sm text-gray-700">Spare Name</td>
-                        <td className="px-4 py-4 text-sm text-gray-700">Spare Name</td>
-                        <td className="px-4 py-4 text-sm text-gray-700">
-                          <div className="flex items-center justify-center gap-3">
-                            <button className="text-gray-400 hover:text-gray-800 transition-colors" title="View">
-                              <Eye size={18} />
-                            </button>
-                            <button className="text-[#a1a1aa] hover:text-[#00a651] transition-colors" title="Edit">
-                              <Edit size={18} />
-                            </button>
-                          </div>
+                    {[]?.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-sm font-medium text-gray-500 bg-white">
+                          No {purchaseSubTab} added yet.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      // Map actual purchase data here
+                      null
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -590,45 +642,25 @@ export function EditMachine() {
                     </tr>
                   </thead>
                   <tbody>
-                    {[1, 2, 3, 4, 5, 6].map((num) => (
-                      <tr key={num} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-4"><input type="checkbox" className="rounded border-gray-300 text-green-500 focus:ring-green-500" /></td>
-                        <td className="px-4 py-4 text-sm text-gray-500">{num}</td>
-                        <td className="px-4 py-4 text-sm text-gray-700">Facility Name</td>
-                        <td className="px-4 py-4 text-sm text-gray-700">Spare Name</td>
-                        <td className="px-4 py-4 text-sm text-gray-700">Spare Name</td>
-                        <td className="px-4 py-4 text-sm text-gray-700">
-                          <div className="flex justify-center">
-                            <button className="text-gray-400 hover:text-gray-800 transition-colors">
-                              <Edit size={18} />
-                            </button>
-                          </div>
+                    {[]?.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-sm font-medium text-gray-500 bg-white">
+                          No documents added yet.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      // Map actual documents here
+                      null
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
           ) : activeTab === 'IOT' ? (
-            <div className="space-y-6 w-full flex flex-col items-center">
-              {/* Toolbar */}
-              <div className="flex justify-end w-full">
-                <button 
-                  onClick={() => setIsIotModalOpen(true)}
-                  className="px-4 py-2 bg-gray-200 text-gray-800 font-semibold text-sm rounded-xl flex items-center gap-2 hover:bg-gray-300 transition-colors"
-                >
-                  <Plus size={16} className="text-[#00a651] stroke-[3]" /> Add System
-                </button>
-              </div>
-
-              {/* Empty State */}
-              <div className="flex flex-col items-center justify-center py-12">
-                <div className="w-[480px] h-64 border border-gray-200 rounded-2xl mb-8 flex items-center justify-center bg-gray-50/50">
-                </div>
-                <h3 className="text-xl font-bold text-gray-700">No System Have Added</h3>
-              </div>
-            </div>
+            <IOTTabContent 
+              deviceId={formData.deviceId}
+              onAddSystem={() => setIsIotModalOpen(true)}
+            />
           ) : (
             <div className="flex items-center justify-center h-64 text-gray-400">
               <p>This tab is currently under construction.</p>
@@ -733,13 +765,16 @@ export function EditMachine() {
 
               <div>
                 <label className="block text-xs font-bold text-gray-900 mb-1.5">Field Input Type</label>
-                <select 
-                  className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-700 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:10px_10px] bg-no-repeat bg-[position:right_1rem_center]"
-                >
-                  <option value="">Select</option>
-                  <option value="text">Text</option>
-                  <option value="number">Number</option>
-                </select>
+                <CustomSelect
+                  name="fieldInputType"
+                  value=""
+                  onChange={() => {}}
+                  placeholder="Select"
+                  options={[
+                    { label: 'Text', value: 'text' },
+                    { label: 'Number', value: 'number' }
+                  ]}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -753,13 +788,16 @@ export function EditMachine() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-900 mb-1.5">Field Unit</label>
-                  <select 
-                    className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-700 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:10px_10px] bg-no-repeat bg-[position:right_1rem_center]"
-                  >
-                    <option value="">Select</option>
-                    <option value="kg">kg</option>
-                    <option value="m">m</option>
-                  </select>
+                  <CustomSelect
+                    name="fieldUnit"
+                    value=""
+                    onChange={() => {}}
+                    placeholder="Select"
+                    options={[
+                      { label: 'kg', value: 'kg' },
+                      { label: 'm', value: 'm' }
+                    ]}
+                  />
                 </div>
               </div>
 
@@ -790,11 +828,13 @@ export function EditMachine() {
             <div className="space-y-4 px-1">
               <div>
                 <label className="block text-xs font-bold text-gray-900 mb-1.5">Spare Name</label>
-                <select 
-                  className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-700 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:10px_10px] bg-no-repeat bg-[position:right_1rem_center]"
-                >
-                  <option value="">Select</option>
-                </select>
+                <CustomSelect
+                  name="spareName"
+                  value=""
+                  onChange={() => {}}
+                  placeholder="Select"
+                  options={[]}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -868,9 +908,13 @@ export function EditMachine() {
             <div className="grid grid-cols-2 gap-6 px-1">
               <div>
                 <label className="block text-xs font-bold text-gray-900 mb-1.5">{amcSubTab} Type<span className="text-red-500">*</span></label>
-                <select className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-700 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:10px_10px] bg-no-repeat bg-[position:right_1rem_center]">
-                  <option value="">Select Type</option>
-                </select>
+                <CustomSelect
+                  name="amcType"
+                  value=""
+                  onChange={() => {}}
+                  placeholder="Select Type"
+                  options={[]}
+                />
               </div>
 
               <div>
@@ -907,16 +951,24 @@ export function EditMachine() {
 
               <div className="col-span-2">
                 <label className="block text-xs font-bold text-gray-900 mb-1.5">{amcSubTab} Usage Terms<span className="text-red-500">*</span></label>
-                <select className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-700 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:10px_10px] bg-no-repeat bg-[position:right_1rem_center]">
-                  <option value="">{amcSubTab} Usage Terms</option>
-                </select>
+                <CustomSelect
+                  name="usageTerms"
+                  value=""
+                  onChange={() => {}}
+                  placeholder={`${amcSubTab} Usage Terms`}
+                  options={[]}
+                />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-gray-900 mb-1.5">Warranty Provider<span className="text-red-500">*</span></label>
-                <select className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-700 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:10px_10px] bg-no-repeat bg-[position:right_1rem_center]">
-                  <option value="">Select Warranty</option>
-                </select>
+                <CustomSelect
+                  name="warrantyProvider"
+                  value=""
+                  onChange={() => {}}
+                  placeholder="Select Warranty"
+                  options={[]}
+                />
               </div>
 
               <div>
@@ -955,9 +1007,13 @@ export function EditMachine() {
             <div className="grid grid-cols-2 gap-6 px-1">
               <div>
                 <label className="block text-xs font-bold text-gray-900 mb-1.5">Supplier Name<span className="text-red-500">*</span></label>
-                <select className="w-full px-4 py-3 bg-white border border-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-700 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:10px_10px] bg-no-repeat bg-[position:right_1rem_center]">
-                  <option value="">Select</option>
-                </select>
+                <CustomSelect
+                  name="supplierName"
+                  value=""
+                  onChange={() => {}}
+                  placeholder="Select"
+                  options={[]}
+                />
               </div>
 
               <div>
@@ -1119,6 +1175,133 @@ export function EditMachine() {
         </div>
       )}
 
+    </div>
+  );
+}
+
+function IOTTabContent({ 
+  deviceId, 
+  onAddSystem
+}: { 
+  deviceId: string, 
+  onAddSystem: () => void
+}) {
+  const [registers, setRegisters] = useState<{register: string | number, value: string | number}[]>([]);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+
+  useEffect(() => {
+    if (!deviceId) return;
+
+    api.get(`/devices/${deviceId}/snapshot`)
+      .then((res) => {
+        if (res.data?.payload?.registers) {
+          const initialRegisters = res.data.payload.registers;
+          initialRegisters.sort((a: any, b: any) => Number(a.register) - Number(b.register));
+          setRegisters(initialRegisters);
+          setLastUpdate(new Date(res.data.createdAt));
+        }
+      })
+      .catch((err) => console.log('No initial snapshot found', err));
+
+    const token = localStorage.getItem('token');
+    const socket: Socket = io('http://localhost:3001', {
+      transports: ['websocket'],
+      auth: { token },
+    });
+
+    socket.on('connect', () => {
+      setSocketConnected(true);
+      socket.emit('join-device', { topic: deviceId });
+    });
+
+    socket.on('disconnect', () => {
+      setSocketConnected(false);
+    });
+
+    socket.on('device-update', (data: any) => {
+      if (data.deviceId === deviceId) {
+        if (data.rawRegisters && Array.isArray(data.rawRegisters)) {
+          setRegisters((prev) => {
+            const mergedMap = new Map<number, number | string>();
+            prev.forEach((r) => mergedMap.set(Number(r.register), r.value));
+            data.rawRegisters.forEach((r: any) => mergedMap.set(Number(r.register), r.value));
+            const mergedList = Array.from(mergedMap.entries()).map(([register, value]) => ({ register, value }));
+            mergedList.sort((a, b) => a.register - b.register);
+            return mergedList;
+          });
+          setLastUpdate(new Date());
+        }
+      }
+    });
+
+    return () => {
+      socket.emit('leave-device', { topic: deviceId });
+      socket.disconnect();
+    };
+  }, [deviceId]);
+
+  return (
+    <div className="w-full min-h-[500px]">
+      <div className="flex-1 flex flex-col w-full">
+        {/* Header */}
+        <div className="flex justify-end w-full mb-8">
+          <button 
+            onClick={onAddSystem}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold text-sm rounded-lg transition-colors shadow-sm"
+          >
+            <Plus size={18} className="text-[#00a651] stroke-[3]" /> Add System
+          </button>
+        </div>
+
+        {!deviceId ? (
+          /* Empty State */
+          <div className="flex flex-col items-center justify-center flex-1 w-full max-w-2xl mx-auto pb-12">
+            <div className="w-full h-72 border border-gray-100 shadow-[0_0_15px_rgba(0,0,0,0.03)] rounded-2xl bg-white mb-6"></div>
+            <h3 className="text-lg font-bold text-gray-600">No System Have Added</h3>
+          </div>
+        ) : (
+          /* Live Monitor */
+          <div className="space-y-6 w-full flex flex-col">
+            <div className="flex justify-between items-center bg-gray-50 p-4 rounded-xl border border-gray-200">
+              <div>
+                <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+                  Live Monitor
+                  <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] ${socketConnected ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${socketConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></div>
+                    {socketConnected ? 'LIVE' : 'CONNECTING'}
+                  </div>
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">Topic: {deviceId}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Last Update</p>
+                <p className="font-mono text-emerald-600 font-bold">{lastUpdate ? lastUpdate.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 }) : '--:--:--'}</p>
+              </div>
+            </div>
+            
+            {registers.length === 0 ? (
+               <div className="flex flex-col items-center justify-center py-12 border border-gray-200 rounded-xl bg-gray-50/50">
+                 <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mb-4"></div>
+                 <h3 className="text-lg font-bold text-gray-700">Waiting for Device Data...</h3>
+               </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 bg-gray-50/50 p-4 rounded-xl border border-gray-200">
+                {registers.map((reg, idx) => (
+                   <div key={idx} className="bg-white border border-gray-200 rounded-xl p-3 flex flex-col items-center justify-center text-center shadow-sm">
+                      <div className="text-[10px] font-bold text-gray-500 tracking-wider uppercase mb-1">
+                        Reg {reg.register}
+                      </div>
+                      <div className="font-mono text-lg font-black tracking-tight text-gray-900">
+                        {reg.value}
+                      </div>
+                   </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 import { TablePagination } from '../components/TablePagination';
 import { TableSkeleton } from '../components/ui/TableSkeleton';
+import toast from 'react-hot-toast';
 import { TableActions } from '../components/TableActions';
 import { exportData } from '../utils/exportUtils';
 
@@ -53,7 +54,7 @@ export function UserManagement() {
       fetchUsers();
     } catch (error) {
       console.error('Failed to delete user:', error);
-      alert('Failed to delete user.');
+      toast.error('Failed to delete user.');
     }
   };
 
