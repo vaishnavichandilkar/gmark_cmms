@@ -3,6 +3,7 @@ import type { TreeNodeData } from './AssetTree';
 import { Building2, Building, Cpu, FileText, Settings, Wifi, Image as ImageIcon, QrCode, Activity, Wrench, MapPin, Tag, Hash, User, CheckCircle2, Navigation } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { getDeviceDashboardRoute } from '../utils/deviceRoutes';
 
 interface AssetDetailsProps {
   node: TreeNodeData | null;
@@ -242,7 +243,7 @@ const DeviceDetails = ({ device }: { device: any }) => {
                <p className="text-sm text-gray-500 mb-8 leading-relaxed">This device is connected to the cloud via MAC ID: <br/><span className="font-mono bg-gray-50 px-3 py-1 rounded text-gray-800 mt-2 inline-block border border-gray-200">{device.deviceId}</span></p>
                
                <button 
-                  onClick={() => navigate(`/devices/${device.deviceId}`)}
+                  onClick={() => navigate(getDeviceDashboardRoute(device.deviceId))}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm w-full flex items-center justify-center gap-2"
                >
                  <Activity size={18} />

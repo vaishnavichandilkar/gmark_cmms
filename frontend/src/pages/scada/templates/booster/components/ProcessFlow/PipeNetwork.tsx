@@ -163,13 +163,13 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
     <div className="relative w-full h-[760px] liquid-glass rounded-[24px] p-6 flex items-center overflow-hidden">
       <div
         ref={scrollRef}
-        className={`w-full overflow-x-auto pb-2 custom-scrollbar relative h-full ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+        className={`w-full overflow-x-auto pb-2 custom-scrollbar relative h-full flex ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
         onMouseDown={handleMouseDown}
         onMouseLeave={handleMouseLeave}
         onMouseUp={handleMouseUp}
         onMouseMove={handleMouseMove}
       >
-        <div style={{ minWidth: `${canvasWidth}px`, width: `${canvasWidth}px`, height: '100%', position: 'relative' }}>
+        <div style={{ minWidth: `${canvasWidth}px`, width: `${canvasWidth}px`, height: '100%', position: 'relative', margin: '0 auto' }}>
           {/* Draw Pipes via absolute overlay */}
           <div className="absolute inset-0 z-0">
             <div className="absolute text-[10px] text-gray-400 font-bold whitespace-nowrap leading-tight text-left z-0" style={{ left: `${leftTankCenter + 16}px`, top: '560px' }}>FROM<br />TANK</div>
