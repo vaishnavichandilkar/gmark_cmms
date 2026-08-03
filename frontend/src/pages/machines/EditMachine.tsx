@@ -753,18 +753,18 @@ export function EditMachine() {
           ) : activeTab === 'Documents' ? (
             <div className="space-y-6 w-full">
               {/* Toolbar */}
-              <div className="flex justify-start items-center">
+              <div className="flex justify-end items-center">
                 <div className="relative">
                   <button 
                     onClick={() => setIsUploadMenuOpen(!isUploadMenuOpen)}
-                    className="px-4 py-2 bg-gray-200 text-gray-800 font-semibold text-sm rounded-xl flex items-center gap-2 hover:bg-gray-300 transition-colors"
+                    className="px-4 py-2 bg-[#00a651] hover:bg-[#009040] text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-colors shadow-sm"
                   >
                     <Plus size={16} className="stroke-[3]" /> Upload
                   </button>
                   
                   {/* Upload Dropdown */}
                   {isUploadMenuOpen && (
-                    <div className="absolute top-full left-0 mt-2 w-32 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-20">
+                    <div className="absolute top-full right-0 mt-2 w-32 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-20">
                       <button 
                         onClick={() => { setUploadModalType('File'); setIsUploadMenuOpen(false); }}
                         className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -1561,22 +1561,6 @@ function IOTTabContent({
         ) : (
           /* Live Monitor */
           <div className="space-y-6 w-full flex flex-col">
-            <div className="flex justify-between items-center bg-gray-50 p-4 rounded-xl border border-gray-200">
-              <div>
-                <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
-                  Live Monitor
-                  <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] ${socketConnected ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
-                    <div className={`w-1.5 h-1.5 rounded-full ${socketConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></div>
-                    {socketConnected ? 'LIVE' : 'CONNECTING'}
-                  </div>
-                </h3>
-                <p className="text-sm text-gray-500 mt-1">Topic: {deviceId}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Last Update</p>
-                <p className="font-mono text-emerald-600 font-bold">{lastUpdate ? lastUpdate.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 }) : '--:--:--'}</p>
-              </div>
-            </div>
             
             {!initialLoadComplete ? (
                <div className="flex flex-col items-center justify-center py-12 border border-gray-200 rounded-xl bg-gray-50/50">
