@@ -122,6 +122,12 @@ model Device {
   building    Building? @relation(fields: [buildingId], references: [id], onDelete: Cascade)
   facilityId  Int?
   facility    Facility? @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  documents   MachineDocument[]
+  specifications MachineSpecification[]
+
+  parentDeviceId Int?
+  parentDevice   Device?  @relation("DeviceHierarchy", fields: [parentDeviceId], references: [id])
+  childDevices   Device[] @relation("DeviceHierarchy")
   
   latestData  Json?
   lastSeen    DateTime?
@@ -336,4 +342,27 @@ model CodeSequence {
   lastValue Int      @default(0)
   padding   Int      @default(3)
   updatedAt DateTime @updatedAt
+}
+
+model MachineDocument {
+  id          Int      @id @default(autoincrement())
+  name        String
+  type        String   // 'File', 'Link', 'Note'
+  content     String   // File path, URL, or Note text
+  deviceId    Int
+  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model MachineSpecification {
+  id          Int      @id @default(autoincrement())
+  title       String
+  inputType   String
+  data        String
+  unit        String?
+  deviceId    Int
+  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

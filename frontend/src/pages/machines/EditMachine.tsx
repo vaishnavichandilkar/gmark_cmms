@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { CustomSelect } from '../../components/CustomSelect';
-import { ArrowLeft, Search, Plus, Edit, Eye, Calendar } from 'lucide-react';
+import { ArrowLeft, Search, Plus, Edit, Eye, Calendar, Trash2, Edit2, Download, Filter } from 'lucide-react';
 import { api } from '../../lib/api';
 import { FacilityHierarchyPicker } from '../../components/FacilityHierarchyPicker';
+import { MachineHierarchyPicker } from '../../components/MachineHierarchyPicker';
 import { io, Socket } from 'socket.io-client';
 import toast from 'react-hot-toast';
 
@@ -20,8 +21,26 @@ export function EditMachine() {
   const [isAmcModalOpen, setIsAmcModalOpen] = useState(false);
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [isIotModalOpen, setIsIotModalOpen] = useState(false);
+  const [tempMacId, setTempMacId] = useState('');
   const [isUploadMenuOpen, setIsUploadMenuOpen] = useState(false);
   const [uploadModalType, setUploadModalType] = useState<'File' | 'Link' | 'Note' | null>(null);
+  const [documentToDelete, setDocumentToDelete] = useState<number | null>(null);
+  
+  // Document states
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [docName, setDocName] = useState('');
+  const [docContent, setDocContent] = useState('');
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  
+  // Specification states
+  const [specifications, setSpecifications] = useState<any[]>([]);
+  const [specTitle, setSpecTitle] = useState('');
+  const [specInputType, setSpecInputType] = useState('text');
+  const [specData, setSpecData] = useState('');
+  const [specUnit, setSpecUnit] = useState('');
+  const [savingSpec, setSavingSpec] = useState(false);
+  const [specToDelete, setSpecToDelete] = useState<number | null>(null);
   const [amcSubTab, setAmcSubTab] = useState('AMC');
   const [purchaseSubTab, setPurchaseSubTab] = useState('Machine Purchase');
   const [facilities, setFacilities] = useState<any[]>([]);
@@ -48,6 +67,8 @@ export function EditMachine() {
     isLocationPart: false,
     locationId: '',
     locationName: '',
+    parentDeviceId: '',
+    
     
     latitude: '',
     longitude: '',
@@ -60,6 +81,75 @@ export function EditMachine() {
   useEffect(() => {
     fetchData();
   }, [id]);
+
+  useEffect(() => {
+    if (activeTab === 'Documents' && id) {
+      fetchDocuments();
+    } else if (activeTab === 'Specification' && id) {
+      fetchSpecifications();
+    }
+  }, [activeTab, id]);
+
+  const fetchSpecifications = async () => {
+    try {
+      const res = await api.get(`/devices/${id}/specifications`);
+      setSpecifications(res.data);
+    } catch (err) {
+      console.error('Error fetching specifications:', err);
+    }
+  };
+
+  const handleSaveSpecification = async () => {
+    if (!specTitle || !specInputType || !specData) {
+      toast.error('Please fill required fields (Title, Type, Data)');
+      return;
+    }
+    
+    setSavingSpec(true);
+    try {
+      await api.post(`/devices/${id}/specifications`, {
+        title: specTitle,
+        inputType: specInputType,
+        data: specData,
+        unit: specUnit || undefined
+      });
+      toast.success('Specification added successfully');
+      setSpecTitle('');
+      setSpecInputType('text');
+      setSpecData('');
+      setSpecUnit('');
+      setIsSpecModalOpen(false);
+      fetchSpecifications();
+    } catch (err: any) {
+      console.error('Error saving specification:', err);
+      toast.error(err.response?.data?.message || 'Failed to save specification');
+    } finally {
+      setSavingSpec(false);
+    }
+  };
+
+  const executeDeleteSpecification = async () => {
+    if (!specToDelete) return;
+    try {
+      await api.delete(`/devices/${id}/specifications/${specToDelete}`);
+      toast.success('Specification deleted successfully');
+      fetchSpecifications();
+    } catch (err: any) {
+      console.error('Error deleting specification:', err);
+      toast.error(err.response?.data?.message || 'Failed to delete specification');
+    } finally {
+      setSpecToDelete(null);
+    }
+  };
+
+  const fetchDocuments = async () => {
+    try {
+      const res = await api.get(`/devices/${id}/documents`);
+      setDocuments(res.data);
+    } catch (err) {
+      console.error('Error fetching documents:', err);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -91,6 +181,7 @@ export function EditMachine() {
           isLocationPart: device.isLocationPart || false,
           locationId: device.facilityId?.toString() || device.buildingId?.toString() || '',
           locationName: device.facility?.facilityName || device.building?.name || '',
+          parentDeviceId: device.parentDeviceId?.toString() || '',
           latitude: device.latitude || '',
           longitude: device.longitude || '',
           costCenter: device.costCenter || '',
@@ -131,6 +222,7 @@ export function EditMachine() {
         isLocationPart: formData.isLocationPart,
         facilityId: (formData as any).locationType === 'facility' || (formData as any).locationType === 'mainFacility' ? (formData.locationId ? parseInt(formData.locationId) : undefined) : undefined,
         buildingId: (formData as any).locationType === 'building' || (formData as any).locationType === 'society' ? (formData.locationId ? parseInt(formData.locationId) : undefined) : undefined,
+        parentDeviceId: formData.parentDeviceId ? parseInt(formData.parentDeviceId) : undefined,
         latitude: formData.latitude,
         longitude: formData.longitude,
         costCenter: formData.costCenter,
@@ -139,9 +231,9 @@ export function EditMachine() {
         notes: formData.notes,
       });
       toast.success('Machine saved successfully!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving machine:', error);
-      toast.error('Failed to save machine.');
+      toast.error(error.response?.data?.message || 'Failed to save machine.');
     } finally {
       setSaving(false);
     }
@@ -160,6 +252,77 @@ export function EditMachine() {
     (f?.facilityName || '').toLowerCase().includes(locationSearch.toLowerCase()) || 
     (f?.facilityCode || '').toLowerCase().includes(locationSearch.toLowerCase())
   );
+
+  const handleUploadDocument = async () => {
+    if (!docName) {
+      toast.error('Name is required');
+      return;
+    }
+    
+    setUploadingDoc(true);
+    try {
+      if (uploadModalType === 'File') {
+        if (!docFile) {
+          toast.error('File is required');
+          setUploadingDoc(false);
+          return;
+        }
+        const formData = new FormData();
+        formData.append('name', docName);
+        formData.append('file', docFile);
+        
+        await api.post(`/devices/${id}/documents/file`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      } else if (uploadModalType === 'Link') {
+        if (!docContent) {
+          toast.error('URL is required');
+          setUploadingDoc(false);
+          return;
+        }
+        await api.post(`/devices/${id}/documents/link`, {
+          name: docName,
+          url: docContent
+        });
+      } else if (uploadModalType === 'Note') {
+        if (!docContent) {
+          toast.error('Note is required');
+          setUploadingDoc(false);
+          return;
+        }
+        await api.post(`/devices/${id}/documents/note`, {
+          name: docName,
+          note: docContent
+        });
+      }
+      
+      toast.success('Document uploaded successfully');
+      setUploadModalType(null);
+      setDocName('');
+      setDocContent('');
+      setDocFile(null);
+      fetchDocuments();
+    } catch (err: any) {
+      console.error('Error uploading document:', err);
+      toast.error(err.response?.data?.message || 'Failed to upload document');
+    } finally {
+      setUploadingDoc(false);
+    }
+  };
+
+  const executeDeleteDocument = async () => {
+    if (!documentToDelete) return;
+    try {
+      await api.delete(`/devices/${id}/documents/${documentToDelete}`);
+      toast.success('Document deleted successfully');
+      fetchDocuments();
+    } catch (err: any) {
+      console.error('Error deleting document:', err);
+      toast.error(err.response?.data?.message || 'Failed to delete document');
+    } finally {
+      setDocumentToDelete(null);
+    }
+  };
 
   const tabs = ['General', 'Specification', 'Spares', 'AMC', 'Purchase', 'Documents', 'IOT'];
 
@@ -198,54 +361,6 @@ export function EditMachine() {
         <div className="p-8 w-full">
           {activeTab === 'General' ? (
             <div className="space-y-8">
-              
-              {/* Machine Details Section */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-400 mb-4">Machine Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Name<span className="text-red-500">*</span></label>
-                    <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Code<span className="text-red-500">*</span></label>
-                    <input type="text" name="machineCode" value={formData.machineCode} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">MAC ID / Device ID<span className="text-red-500">*</span></label>
-                    <input type="text" name="deviceId" value={formData.deviceId} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Company<span className="text-red-500">*</span></label>
-                    <input type="text" name="company" value={formData.company} onChange={handleChange} placeholder="Enter Company Name" className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Maintenance Head</label>
-                    <CustomSelect name="maintenanceHead" value={formData.maintenanceHead} onChange={handleChange} placeholder="Select Head" options={employees.map(e => ({ label: `${e.fullName} (${e.department || 'N/A'} - ${e.designation || e.role || 'N/A'})`, value: e.fullName }))} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Serial Number<span className="text-red-500">*</span></label>
-                    <input type="text" name="serialNumber" value={formData.serialNumber} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Make<span className="text-red-500">*</span></label>
-                    <CustomSelect name="make" value={formData.make} onChange={handleChange} placeholder="Select" options={[{ label: 'Make 1', value: 'Make 1' }]} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Model Number<span className="text-red-500">*</span></label>
-                    <CustomSelect name="modelNumber" value={formData.modelNumber} onChange={handleChange} placeholder="Select" options={[{ label: 'Model 1', value: 'Model 1' }]} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Category<span className="text-red-500">*</span></label>
-                    <CustomSelect name="machineCategory" value={formData.machineCategory} onChange={handleChange} placeholder="Select" options={[{ label: 'Category 1', value: 'Category 1' }]} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Sub-Category<span className="text-red-500">*</span></label>
-                    <CustomSelect name="machineSubCategory" value={formData.machineSubCategory} onChange={handleChange} placeholder="Select" options={[{ label: 'Sub-Category 1', value: 'Sub-Category 1' }]} />
-                  </div>
-                </div>
-              </div>
-
               {/* Location Section */}
               <div>
                 <h3 className="text-sm font-semibold text-gray-400 mb-4">Location</h3>
@@ -264,12 +379,12 @@ export function EditMachine() {
                       <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">This Machine is a part of</span>
                     </label>
                     <div className="flex-1 max-w-md">
-                      <FacilityHierarchyPicker
-                        name="locationId"
-                        value={formData.locationId}
+                      <MachineHierarchyPicker
+                        name="parentDeviceId"
+                        value={formData.parentDeviceId}
                         onChange={handleChange}
                         disabled={!formData.isLocationPart}
-                        placeholder="Select"
+                        excludeDeviceId={id}
                       />
                     </div>
                   </div>
@@ -399,10 +514,33 @@ export function EditMachine() {
                 <h3 className="text-sm font-semibold text-gray-400 mb-4">Location</h3>
                 <button 
                   onClick={() => setIsSpecModalOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#00a651] hover:bg-[#009040] border border-transparent text-sm font-semibold text-white rounded-lg transition-colors shadow-sm">
+                  className="flex items-center gap-2 px-4 py-2 bg-[#00a651] hover:bg-[#009040] border border-transparent text-sm font-semibold text-white rounded-lg transition-colors shadow-sm mb-6">
                   <Plus size={18} className="stroke-[3]" />
                   Add Specification Field
                 </button>
+                
+                {/* Render Specifications List */}
+                {specifications.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    {specifications.map((spec) => (
+                      <div key={spec.id} className="flex justify-between items-center bg-gray-50 border border-gray-200 p-4 rounded-xl">
+                        <div>
+                          <p className="text-xs text-gray-500 font-semibold mb-1">{spec.title}</p>
+                          <p className="text-sm font-bold text-gray-900">
+                            {spec.data} <span className="text-gray-500 text-xs font-normal">{spec.unit}</span>
+                          </p>
+                        </div>
+                        <button 
+                          onClick={() => setSpecToDelete(spec.id)}
+                          className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                          title="Delete Specification"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ) : activeTab === 'Spares' ? (
@@ -642,15 +780,39 @@ export function EditMachine() {
                     </tr>
                   </thead>
                   <tbody>
-                    {[]?.length === 0 ? (
+                    {documents?.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-4 py-8 text-center text-sm font-medium text-gray-500 bg-white">
                           No documents added yet.
                         </td>
                       </tr>
                     ) : (
-                      // Map actual documents here
-                      null
+                      documents.map((doc, index) => (
+                        <tr key={doc.id} className="border-t border-gray-100 hover:bg-gray-50">
+                          <td className="px-4 py-3"><input type="checkbox" className="rounded border-gray-300" /></td>
+                          <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{doc.name}</td>
+                          <td className="px-4 py-3 text-sm text-gray-500">{doc.type}</td>
+                          <td className="px-4 py-3 text-sm text-gray-500">
+                            {doc.type === 'File' ? (
+                              <a href={`http://localhost:3001${doc.content}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">View File</a>
+                            ) : doc.type === 'Link' ? (
+                              <a href={doc.content} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{doc.content}</a>
+                            ) : (
+                              <span className="truncate max-w-[200px] block">{doc.content}</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <button 
+                              onClick={() => setDocumentToDelete(doc.id)}
+                              className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                              title="Delete Document"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                            </button>
+                          </td>
+                        </tr>
+                      ))
                     )}
                   </tbody>
                 </table>
@@ -659,7 +821,7 @@ export function EditMachine() {
           ) : activeTab === 'IOT' ? (
             <IOTTabContent 
               deviceId={formData.deviceId}
-              onAddSystem={() => setIsIotModalOpen(true)}
+              onAddSystem={() => { setTempMacId(''); setIsIotModalOpen(true); }}
             />
           ) : (
             <div className="flex items-center justify-center h-64 text-gray-400">
@@ -758,6 +920,8 @@ export function EditMachine() {
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">Field Title</label>
                 <input 
                   type="text" 
+                  value={specTitle}
+                  onChange={(e) => setSpecTitle(e.target.value)}
                   placeholder="Enter Title"
                   className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
                 />
@@ -767,8 +931,8 @@ export function EditMachine() {
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">Field Input Type</label>
                 <CustomSelect
                   name="fieldInputType"
-                  value=""
-                  onChange={() => {}}
+                  value={specInputType}
+                  onChange={(e: any) => setSpecInputType(e.target.value)}
                   placeholder="Select"
                   options={[
                     { label: 'Text', value: 'text' },
@@ -781,7 +945,9 @@ export function EditMachine() {
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1.5">Field Data</label>
                   <input 
-                    type="text" 
+                    type={specInputType === 'number' ? 'number' : 'text'}
+                    value={specData}
+                    onChange={(e) => setSpecData(e.target.value)}
                     placeholder="eg. 120"
                     className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
                   />
@@ -790,8 +956,8 @@ export function EditMachine() {
                   <label className="block text-xs font-semibold text-gray-700 mb-1.5">Field Unit</label>
                   <CustomSelect
                     name="fieldUnit"
-                    value=""
-                    onChange={() => {}}
+                    value={specUnit}
+                    onChange={(e: any) => setSpecUnit(e.target.value)}
                     placeholder="Select"
                     options={[
                       { label: 'kg', value: 'kg' },
@@ -803,10 +969,11 @@ export function EditMachine() {
 
               <div className="flex justify-center mt-6 pt-2">
                 <button 
-                  onClick={() => setIsSpecModalOpen(false)}
-                  className="px-10 py-2.5 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors shadow-sm"
+                  onClick={handleSaveSpecification}
+                  disabled={savingSpec}
+                  className="px-10 py-2.5 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors shadow-sm disabled:opacity-50"
                 >
-                  Save
+                  {savingSpec ? 'Saving...' : 'Save'}
                 </button>
               </div>
             </div>
@@ -1089,6 +1256,8 @@ export function EditMachine() {
                 </label>
                 <input 
                   type="text" 
+                  value={docName}
+                  onChange={(e) => setDocName(e.target.value)}
                   placeholder="Enter Name"
                   className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
                 />
@@ -1099,6 +1268,11 @@ export function EditMachine() {
                   <div className="border border-gray-300 rounded-xl p-2 flex items-center mb-2">
                     <input 
                       type="file"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setDocFile(e.target.files[0]);
+                        }
+                      }}
                       className="block w-full text-sm text-gray-600 cursor-pointer focus:outline-none file:mr-4 file:py-2.5 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-gray-200 file:text-gray-700 hover:file:bg-gray-300 transition-colors"
                     />
                   </div>
@@ -1111,6 +1285,8 @@ export function EditMachine() {
                   <label className="block text-xs font-semibold text-gray-700 mb-1.5">URL<span className="text-red-500">*</span></label>
                   <input 
                     type="url" 
+                    value={docContent}
+                    onChange={(e) => setDocContent(e.target.value)}
                     placeholder="Enter URL"
                     className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
                   />
@@ -1122,6 +1298,8 @@ export function EditMachine() {
                   <label className="block text-xs font-semibold text-gray-700 mb-1.5">Notes<span className="text-red-500">*</span></label>
                   <input 
                     type="text" 
+                    value={docContent}
+                    onChange={(e) => setDocContent(e.target.value)}
                     placeholder="Enter Notes"
                     className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
                   />
@@ -1130,10 +1308,11 @@ export function EditMachine() {
 
               <div className="flex justify-center mt-8">
                 <button 
-                  onClick={() => setUploadModalType(null)}
-                  className="px-10 py-2.5 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors shadow-sm"
+                  onClick={handleUploadDocument}
+                  disabled={uploadingDoc}
+                  className="px-10 py-2.5 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors shadow-sm disabled:opacity-50"
                 >
-                  {uploadModalType === 'Note' ? 'Save' : 'Upload'}
+                  {uploadingDoc ? 'Uploading...' : uploadModalType === 'Note' ? 'Save' : 'Upload'}
                 </button>
               </div>
             </div>
@@ -1157,19 +1336,110 @@ export function EditMachine() {
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">MAC ID<span className="text-red-500">*</span></label>
                 <input 
                   type="text" 
-                  placeholder="Enter"
+                  value={tempMacId}
+                  onChange={(e) => setTempMacId(e.target.value)}
+                  placeholder="Enter MAC ID"
                   className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
                 />
               </div>
 
               <div className="flex justify-center mt-8">
                 <button 
-                  onClick={() => setIsIotModalOpen(false)}
-                  className="px-10 py-2.5 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors shadow-sm"
+                  onClick={async () => {
+                    try {
+                      setSaving(true);
+                      await api.put(`/devices/${id}`, {
+                        name: formData.name,
+                        deviceId: tempMacId,
+                        company: formData.company,
+                        maintenanceHead: formData.maintenanceHead,
+                        machineCode: formData.machineCode,
+                        serialNumber: formData.serialNumber,
+                        make: formData.make,
+                        modelNumber: formData.modelNumber,
+                        machineCategory: formData.machineCategory,
+                        machineSubCategory: formData.machineSubCategory,
+                        description: formData.description,
+                        isLocationPart: formData.isLocationPart,
+                        facilityId: (formData as any).locationType === 'facility' || (formData as any).locationType === 'mainFacility' ? (formData.locationId ? parseInt(formData.locationId) : undefined) : undefined,
+                        buildingId: (formData as any).locationType === 'building' || (formData as any).locationType === 'society' ? (formData.locationId ? parseInt(formData.locationId) : undefined) : undefined,
+                        latitude: formData.latitude,
+                        longitude: formData.longitude,
+                        costCenter: formData.costCenter,
+                        headOfDepartment: formData.headOfDepartment,
+                        machineOwner: formData.machineOwner,
+                        notes: formData.notes,
+                      });
+                      setFormData(prev => ({ ...prev, deviceId: tempMacId }));
+                      setIsIotModalOpen(false);
+                      toast.success('MAC ID saved successfully!');
+                    } catch (error: any) {
+                      console.error('Error saving MAC ID:', error);
+                      toast.error(error.response?.data?.message || 'Failed to save MAC ID.');
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  disabled={saving}
+                  className="px-10 py-2.5 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors shadow-sm disabled:opacity-50"
                 >
-                  Save
+                  {saving ? 'Saving...' : 'Save'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Document Confirmation Modal */}
+      {documentToDelete && (
+        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-8 shadow-xl text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Document?</h3>
+            <p className="text-sm text-gray-500 mb-8">This action cannot be undone.</p>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setDocumentToDelete(null)}
+                className="flex-1 px-6 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeDeleteDocument}
+                className="flex-1 px-6 py-2.5 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-colors shadow-sm shadow-red-200"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Specification Confirmation Modal */}
+      {specToDelete && (
+        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-8 shadow-xl text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Specification?</h3>
+            <p className="text-sm text-gray-500 mb-8">This action cannot be undone.</p>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setSpecToDelete(null)}
+                className="flex-1 px-6 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeDeleteSpecification}
+                className="flex-1 px-6 py-2.5 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-colors shadow-sm shadow-red-200"
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>
@@ -1189,9 +1459,11 @@ function IOTTabContent({
   const [registers, setRegisters] = useState<{register: string | number, value: string | number}[]>([]);
   const [socketConnected, setSocketConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   useEffect(() => {
     if (!deviceId) return;
+    setInitialLoadComplete(false);
 
     api.get(`/devices/${deviceId}/snapshot`)
       .then((res) => {
@@ -1201,8 +1473,12 @@ function IOTTabContent({
           setRegisters(initialRegisters);
           setLastUpdate(new Date(res.data.createdAt));
         }
+        setInitialLoadComplete(true);
       })
-      .catch((err) => console.log('No initial snapshot found', err));
+      .catch((err) => {
+        console.log('No initial snapshot found', err);
+        setInitialLoadComplete(true);
+      });
 
     const token = localStorage.getItem('token');
     const socket: Socket = io('http://localhost:3001', {
@@ -1280,10 +1556,20 @@ function IOTTabContent({
               </div>
             </div>
             
-            {registers.length === 0 ? (
+            {!initialLoadComplete ? (
                <div className="flex flex-col items-center justify-center py-12 border border-gray-200 rounded-xl bg-gray-50/50">
                  <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mb-4"></div>
-                 <h3 className="text-lg font-bold text-gray-700">Waiting for Device Data...</h3>
+                 <h3 className="text-lg font-bold text-gray-700">Loading Device Data...</h3>
+               </div>
+            ) : registers.length === 0 ? (
+               <div className="flex flex-col items-center justify-center py-12 border border-gray-200 rounded-xl bg-gray-50/50">
+                 <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mb-4 text-emerald-600">
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                 </div>
+                 <h3 className="text-lg font-bold text-gray-700">No Data Available Yet</h3>
+                 <p className="text-sm text-gray-500 mt-1">Waiting for the physical device to send its first telemetry update.</p>
                </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 bg-gray-50/50 p-4 rounded-xl border border-gray-200">

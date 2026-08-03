@@ -86,6 +86,7 @@ export class DevicesController {
       latitude?: string;
       longitude?: string;
       notes?: string;
+      parentDeviceId?: number;
     },
     @CurrentUser() user: any,
     @Ip() ip: string,
@@ -134,6 +135,7 @@ export class DevicesController {
       latitude?: string;
       longitude?: string;
       notes?: string;
+      parentDeviceId?: number;
     },
     @CurrentUser() user: any,
     @Ip() ip: string,

@@ -59,7 +59,7 @@ export function UserManagement() {
   };
 
   const handleExport = (format: 'pdf' | 'excel') => {
-    const headers = ['Name', 'Job Role', 'Facility Name', 'Official Email', 'Department', 'Date of Joining', 'Status'];
+    const headers = ['Name', 'Designation', 'Facility Name', 'Official Email', 'Department', 'Date of Joining', 'Status'];
     const rows = filteredUsers.map(user => [
       user.employee?.fullName || (user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : user.username),
       user.employee?.role || user.role || '-',
@@ -140,7 +140,7 @@ export function UserManagement() {
             <thead className="bg-gray-50/50 text-gray-700 font-medium text-xs border-b border-gray-200">
               <tr>
                 <th className="px-6 py-4">Name</th>
-                <th className="px-6 py-4">Job Role</th>
+                <th className="px-6 py-4">Designation</th>
                 <th className="px-6 py-4">Facility Name</th>
                 <th className="px-6 py-4">Official Email</th>
                 <th className="px-6 py-4">Department</th>

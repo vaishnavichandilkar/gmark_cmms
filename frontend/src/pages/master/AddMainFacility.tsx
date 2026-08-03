@@ -33,7 +33,7 @@ export function AddMainFacility() {
 
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(false);
-  const [employees, setEmployees] = useState<any[]>([]);
+
   const [mainFacilities, setMainFacilities] = useState<any[]>([]);
   const { user } = useSelector((state: RootState) => state.auth);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});

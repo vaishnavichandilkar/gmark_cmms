@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Plus, Edit, Building2, MapPin, Tag, FileText, Info, Globe, Hash } from 'lucide-react';
-import { CustomSelect } from '../../components/CustomSelect';
+
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../store';
 import { api } from '../../lib/api';
@@ -46,7 +46,7 @@ export function AddFacility() {
 
   const [mainFacilities, setMainFacilities] = useState<any[]>([]);
   const [facilities, setFacilities] = useState<any[]>([]);
-  const [employees, setEmployees] = useState<any[]>([]);
+
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -207,7 +207,7 @@ export function AddFacility() {
       }
 
       if (dataset?.type) {
-        newData[`${name}Type`] = dataset.type;
+        (newData as any)[`${name}Type`] = dataset.type;
       }
 
       if (name === 'parentFacilityId' && newData.isLocationPart === 'true') {

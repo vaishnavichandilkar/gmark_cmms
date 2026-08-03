@@ -19,6 +19,7 @@ export function AddMachine() {
     maintenanceHead: '',
     name: '', 
     machineCode: '',
+    deviceId: '',
     status: 'Online',
     serialNumber: '',
     make: '',
@@ -63,9 +64,12 @@ export function AddMachine() {
 
     try {
       setLoading(true);
+      
+      const tempDeviceId = `TMP-${Date.now()}`;
+      
       const payload = {
         name: formData.name,
-        deviceId: formData.machineCode,
+        deviceId: tempDeviceId,
         facilityId: (formData as any).locationType === 'facility' || (formData as any).locationType === 'mainFacility' ? parseInt(formData.facilityId) : undefined,
         buildingId: (formData as any).locationType === 'building' || (formData as any).locationType === 'society' ? parseInt(formData.facilityId) : undefined,
         company: formData.company,
@@ -119,26 +123,26 @@ export function AddMachine() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                      Select Company<span className="text-red-500">*</span>
+                      Facility<span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       name="company"
                       value={formData.company}
                       onChange={handleChange}
-                      placeholder="Enter Company Name"
+                      placeholder="Enter Facility Name"
                       className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                      Select Facility<span className="text-red-500">*</span>
+                      Sub-Facility<span className="text-red-500">*</span>
                     </label>
                     <FacilityHierarchyPicker
                       name="facilityId"
                       value={formData.facilityId}
                       onChange={handleChange}
-                      placeholder="Select Facility"
+                      placeholder="Select Sub-Facility"
                     />
                   </div>
                   <div>

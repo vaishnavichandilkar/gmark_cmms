@@ -186,6 +186,7 @@ export class DevicesService {
     latitude?: string;
     longitude?: string;
     notes?: string;
+    parentDeviceId?: number;
   }) {
     const existing = await this.prisma.device.findUnique({
       where: { deviceId: data.deviceId },
@@ -223,6 +224,7 @@ export class DevicesService {
         latitude: data.latitude,
         longitude: data.longitude,
         notes: data.notes,
+        parentDeviceId: data.parentDeviceId,
       },
     });
 
@@ -262,6 +264,7 @@ export class DevicesService {
       latitude?: string;
       longitude?: string;
       notes?: string;
+      parentDeviceId?: number;
     },
   ) {
     const device = await this.prisma.device.findUnique({
@@ -309,6 +312,7 @@ export class DevicesService {
         latitude: data.latitude,
         longitude: data.longitude,
         notes: data.notes,
+        parentDeviceId: data.parentDeviceId,
       },
     });
 

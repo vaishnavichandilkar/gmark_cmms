@@ -74,10 +74,11 @@ export function MachineManagement() {
   };
 
   const handleExport = (format: 'pdf' | 'excel') => {
-    const headers = ['Machine Name', 'Machine Code', 'Company', 'Facility', 'Make & Model', 'Category'];
+    const headers = ['Machine Name', 'Machine Code', 'MAC ID', 'Company', 'Facility', 'Make & Model', 'Category'];
     const rows = filteredMachines.map(machine => [
       machine.name || '-',
-      machine.machineCode || machine.deviceId || '-',
+      machine.machineCode || '-',
+      machine.deviceId || '-',
       machine.company || '-',
       machine.building || '-',
       `${machine.make || '-'} ${machine.modelNumber || ''}`.trim(),
@@ -93,7 +94,8 @@ export function MachineManagement() {
   const filteredMachines = machines.filter(machine => {
     const searchString = searchQuery.toLowerCase();
     const name = (machine.name || '').toLowerCase();
-    const code = (machine.machineCode || machine.deviceId || '').toLowerCase();
+    const code = (machine.machineCode || '').toLowerCase();
+    const macId = (machine.deviceId || '').toLowerCase();
     const company = (machine.company || '').toLowerCase();
     const facilityName = (machine.building || '').toLowerCase();
     const make = (machine.make || '').toLowerCase();
@@ -101,6 +103,7 @@ export function MachineManagement() {
 
     return name.includes(searchString) || 
            code.includes(searchString) || 
+           macId.includes(searchString) || 
            company.includes(searchString) || 
            facilityName.includes(searchString) || 
            make.includes(searchString) ||
@@ -151,6 +154,7 @@ export function MachineManagement() {
               <tr>
                 <th className="px-6 py-4">Machine Name</th>
                 <th className="px-6 py-4">Machine Code</th>
+                <th className="px-6 py-4">MAC ID</th>
                 <th className="px-6 py-4">Company</th>
                 <th className="px-6 py-4">Facility</th>
                 <th className="px-6 py-4">Make & Model</th>
@@ -160,7 +164,7 @@ export function MachineManagement() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
-                <TableSkeleton columns={7} rows={5} />
+                <TableSkeleton columns={8} rows={5} />
               ) : currentMachines.length > 0 ? (
                 currentMachines.map((machine, index) => (
                   <tr key={machine.id || index} className="hover:bg-gray-50/50 transition-colors group">
@@ -168,7 +172,10 @@ export function MachineManagement() {
                       {machine.name || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {machine.machineCode || machine.deviceId || '-'}
+                      {machine.machineCode || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {machine.deviceId || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {machine.company || '-'}
@@ -202,7 +209,7 @@ export function MachineManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500 bg-gray-50/30">
+                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500 bg-gray-50/30">
                     <div className="flex flex-col items-center justify-center">
                       <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
                         <Cpu className="w-6 h-6 text-gray-400" />

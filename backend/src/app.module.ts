@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { BuildingsModule } from './modules/buildings/buildings.module';
 import { DevicesModule } from './modules/devices/devices.module';
@@ -16,6 +18,8 @@ import { MainFacilitiesModule } from './modules/main-facilities/main-facilities.
 import { FacilitiesModule } from './modules/facilities/facilities.module';
 import { DesignationsModule } from './modules/designations/designations.module';
 import { PostalCodesModule } from './modules/postal-codes/postal-codes.module';
+import { MachineDocumentsModule } from './modules/machine-documents/machine-documents.module';
+import { MachineSpecificationsModule } from './modules/machine-specifications/machine-specifications.module';
 
 @Module({
   imports: [
@@ -25,6 +29,10 @@ import { PostalCodesModule } from './modules/postal-codes/postal-codes.module';
         limit: 100,
       },
     ]),
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'uploads'),
+      serveRoot: '/uploads/',
+    }),
     PrismaModule,
     WebsocketModule,
     BuildingsModule,
@@ -40,6 +48,8 @@ import { PostalCodesModule } from './modules/postal-codes/postal-codes.module';
     FacilitiesModule,
     DesignationsModule,
     PostalCodesModule,
+    MachineDocumentsModule,
+    MachineSpecificationsModule,
   ],
   providers: [
     {

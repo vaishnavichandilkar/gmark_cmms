@@ -81,6 +81,13 @@ export function FloatingNavbar() {
           path: '/master/main-facility',
           icon: <Building2 size={16} />,
           moduleId: 'master_main_facility'
+        },
+        {
+          label: 'Spare Master',
+          path: '/master/spare',
+          icon: <Wrench size={16} />,
+          moduleId: 'master_spare',
+          isComingSoon: true
         }
       ]
     },
@@ -168,6 +175,8 @@ export function FloatingNavbar() {
           onClick={() => {
             if (hasChildren) {
               toggleMenu(item.label);
+            } else if (item.isComingSoon) {
+              return; // Do not navigate for modules under development
             } else if (item.path) {
               navigate(item.path);
               setIsMobileMenuOpen(false); // Close on mobile navigation
