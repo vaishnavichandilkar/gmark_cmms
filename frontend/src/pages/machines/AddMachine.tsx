@@ -11,6 +11,7 @@ export function AddMachine() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [facilities, setFacilities] = useState<any[]>([]);
+  const [mainFacilities, setMainFacilities] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
@@ -32,20 +33,31 @@ export function AddMachine() {
   useEffect(() => {
     Promise.all([
       api.get('/facilities'),
+      api.get('/main-facilities'),
       api.get('/employees')
-    ]).then(([facRes, empRes]) => {
+    ]).then(([facRes, mainFacRes, empRes]) => {
       setFacilities(facRes.data);
+      setMainFacilities(mainFacRes.data);
       setEmployees(empRes.data);
     }).catch(console.error);
   }, []);
 
   const handleChange = (e: any) => {
     const { name, value, dataset } = e.target;
-    setFormData((prev) => ({ 
-      ...prev, 
-      [name]: value,
-      ...(dataset?.type ? { locationType: dataset.type } : {})
-    }));
+    setFormData((prev) => {
+      const updates: any = {
+        ...prev,
+        [name]: value,
+        ...(dataset?.type ? { locationType: dataset.type } : {})
+      };
+      
+      // If the main facility (company) changes, reset the sub-facility
+      if (name === 'company') {
+        updates.facilityId = '';
+      }
+      
+      return updates;
+    });
   };
 
   const handleNext = () => {
@@ -89,7 +101,7 @@ export function AddMachine() {
 
       const res = await api.post('/devices', payload);
       toast.success('Machine saved successfully!');
-      navigate(`/machine-management/edit/${res.data.id}`);
+      navigate(`/machine-management/edit/${res.data.id}`, { replace: true });
     } catch (err: any) {
       console.error('Failed to create machine', err);
       toast.error(err.response?.data?.message || 'Failed to save machine');
@@ -125,13 +137,11 @@ export function AddMachine() {
                     <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                       Facility<span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
+                    <FacilityHierarchyPicker
                       name="company"
                       value={formData.company}
                       onChange={handleChange}
-                      placeholder="Enter Facility Name"
-                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
+                      placeholder="Select Facility"
                     />
                   </div>
                   <div>
@@ -143,6 +153,8 @@ export function AddMachine() {
                       value={formData.facilityId}
                       onChange={handleChange}
                       placeholder="Select Sub-Facility"
+                      filterByMainFacilityId={formData.company}
+                      disabled={!formData.company}
                     />
                   </div>
                   <div>

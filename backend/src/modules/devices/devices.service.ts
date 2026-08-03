@@ -179,6 +179,7 @@ export class DevicesService {
     machineCategory?: string;
     machineSubCategory?: string;
     description?: string;
+    assetCode?: string;
     isLocationPart?: boolean;
     costCenter?: string;
     headOfDepartment?: string;
@@ -217,6 +218,7 @@ export class DevicesService {
         machineCategory: data.machineCategory,
         machineSubCategory: data.machineSubCategory,
         description: data.description,
+        assetCode: data.assetCode,
         isLocationPart: data.isLocationPart,
         costCenter: data.costCenter,
         headOfDepartment: data.headOfDepartment,
@@ -257,6 +259,7 @@ export class DevicesService {
       machineCategory?: string;
       machineSubCategory?: string;
       description?: string;
+      assetCode?: string;
       isLocationPart?: boolean;
       costCenter?: string;
       headOfDepartment?: string;
@@ -305,6 +308,7 @@ export class DevicesService {
         machineCategory: data.machineCategory,
         machineSubCategory: data.machineSubCategory,
         description: data.description,
+        assetCode: data.assetCode,
         isLocationPart: data.isLocationPart,
         costCenter: data.costCenter,
         headOfDepartment: data.headOfDepartment,

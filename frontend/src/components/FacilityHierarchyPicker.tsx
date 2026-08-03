@@ -13,6 +13,7 @@ interface FacilityHierarchyPickerProps {
   className?: string;
   showSocietiesAndBuildings?: boolean;
   filterByMainFacilityId?: string;
+  defaultExpanded?: boolean;
 }
 
 export function FacilityHierarchyPicker({
@@ -23,7 +24,8 @@ export function FacilityHierarchyPicker({
   disabled = false,
   className = "",
   showSocietiesAndBuildings = true,
-  filterByMainFacilityId
+  filterByMainFacilityId,
+  defaultExpanded = false
 }: FacilityHierarchyPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [treeData, setTreeData] = useState<TreeNodeData[]>([]);
@@ -31,10 +33,9 @@ export function FacilityHierarchyPicker({
   const [loading, setLoading] = useState(true);
   const [displayValue, setDisplayValue] = useState('');
 
-  // Fetch facilities when modal opens (or on mount to get display name)
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [filterByMainFacilityId, value]);
 
   const fetchData = async () => {
     try {
@@ -126,7 +127,7 @@ export function FacilityHierarchyPicker({
           facMap[fac.parentFacilityId].children!.push(node);
         } else if (fac.mainFacilityId) {
           const mainFacParent = mfNodesWithPrefix.find(mf => mf.originalData.id === fac.mainFacilityId);
-          if (mainFacParent) {
+          if (mainFacParent && !filterByMainFacilityId) {
             mainFacParent.children!.push(node);
           } else {
             finalTree.push(node);
@@ -136,7 +137,9 @@ export function FacilityHierarchyPicker({
         }
       });
 
-      finalTree.push(...mfNodesWithPrefix);
+      if (!filterByMainFacilityId) {
+        finalTree.push(...mfNodesWithPrefix);
+      }
       setTreeData(finalTree);
 
       // Restore selected node in tree if value exists
@@ -213,8 +216,14 @@ export function FacilityHierarchyPicker({
 
       {/* Modal Popup */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
+        <div 
+          className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setIsOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
             <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-gray-50">
               <h2 className="text-lg font-bold text-gray-900">Select Facility Hierarchy</h2>
@@ -236,7 +245,7 @@ export function FacilityHierarchyPicker({
                     data={treeData} 
                     onSelect={setSelectedNode} 
                     selectedId={selectedNode?.id || null} 
-                    defaultExpanded={true}
+                    defaultExpanded={defaultExpanded}
                   />
                 </div>
               )}

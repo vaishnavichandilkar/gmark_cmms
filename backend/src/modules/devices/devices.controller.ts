@@ -79,6 +79,7 @@ export class DevicesController {
       machineCategory?: string;
       machineSubCategory?: string;
       description?: string;
+      assetCode?: string;
       isLocationPart?: boolean;
       costCenter?: string;
       headOfDepartment?: string;
@@ -128,6 +129,7 @@ export class DevicesController {
       machineCategory?: string;
       machineSubCategory?: string;
       description?: string;
+      assetCode?: string;
       isLocationPart?: boolean;
       costCenter?: string;
       headOfDepartment?: string;

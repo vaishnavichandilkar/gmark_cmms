@@ -110,6 +110,7 @@ model Device {
   machineCategory     String?
   machineSubCategory  String?
   description         String?
+  assetCode           String?
   isLocationPart      Boolean? @default(false)
   costCenter          String?
   headOfDepartment    String?

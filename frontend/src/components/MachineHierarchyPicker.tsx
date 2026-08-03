@@ -12,6 +12,8 @@ interface MachineHierarchyPickerProps {
   disabled?: boolean;
   className?: string;
   excludeDeviceId?: string; // ID of the machine to exclude from being a parent
+  filterByCompany?: string;
+  filterByLocationId?: string;
 }
 
 export function MachineHierarchyPicker({
@@ -21,7 +23,9 @@ export function MachineHierarchyPicker({
   placeholder = "Select Machine",
   disabled = false,
   className = "",
-  excludeDeviceId
+  excludeDeviceId,
+  filterByCompany,
+  filterByLocationId
 }: MachineHierarchyPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [treeData, setTreeData] = useState<TreeNodeData[]>([]);
@@ -29,10 +33,10 @@ export function MachineHierarchyPicker({
   const [loading, setLoading] = useState(true);
   const [displayValue, setDisplayValue] = useState('');
 
-  // Fetch devices when component mounts
+  // Fetch devices when component mounts or filters change
   useEffect(() => {
     fetchData();
-  }, [value]);
+  }, [value, filterByCompany, filterByLocationId]);
 
   const fetchData = async () => {
     try {
@@ -43,6 +47,19 @@ export function MachineHierarchyPicker({
       // Filter out the current device so it can't be its own parent
       if (excludeDeviceId) {
         devices = devices.filter((d: any) => d.id.toString() !== excludeDeviceId);
+      }
+
+      // Filter by company (Facility)
+      if (filterByCompany) {
+        devices = devices.filter((d: any) => d.company === filterByCompany);
+      }
+
+      // Filter by location (Sub-Facility)
+      if (filterByLocationId) {
+        devices = devices.filter((d: any) => 
+          d.facilityId?.toString() === filterByLocationId || 
+          d.buildingId?.toString() === filterByLocationId
+        );
       }
 
       // Find initial display value if there's a selected value
@@ -133,8 +150,14 @@ export function MachineHierarchyPicker({
 
       {/* Modal Popup */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
+        <div 
+          className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setIsOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
             <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-gray-50">
               <h2 className="text-lg font-bold text-gray-900">Select Parent Machine</h2>

@@ -68,7 +68,7 @@ export function EditMachine() {
     locationId: '',
     locationName: '',
     parentDeviceId: '',
-    
+    assetCode: '',
     
     latitude: '',
     longitude: '',
@@ -182,6 +182,7 @@ export function EditMachine() {
           locationId: device.facilityId?.toString() || device.buildingId?.toString() || '',
           locationName: device.facility?.facilityName || device.building?.name || '',
           parentDeviceId: device.parentDeviceId?.toString() || '',
+          assetCode: device.assetCode || '',
           latitude: device.latitude || '',
           longitude: device.longitude || '',
           costCenter: device.costCenter || '',
@@ -205,6 +206,11 @@ export function EditMachine() {
   };
 
   const handleSave = async () => {
+    if (!formData.assetCode) {
+      toast.error('Please enter the Asset Code.');
+      return;
+    }
+    
     setSaving(true);
     try {
       await api.put(`/devices/${id}`, {
@@ -223,6 +229,7 @@ export function EditMachine() {
         facilityId: (formData as any).locationType === 'facility' || (formData as any).locationType === 'mainFacility' ? (formData.locationId ? parseInt(formData.locationId) : undefined) : undefined,
         buildingId: (formData as any).locationType === 'building' || (formData as any).locationType === 'society' ? (formData.locationId ? parseInt(formData.locationId) : undefined) : undefined,
         parentDeviceId: formData.parentDeviceId ? parseInt(formData.parentDeviceId) : undefined,
+        assetCode: formData.assetCode,
         latitude: formData.latitude,
         longitude: formData.longitude,
         costCenter: formData.costCenter,
@@ -331,7 +338,7 @@ export function EditMachine() {
       {/* Header */}
       <div className="flex items-center mb-6">
         <button
-          onClick={() => navigate('/machine-management')}
+          onClick={() => navigate(-1)}
           className="text-gray-800 hover:text-black mr-3 focus:outline-none flex items-center"
         >
           <ArrowLeft size={24} className="stroke-[2.5]" />
@@ -385,6 +392,8 @@ export function EditMachine() {
                         onChange={handleChange}
                         disabled={!formData.isLocationPart}
                         excludeDeviceId={id}
+                        filterByCompany={formData.company}
+                        filterByLocationId={formData.locationId}
                       />
                     </div>
                   </div>
@@ -444,7 +453,20 @@ export function EditMachine() {
                   </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                      Asset Code<span className="text-red-500">*</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      name="assetCode"
+                      value={formData.assetCode}
+                      onChange={handleChange}
+                      placeholder="Enter"
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
+                    />
+                  </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                       Cost Center<span className="text-red-500">*</span>
