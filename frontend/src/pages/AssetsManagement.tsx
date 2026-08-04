@@ -4,10 +4,12 @@ import type { TreeNodeData } from '../components/AssetTree';
 import { AssetDetails } from '../components/AssetDetails';
 import { api } from '../lib/api';
 import { Skeleton } from '../components/ui/Skeleton';
+import { X } from 'lucide-react';
 
 export function AssetsManagement() {
   const [treeData, setTreeData] = useState<TreeNodeData[]>([]);
   const [selectedNode, setSelectedNode] = useState<TreeNodeData | null>(null);
+  const [detailsNode, setDetailsNode] = useState<TreeNodeData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,17 +21,17 @@ export function AssetsManagement() {
       setLoading(true);
       
       // Fetch all required data
-      const [societiesRes, buildingsRes, devicesRes, mainFacilitiesRes, facilitiesRes] = await Promise.all([
+      const [societiesRes, buildingsRes, machinesRes, mainFacilitiesRes, facilitiesRes] = await Promise.all([
         api.get('/societies').catch(() => ({ data: [] })),
         api.get('/buildings').catch(() => ({ data: [] })),
-        api.get('/devices').catch(() => ({ data: [] })),
+        api.get('/machines').catch(() => ({ data: [] })),
         api.get('/main-facilities').catch(() => ({ data: [] })),
         api.get('/facilities').catch(() => ({ data: [] })),
       ]);
 
       const societies = Array.isArray(societiesRes.data) ? societiesRes.data : [];
       const buildings = Array.isArray(buildingsRes.data) ? buildingsRes.data : [];
-      const devices = Array.isArray(devicesRes.data) ? devicesRes.data : [];
+      const machines = Array.isArray(machinesRes.data) ? machinesRes.data : [];
       const mainFacilities = Array.isArray(mainFacilitiesRes.data) ? mainFacilitiesRes.data : [];
       const facilities = Array.isArray(facilitiesRes.data) ? facilitiesRes.data : [];
 
@@ -58,17 +60,14 @@ export function AssetsManagement() {
           children: []
         };
         
-        // Attach Devices to Buildings
-        devices.forEach((dev: any) => {
-          // Device might have building name or building id depending on endpoint response format
-          // The device endpoint returns 'building' string or building object.
-          // Adjusting based on standard device response
-          if (dev.building === bldg.name || dev.buildingId === bldg.id) {
+        // Attach Machines to Buildings
+        machines.forEach((mac: any) => {
+          if (mac.buildingId === bldg.id) {
             bldgNode.children!.push({
-              id: `dev-${dev.id}`,
-              name: dev.name || dev.systemName || dev.deviceId,
-              type: 'device',
-              originalData: dev
+              id: `mac-${mac.id}`,
+              name: mac.name || mac.machineCode || mac.deviceId || 'Unknown Machine',
+              type: 'device', // Using 'device' type so AssetDetails correctly renders it
+              originalData: mac
             });
           }
         });
@@ -121,14 +120,14 @@ export function AssetsManagement() {
           finalTree.push(node);
         }
 
-        // Attach Devices to Facilities
-        devices.forEach((dev: any) => {
-          if (dev.facilityId === fac.id) {
+        // Attach Machines to Facilities
+        machines.forEach((mac: any) => {
+          if (mac.facilityId === fac.id) {
             node.children!.push({
-              id: `dev-${dev.id}`,
-              name: dev.name || dev.systemName || dev.deviceId,
+              id: `mac-${mac.id}`,
+              name: mac.name || mac.machineCode || mac.deviceId || 'Unknown Machine',
               type: 'device',
-              originalData: dev
+              originalData: mac
             });
           }
         });
@@ -146,13 +145,14 @@ export function AssetsManagement() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-64px)] bg-white -m-4 sm:-m-6 md:-m-8">
-      {/* Left Sidebar - Tree */}
-      <div className="w-80 bg-white border-r border-gray-200 flex flex-col shrink-0 h-full">
-        <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
-          <h2 className="font-bold text-gray-900">All Assets</h2>
+    <div className="flex h-[calc(100vh-64px)] bg-gray-50 -m-4 sm:-m-6 md:-m-8 p-4 sm:p-6 md:p-8">
+      {/* Tree Container */}
+      <div className="w-full max-w-5xl mx-auto bg-white border border-gray-200 rounded-2xl shadow-sm flex flex-col h-full overflow-hidden">
+        <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
+          <h2 className="text-lg font-bold text-gray-900">All Assets</h2>
+          <p className="text-sm text-gray-500">Double-click an asset to view its details</p>
         </div>
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden p-2">
           {loading ? (
             <div className="p-4 space-y-4">
               {Array.from({ length: 10 }).map((_, i) => (
@@ -166,16 +166,35 @@ export function AssetsManagement() {
             <AssetTree 
               data={treeData} 
               onSelect={setSelectedNode} 
+              onDoubleClick={setDetailsNode}
               selectedId={selectedNode?.id || null} 
             />
           )}
         </div>
       </div>
 
-      {/* Right Content - Details */}
-      <div className="flex-1 overflow-hidden">
-        <AssetDetails node={selectedNode} />
-      </div>
+      {/* Modal Popup */}
+      {detailsNode && (
+        <div 
+          className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setDetailsNode(null)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-xl w-full max-w-4xl h-[85vh] overflow-hidden flex flex-col relative animate-in fade-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button 
+              onClick={() => setDetailsNode(null)}
+              className="absolute top-4 right-4 z-50 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors shadow-sm"
+            >
+              <X size={18} className="text-gray-700" />
+            </button>
+            <div className="flex-1 overflow-hidden">
+              <AssetDetails node={detailsNode} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -129,7 +129,7 @@ export function FacilityHierarchyPicker({
           facMap[fac.parentFacilityId].children!.push(node);
         } else if (fac.mainFacilityId) {
           const mainFacParent = mfNodesWithPrefix.find(mf => mf.originalData.id === fac.mainFacilityId);
-          if (mainFacParent && !filterByMainFacilityId) {
+          if (mainFacParent) {
             mainFacParent.children!.push(node);
           } else {
             finalTree.push(node);
@@ -139,9 +139,7 @@ export function FacilityHierarchyPicker({
         }
       });
 
-      if (!filterByMainFacilityId) {
-        finalTree.push(...mfNodesWithPrefix);
-      }
+      finalTree.push(...mfNodesWithPrefix);
       setTreeData(finalTree);
 
       // Restore selected node in tree if value exists

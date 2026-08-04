@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Calendar } from 'lucide-react';
+import { ArrowLeft, Search, Plus, Trash2, Calendar } from 'lucide-react';
 import { CustomSelect } from '../../components/CustomSelect';
 import { api } from '../../lib/api';
 import { FacilityHierarchyPicker } from '../../components/FacilityHierarchyPicker';
@@ -127,7 +127,7 @@ export function AddMachine() {
         machineSubCategory: formData.machineSubCategory,
         description: formData.description,
         isLocationPart: formData.isLocationPart,
-        parentDeviceId: formData.parentDeviceId,
+        parentDeviceId: formData.isLocationPart && formData.parentDeviceId ? parseInt(formData.parentDeviceId) : undefined,
         latitude: formData.latitude,
         longitude: formData.longitude,
         assetCode: formData.assetCode,
@@ -262,11 +262,11 @@ export function AddMachine() {
           <div className="space-y-6 w-full">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Facility<span className="text-red-500">*</span></label>
-                <FacilityHierarchyPicker name="company" value={formData.company} onChange={handleChange} placeholder="Select Facility" selectableTypes={['mainFacility', 'society']} />
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Company<span className="text-red-500">*</span></label>
+                <FacilityHierarchyPicker name="company" value={formData.company} onChange={handleChange} placeholder="Select Facility" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Sub-Facility<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Facility<span className="text-red-500">*</span></label>
                 <FacilityHierarchyPicker name="facilityId" value={formData.facilityId} onChange={handleChange} placeholder="Select Sub-Facility" filterByMainFacilityId={formData.company} disabled={!formData.company} selectableTypes={['facility', 'building']} defaultExpanded={true} />
               </div>
               <div>
@@ -343,21 +343,28 @@ export function AddMachine() {
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-4">
                     <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Asset Code<span className="text-red-500">*</span></label><input type="text" name="assetCode" value={formData.assetCode} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
                     <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Cost Center<span className="text-red-500">*</span></label><input type="text" name="costCenter" value={formData.costCenter} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
-                    <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Select Head of Department<span className="text-red-500">*</span></label><CustomSelect name="headOfDepartment" value={formData.headOfDepartment} onChange={handleChange} placeholder="Select" options={employees.map(e => ({ label: e.fullName, value: e.fullName }))} /></div>
-                    <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Owner<span className="text-red-500">*</span></label><CustomSelect name="machineOwner" value={formData.machineOwner} onChange={handleChange} placeholder="Select" options={employees.map(e => ({ label: e.fullName, value: e.fullName }))} /></div>
+                    <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Select Head of Department<span className="text-red-500">*</span></label><CustomSelect name="headOfDepartment" value={formData.headOfDepartment} onChange={handleChange} options={employees.map(e => ({ label: e.fullName, value: e.fullName }))} /></div>
+                    <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Owner<span className="text-red-500">*</span></label><CustomSelect name="machineOwner" value={formData.machineOwner} onChange={handleChange} options={employees.map(e => ({ label: e.fullName, value: e.fullName }))} /></div>
                     <div className="col-span-3"><label className="block text-xs font-semibold text-gray-700 mb-1.5">Notes</label><textarea name="notes" value={formData.notes} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 resize-none h-12"></textarea></div>
                   </div>
                 </div>
               )}
 
               {activeTab === 'Specification' && (
-                <div className="space-y-8">
+                <div className="space-y-6">
                   <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Upload Name Plate</label>
+                    <div className="relative max-w-md">
+                      <input type="file" className="block w-full text-sm text-gray-600 border border-gray-300 rounded-xl cursor-pointer focus:outline-none file:mr-4 file:py-2.5 file:px-4 file:border-0 file:border-r file:border-gray-300 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200" />
+                    </div>
+                  </div>
+                  <div className="pt-2">
+                    <label className="block text-xs font-semibold text-gray-400 mb-4">Location</label>
                     <button onClick={() => setIsSpecModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg transition-colors font-semibold text-sm">
                       <Plus size={18} /> Add Specification Field
                     </button>
                     {pendingSpecifications.length > 0 && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                         {pendingSpecifications.map((spec) => (
                           <div key={spec.id} className="flex justify-between items-center bg-gray-50 border border-gray-200 p-4 rounded-xl">
                             <div><p className="text-xs text-gray-500 font-semibold mb-1">{spec.title}</p><p className="text-sm font-bold text-gray-900">{spec.data} {spec.unit}</p></div>
@@ -370,11 +377,11 @@ export function AddMachine() {
                 </div>
               )}
 
-              {(activeTab === 'Spares' || activeTab === 'AMC' || activeTab === 'Purchase') && (
+              {activeTab === 'Spares' || activeTab === 'AMC' || activeTab === 'Purchase' ? (
                 <div className="flex items-center justify-center h-64 text-gray-400">
                   <p>This tab is currently under construction.</p>
                 </div>
-              )}
+              ) : null}
 
               {activeTab === 'Documents' && (
                 <div className="space-y-6">
@@ -420,14 +427,35 @@ export function AddMachine() {
       {isSpecModalOpen && (
         <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-xl relative">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Add Specification</h2>
+            <div className="flex items-center gap-4 mb-2">
+              <button onClick={() => setIsSpecModalOpen(false)} className="text-gray-900 hover:text-gray-700">
+                <ArrowLeft size={24} />
+              </button>
+              <h2 className="text-xl font-bold text-gray-900">Add Specification Field</h2>
+            </div>
+            <p className="text-xs font-medium text-gray-500 mb-6 ml-10">Asset : {formData.name || 'Domestic Terrace Booster System'}</p>
             <div className="space-y-6">
-              <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Specification Title</label><input type="text" value={specTitle} onChange={e=>setSpecTitle(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Data</label><input type="text" value={specData} onChange={e=>setSpecData(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
-                <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Unit</label><input type="text" value={specUnit} onChange={e=>setSpecUnit(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Field Title</label>
+                <input type="text" value={specTitle} onChange={e=>setSpecTitle(e.target.value)} placeholder="Enter Title" className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" />
               </div>
-              <div className="flex gap-4 mt-8"><button onClick={()=>setIsSpecModalOpen(false)} className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm transition-colors">Cancel</button><button onClick={handleAddSpec} className="flex-1 py-2.5 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors">Add</button></div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Field Input Type</label>
+                <CustomSelect name="specInputType" value={specInputType} onChange={(e) => setSpecInputType(e.target.value)} options={[{label: 'Text', value: 'Text'}, {label: 'Number', value: 'Number'}, {label: 'Boolean', value: 'Boolean'}]} placeholder="Select" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Field Data</label>
+                  <input type="text" value={specData} onChange={e=>setSpecData(e.target.value)} placeholder="eg. 120" className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Field Unit</label>
+                  <CustomSelect name="specUnit" value={specUnit} onChange={(e) => setSpecUnit(e.target.value)} options={[{label: 'mm', value: 'mm'}, {label: 'kg', value: 'kg'}, {label: 'kW', value: 'kW'}, {label: 'V', value: 'V'}]} placeholder="Select" />
+                </div>
+              </div>
+              <div className="flex justify-center mt-8">
+                <button onClick={handleAddSpec} className="px-12 py-3 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors shadow-sm">Save</button>
+              </div>
             </div>
           </div>
         </div>

@@ -219,4 +219,27 @@ export class MachinesService {
 
     return machine;
   }
+
+  async addSpecification(id: number, data: { title: string; inputType: string; data: string; unit?: string }) {
+    return this.prisma.machineSpecification.create({
+      data: {
+        machineId: id,
+        title: data.title,
+        inputType: data.inputType,
+        data: data.data,
+        unit: data.unit || null,
+      },
+    });
+  }
+
+  async addDocument(id: number, data: any) {
+    return this.prisma.machineDocument.create({
+      data: {
+        machineId: id,
+        name: data.name || 'Document',
+        type: data.type || 'File',
+        content: data.content || 'Uploaded File',
+      },
+    });
+  }
 }

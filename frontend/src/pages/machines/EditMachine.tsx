@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { CustomSelect } from '../../components/CustomSelect';
-import { ArrowLeft, Search, Plus, Edit, Eye, Calendar, Trash2, Edit2, Download, Filter } from 'lucide-react';
+import { ArrowLeft, Search, Plus, Calendar } from 'lucide-react';
 import { api } from '../../lib/api';
 import { FacilityHierarchyPicker } from '../../components/FacilityHierarchyPicker';
 import { MachineHierarchyPicker } from '../../components/MachineHierarchyPicker';

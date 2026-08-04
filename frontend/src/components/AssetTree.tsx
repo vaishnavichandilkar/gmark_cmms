@@ -12,15 +12,16 @@ export interface TreeNodeData {
 interface AssetTreeProps {
   data: TreeNodeData[];
   onSelect: (node: TreeNodeData) => void;
+  onDoubleClick?: (node: TreeNodeData) => void;
   selectedId: string | null;
   defaultExpanded?: boolean;
 }
 
-export const AssetTree = ({ data, onSelect, selectedId, defaultExpanded = false }: AssetTreeProps) => {
+export const AssetTree = ({ data, onSelect, onDoubleClick, selectedId, defaultExpanded = false }: AssetTreeProps) => {
   return (
     <div className="w-full bg-white h-full overflow-y-auto py-2">
       {data.map(node => (
-        <TreeNode key={node.id} node={node} onSelect={onSelect} selectedId={selectedId} defaultExpanded={defaultExpanded} />
+        <TreeNode key={node.id} node={node} onSelect={onSelect} onDoubleClick={onDoubleClick} selectedId={selectedId} defaultExpanded={defaultExpanded} />
       ))}
       {data.length === 0 && (
         <div className="p-4 text-sm text-gray-500 text-center">No assets found</div>
@@ -32,12 +33,13 @@ export const AssetTree = ({ data, onSelect, selectedId, defaultExpanded = false 
 interface TreeNodeProps {
   node: TreeNodeData;
   onSelect: (node: TreeNodeData) => void;
+  onDoubleClick?: (node: TreeNodeData) => void;
   selectedId: string | null;
   level?: number;
   defaultExpanded?: boolean;
 }
 
-const TreeNode = ({ node, onSelect, selectedId, level = 0, defaultExpanded = false }: TreeNodeProps) => {
+const TreeNode = ({ node, onSelect, onDoubleClick, selectedId, level = 0, defaultExpanded = false }: TreeNodeProps) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const hasChildren = node.children && node.children.length > 0;
   const isSelected = selectedId === node.id;
@@ -71,6 +73,13 @@ const TreeNode = ({ node, onSelect, selectedId, level = 0, defaultExpanded = fal
     }
   };
 
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onDoubleClick) {
+      onDoubleClick(node);
+    }
+  };
+
   const handleExpandToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (hasChildren) {
@@ -84,6 +93,7 @@ const TreeNode = ({ node, onSelect, selectedId, level = 0, defaultExpanded = fal
         className={`flex items-center gap-2 py-1.5 px-2 cursor-pointer hover:bg-gray-100 transition-colors ${isSelected ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}
         style={{ paddingLeft: `${level * 16 + 8}px` }}
         onClick={handleSelect}
+        onDoubleClick={handleDoubleClick}
       >
         <span 
           className="w-5 h-5 flex items-center justify-center shrink-0"
@@ -111,6 +121,7 @@ const TreeNode = ({ node, onSelect, selectedId, level = 0, defaultExpanded = fal
               key={child.id} 
               node={child} 
               onSelect={onSelect} 
+              onDoubleClick={onDoubleClick}
               selectedId={selectedId} 
               level={level + 1} 
               defaultExpanded={defaultExpanded}

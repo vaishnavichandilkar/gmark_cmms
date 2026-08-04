@@ -33,7 +33,7 @@ export function MachineHierarchyPicker({
   const [loading, setLoading] = useState(true);
   const [displayValue, setDisplayValue] = useState('');
 
-  // Fetch devices when component mounts or filters change
+  // Fetch machines when component mounts or filters change
   useEffect(() => {
     fetchData();
   }, [value, filterByCompany, filterByLocationId]);
@@ -41,45 +41,45 @@ export function MachineHierarchyPicker({
   const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/devices');
-      let devices = Array.isArray(res.data) ? res.data : [];
+      const res = await api.get('/machines');
+      let machines = Array.isArray(res.data) ? res.data : [];
 
-      // Filter out the current device so it can't be its own parent
+      // Filter out the current machine so it can't be its own parent
       if (excludeDeviceId) {
-        devices = devices.filter((d: any) => d.id.toString() !== excludeDeviceId);
+        machines = machines.filter((m: any) => m.id.toString() !== excludeDeviceId);
       }
 
       // Filter by company (Facility)
       if (filterByCompany) {
-        devices = devices.filter((d: any) => d.company === filterByCompany);
+        machines = machines.filter((m: any) => m.company === filterByCompany);
       }
 
       // Filter by location (Sub-Facility)
       if (filterByLocationId) {
-        devices = devices.filter((d: any) => 
-          d.facilityId?.toString() === filterByLocationId || 
-          d.buildingId?.toString() === filterByLocationId
+        machines = machines.filter((m: any) => 
+          m.facilityId?.toString() === filterByLocationId || 
+          m.buildingId?.toString() === filterByLocationId
         );
       }
 
       // Find initial display value if there's a selected value
       if (value) {
-        const selectedDev = devices.find(d => d.id.toString() === value);
+        const selectedDev = machines.find((m: any) => m.id.toString() === value);
         if (selectedDev) {
           setDisplayValue(selectedDev.name);
         }
       }
 
       // Build tree
-      const deviceMap: Record<number, TreeNodeData> = {};
+      const machineMap: Record<number, TreeNodeData> = {};
       
       // Initialize map
-      devices.forEach((dev: any) => {
-        deviceMap[dev.id] = {
-          id: `dev-${dev.id}`,
-          name: dev.name,
+      machines.forEach((mac: any) => {
+        machineMap[mac.id] = {
+          id: `mac-${mac.id}`,
+          name: mac.name,
           type: 'device',
-          originalData: dev,
+          originalData: mac,
           children: []
         };
       });
@@ -87,10 +87,10 @@ export function MachineHierarchyPicker({
       const finalTree: TreeNodeData[] = [];
 
       // Build hierarchy
-      devices.forEach((dev: any) => {
-        const node = deviceMap[dev.id];
-        if (dev.parentDeviceId && deviceMap[dev.parentDeviceId]) {
-          deviceMap[dev.parentDeviceId].children!.push(node);
+      machines.forEach((mac: any) => {
+        const node = machineMap[mac.id];
+        if (mac.parentMachineId && machineMap[mac.parentMachineId]) {
+          machineMap[mac.parentMachineId].children!.push(node);
         } else {
           // If no parent or parent doesn't exist (e.g. excluded), it's a root node
           finalTree.push(node);
@@ -101,7 +101,7 @@ export function MachineHierarchyPicker({
 
       // Restore selected node in tree if value exists
       if (value) {
-        const initialSelectedDev = Object.values(deviceMap).find(dev => dev.originalData.id.toString() === value);
+        const initialSelectedDev = Object.values(machineMap).find(mac => mac.originalData.id.toString() === value);
         if (initialSelectedDev) {
           setSelectedNode(initialSelectedDev);
         }

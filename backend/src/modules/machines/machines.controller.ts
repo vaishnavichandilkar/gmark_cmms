@@ -116,4 +116,24 @@ export class MachinesController {
     );
     return result;
   }
+
+  @Post(':id/specifications')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN)
+  @ApiOperation({ summary: 'Add a specification to a machine' })
+  async addSpecification(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { title: string; inputType: string; data: string; unit?: string }
+  ) {
+    return this.machinesService.addSpecification(id, body);
+  }
+
+  @Post(':id/documents')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN)
+  @ApiOperation({ summary: 'Add a document/file to a machine' })
+  async addDocument(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: any // using any for multer/file upload logic
+  ) {
+    return this.machinesService.addDocument(id, body);
+  }
 }

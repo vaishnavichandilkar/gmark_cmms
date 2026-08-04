@@ -28,7 +28,7 @@ export const AssetDetails = ({ node }: AssetDetailsProps) => {
           <div className={`p-3 rounded-xl ${
             node.type === 'device' ? 'bg-orange-50 text-orange-600' :
             node.type === 'building' || node.type === 'facility' ? 'bg-emerald-50 text-emerald-600' :
-            'bg-blue-50 text-blue-600'
+            'bg-[#00a651]/10 text-[#00a651]'
           }`}>
             {node.type === 'device' && <Cpu className="w-6 h-6" />}
             {(node.type === 'building' || node.type === 'facility') && <Building className="w-6 h-6" />}
@@ -77,7 +77,7 @@ const FacilityDetails = ({ node }: { node: TreeNodeData }) => {
       <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
         <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-5">
            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-             <Building2 className="text-blue-500" size={20} />
+             <Building2 className="text-[#00a651]" size={20} />
              General Information
            </h3>
            <div className={`px-3 py-1 rounded-full text-xs font-semibold ${status === 'Active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
@@ -124,7 +124,7 @@ const FacilityDetails = ({ node }: { node: TreeNodeData }) => {
 
       <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
         <h3 className="text-lg font-bold text-gray-900 mb-5 flex items-center gap-2 border-b border-gray-100 pb-4">
-          <MapPin className="text-blue-500" size={20} />
+          <MapPin className="text-[#00a651]" size={20} />
           Location & Details
         </h3>
         
@@ -153,7 +153,7 @@ const FacilityDetails = ({ node }: { node: TreeNodeData }) => {
         <ImageIcon className="w-12 h-12 mb-3 text-gray-300" />
         <p className="text-sm font-medium">No Cover Image Available</p>
         <div className="absolute inset-0 bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-            <button className="bg-white border border-gray-200 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm hover:text-blue-600 transition-colors">Upload Image</button>
+            <button className="bg-white border border-gray-200 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm hover:text-[#00a651] transition-colors">Upload Image</button>
         </div>
       </div>
     </div>
@@ -180,7 +180,7 @@ const DeviceDetails = ({ device }: { device: any }) => {
           <ImageIcon className="w-16 h-16 text-gray-200" />
           <p className="text-xs text-gray-400 mt-2 font-medium">No Image Uploaded</p>
           <div className="absolute inset-0 bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-            <button className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium shadow-sm hover:text-blue-600">Upload Image</button>
+            <button className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium shadow-sm hover:text-[#00a651]">Upload Image</button>
           </div>
         </div>
         <div className="w-64 bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col items-center justify-center p-4">
@@ -196,14 +196,14 @@ const DeviceDetails = ({ device }: { device: any }) => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-3.5 text-sm font-medium transition-colors relative ${activeTab === tab.id ? 'text-blue-600 bg-white' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}`}
+              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-3.5 text-sm font-medium transition-colors relative ${activeTab === tab.id ? 'text-[#00a651] bg-white' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}`}
             >
               {tab.icon}
               {tab.label}
               {activeTab === tab.id && (
                 <motion.div 
                   layoutId="activeTabBottom"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00a651]"
                 />
               )}
             </button>
@@ -238,13 +238,13 @@ const DeviceDetails = ({ device }: { device: any }) => {
 
           {activeTab === 'iot' && (
             <div className="flex flex-col items-center justify-center h-full text-center max-w-sm mx-auto">
-               <Wifi className="w-16 h-16 text-blue-500 mb-6 opacity-90" />
+               <Wifi className="w-16 h-16 text-[#00a651] mb-6 opacity-90" />
                <h3 className="text-xl font-bold text-gray-900 mb-2">HYPN Cloud Connected</h3>
                <p className="text-sm text-gray-500 mb-8 leading-relaxed">This device is connected to the cloud via MAC ID: <br/><span className="font-mono bg-gray-50 px-3 py-1 rounded text-gray-800 mt-2 inline-block border border-gray-200">{device.deviceId}</span></p>
                
                <button 
                   onClick={() => navigate(getDeviceDashboardRoute(device.deviceId))}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm w-full flex items-center justify-center gap-2"
+                  className="bg-[#00a651] hover:bg-[#009040] text-white px-8 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm w-full flex items-center justify-center gap-2"
                >
                  <Activity size={18} />
                  Open Live Monitor
@@ -256,7 +256,7 @@ const DeviceDetails = ({ device }: { device: any }) => {
             <div className="flex flex-col items-center justify-center h-full text-gray-400 min-h-[200px]">
                <FileText className="w-12 h-12 text-gray-300 mb-4" />
                <p className="text-sm font-medium text-gray-500">No documents uploaded yet</p>
-               <button className="mt-4 text-blue-500 hover:text-blue-600 text-sm font-medium transition-colors">Upload Document</button>
+               <button className="mt-4 text-[#00a651] hover:text-[#009040] text-sm font-medium transition-colors">Upload Document</button>
             </div>
           )}
         </div>
