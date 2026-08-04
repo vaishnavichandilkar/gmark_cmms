@@ -92,7 +92,7 @@ export function EditMachine() {
 
   const fetchSpecifications = async () => {
     try {
-      const res = await api.get(`/devices/${id}/specifications`);
+      const res = await api.get(`/machines/${id}/specifications`);
       setSpecifications(res.data);
     } catch (err) {
       console.error('Error fetching specifications:', err);
@@ -107,7 +107,7 @@ export function EditMachine() {
     
     setSavingSpec(true);
     try {
-      await api.post(`/devices/${id}/specifications`, {
+      await api.post(`/machines/${id}/specifications`, {
         title: specTitle,
         inputType: specInputType,
         data: specData,
@@ -131,7 +131,7 @@ export function EditMachine() {
   const executeDeleteSpecification = async () => {
     if (!specToDelete) return;
     try {
-      await api.delete(`/devices/${id}/specifications/${specToDelete}`);
+      await api.delete(`/machines/${id}/specifications/${specToDelete}`);
       toast.success('Specification deleted successfully');
       fetchSpecifications();
     } catch (err: any) {
@@ -144,7 +144,7 @@ export function EditMachine() {
 
   const fetchDocuments = async () => {
     try {
-      const res = await api.get(`/devices/${id}/documents`);
+      const res = await api.get(`/machines/${id}/documents`);
       setDocuments(res.data);
     } catch (err) {
       console.error('Error fetching documents:', err);
@@ -154,7 +154,7 @@ export function EditMachine() {
   const fetchData = async () => {
     try {
       const [deviceRes, facilitiesRes, employeesRes] = await Promise.all([
-        api.get(`/devices/${id}`),
+        api.get(`/machines/${id}`),
         api.get('/facilities'),
         api.get('/employees')
       ]);
@@ -213,7 +213,7 @@ export function EditMachine() {
     
     setSaving(true);
     try {
-      await api.put(`/devices/${id}`, {
+      await api.put(`/machines/${id}`, {
         name: formData.name,
         deviceId: formData.deviceId,
         company: formData.company,
@@ -278,7 +278,7 @@ export function EditMachine() {
         formData.append('name', docName);
         formData.append('file', docFile);
         
-        await api.post(`/devices/${id}/documents/file`, formData, {
+        await api.post(`/machines/${id}/documents/file`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
       } else if (uploadModalType === 'Link') {
@@ -287,7 +287,7 @@ export function EditMachine() {
           setUploadingDoc(false);
           return;
         }
-        await api.post(`/devices/${id}/documents/link`, {
+        await api.post(`/machines/${id}/documents/link`, {
           name: docName,
           url: docContent
         });
@@ -297,7 +297,7 @@ export function EditMachine() {
           setUploadingDoc(false);
           return;
         }
-        await api.post(`/devices/${id}/documents/note`, {
+        await api.post(`/machines/${id}/documents/note`, {
           name: docName,
           note: docContent
         });
@@ -320,7 +320,7 @@ export function EditMachine() {
   const executeDeleteDocument = async () => {
     if (!documentToDelete) return;
     try {
-      await api.delete(`/devices/${id}/documents/${documentToDelete}`);
+      await api.delete(`/machines/${id}/documents/${documentToDelete}`);
       toast.success('Document deleted successfully');
       fetchDocuments();
     } catch (err: any) {
@@ -855,7 +855,7 @@ export function EditMachine() {
 
       <div className="mt-6 flex justify-end gap-4 w-full">
         <button 
-          onClick={() => navigate('/machine-management')}
+          onClick={() => navigate(-1)}
           className="px-10 py-2.5 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-semibold text-sm transition-colors shadow-sm"
         >
           Back
@@ -1370,7 +1370,7 @@ export function EditMachine() {
                   onClick={async () => {
                     try {
                       setSaving(true);
-                      await api.put(`/devices/${id}`, {
+                      await api.put(`/machines/${id}`, {
                         name: formData.name,
                         deviceId: tempMacId,
                         company: formData.company,
@@ -1543,12 +1543,20 @@ function IOTTabContent({
     <div className="w-full min-h-[500px]">
       <div className="flex-1 flex flex-col w-full">
         {/* Header */}
-        <div className="flex justify-end w-full mb-8">
+        <div className="flex justify-between items-center w-full mb-8">
+          <div>
+            {deviceId && (
+              <div className="flex items-center gap-3 bg-gray-50 px-5 py-2.5 rounded-xl border border-gray-200 shadow-sm">
+                <span className="text-sm font-semibold text-gray-500">System MAC ID:</span>
+                <span className="text-base font-black text-gray-900 tracking-wider font-mono">{deviceId}</span>
+              </div>
+            )}
+          </div>
           <button 
             onClick={onAddSystem}
             className="flex items-center gap-2 px-4 py-2 bg-[#00a651] hover:bg-[#009040] text-white font-bold text-sm rounded-lg transition-colors shadow-sm"
           >
-            <Plus size={18} className="stroke-[3]" /> Add System
+            <Plus size={18} className="stroke-[3]" /> {deviceId ? 'Update System' : 'Add System'}
           </button>
         </div>
 

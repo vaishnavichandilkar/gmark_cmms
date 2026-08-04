@@ -170,4 +170,34 @@ export class UsersController {
     );
     return result;
   }
+
+  @Get(':id/permissions')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN)
+  @ApiOperation({ summary: 'Get specific permissions for a user' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  async getUserPermissions(
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.usersService.getUserPermissions(id);
+  }
+
+  @Put(':id/permissions')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN)
+  @ApiOperation({ summary: 'Update specific permissions for a user' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  async updateUserPermissions(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() permissions: any[],
+    @CurrentUser() currentUser: any,
+    @Ip() ip: string,
+  ) {
+    const result = await this.usersService.updateUserPermissions(id, permissions);
+    await this.auditLogService.create(
+      currentUser.userId,
+      `User Permissions Updated: ID ${id}`,
+      'USERS',
+      ip,
+    );
+    return result;
+  }
 }

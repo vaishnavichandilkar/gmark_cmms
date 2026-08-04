@@ -14,6 +14,7 @@ interface FacilityHierarchyPickerProps {
   showSocietiesAndBuildings?: boolean;
   filterByMainFacilityId?: string;
   defaultExpanded?: boolean;
+  selectableTypes?: string[];
 }
 
 export function FacilityHierarchyPicker({
@@ -25,7 +26,8 @@ export function FacilityHierarchyPicker({
   className = "",
   showSocietiesAndBuildings = true,
   filterByMainFacilityId,
-  defaultExpanded = false
+  defaultExpanded = false,
+  selectableTypes
 }: FacilityHierarchyPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [treeData, setTreeData] = useState<TreeNodeData[]>([]);
@@ -261,7 +263,8 @@ export function FacilityHierarchyPicker({
               </button>
               <button 
                 onClick={handleConfirm}
-                className="px-6 py-2 rounded-xl text-sm font-semibold bg-[#00a651] text-white hover:bg-[#009040] transition-colors"
+                disabled={!selectedNode || (selectableTypes && !selectableTypes.includes(selectedNode.type))}
+                className="px-6 py-2 rounded-xl text-sm font-semibold bg-[#00a651] text-white hover:bg-[#009040] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Confirm
               </button>

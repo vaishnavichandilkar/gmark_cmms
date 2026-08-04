@@ -101,16 +101,31 @@ export class AuthService {
     );
     await this.updateRefreshToken(user.id, tokens.refreshToken);
 
-    let permissions = null;
+    const userPermissions = await this.prisma.userPermission.findMany({
+      where: { userId: user.id }
+    });
+
+    let mergedPermissions: any[] = [];
     if (user.employee?.designation) {
       const designation = await this.prisma.designation.findUnique({
         where: { name: user.employee.designation },
         include: { permissions: true }
       });
-      if (designation) {
-        permissions = designation.permissions;
+      if (designation && designation.permissions) {
+        mergedPermissions = [...designation.permissions];
       }
     }
+
+    userPermissions.forEach(up => {
+      const index = mergedPermissions.findIndex(p => p.moduleId === up.moduleId);
+      if (index >= 0) {
+        mergedPermissions[index] = { ...mergedPermissions[index], ...up };
+      } else {
+        mergedPermissions.push(up);
+      }
+    });
+
+    const permissions = mergedPermissions.length > 0 ? mergedPermissions : null;
 
     const sanitizedUser = this.sanitizeUser(user);
     if (permissions) {
@@ -165,16 +180,31 @@ export class AuthService {
       );
       await this.updateRefreshToken(user.id, tokens.refreshToken);
 
-      let permissions = null;
+      const userPermissions = await this.prisma.userPermission.findMany({
+        where: { userId: user.id }
+      });
+
+      let mergedPermissions: any[] = [];
       if (user.employee?.designation) {
         const designation = await this.prisma.designation.findUnique({
           where: { name: user.employee.designation },
           include: { permissions: true }
         });
-        if (designation) {
-          permissions = designation.permissions;
+        if (designation && designation.permissions) {
+          mergedPermissions = [...designation.permissions];
         }
       }
+
+      userPermissions.forEach(up => {
+        const index = mergedPermissions.findIndex(p => p.moduleId === up.moduleId);
+        if (index >= 0) {
+          mergedPermissions[index] = { ...mergedPermissions[index], ...up };
+        } else {
+          mergedPermissions.push(up);
+        }
+      });
+
+      const permissions = mergedPermissions.length > 0 ? mergedPermissions : null;
 
       const sanitizedUser = this.sanitizeUser(user);
       if (permissions) {

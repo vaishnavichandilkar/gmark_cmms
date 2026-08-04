@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { BuildingAccessGuard } from '../auth/guards/building-access.guard';
 
-@Controller('devices')
+@Controller('machines')
 @UseGuards(JwtAuthGuard, RolesGuard, BuildingAccessGuard)
 export class MachineSpecificationsController {
   constructor(private readonly machineSpecificationsService: MachineSpecificationsService) {}

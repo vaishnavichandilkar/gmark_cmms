@@ -65,29 +65,10 @@ export class DevicesController {
       name: string;
       deviceId: string;
       buildingId?: number;
-      facilityId?: number;
       application?: string;
       pumpType?: string;
       controller?: string;
       macType?: string;
-      company?: string;
-      maintenanceHead?: string;
-      machineCode?: string;
-      serialNumber?: string;
-      make?: string;
-      modelNumber?: string;
-      machineCategory?: string;
-      machineSubCategory?: string;
-      description?: string;
-      assetCode?: string;
-      isLocationPart?: boolean;
-      costCenter?: string;
-      headOfDepartment?: string;
-      machineOwner?: string;
-      latitude?: string;
-      longitude?: string;
-      notes?: string;
-      parentDeviceId?: number;
     },
     @CurrentUser() user: any,
     @Ip() ip: string,
@@ -115,29 +96,10 @@ export class DevicesController {
       name: string;
       deviceId: string;
       buildingId?: number;
-      facilityId?: number;
       application?: string;
       pumpType?: string;
       controller?: string;
       macType?: string;
-      company?: string;
-      maintenanceHead?: string;
-      machineCode?: string;
-      serialNumber?: string;
-      make?: string;
-      modelNumber?: string;
-      machineCategory?: string;
-      machineSubCategory?: string;
-      description?: string;
-      assetCode?: string;
-      isLocationPart?: boolean;
-      costCenter?: string;
-      headOfDepartment?: string;
-      machineOwner?: string;
-      latitude?: string;
-      longitude?: string;
-      notes?: string;
-      parentDeviceId?: number;
     },
     @CurrentUser() user: any,
     @Ip() ip: string,

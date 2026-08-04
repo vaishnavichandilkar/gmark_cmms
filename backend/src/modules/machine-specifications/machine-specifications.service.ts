@@ -5,10 +5,10 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 export class MachineSpecificationsService {
   constructor(private prisma: PrismaService) {}
 
-  async create(deviceId: number, data: { title: string; inputType: string; data: string; unit?: string }) {
-    const device = await this.prisma.device.findUnique({ where: { id: deviceId } });
-    if (!device) {
-      throw new NotFoundException(`Device with ID ${deviceId} not found`);
+  async create(machineId: number, data: { title: string; inputType: string; data: string; unit?: string }) {
+    const machine = await this.prisma.machine.findUnique({ where: { id: machineId } });
+    if (!machine) {
+      throw new NotFoundException(`Machine with ID ${machineId} not found`);
     }
 
     return this.prisma.machineSpecification.create({
@@ -17,14 +17,14 @@ export class MachineSpecificationsService {
         inputType: data.inputType,
         data: data.data,
         unit: data.unit,
-        deviceId: deviceId,
+        machineId: machineId,
       },
     });
   }
 
-  async findAll(deviceId: number) {
+  async findAll(machineId: number) {
     return this.prisma.machineSpecification.findMany({
-      where: { deviceId },
+      where: { machineId },
       orderBy: { createdAt: 'asc' },
     });
   }

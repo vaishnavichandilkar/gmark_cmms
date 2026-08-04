@@ -46,7 +46,7 @@ export function MachineManagement() {
   const fetchMachines = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/devices');
+      const response = await api.get('/machines');
       setMachines(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Failed to fetch machines:', error);
@@ -63,7 +63,7 @@ export function MachineManagement() {
   const handleDelete = async () => {
     if (machineToDelete === null) return;
     try {
-      await api.delete(`/devices/${machineToDelete}`);
+      await api.delete(`/machines/${machineToDelete}`);
       setDeleteModalOpen(false);
       setMachineToDelete(null);
       fetchMachines();

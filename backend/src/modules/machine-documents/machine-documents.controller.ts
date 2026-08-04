@@ -25,7 +25,7 @@ import * as path from 'path';
 @ApiTags('machine-documents')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, RolesGuard, BuildingAccessGuard)
-@Controller('devices/:id/documents')
+@Controller('machines/:id/documents')
 export class MachineDocumentsController {
   constructor(
     private readonly documentsService: MachineDocumentsService,
@@ -64,8 +64,8 @@ export class MachineDocumentsController {
     });
     await this.auditLogService.create(
       user.userId,
-      `Document File Uploaded for Device ID ${id}: ${name}`,
-      'DEVICES',
+      `Document File Uploaded for Machine ID ${id}: ${name}`,
+      'MACHINES',
       ip,
     );
     return result;
@@ -86,8 +86,8 @@ export class MachineDocumentsController {
     });
     await this.auditLogService.create(
       user.userId,
-      `Document Link Added for Device ID ${id}: ${name}`,
-      'DEVICES',
+      `Document Link Added for Machine ID ${id}: ${name}`,
+      'MACHINES',
       ip,
     );
     return result;
@@ -108,8 +108,8 @@ export class MachineDocumentsController {
     });
     await this.auditLogService.create(
       user.userId,
-      `Document Note Added for Device ID ${id}: ${name}`,
-      'DEVICES',
+      `Document Note Added for Machine ID ${id}: ${name}`,
+      'MACHINES',
       ip,
     );
     return result;
@@ -125,8 +125,8 @@ export class MachineDocumentsController {
     const result = await this.documentsService.deleteDocument(docId);
     await this.auditLogService.create(
       user.userId,
-      `Document Deleted for Device ID ${id}: ${result.name}`,
-      'DEVICES',
+      `Document Deleted for Machine ID ${id}: ${result.name}`,
+      'MACHINES',
       ip,
     );
     return result;

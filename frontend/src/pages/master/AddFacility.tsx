@@ -711,6 +711,8 @@ export function AddFacility() {
                     className={errors.parentFacilityId ? 'border-red-500' : ''}
                     showSocietiesAndBuildings={false}
                     filterByMainFacilityId={formData.mainFacilityId}
+                    selectableTypes={['facility']}
+                    defaultExpanded={true}
                   />
                   {errors.parentFacilityId && <p className="mt-1 text-sm text-red-500">{errors.parentFacilityId}</p>}
                 </div>

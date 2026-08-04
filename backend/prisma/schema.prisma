@@ -26,10 +26,10 @@ enum UserRole {
 }
 
 model User {
-  id              Int            @id @default(autoincrement())
-  username        String         @unique
+  id              Int              @id @default(autoincrement())
+  username        String           @unique
   mobileNumber    String?
-  email           String         @unique
+  email           String           @unique
   password        String
   firstName       String?
   lastName        String?
@@ -41,26 +41,27 @@ model User {
   state           String?
   country         String?
   pincode         String?
-  role            UserRole       @default(VIEWER)
-  isActive        Boolean        @default(true)
+  role            UserRole         @default(VIEWER)
+  isActive        Boolean          @default(true)
   societyId       Int?
-  society         Society?       @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  society         Society?         @relation(fields: [societyId], references: [id], onDelete: Cascade)
   employeeId      Int?
-  employee        Employee?      @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  employee        Employee?        @relation(fields: [employeeId], references: [id], onDelete: SetNull)
   mainFacilityId  Int?
-  mainFacility    MainFacility?  @relation(fields: [mainFacilityId], references: [id], onDelete: SetNull)
+  mainFacility    MainFacility?    @relation(fields: [mainFacilityId], references: [id], onDelete: SetNull)
   buildings       UserBuilding[]
+  userPermissions UserPermission[]
   refreshToken    String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 }
 
 model UserBuilding {
-  id          Int      @id @default(autoincrement())
-  userId      Int
-  buildingId  Int
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  building    Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  buildingId Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  building   Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
 
   @@unique([userId, buildingId])
 }
@@ -81,174 +82,147 @@ model Building {
   societyId Int
   society   Society        @relation(fields: [societyId], references: [id], onDelete: Cascade)
   devices   Device[]
+  machines  Machine[]
   users     UserBuilding[]
 }
 
 model Device {
-  id          Int      @id @default(autoincrement())
-  deviceId    String   @unique
-  name        String
-  template    String?
-  systemName  String?
-  cardNo      String?
-  topic       String?
-  buildingId  Int?
-  
+  id         Int     @id @default(autoincrement())
+  deviceId   String  @unique
+  name       String
+  template   String?
+  systemName String?
+  cardNo     String?
+  topic      String?
+  buildingId Int?
+
   // Frontend integration fields
-  application String?  @default("DOMESTIC_WATER_SYS")
-  pumpType    String?  @default("WMP_BOOSTER_PUMP")
-  controller  String?  @default("AIPCU")
-  macType     String?  @default("Primary MAC")
+  application String? @default("DOMESTIC_WATER_SYS")
+  pumpType    String? @default("WMP_BOOSTER_PUMP")
+  controller  String? @default("AIPCU")
+  macType     String? @default("Primary MAC")
 
-  // Machine Management Extended Fields
-  company             String?
-  maintenanceHead     String?
-  machineCode         String?
-  serialNumber        String?
-  make                String?
-  modelNumber         String?
-  machineCategory     String?
-  machineSubCategory  String?
-  description         String?
-  assetCode           String?
-  isLocationPart      Boolean? @default(false)
-  costCenter          String?
-  headOfDepartment    String?
-  machineOwner        String?
-  latitude            String?
-  longitude           String?
-  notes               String?
+  building       Building?              @relation(fields: [buildingId], references: [id], onDelete: Cascade)
 
-  
-  building    Building? @relation(fields: [buildingId], references: [id], onDelete: Cascade)
-  facilityId  Int?
-  facility    Facility? @relation(fields: [facilityId], references: [id], onDelete: Cascade)
-  documents   MachineDocument[]
-  specifications MachineSpecification[]
+  latestData Json?
+  lastSeen   DateTime?
 
-  parentDeviceId Int?
-  parentDevice   Device?  @relation("DeviceHierarchy", fields: [parentDeviceId], references: [id])
-  childDevices   Device[] @relation("DeviceHierarchy")
-  
-  latestData  Json?
-  lastSeen    DateTime?
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   registerValues DeviceRegisterValue[]
 }
 
 model DeviceSnapshot {
-  id          Int      @id @default(autoincrement())
-  deviceId    String
-  payload     Json
-  createdAt   DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  deviceId  String
+  payload   Json
+  createdAt DateTime @default(now())
 }
 
 model DeviceState {
-  id                  Int      @id @default(autoincrement())
-  deviceId            String   @unique
-  deviceActive        Boolean  @default(false)
-  motor1Status        Boolean  @default(false)
-  motor2Status        Boolean  @default(false)
-  motor3Status        Boolean  @default(false)
-  motor4Status        Boolean  @default(false)
+  id                   Int      @id @default(autoincrement())
+  deviceId             String   @unique
+  deviceActive         Boolean  @default(false)
+  motor1Status         Boolean  @default(false)
+  motor2Status         Boolean  @default(false)
+  motor3Status         Boolean  @default(false)
+  motor4Status         Boolean  @default(false)
   motor1ConfigActivate Boolean  @default(false)
   motor2ConfigActivate Boolean  @default(false)
   motor3ConfigActivate Boolean  @default(false)
   motor4ConfigActivate Boolean  @default(false)
-  inputPowerFaultType Int      @default(0)
-  averageVoltage      Float    @default(0)
-  ryVoltage           Float    @default(0)
-  ybVoltage           Float    @default(0)
-  rbVoltage           Float    @default(0)
-  motor1RCurrent      Float    @default(0)
-  motor1YCurrent      Float    @default(0)
-  motor1BCurrent      Float    @default(0)
-  motor2RCurrent      Float    @default(0)
-  motor2YCurrent      Float    @default(0)
-  motor2BCurrent      Float    @default(0)
-  motor3RCurrent      Float    @default(0)
-  motor3YCurrent      Float    @default(0)
-  motor3BCurrent      Float    @default(0)
-  motor4RCurrent      Float    @default(0)
-  motor4YCurrent      Float    @default(0)
-  motor4BCurrent      Float    @default(0)
-  waterAvailable      Boolean  @default(false)
-  pressureSwitch1     Boolean  @default(false)
-  pressureSwitch2     Boolean  @default(false)
-  pressureSwitch3     Boolean  @default(false)
-  pressureSwitch4     Boolean  @default(false)
-  pressureSwitch5     Boolean  @default(false)
-  pressureBar         Float    @default(0)
+  inputPowerFaultType  Int      @default(0)
+  averageVoltage       Float    @default(0)
+  ryVoltage            Float    @default(0)
+  ybVoltage            Float    @default(0)
+  rbVoltage            Float    @default(0)
+  motor1RCurrent       Float    @default(0)
+  motor1YCurrent       Float    @default(0)
+  motor1BCurrent       Float    @default(0)
+  motor2RCurrent       Float    @default(0)
+  motor2YCurrent       Float    @default(0)
+  motor2BCurrent       Float    @default(0)
+  motor3RCurrent       Float    @default(0)
+  motor3YCurrent       Float    @default(0)
+  motor3BCurrent       Float    @default(0)
+  motor4RCurrent       Float    @default(0)
+  motor4YCurrent       Float    @default(0)
+  motor4BCurrent       Float    @default(0)
+  waterAvailable       Boolean  @default(false)
+  pressureSwitch1      Boolean  @default(false)
+  pressureSwitch2      Boolean  @default(false)
+  pressureSwitch3      Boolean  @default(false)
+  pressureSwitch4      Boolean  @default(false)
+  pressureSwitch5      Boolean  @default(false)
+  pressureBar          Float    @default(0)
   transmitterConnected Boolean  @default(false)
-  pressuremA          Float    @default(0)
-  pumpOnDelay         Int      @default(0)
-  nextFillingTime     Int      @default(0)
-  overloadResetDelay  Int      @default(0)
-  underloadResetDelay Int      @default(0)
-  vfdResetAfter       Int      @default(0)
-  pressureTankPressure Float   @default(0)
-  tankStatus          Boolean  @default(false)
-  pump1FaultType      Int      @default(0)
-  pump2FaultType      Int      @default(0)
-  pump3FaultType      Int      @default(0)
-  pump4FaultType      Int      @default(0)
-  motor1RunTime       Int      @default(0)
-  motor2RunTime       Int      @default(0)
-  motor3RunTime       Int      @default(0)
-  motor4RunTime       Int      @default(0)
-  updatedAt           DateTime @updatedAt
+  pressuremA           Float    @default(0)
+  pumpOnDelay          Int      @default(0)
+  nextFillingTime      Int      @default(0)
+  overloadResetDelay   Int      @default(0)
+  underloadResetDelay  Int      @default(0)
+  vfdResetAfter        Int      @default(0)
+  pressureTankPressure Float    @default(0)
+  tankStatus           Boolean  @default(false)
+  pump1FaultType       Int      @default(0)
+  pump2FaultType       Int      @default(0)
+  pump3FaultType       Int      @default(0)
+  pump4FaultType       Int      @default(0)
+  motor1RunTime        Int      @default(0)
+  motor2RunTime        Int      @default(0)
+  motor3RunTime        Int      @default(0)
+  motor4RunTime        Int      @default(0)
+  updatedAt            DateTime @updatedAt
 }
 
 model RegisterDefinition {
   id          Int      @id @default(autoincrement())
   address     Int      @unique // Array Index (0, 1, 2, etc.)
-  name        String   
-  range       String?  
-  description String?  
+  name        String
+  range       String?
+  description String?
   units       String?
-  mappedKey   String?  // The key to update in DeviceState/Frontend
+  mappedKey   String? // The key to update in DeviceState/Frontend
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   deviceValues DeviceRegisterValue[]
 }
 
 model DeviceRegisterValue {
-  id           Int      @id @default(autoincrement())
-  deviceId     String
-  registerId   Int
-  value        Float
-  updatedAt    DateTime @updatedAt
+  id         Int      @id @default(autoincrement())
+  deviceId   String
+  registerId Int
+  value      Float
+  updatedAt  DateTime @updatedAt
 
-  register     RegisterDefinition @relation(fields: [registerId], references: [id])
-  device       Device             @relation(fields: [deviceId], references: [deviceId], onDelete: Cascade)
+  register RegisterDefinition @relation(fields: [registerId], references: [id])
+  device   Device             @relation(fields: [deviceId], references: [deviceId], onDelete: Cascade)
 
   @@unique([deviceId, registerId])
 }
 
 model Employee {
-  id              Int      @id @default(autoincrement())
-  employeeCode    String   @unique
-  fullName        String
-  mobileNumber    String
-  officialEmail   String   @unique
-  personalEmail   String?
-  dateOfJoining   DateTime
-  dateOfBirth     DateTime
-  department      String
-  designation     String
-  salaryPayout    Float?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  users           User[]
+  id            Int      @id @default(autoincrement())
+  employeeCode  String   @unique
+  fullName      String
+  mobileNumber  String
+  officialEmail String   @unique
+  personalEmail String?
+  dateOfJoining DateTime
+  dateOfBirth   DateTime
+  department    String
+  designation   String
+  salaryPayout  Float?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  users         User[]
 }
 
 model MainFacility {
-  id               Int      @id @default(autoincrement())
-  mainFacilityCode String   @unique
+  id               Int        @id @default(autoincrement())
+  mainFacilityCode String     @unique
   mainFacilityName String
   mainFacilityHead String
   gstNumber        String?
@@ -265,23 +239,23 @@ model MainFacility {
   city             String?
   users            User[]
   facilities       Facility[]
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 }
 
 model Facility {
-  id               Int          @id @default(autoincrement())
-  facilityCode     String       @unique
-  facilityName     String
-  category         String
-  description      String?
-  
+  id           Int     @id @default(autoincrement())
+  facilityCode String  @unique
+  facilityName String
+  category     String
+  description  String?
+
   // Location & Hierarchy Fields
-  isLocationPart   Boolean      @default(false)
+  isLocationPart   Boolean    @default(false)
   parentFacilityId Int?
-  parentFacility   Facility?    @relation("FacilityHierarchy", fields: [parentFacilityId], references: [id])
-  childFacilities  Facility[]   @relation("FacilityHierarchy")
-  
+  parentFacility   Facility?  @relation("FacilityHierarchy", fields: [parentFacilityId], references: [id])
+  childFacilities  Facility[] @relation("FacilityHierarchy")
+
   address          String?
   country          String?
   state            String?
@@ -292,13 +266,13 @@ model Facility {
   longitude        String?
   facilityHeadName String?
   notes            String?
-  
-  mainFacilityId   Int
-  mainFacility     MainFacility @relation(fields: [mainFacilityId], references: [id], onDelete: Cascade)
-  devices          Device[]
-  
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+
+  mainFacilityId Int
+  mainFacility   MainFacility @relation(fields: [mainFacilityId], references: [id], onDelete: Cascade)
+  machines       Machine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Designation {
@@ -326,6 +300,22 @@ model Permission {
   @@unique([designationId, moduleId])
 }
 
+model UserPermission {
+  id        Int     @id @default(autoincrement())
+  userId    Int
+  moduleId  String
+  canView   Boolean @default(false)
+  canCreate Boolean @default(false)
+  canEdit   Boolean @default(false)
+  canDelete Boolean @default(false)
+  canImport Boolean @default(false)
+  canExport Boolean @default(false)
+  canPrint  Boolean @default(false)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, moduleId])
+}
+
 model PostalCode {
   id        Int      @id @default(autoincrement())
   pincode   String   @unique
@@ -345,25 +335,64 @@ model CodeSequence {
   updatedAt DateTime @updatedAt
 }
 
+model Machine {
+  id                 Int      @id @default(autoincrement())
+  name               String
+  deviceId           String?  @unique // Link to Device (MAC ID) for IoT data
+  
+  company            String?
+  maintenanceHead    String?
+  machineCode        String?
+  serialNumber       String?
+  make               String?
+  modelNumber        String?
+  machineCategory    String?
+  machineSubCategory String?
+  description        String?
+  assetCode          String?
+  isLocationPart     Boolean? @default(false)
+  costCenter         String?
+  headOfDepartment   String?
+  machineOwner       String?
+  latitude           String?
+  longitude          String?
+  notes              String?
+  
+  buildingId         Int?
+  building           Building? @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  facilityId         Int?
+  facility           Facility? @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  
+  parentMachineId    Int?
+  parentMachine      Machine?  @relation("MachineHierarchy", fields: [parentMachineId], references: [id])
+  childMachines      Machine[] @relation("MachineHierarchy")
+
+  documents          MachineDocument[]
+  specifications     MachineSpecification[]
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
 model MachineDocument {
-  id          Int      @id @default(autoincrement())
-  name        String
-  type        String   // 'File', 'Link', 'Note'
-  content     String   // File path, URL, or Note text
-  deviceId    Int
-  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        Int      @id @default(autoincrement())
+  name      String
+  type      String // 'File', 'Link', 'Note'
+  content   String // File path, URL, or Note text
+  machineId Int
+  machine   Machine  @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model MachineSpecification {
-  id          Int      @id @default(autoincrement())
-  title       String
-  inputType   String
-  data        String
-  unit        String?
-  deviceId    Int
-  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        Int      @id @default(autoincrement())
+  title     String
+  inputType String
+  data      String
+  unit      String?
+  machineId Int
+  machine   Machine  @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

@@ -20,6 +20,7 @@ import { DesignationsModule } from './modules/designations/designations.module';
 import { PostalCodesModule } from './modules/postal-codes/postal-codes.module';
 import { MachineDocumentsModule } from './modules/machine-documents/machine-documents.module';
 import { MachineSpecificationsModule } from './modules/machine-specifications/machine-specifications.module';
+import { MachinesModule } from './modules/machines/machines.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { MachineSpecificationsModule } from './modules/machine-specifications/ma
     PostalCodesModule,
     MachineDocumentsModule,
     MachineSpecificationsModule,
+    MachinesModule,
   ],
   providers: [
     {

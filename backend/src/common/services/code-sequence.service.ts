@@ -7,12 +7,20 @@ export class CodeSequenceService {
 
   async previewNextCode(sequenceId: 'EMPLOYEE' | 'MAIN_FACILITY' | 'FACILITY'): Promise<string> {
     try {
-      const sequence = await this.prisma.codeSequence.findUnique({
+      let sequence = await this.prisma.codeSequence.findUnique({
         where: { id: sequenceId },
       });
       
       if (!sequence) {
-        throw new Error(`Sequence ${sequenceId} not found`);
+        // Auto-create sequence if it doesn't exist
+        sequence = await this.prisma.codeSequence.create({
+          data: {
+            id: sequenceId,
+            prefix: sequenceId === 'EMPLOYEE' ? 'EMP' : sequenceId === 'MAIN_FACILITY' ? 'MF' : 'FL',
+            lastValue: 0,
+            padding: 3
+          }
+        });
       }
 
       const nextValue = sequence.lastValue + 1;
@@ -26,7 +34,22 @@ export class CodeSequenceService {
 
   async generateNextCode(sequenceId: 'EMPLOYEE' | 'MAIN_FACILITY' | 'FACILITY'): Promise<string> {
     try {
-      const sequence = await this.prisma.codeSequence.update({
+      let sequence = await this.prisma.codeSequence.findUnique({
+        where: { id: sequenceId }
+      });
+
+      if (!sequence) {
+        sequence = await this.prisma.codeSequence.create({
+          data: {
+            id: sequenceId,
+            prefix: sequenceId === 'EMPLOYEE' ? 'EMP' : sequenceId === 'MAIN_FACILITY' ? 'MF' : 'FL',
+            lastValue: 0,
+            padding: 3
+          }
+        });
+      }
+
+      const updatedSequence = await this.prisma.codeSequence.update({
         where: { id: sequenceId },
         data: {
           lastValue: {
@@ -35,8 +58,8 @@ export class CodeSequenceService {
         },
       });
 
-      const paddedNumber = sequence.lastValue.toString().padStart(sequence.padding, '0');
-      return `${sequence.prefix}${paddedNumber}`;
+      const paddedNumber = updatedSequence.lastValue.toString().padStart(updatedSequence.padding, '0');
+      return `${updatedSequence.prefix}${paddedNumber}`;
     } catch (error) {
       console.error(`Error generating sequence for ${sequenceId}:`, error);
       throw new InternalServerErrorException('Failed to generate unique code.');

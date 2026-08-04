@@ -252,6 +252,47 @@ export class UsersService {
     return user;
   }
 
+  async getUserPermissions(id: number) {
+    // Verify user exists
+    await this.findOne(id);
+    
+    return this.prisma.userPermission.findMany({
+      where: { userId: id }
+    });
+  }
+
+  async updateUserPermissions(id: number, permissions: any[]) {
+    // Verify user exists
+    await this.findOne(id);
+
+    // Run in a transaction: delete old specific permissions and insert new ones
+    return this.prisma.$transaction(async (tx) => {
+      await tx.userPermission.deleteMany({
+        where: { userId: id }
+      });
+
+      if (permissions && permissions.length > 0) {
+        await tx.userPermission.createMany({
+          data: permissions.map(p => ({
+            userId: id,
+            moduleId: p.moduleId,
+            canView: p.canView || false,
+            canCreate: p.canCreate || false,
+            canEdit: p.canEdit || false,
+            canDelete: p.canDelete || false,
+            canImport: p.canImport || false,
+            canExport: p.canExport || false,
+            canPrint: p.canPrint || false,
+          }))
+        });
+      }
+
+      return tx.userPermission.findMany({
+        where: { userId: id }
+      });
+    });
+  }
+
   private sanitizeUser(user: any) {
     const sanitized = { ...user };
     delete sanitized.password;

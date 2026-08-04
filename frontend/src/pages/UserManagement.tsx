@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Eye, Trash2, Users } from 'lucide-react';
+import { Plus, Pencil, Eye, Trash2, Users, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
@@ -8,6 +8,7 @@ import { TableSkeleton } from '../components/ui/TableSkeleton';
 import toast from 'react-hot-toast';
 import { TableActions } from '../components/TableActions';
 import { exportData } from '../utils/exportUtils';
+import { UserPermissionsModal } from '../components/UserPermissionsModal';
 
 export function UserManagement() {
   const navigate = useNavigate();
@@ -16,6 +17,10 @@ export function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<number | null>(null);
+  
+  const [permissionsModalOpen, setPermissionsModalOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [selectedUserName, setSelectedUserName] = useState('');
   
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -191,6 +196,16 @@ export function UserManagement() {
                           <Pencil className="w-4 h-4" />
                         </button>
                         <button 
+                          onClick={() => {
+                            setSelectedUserId(user.id);
+                            setSelectedUserName(user.employee?.fullName || (user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : user.username));
+                            setPermissionsModalOpen(true);
+                          }}
+                          className="text-gray-400 hover:text-purple-600 p-1.5 rounded-md hover:bg-purple-50 transition-colors" title="Special Permissions"
+                        >
+                          <Shield className="w-4 h-4" />
+                        </button>
+                        <button 
                           onClick={() => confirmDelete(user.id)}
                           className="text-gray-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors" title="Delete"
                         >
@@ -243,6 +258,13 @@ export function UserManagement() {
           setUserToDelete(null);
         }}
         onConfirm={handleDelete}
+      />
+
+      <UserPermissionsModal
+        isOpen={permissionsModalOpen}
+        onClose={() => setPermissionsModalOpen(false)}
+        userId={selectedUserId}
+        userName={selectedUserName}
       />
     </div>
   );

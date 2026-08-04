@@ -7,22 +7,22 @@ import * as path from 'path';
 export class MachineDocumentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getDocumentsForDevice(deviceId: number) {
-    const device = await this.prisma.device.findUnique({ where: { id: deviceId } });
-    if (!device) {
-      throw new NotFoundException(`Device with ID ${deviceId} not found`);
+  async getDocumentsForDevice(machineId: number) {
+    const machine = await this.prisma.machine.findUnique({ where: { id: machineId } });
+    if (!machine) {
+      throw new NotFoundException(`Machine with ID ${machineId} not found`);
     }
 
     return this.prisma.machineDocument.findMany({
-      where: { deviceId },
+      where: { machineId },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async addDocument(deviceId: number, data: { name: string; type: string; content: string }) {
-    const device = await this.prisma.device.findUnique({ where: { id: deviceId } });
-    if (!device) {
-      throw new NotFoundException(`Device with ID ${deviceId} not found`);
+  async addDocument(machineId: number, data: { name: string; type: string; content: string }) {
+    const machine = await this.prisma.machine.findUnique({ where: { id: machineId } });
+    if (!machine) {
+      throw new NotFoundException(`Machine with ID ${machineId} not found`);
     }
 
     return this.prisma.machineDocument.create({
@@ -30,7 +30,7 @@ export class MachineDocumentsService {
         name: data.name,
         type: data.type,
         content: data.content,
-        deviceId,
+        machineId,
       },
     });
   }

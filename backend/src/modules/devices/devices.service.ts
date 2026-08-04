@@ -23,7 +23,7 @@ export class DevicesService {
 
     const devices = await this.prisma.device.findMany({
       where: whereClause,
-      include: { building: true, facility: true },
+      include: { building: true },
     });
 
     const now = new Date();
@@ -46,19 +46,13 @@ export class DevicesService {
         id: device.id,
         deviceId: device.deviceId,
         name: device.name,
-        building: device.building?.name || device.facility?.facilityName || 'Unassigned',
+        building: device.building?.name || 'Unassigned',
         buildingId: device.buildingId,
-        facilityId: device.facilityId,
         topic: device.topic,
         status,
         lastSeen,
         alerts,
         alertCount: alerts.length,
-        company: device.company,
-        make: device.make,
-        modelNumber: device.modelNumber,
-        machineCategory: device.machineCategory,
-        machineCode: device.machineCode,
       };
     });
   }
@@ -77,7 +71,7 @@ export class DevicesService {
 
     const device = await this.prisma.device.findFirst({
       where: whereClause,
-      include: { building: true, facility: true },
+      include: { building: true },
     });
 
     if (!device) {
@@ -130,7 +124,7 @@ export class DevicesService {
   async getDeviceDashboard(deviceId: string) {
     const device = await this.prisma.device.findUnique({
       where: { deviceId },
-      include: { building: true, facility: true },
+      include: { building: true },
     });
 
     if (!device) {
@@ -149,7 +143,7 @@ export class DevicesService {
     return {
       deviceId: device.deviceId,
       topic: device.topic,
-      building: device.building?.name || device.facility?.facilityName || 'Unassigned',
+      building: device.building?.name || 'Unassigned',
       system: device.systemName || device.name,
       status,
       ...latestData,
@@ -165,29 +159,10 @@ export class DevicesService {
     name: string;
     deviceId: string;
     buildingId?: number;
-    facilityId?: number;
     application?: string;
     pumpType?: string;
     controller?: string;
     macType?: string;
-    company?: string;
-    maintenanceHead?: string;
-    machineCode?: string;
-    serialNumber?: string;
-    make?: string;
-    modelNumber?: string;
-    machineCategory?: string;
-    machineSubCategory?: string;
-    description?: string;
-    assetCode?: string;
-    isLocationPart?: boolean;
-    costCenter?: string;
-    headOfDepartment?: string;
-    machineOwner?: string;
-    latitude?: string;
-    longitude?: string;
-    notes?: string;
-    parentDeviceId?: number;
   }) {
     const existing = await this.prisma.device.findUnique({
       where: { deviceId: data.deviceId },
@@ -201,7 +176,6 @@ export class DevicesService {
         deviceId: data.deviceId,
         name: data.name,
         buildingId: data.buildingId,
-        facilityId: data.facilityId,
         topic: `AGC/SE-${data.deviceId}`,
         systemName: data.name,
         template: 'booster',
@@ -209,24 +183,6 @@ export class DevicesService {
         pumpType: data.pumpType || 'WMP_BOOSTER_PUMP',
         controller: data.controller || 'AIPCU',
         macType: data.macType || 'Primary MAC',
-        company: data.company,
-        maintenanceHead: data.maintenanceHead,
-        machineCode: data.machineCode,
-        serialNumber: data.serialNumber,
-        make: data.make,
-        modelNumber: data.modelNumber,
-        machineCategory: data.machineCategory,
-        machineSubCategory: data.machineSubCategory,
-        description: data.description,
-        assetCode: data.assetCode,
-        isLocationPart: data.isLocationPart,
-        costCenter: data.costCenter,
-        headOfDepartment: data.headOfDepartment,
-        machineOwner: data.machineOwner,
-        latitude: data.latitude,
-        longitude: data.longitude,
-        notes: data.notes,
-        parentDeviceId: data.parentDeviceId,
       },
     });
 
@@ -245,29 +201,10 @@ export class DevicesService {
       name: string;
       deviceId: string;
       buildingId?: number;
-      facilityId?: number;
       application?: string;
       pumpType?: string;
       controller?: string;
       macType?: string;
-      company?: string;
-      maintenanceHead?: string;
-      machineCode?: string;
-      serialNumber?: string;
-      make?: string;
-      modelNumber?: string;
-      machineCategory?: string;
-      machineSubCategory?: string;
-      description?: string;
-      assetCode?: string;
-      isLocationPart?: boolean;
-      costCenter?: string;
-      headOfDepartment?: string;
-      machineOwner?: string;
-      latitude?: string;
-      longitude?: string;
-      notes?: string;
-      parentDeviceId?: number;
     },
   ) {
     const device = await this.prisma.device.findUnique({
@@ -292,31 +229,12 @@ export class DevicesService {
         name: data.name,
         deviceId: data.deviceId,
         buildingId: data.buildingId,
-        facilityId: data.facilityId,
         topic: `AGC/SE-${data.deviceId}`,
         systemName: data.name,
         application: data.application,
         pumpType: data.pumpType,
         controller: data.controller,
         macType: data.macType,
-        company: data.company,
-        maintenanceHead: data.maintenanceHead,
-        machineCode: data.machineCode,
-        serialNumber: data.serialNumber,
-        make: data.make,
-        modelNumber: data.modelNumber,
-        machineCategory: data.machineCategory,
-        machineSubCategory: data.machineSubCategory,
-        description: data.description,
-        assetCode: data.assetCode,
-        isLocationPart: data.isLocationPart,
-        costCenter: data.costCenter,
-        headOfDepartment: data.headOfDepartment,
-        machineOwner: data.machineOwner,
-        latitude: data.latitude,
-        longitude: data.longitude,
-        notes: data.notes,
-        parentDeviceId: data.parentDeviceId,
       },
     });
 
