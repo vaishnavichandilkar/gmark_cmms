@@ -3,6 +3,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ChevronLeft, User, Mail, Phone, Calendar, Briefcase, Building2, Wallet } from 'lucide-react';
 import { api } from '../../lib/api';
 import { CustomSelect } from '../../components/CustomSelect';
+import { CustomDatePicker } from '../../components/CustomDatePicker';
 import toast from 'react-hot-toast';
 
 export function AddEmployee() {
@@ -183,7 +184,7 @@ export function AddEmployee() {
         await api.patch(`/employees/${id}`, payload);
       } else {
         await api.post('/employees', payload);
-        const returnUrl = location.state?.returnUrl;
+        const returnUrl = location.state?.returnUrl || sessionStorage.getItem('addEmployeeOriginalReturnUrl');
         if (returnUrl) {
           sessionStorage.setItem('newlyAddedEmployeeName', formData.fullName);
         }
@@ -191,7 +192,9 @@ export function AddEmployee() {
       
       toast.success('Employee saved successfully!');
       // Navigate back to the list on success
-      navigate(location.state?.returnUrl || '/master/employee');
+      const finalReturnUrl = location.state?.returnUrl || sessionStorage.getItem('addEmployeeOriginalReturnUrl');
+      sessionStorage.removeItem('addEmployeeOriginalReturnUrl');
+      navigate(finalReturnUrl || '/master/employee');
     } catch (err: any) {
       console.error('Error saving employee:', err);
       setError(err.response?.data?.message || 'Failed to save employee. Please try again.');
@@ -423,12 +426,10 @@ export function AddEmployee() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Date of Joining <span className="text-red-500">*</span>
               </label>
-              <input 
-                type="date" 
+              <CustomDatePicker 
                 name="dateOfJoining"
                 value={formData.dateOfJoining}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-gray-700"
               />
             </div>
 
@@ -437,12 +438,10 @@ export function AddEmployee() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Date of Birth <span className="text-red-500">*</span>
               </label>
-              <input 
-                type="date" 
+              <CustomDatePicker 
                 name="dateOfBirth"
                 value={formData.dateOfBirth}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-gray-700"
               />
             </div>
             <div>
@@ -471,6 +470,9 @@ export function AddEmployee() {
                 onChange={(e) => {
                   if (e.target.value === 'ADD_NEW_DESIGNATION') {
                     sessionStorage.setItem('addEmployeeDraft', JSON.stringify(formData));
+                    if (location.state?.returnUrl) {
+                      sessionStorage.setItem('addEmployeeOriginalReturnUrl', location.state.returnUrl);
+                    }
                     navigate('/manage-access/new', { state: { returnUrl: location.pathname } });
                   } else {
                     handleChange(e);

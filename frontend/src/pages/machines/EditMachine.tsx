@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { CustomSelect } from '../../components/CustomSelect';
+import { CustomDatePicker } from '../../components/CustomDatePicker';
 import { ArrowLeft, Search, Plus, Calendar } from 'lucide-react';
 import { api } from '../../lib/api';
 import { FacilityHierarchyPicker } from '../../components/FacilityHierarchyPicker';
@@ -1118,26 +1119,20 @@ export function EditMachine() {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">Start Date<span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <input 
-                    type="date" 
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 appearance-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-4 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer z-10"
-                    placeholder="Select Date"
-                  />
-                  <Calendar size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-0" />
-                </div>
+                <CustomDatePicker 
+                  name="startDate"
+                  value={null}
+                  onChange={() => {}}
+                />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">End Date<span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <input 
-                    type="date" 
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 appearance-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-4 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer z-10"
-                    placeholder="Select Date"
-                  />
-                  <Calendar size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-0" />
-                </div>
+                <CustomDatePicker 
+                  name="endDate"
+                  value={null}
+                  onChange={() => {}}
+                />
               </div>
 
               <div className="col-span-2">
