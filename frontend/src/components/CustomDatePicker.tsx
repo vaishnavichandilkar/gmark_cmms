@@ -17,7 +17,7 @@ export function CustomDatePicker({
   name, 
   value, 
   onChange, 
-  placeholder = 'DD/MM/YYYY', 
+  placeholder = 'Select Date', 
   className = '', 
   disabled = false 
 }: CustomDatePickerProps) {
@@ -53,23 +53,6 @@ export function CustomDatePicker({
     setPickerOpen(true);
   };
 
-  const handleRawChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let val = e.target.value.replace(/[^0-9]/g, '');
-    let formatted = '';
-    
-    if (val.length > 0) {
-      formatted += val.substring(0, 2);
-    }
-    if (val.length > 2) {
-      formatted += '/' + val.substring(2, 4);
-    }
-    if (val.length > 4) {
-      formatted += '/' + val.substring(4, 8);
-    }
-    
-    e.target.value = formatted;
-  };
-
   return (
     <div className={`relative ${className}`}>
       <DatePicker
@@ -78,8 +61,6 @@ export function CustomDatePicker({
         disabled={disabled}
         placeholderText={placeholder}
         dateFormat="dd/MM/yyyy"
-        strictParsing={true}
-        onChangeRaw={handleRawChange}
         className={`w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 text-gray-900 ${disabled ? 'opacity-60 cursor-not-allowed bg-gray-50' : 'cursor-pointer'}`}
         wrapperClassName="w-full"
         popperClassName="!w-full pt-2"

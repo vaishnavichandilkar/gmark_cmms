@@ -218,7 +218,7 @@ export function EmployeeMaster() {
                     <td className="px-6 py-4 whitespace-nowrap">{emp.mobileNumber}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-gray-500">{emp.officialEmail}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-green-50 text-green-700 border border-green-200">
                         {emp.department}
                       </span>
                     </td>

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Search, Download, Upload, Printer, Filter, ChevronDown, FileText, FileSpreadsheet, X } from 'lucide-react';
+import { CustomSelect } from './CustomSelect';
 
 export interface FilterOption {
   key: string;
@@ -170,16 +171,16 @@ export function TableActions({
                       <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">
                         {option.label}
                       </label>
-                      <select
+                      <CustomSelect
+                        name={option.key}
                         value={activeFilters[option.key] || ''}
                         onChange={(e) => handleFilterSelect(option.key, e.target.value)}
-                        className="w-full text-sm border border-gray-200 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white outline-none cursor-pointer"
-                      >
-                        <option value="">All</option>
-                        {option.options.map(val => (
-                          <option key={val} value={val}>{val}</option>
-                        ))}
-                      </select>
+                        placeholder="All"
+                        options={[
+                          { label: 'All', value: '' },
+                          ...option.options.map(val => ({ label: val, value: val }))
+                        ]}
+                      />
                     </div>
                   ))}
                 </div>
