@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ChevronLeft, Plus, Edit, Building2, MapPin, Tag, FileText, Info, Globe, Hash } from 'lucide-react';
 
 import { useSelector } from 'react-redux';
@@ -12,6 +12,7 @@ import toast from 'react-hot-toast';
 export function AddFacility() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const location = useLocation();
   const isViewMode = window.location.pathname.includes('/view/');
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -56,10 +57,35 @@ export function AddFacility() {
     fetchMainFacilities();
     fetchFacilities();
     fetchEmployees();
+    
     if (id) {
       fetchFacility();
     } else {
-      fetchNextFacilityCode();
+      let restoredDraft = false;
+      const draft = sessionStorage.getItem('addFacilityDraft');
+      const newlyAddedMainFacilityId = sessionStorage.getItem('newlyAddedMainFacilityId');
+      
+      if (draft) {
+        try {
+          const parsed = JSON.parse(draft);
+          if (newlyAddedMainFacilityId) {
+            parsed.mainFacilityId = newlyAddedMainFacilityId;
+            sessionStorage.removeItem('newlyAddedMainFacilityId');
+          }
+          setFormData(parsed);
+          sessionStorage.removeItem('addFacilityDraft');
+          restoredDraft = true;
+          if (!parsed.facilityCode) {
+            fetchNextFacilityCode();
+          }
+        } catch (e) {
+          console.error('Failed to parse draft', e);
+        }
+      }
+      
+      if (!restoredDraft) {
+        fetchNextFacilityCode();
+      }
     }
   }, [id]);
 
@@ -563,6 +589,10 @@ export function AddFacility() {
                   placeholder="Select Facility"
                   className={errors.mainFacilityId ? 'border-red-500' : ''}
                   showSocietiesAndBuildings={false}
+                  onEmptyStateAdd={() => {
+                    sessionStorage.setItem('addFacilityDraft', JSON.stringify(formData));
+                    navigate('/master/main-facility/new', { state: { returnUrl: location.pathname } });
+                  }}
                 />
                 {errors.mainFacilityId && <p className="mt-1 text-sm text-red-500">{errors.mainFacilityId}</p>}
               </div>

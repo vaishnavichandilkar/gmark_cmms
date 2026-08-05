@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ChevronLeft, Building2, MapPin, Tag, CheckCircle2, User, Globe, Hash } from 'lucide-react';
 import { CustomSelect } from '../../components/CustomSelect';
 import { EmployeeHierarchyPicker } from '../../components/EmployeeHierarchyPicker';
@@ -11,7 +11,9 @@ import toast from 'react-hot-toast';
 export function AddMainFacility() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const location = useLocation();
   const isViewMode = window.location.pathname.includes('/view/');
+  const returnUrl = location.state?.returnUrl;
 
   const [formData, setFormData] = useState({
     mainFacilityCode: '',
@@ -42,10 +44,33 @@ export function AddMainFacility() {
   useEffect(() => {
     fetchEmployees();
     fetchMainFacilities();
+    
+    let restoredDraft = false;
+    const draft = sessionStorage.getItem('addMainFacilityDraft');
+    const newEmployeeName = sessionStorage.getItem('newlyAddedEmployeeName');
+    
+    if (draft) {
+      try {
+        const parsed = JSON.parse(draft);
+        if (newEmployeeName) {
+          parsed.mainFacilityHead = newEmployeeName;
+          sessionStorage.removeItem('newlyAddedEmployeeName');
+        }
+        setFormData(parsed);
+        sessionStorage.removeItem('addMainFacilityDraft');
+        restoredDraft = true;
+        if (!parsed.mainFacilityCode && !id) {
+          fetchNextFacilityCode();
+        }
+      } catch (e) {
+        console.error('Failed to parse draft', e);
+      }
+    }
+    
     if (id) {
-      fetchFacility();
+      if (!restoredDraft) fetchFacility();
     } else {
-      fetchNextFacilityCode();
+      if (!restoredDraft) fetchNextFacilityCode();
     }
   }, [id]);
 
@@ -196,10 +221,13 @@ export function AddMainFacility() {
       if (id) {
         await api.patch(`/main-facilities/${id}`, payload);
       } else {
-        await api.post('/main-facilities', payload);
+        const res = await api.post('/main-facilities', payload);
+        if (returnUrl) {
+          sessionStorage.setItem('newlyAddedMainFacilityId', res.data.id.toString());
+        }
       }
       toast.success('Facility saved successfully!');
-      navigate('/master/main-facility');
+      navigate(returnUrl || '/master/main-facility');
     } catch (err: any) {
       console.error('Error saving facility:', err);
       setGlobalError(err.response?.data?.message || 'Failed to save facility. Please try again.');
@@ -422,6 +450,10 @@ export function AddMainFacility() {
               onChange={handleChange}
               placeholder="Select Head"
               disabled={isViewMode}
+              onEmptyStateAdd={() => {
+                sessionStorage.setItem('addMainFacilityDraft', JSON.stringify(formData));
+                navigate('/master/employee/new', { state: { returnUrl: location.pathname } });
+              }}
             />
           </div>
 

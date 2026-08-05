@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown, X, Building2, Plus } from 'lucide-react';
 import { api } from '../lib/api';
 import { AssetTree } from './AssetTree';
 import type { TreeNodeData } from './AssetTree';
@@ -15,6 +15,7 @@ interface FacilityHierarchyPickerProps {
   filterByMainFacilityId?: string;
   defaultExpanded?: boolean;
   selectableTypes?: string[];
+  onEmptyStateAdd?: () => void;
 }
 
 export function FacilityHierarchyPicker({
@@ -27,7 +28,8 @@ export function FacilityHierarchyPicker({
   showSocietiesAndBuildings = true,
   filterByMainFacilityId,
   defaultExpanded = false,
-  selectableTypes
+  selectableTypes,
+  onEmptyStateAdd
 }: FacilityHierarchyPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [treeData, setTreeData] = useState<TreeNodeData[]>([]);
@@ -220,7 +222,7 @@ export function FacilityHierarchyPicker({
         className={`relative w-full ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} ${className}`}
         onClick={() => !disabled && setIsOpen(true)}
       >
-        <div className={`w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm transition-all focus-within:ring-2 focus-within:ring-green-500/20 focus-within:border-green-500 ${!displayValue ? 'text-gray-400' : 'text-gray-900'}`}>
+        <div className={`w-full flex items-center justify-between px-4 py-2.5 bg-white border border-gray-300 rounded-lg transition-all focus-within:ring-2 focus-within:ring-green-500/20 focus-within:border-green-500 ${!displayValue ? 'text-gray-500' : 'text-gray-900'}`}>
           <span className="truncate">{displayValue || placeholder}</span>
           <ChevronDown size={18} className="text-gray-400" />
         </div>
@@ -251,6 +253,25 @@ export function FacilityHierarchyPicker({
             <div className="flex-1 overflow-hidden p-2 bg-white min-h-[300px]">
               {loading ? (
                 <div className="flex justify-center items-center h-full text-gray-400">Loading hierarchy...</div>
+              ) : treeData.length === 0 ? (
+                <div className="h-full border border-gray-200 rounded-xl flex flex-col items-center justify-center p-6 text-center bg-gray-50/50">
+                  <div className="w-12 h-12 bg-white border border-gray-100 rounded-full flex items-center justify-center mb-3 shadow-sm">
+                    <Building2 className="w-6 h-6 text-gray-400" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-700 mb-1">No Facilities Found</h3>
+                  <p className="text-xs text-gray-500 mb-4 max-w-xs">There are no facilities configured in the system yet.</p>
+                  <button
+                    onClick={() => {
+                      setIsOpen(false);
+                      if (onEmptyStateAdd) {
+                        onEmptyStateAdd();
+                      }
+                    }}
+                    className="px-4 py-2 bg-[#00a651] text-white text-sm font-medium rounded-lg hover:bg-[#009040] transition-colors flex items-center gap-2"
+                  >
+                    <Plus size={16} /> Add Facility
+                  </button>
+                </div>
               ) : (
                 <div className="h-full border border-gray-200 rounded-xl overflow-hidden">
                   <AssetTree 

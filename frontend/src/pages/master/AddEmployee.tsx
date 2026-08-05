@@ -183,11 +183,15 @@ export function AddEmployee() {
         await api.patch(`/employees/${id}`, payload);
       } else {
         await api.post('/employees', payload);
+        const returnUrl = location.state?.returnUrl;
+        if (returnUrl) {
+          sessionStorage.setItem('newlyAddedEmployeeName', formData.fullName);
+        }
       }
       
       toast.success('Employee saved successfully!');
       // Navigate back to the list on success
-      navigate('/master/employee');
+      navigate(location.state?.returnUrl || '/master/employee');
     } catch (err: any) {
       console.error('Error saving employee:', err);
       setError(err.response?.data?.message || 'Failed to save employee. Please try again.');

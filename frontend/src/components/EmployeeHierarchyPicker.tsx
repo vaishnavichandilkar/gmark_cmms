@@ -12,6 +12,7 @@ interface EmployeeHierarchyPickerProps {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  onEmptyStateAdd?: () => void;
 }
 
 export function EmployeeHierarchyPicker({
@@ -20,7 +21,8 @@ export function EmployeeHierarchyPicker({
   onChange,
   placeholder = "Select Employee",
   disabled = false,
-  className = ""
+  className = "",
+  onEmptyStateAdd
 }: EmployeeHierarchyPickerProps) {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
@@ -156,7 +158,7 @@ export function EmployeeHierarchyPicker({
         className={`relative w-full ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} ${className}`}
         onClick={() => !disabled && setIsOpen(true)}
       >
-        <div className={`w-full flex items-center justify-between px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm transition-all focus-within:ring-2 focus-within:ring-green-500/20 focus-within:border-green-500 ${!displayValue ? 'text-gray-400' : 'text-gray-900'}`}>
+        <div className={`w-full flex items-center justify-between px-4 py-2.5 bg-white border border-gray-300 rounded-lg transition-all focus-within:ring-2 focus-within:ring-green-500/20 focus-within:border-green-500 ${!displayValue ? 'text-gray-500' : 'text-gray-900'}`}>
           <span className="truncate">{displayValue || placeholder}</span>
           <ChevronDown size={18} className="text-gray-400" />
         </div>
@@ -202,7 +204,11 @@ export function EmployeeHierarchyPicker({
                   <button
                     onClick={() => {
                       setIsOpen(false);
-                      navigate('/master/employee/new');
+                      if (onEmptyStateAdd) {
+                        onEmptyStateAdd();
+                      } else {
+                        navigate('/master/employee/new');
+                      }
                     }}
                     className="px-4 py-2 bg-[#00a651] text-white text-sm font-medium rounded-lg hover:bg-[#009040] transition-colors flex items-center gap-2"
                   >
