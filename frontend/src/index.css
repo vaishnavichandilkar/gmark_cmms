@@ -372,4 +372,19 @@
   border-color: #111827 !important;
 }
 
+.react-datepicker-popper {
+  z-index: 50 !important;
+}
+
+.react-datepicker__month-container {
+  width: 100% !important;
+}
+
+.react-datepicker__day-names,
+.react-datepicker__week {
+  display: flex !important;
+  justify-content: space-around !important;
+  width: 100% !important;
+}
+
 
