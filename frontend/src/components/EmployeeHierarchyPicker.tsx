@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown, X, UserPlus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { AssetTree } from './AssetTree';
 import type { TreeNodeData } from './AssetTree';
@@ -21,6 +22,7 @@ export function EmployeeHierarchyPicker({
   disabled = false,
   className = ""
 }: EmployeeHierarchyPickerProps) {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [treeData, setTreeData] = useState<TreeNodeData[]>([]);
   const [selectedNode, setSelectedNode] = useState<TreeNodeData | null>(null);
@@ -189,6 +191,23 @@ export function EmployeeHierarchyPicker({
               {loading ? (
                 <div className="flex justify-center items-center h-full text-gray-400">
                   <div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : treeData.length === 0 ? (
+                <div className="h-full border border-gray-200 rounded-xl flex flex-col items-center justify-center p-6 text-center bg-gray-50/50">
+                  <div className="w-12 h-12 bg-white border border-gray-100 rounded-full flex items-center justify-center mb-3 shadow-sm">
+                    <UserPlus className="w-6 h-6 text-gray-400" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-700 mb-1">No Employees Found</h3>
+                  <p className="text-xs text-gray-500 mb-4 max-w-xs">There are no employees configured in the system yet.</p>
+                  <button
+                    onClick={() => {
+                      setIsOpen(false);
+                      navigate('/master/employee/new');
+                    }}
+                    className="px-4 py-2 bg-[#00a651] text-white text-sm font-medium rounded-lg hover:bg-[#009040] transition-colors flex items-center gap-2"
+                  >
+                    <UserPlus size={16} /> Add Employee
+                  </button>
                 </div>
               ) : (
                 <div className="h-full border border-gray-200 rounded-xl overflow-hidden">

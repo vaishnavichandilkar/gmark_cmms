@@ -73,6 +73,7 @@ export class MachinesService {
         modelNumber: machine.modelNumber,
         machineCategory: machine.machineCategory,
         machineCode: machine.machineCode,
+        parentMachineId: machine.parentMachineId,
       };
     });
   }

@@ -126,6 +126,9 @@ export function AddRole() {
         await api.put(`/designations/${id}`, payload);
       } else {
         await api.post('/designations', payload);
+        if (returnUrl) {
+          sessionStorage.setItem('newlyAddedDesignation', formData.roleName);
+        }
       }
       toast.success('Designation saved successfully!');
       navigate(returnUrl || '/manage-access');

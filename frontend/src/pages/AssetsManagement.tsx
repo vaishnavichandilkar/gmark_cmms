@@ -35,6 +35,28 @@ export function AssetsManagement() {
       const mainFacilities = Array.isArray(mainFacilitiesRes.data) ? mainFacilitiesRes.data : [];
       const facilities = Array.isArray(facilitiesRes.data) ? facilitiesRes.data : [];
 
+      // Pre-process machine hierarchy
+      const machineMap: Record<number, TreeNodeData> = {};
+      machines.forEach((mac: any) => {
+        machineMap[mac.id] = {
+          id: `mac-${mac.id}`,
+          name: mac.name || mac.machineCode || mac.deviceId || 'Unknown Machine',
+          type: 'device',
+          originalData: mac,
+          children: []
+        };
+      });
+
+      const rootMachines: TreeNodeData[] = [];
+      machines.forEach((mac: any) => {
+        const node = machineMap[mac.id];
+        if (mac.parentMachineId && machineMap[mac.parentMachineId]) {
+          machineMap[mac.parentMachineId].children!.push(node);
+        } else {
+          rootMachines.push(node);
+        }
+      });
+
       // We will build two main branches for this demonstration:
       // 1. Societies -> Buildings -> Devices
       // 2. Main Facilities -> Facilities (Nested)
@@ -60,15 +82,10 @@ export function AssetsManagement() {
           children: []
         };
         
-        // Attach Machines to Buildings
-        machines.forEach((mac: any) => {
-          if (mac.buildingId === bldg.id) {
-            bldgNode.children!.push({
-              id: `mac-${mac.id}`,
-              name: mac.name || mac.machineCode || mac.deviceId || 'Unknown Machine',
-              type: 'device', // Using 'device' type so AssetDetails correctly renders it
-              originalData: mac
-            });
+        // Attach Root Machines to Buildings
+        rootMachines.forEach((macNode) => {
+          if (macNode.originalData.buildingId === bldg.id) {
+            bldgNode.children!.push(macNode);
           }
         });
 
@@ -120,21 +137,27 @@ export function AssetsManagement() {
           finalTree.push(node);
         }
 
-        // Attach Machines to Facilities
-        machines.forEach((mac: any) => {
-          if (mac.facilityId === fac.id) {
-            node.children!.push({
-              id: `mac-${mac.id}`,
-              name: mac.name || mac.machineCode || mac.deviceId || 'Unknown Machine',
-              type: 'device',
-              originalData: mac
-            });
+        // Attach Root Machines to Facilities
+        rootMachines.forEach((macNode) => {
+          if (macNode.originalData.facilityId === fac.id) {
+            node.children!.push(macNode);
           }
         });
       });
 
       // Add main facilities to tree
       finalTree.push(...mainFacNodes);
+
+      // Sort tree alphabetically (with numeric awareness)
+      const sortTree = (nodes: TreeNodeData[]) => {
+        nodes.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+        nodes.forEach(node => {
+          if (node.children && node.children.length > 0) {
+            sortTree(node.children);
+          }
+        });
+      };
+      sortTree(finalTree);
 
       setTreeData(finalTree);
     } catch (error) {

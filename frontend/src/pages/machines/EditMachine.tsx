@@ -349,11 +349,13 @@ export function EditMachine() {
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm w-full">
         {/* Tabs */}
         <div className="flex overflow-x-auto border-b border-gray-200">
-          {tabs.map((tab) => (
+          {tabs.map((tab, index) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`min-w-[120px] py-3.5 px-4 text-sm font-semibold border-r border-gray-200 transition-colors ${
+                index === 0 ? 'rounded-tl-xl ' : ''
+              }${
                 activeTab === tab 
                   ? 'bg-[#00a651] text-white' 
                   : 'bg-white text-gray-700 hover:bg-gray-50'
@@ -365,9 +367,9 @@ export function EditMachine() {
         </div>
 
         {/* Content Area */}
-        <div className="p-8 w-full">
+        <div className="px-8 pt-8 pb-6 w-full">
           {activeTab === 'General' ? (
-            <div className="space-y-8">
+            <div className="space-y-6">
               {/* Location Section */}
               <div>
                 <h3 className="text-sm font-semibold text-gray-400 mb-4">Location</h3>
@@ -453,7 +455,7 @@ export function EditMachine() {
                   </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                       Asset Code<span className="text-red-500">*</span>
@@ -504,7 +506,7 @@ export function EditMachine() {
                       options={employees.map(e => ({ label: `${e.fullName} (${e.department || 'N/A'} - ${e.designation || e.role || 'N/A'})`, value: e.fullName }))}
                     />
                   </div>
-                  <div className="col-span-3">
+                  <div className="col-span-4">
                     <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                       Notes
                     </label>
@@ -853,7 +855,7 @@ export function EditMachine() {
         </div>
       </div>
 
-      <div className="mt-6 flex justify-end gap-4 w-full">
+      <div className="flex justify-end gap-4 w-full border-t border-gray-100 pt-6 px-4 sm:px-8 pb-4 sm:pb-8">
         <button 
           onClick={() => navigate(-1)}
           className="px-10 py-2.5 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-semibold text-sm transition-colors shadow-sm"
@@ -1150,18 +1152,18 @@ export function EditMachine() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Warranty Provider<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">{amcSubTab} Provider<span className="text-red-500">*</span></label>
                 <CustomSelect
-                  name="warrantyProvider"
+                  name={`${amcSubTab.toLowerCase()}Provider`}
                   value=""
                   onChange={() => {}}
-                  placeholder="Select Warranty"
+                  placeholder={`Select Provider`}
                   options={[]}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Warranty Contact Number<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">{amcSubTab} Contact Number<span className="text-red-500">*</span></label>
                 <input 
                   type="text" 
                   placeholder="Enter Number"
@@ -1540,7 +1542,7 @@ function IOTTabContent({
   }, [deviceId]);
 
   return (
-    <div className="w-full min-h-[500px]">
+    <div className="w-full">
       <div className="flex-1 flex flex-col w-full">
         {/* Header */}
         <div className="flex justify-between items-center w-full mb-8">
@@ -1562,9 +1564,14 @@ function IOTTabContent({
 
         {!deviceId ? (
           /* Empty State */
-          <div className="flex flex-col items-center justify-center flex-1 w-full max-w-2xl mx-auto pb-12">
-            <div className="w-full h-72 border border-gray-100 shadow-[0_0_15px_rgba(0,0,0,0.03)] rounded-2xl bg-white mb-6"></div>
-            <h3 className="text-lg font-bold text-gray-600">No System Have Added</h3>
+          <div className="flex flex-col items-center justify-center py-16 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50 mt-4">
+            <div className="w-16 h-16 bg-white border border-gray-100 rounded-full flex items-center justify-center mb-4 text-[#00a651] shadow-sm">
+              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold text-gray-700 mb-2">No IoT System Configured</h3>
+            <p className="text-sm text-gray-500 text-center max-w-sm">Connect an IoT edge device to start monitoring live machine telemetry and status updates.</p>
           </div>
         ) : (
           /* Live Monitor */

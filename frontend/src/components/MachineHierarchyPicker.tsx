@@ -97,6 +97,17 @@ export function MachineHierarchyPicker({
         }
       });
 
+      // Sort tree alphabetically (with numeric awareness)
+      const sortTree = (nodes: TreeNodeData[]) => {
+        nodes.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+        nodes.forEach(node => {
+          if (node.children && node.children.length > 0) {
+            sortTree(node.children);
+          }
+        });
+      };
+      sortTree(finalTree);
+
       setTreeData(finalTree);
 
       // Restore selected node in tree if value exists

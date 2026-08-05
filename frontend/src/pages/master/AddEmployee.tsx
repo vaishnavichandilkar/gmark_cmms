@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ChevronLeft, User, Mail, Phone, Calendar, Briefcase, Building2, Wallet } from 'lucide-react';
 import { api } from '../../lib/api';
@@ -28,13 +28,49 @@ export function AddEmployee() {
   const [initialLoading, setInitialLoading] = useState(false);
   const [error, setError] = useState('');
   const [designationsList, setDesignationsList] = useState<string[]>([]);
+  
+  const salaryInputRef = useRef<HTMLInputElement>(null);
+  const [shouldFocusSalary, setShouldFocusSalary] = useState(false);
+  
+  useEffect(() => {
+    if (!initialLoading && shouldFocusSalary && salaryInputRef.current) {
+      salaryInputRef.current.focus();
+      setShouldFocusSalary(false);
+    }
+  }, [initialLoading, shouldFocusSalary]);
 
   useEffect(() => {
     fetchDesignations();
+    
     if (id) {
       fetchEmployee();
     } else {
-      fetchNextEmployeeCode();
+      let restoredDraft = false;
+      const draft = sessionStorage.getItem('addEmployeeDraft');
+      const newDesignation = sessionStorage.getItem('newlyAddedDesignation');
+      
+      if (draft) {
+        try {
+          const parsed = JSON.parse(draft);
+          if (newDesignation) {
+            parsed.designation = newDesignation;
+            sessionStorage.removeItem('newlyAddedDesignation');
+            setShouldFocusSalary(true);
+          }
+          setFormData(parsed);
+          sessionStorage.removeItem('addEmployeeDraft');
+          restoredDraft = true;
+          if (!parsed.employeeCode) {
+            fetchNextEmployeeCode();
+          }
+        } catch (e) {
+          console.error('Failed to parse draft', e);
+        }
+      }
+      
+      if (!restoredDraft) {
+        fetchNextEmployeeCode();
+      }
     }
   }, [id]);
 
@@ -430,6 +466,7 @@ export function AddEmployee() {
                 ]}
                 onChange={(e) => {
                   if (e.target.value === 'ADD_NEW_DESIGNATION') {
+                    sessionStorage.setItem('addEmployeeDraft', JSON.stringify(formData));
                     navigate('/manage-access/new', { state: { returnUrl: location.pathname } });
                   } else {
                     handleChange(e);
@@ -445,6 +482,7 @@ export function AddEmployee() {
                 Salary Payout
               </label>
               <input 
+                ref={salaryInputRef}
                 type="number" 
                 name="salaryPayout"
                 placeholder="Enter Salary Amount"
