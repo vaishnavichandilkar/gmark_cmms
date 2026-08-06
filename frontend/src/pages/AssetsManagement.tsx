@@ -222,7 +222,12 @@ export function AssetsManagement() {
             <AssetTree 
               data={treeData} 
               onSelect={setSelectedNode} 
-              onDoubleClick={setDetailsNode}
+              onDoubleClick={(node) => {
+                if (['OPERATOR', 'VIEWER'].includes(user?.role as string) && node.type !== 'device') {
+                  return; // Restrict access to facility/building details for these roles
+                }
+                setDetailsNode(node);
+              }}
               selectedId={selectedNode?.id || null} 
             />
           )}
