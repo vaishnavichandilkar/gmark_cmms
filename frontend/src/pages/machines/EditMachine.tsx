@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { CustomSelect } from '../../components/CustomSelect';
 import { CustomDatePicker } from '../../components/CustomDatePicker';
-import { ArrowLeft, Search, Plus, Calendar } from 'lucide-react';
+import { ArrowLeft, Search, Plus } from 'lucide-react';
 import { api } from '../../lib/api';
 import { FacilityHierarchyPicker } from '../../components/FacilityHierarchyPicker';
 import { MachineHierarchyPicker } from '../../components/MachineHierarchyPicker';
@@ -347,7 +347,7 @@ export function EditMachine() {
         <h1 className="text-2xl font-bold text-gray-900">Machine</h1>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm w-full">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm w-full">
         {/* Tabs */}
         <div className="flex overflow-x-auto border-b border-gray-200">
           {tabs.map((tab, index) => (
@@ -492,7 +492,7 @@ export function EditMachine() {
                       value={formData.headOfDepartment}
                       onChange={handleChange}
                       placeholder="Select"
-                      options={employees.map(e => ({ label: `${e.fullName} (${e.department || 'N/A'} - ${e.designation || e.role || 'N/A'})`, value: e.fullName }))}
+                      options={employees.map(e => ({ label: `${e.designation || 'N/A'} - ${e.fullName}`, value: e.fullName }))}
                     />
                   </div>
                   <div>
@@ -504,7 +504,7 @@ export function EditMachine() {
                       value={formData.machineOwner}
                       onChange={handleChange}
                       placeholder="Select"
-                      options={employees.map(e => ({ label: `${e.fullName} (${e.department || 'N/A'} - ${e.designation || e.role || 'N/A'})`, value: e.fullName }))}
+                      options={employees.map(e => ({ label: `${e.designation || 'N/A'} - ${e.fullName}`, value: e.fullName }))}
                     />
                   </div>
                   <div className="col-span-4">
@@ -1476,8 +1476,6 @@ function IOTTabContent({
   onAddSystem: () => void
 }) {
   const [registers, setRegisters] = useState<{register: string | number, value: string | number}[]>([]);
-  const [socketConnected, setSocketConnected] = useState(false);
-  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   useEffect(() => {
@@ -1490,7 +1488,6 @@ function IOTTabContent({
           const initialRegisters = res.data.payload.registers;
           initialRegisters.sort((a: any, b: any) => Number(a.register) - Number(b.register));
           setRegisters(initialRegisters);
-          setLastUpdate(new Date(res.data.createdAt));
         }
         setInitialLoadComplete(true);
       })
@@ -1506,12 +1503,11 @@ function IOTTabContent({
     });
 
     socket.on('connect', () => {
-      setSocketConnected(true);
       socket.emit('join-device', { topic: deviceId });
     });
 
     socket.on('disconnect', () => {
-      setSocketConnected(false);
+      // Do nothing
     });
 
     socket.on('device-update', (data: any) => {
@@ -1525,7 +1521,6 @@ function IOTTabContent({
             mergedList.sort((a, b) => a.register - b.register);
             return mergedList;
           });
-          setLastUpdate(new Date());
         }
       }
     });

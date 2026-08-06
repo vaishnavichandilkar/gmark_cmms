@@ -14,6 +14,12 @@ const availableModules = [
   { id: 'machine_management', name: 'Machine Management' },
 ];
 
+const isActionAllowed = (moduleId: string, action: string) => {
+  if ((moduleId === 'dashboard' || moduleId === 'assets') && action !== 'view') return false;
+  if (['manage_access', 'user_management', 'facility_management', 'machine_management'].includes(moduleId) && action === 'import') return false;
+  return true;
+};
+
 interface UserPermissionsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -109,15 +115,23 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
   };
 
   const handleSelectAllRow = (moduleId: string, checked: boolean) => {
-    setPermissions(prev => ({
-      ...prev,
-      [moduleId]: { view: checked, create: checked, edit: checked, delete: checked, import: checked, export: checked, print: checked }
-    }));
+    setPermissions(prev => {
+      const next = { ...prev };
+      const newPerms = { ...next[moduleId] };
+      ['view', 'create', 'edit', 'delete', 'import', 'export', 'print'].forEach(action => {
+        if (isActionAllowed(moduleId, action)) {
+          newPerms[action] = checked;
+        }
+      });
+      next[moduleId] = newPerms;
+      return next;
+    });
   };
 
   const isRowAllSelected = (moduleId: string) => {
-    const p = permissions[moduleId];
-    return p.view && p.create && p.edit && p.delete && p.import && p.export && p.print;
+    return ['view', 'create', 'edit', 'delete', 'import', 'export', 'print']
+      .filter(action => isActionAllowed(moduleId, action))
+      .every(action => permissions[moduleId][action]);
   };
 
   const handleSave = async () => {
@@ -200,12 +214,16 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
                       
                       {['view', 'create', 'edit', 'delete', 'import', 'export', 'print'].map(action => (
                         <td key={action} className="px-6 py-4 text-center">
-                          <input 
-                            type="checkbox"
-                            checked={permissions[mod.id][action]}
-                            onChange={(e) => handlePermissionChange(mod.id, action, e.target.checked)}
-                            className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
-                          />
+                          {isActionAllowed(mod.id, action) ? (
+                            <input 
+                              type="checkbox"
+                              checked={permissions[mod.id][action]}
+                              onChange={(e) => handlePermissionChange(mod.id, action, e.target.checked)}
+                              className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                            />
+                          ) : (
+                            <span className="text-gray-300">-</span>
+                          )}
                         </td>
                       ))}
 

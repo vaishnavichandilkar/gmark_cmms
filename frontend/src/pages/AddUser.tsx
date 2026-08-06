@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, User, Mail, Phone, Building2, Shield, Briefcase, CheckCircle2, Eye, EyeOff, Key } from 'lucide-react';
+import { ChevronLeft, User, Mail, Phone, Building2, Shield, Briefcase, CheckCircle2 } from 'lucide-react';
 import { api } from '../lib/api';
 import { FacilityHierarchyPicker } from '../components/FacilityHierarchyPicker';
 import { CustomSelect } from '../components/CustomSelect';
@@ -28,8 +28,6 @@ export function AddUser() {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(false);
   const [globalError, setGlobalError] = useState('');
-  const [currentStep, setCurrentStep] = useState(1);
-  const [showPassword, setShowPassword] = useState(false);
 
   const [facilities, setFacilities] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
@@ -81,37 +79,6 @@ export function AddUser() {
     }
   };
 
-  const generatePassword = () => {
-    const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const lowercase = "abcdefghijklmnopqrstuvwxyz";
-    const numbers = "0123456789";
-    const special = "!@#$%^&*";
-    const all = uppercase + lowercase + numbers + special;
-    
-    let pass = "";
-    pass += uppercase.charAt(Math.floor(Math.random() * uppercase.length));
-    pass += lowercase.charAt(Math.floor(Math.random() * lowercase.length));
-    pass += numbers.charAt(Math.floor(Math.random() * numbers.length));
-    pass += special.charAt(Math.floor(Math.random() * special.length));
-    
-    for(let i=0; i<8; i++){
-      pass += all.charAt(Math.floor(Math.random() * all.length));
-    }
-    
-    return pass.split('').sort(() => 0.5 - Math.random()).join('');
-  };
-
-  const handleNext = () => {
-    if (!formData.mainFacilityId || !formData.employeeId || !formData.companyMailId) {
-      setGlobalError('Please fill in all required fields (Facility, Employee, and Email) before continuing.');
-      return;
-    }
-    setGlobalError('');
-    if (!id && !formData.password) {
-      setFormData(prev => ({ ...prev, password: generatePassword() }));
-    }
-    setCurrentStep(2);
-  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -186,18 +153,8 @@ export function AddUser() {
         return;
       }
 
-      if (formData.password) {
-        const p = formData.password;
-        if (p.length < 8 || !/[A-Z]/.test(p) || !/[a-z]/.test(p) || !/[0-9]/.test(p) || !/[^A-Za-z0-9]/.test(p)) {
-          setGlobalError('Password must be at least 8 characters long and contain uppercase, lowercase, numbers, and special characters.');
-          setLoading(false);
-          return;
-        }
-      }
+      const employee = employees.find(e => e.id.toString() === formData.employeeId);
       
-      const employee = employees.find(emp => emp.id.toString() === formData.employeeId);
-      
-      // Determine UserRole mapping from Employee designation, fallback to VIEWER
       const mapRole = (designation: string) => {
         const roleStr = (designation || '').toUpperCase();
         if (roleStr.includes('ADMIN')) return 'SOCIETY_ADMIN';
@@ -207,7 +164,7 @@ export function AddUser() {
       };
 
       const payload: any = { 
-        username: formData.username,
+        username: formData.username || formData.companyMailId,
         email: formData.companyMailId, // required by backend
         firstName: employee ? employee.fullName.split(' ')[0] : undefined,
         lastName: employee ? employee.fullName.split(' ').slice(1).join(' ') : undefined,
@@ -217,10 +174,6 @@ export function AddUser() {
         employeeId: parseInt(formData.employeeId, 10),
         mainFacilityId: parseInt(formData.mainFacilityId, 10)
       };
-
-      if (formData.password) {
-        payload.password = formData.password;
-      }
 
       if (id) {
         await api.put(`/users/${id}`, payload);
@@ -395,9 +348,7 @@ export function AddUser() {
             </div>
           </div>
         ) : (
-          <>
-          {currentStep === 1 && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
           
           {/* Row 1 */}
           <div>
@@ -522,71 +473,6 @@ export function AddUser() {
             />
           </div>
           </div>
-          )}
-
-          {currentStep === 2 && (
-            <div className="max-w-xl mx-auto mt-4 mb-4">
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-lg p-6 sm:p-10">
-                <div className="text-center mb-8">
-                  <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-100">
-                    <Key size={32} className="text-emerald-600" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-gray-800">User Credentials</h2>
-                  <p className="text-gray-500 mt-2 text-sm">Review the username and set a password for this user account.</p>
-                </div>
-
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Username <span className="text-red-500">*</span>
-                    </label>
-                    <input 
-                      type="text" 
-                      name="username"
-                      placeholder="user.name"
-                      value={formData.username}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all bg-gray-50/50"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Password { !id && <span className="text-red-500">*</span> }
-                    </label>
-                    <div className="relative">
-                      <input 
-                        type={showPassword ? "text" : "password"} 
-                        name="password"
-                        value={formData.password}
-                        onChange={handleChange}
-                        placeholder={id ? "Leave blank to keep unchanged" : "Password"}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none pr-24 transition-all"
-                      />
-                      <div className="absolute inset-y-0 right-0 flex items-center pr-2 gap-2">
-                        <button 
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="p-1.5 text-gray-400 hover:text-gray-600 focus:outline-none transition-colors"
-                          title={showPassword ? "Hide Password" : "Show Password"}
-                        >
-                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                        </button>
-                        <button 
-                          type="button"
-                          onClick={() => setFormData(prev => ({ ...prev, password: generatePassword() }))}
-                          className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg transition-colors focus:outline-none border border-emerald-200"
-                        >
-                          Generate
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          </>
         )}
 
         {/* Buttons */}
@@ -599,7 +485,7 @@ export function AddUser() {
             >
               Back
             </button>
-          ) : currentStep === 1 ? (
+          ) : (
             <>
               <button 
                 type="button" 
@@ -608,39 +494,6 @@ export function AddUser() {
                 className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
               >
                 Cancel
-              </button>
-              {existingUserId ? (
-                <button 
-                  type="button" 
-                  onClick={handleSave}
-                  disabled={loading}
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm disabled:opacity-70 min-w-[100px]"
-                >
-                  {loading ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    'Save'
-                  )}
-                </button>
-              ) : (
-                <button 
-                  type="button" 
-                  onClick={handleNext}
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm min-w-[100px]"
-                >
-                  Next
-                </button>
-              )}
-            </>
-          ) : (
-            <>
-              <button 
-                type="button" 
-                onClick={() => setCurrentStep(1)}
-                disabled={loading}
-                className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
-              >
-                Back
               </button>
               <button 
                 type="button" 

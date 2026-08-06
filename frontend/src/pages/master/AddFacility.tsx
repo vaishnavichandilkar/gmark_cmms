@@ -47,7 +47,6 @@ export function AddFacility() {
 
   const [mainFacilities, setMainFacilities] = useState<any[]>([]);
   const [facilities, setFacilities] = useState<any[]>([]);
-
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -56,7 +55,6 @@ export function AddFacility() {
   useEffect(() => {
     fetchMainFacilities();
     fetchFacilities();
-    fetchEmployees();
     
     if (id) {
       fetchFacility();
@@ -146,14 +144,6 @@ export function AddFacility() {
     }
   };
 
-  const fetchEmployees = async () => {
-    try {
-      const response = await api.get('/employees');
-      setEmployees(response.data);
-    } catch (error) {
-      console.error('Failed to fetch employees list:', error);
-    }
-  };
 
   const fetchFacility = async () => {
     try {
@@ -741,7 +731,7 @@ export function AddFacility() {
                     className={errors.parentFacilityId ? 'border-red-500' : ''}
                     showSocietiesAndBuildings={false}
                     filterByMainFacilityId={formData.mainFacilityId}
-                    selectableTypes={['facility']}
+                    selectableTypes={['mainFacility', 'facility']}
                     defaultExpanded={true}
                   />
                   {errors.parentFacilityId && <p className="mt-1 text-sm text-red-500">{errors.parentFacilityId}</p>}

@@ -9,8 +9,19 @@ import toast from 'react-hot-toast';
 import { TableActions } from '../components/TableActions';
 import { exportData } from '../utils/exportUtils';
 import { UserPermissionsModal } from '../components/UserPermissionsModal';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../store';
+import { hasPermission } from '../utils/permissions';
 
 export function UserManagement() {
+  const { user } = useSelector((state: RootState) => state.auth);
+  
+  const canCreate = hasPermission(user, 'user_management', 'create');
+  const canEdit = hasPermission(user, 'user_management', 'edit');
+  const canDelete = hasPermission(user, 'user_management', 'delete');
+  const canExport = hasPermission(user, 'user_management', 'export');
+  const canPrint = hasPermission(user, 'user_management', 'print');
+
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState<any[]>([]);
@@ -116,13 +127,15 @@ export function UserManagement() {
           <h1 className="text-3xl font-black text-gray-900 tracking-tight">Users</h1>
           <p className="text-sm font-medium text-gray-500 mt-1">Users assigned to main facilities</p>
         </div>
-        <button 
-          onClick={() => navigate('/user-management/new')}
-          className="flex items-center justify-center w-full sm:w-auto gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Add New User
-        </button>
+        {canCreate && (
+          <button 
+            onClick={() => navigate('/user-management/new')}
+            className="flex items-center justify-center w-full sm:w-auto gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Add New User
+          </button>
+        )}
       </div>
 
       {/* Search Section */}
@@ -130,8 +143,8 @@ export function UserManagement() {
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         searchPlaceholder="Search users..."
-        onExport={handleExport}
-        onPrint={handlePrint}
+        onExport={canExport ? handleExport : undefined}
+        onPrint={canPrint ? handlePrint : undefined}
       />
 
       {/* Table Section */}
@@ -158,59 +171,65 @@ export function UserManagement() {
               {loading ? (
                 <TableSkeleton columns={8} rows={5} />
               ) : currentUsers.length > 0 ? (
-                currentUsers.map((user, index) => (
-                  <tr key={user.id || index} className="hover:bg-gray-50/50 transition-colors group">
+                currentUsers.map((listUser, index) => (
+                  <tr key={listUser.id || index} className="hover:bg-gray-50/50 transition-colors group">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {user.employee?.fullName || (user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : user.username)}
+                      {listUser.employee?.fullName || (listUser.firstName || listUser.lastName ? `${listUser.firstName || ''} ${listUser.lastName || ''}`.trim() : listUser.username)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">{user.employee?.role || user.role}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{user.mainFacility?.mainFacilityName || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{user.employee?.officialEmail || user.email}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{user.employee?.department || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{listUser.employee?.role || listUser.role}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{listUser.mainFacility?.mainFacilityName || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{listUser.employee?.officialEmail || listUser.email}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{listUser.employee?.department || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {user.employee?.dateOfJoining 
-                        ? new Date(user.employee.dateOfJoining).toLocaleDateString('en-GB').replace(/\//g, '-') 
+                      {listUser.employee?.dateOfJoining 
+                        ? new Date(listUser.employee.dateOfJoining).toLocaleDateString('en-GB').replace(/\//g, '-') 
                         : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        user.isActive
+                        listUser.isActive
                           ? 'bg-green-50 text-green-500 border border-green-200/50' 
                           : 'bg-gray-100 text-gray-600 border border-gray-200'
                       }`}>
-                        {user.isActive ? 'Active' : 'Inactive'}
+                        {listUser.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button 
-                          onClick={() => navigate(`/user-management/view/${user.id}`)}
+                          onClick={() => navigate(`/user-management/view/${listUser.id}`)}
                           className="text-gray-400 hover:text-blue-600 p-1.5 rounded-md hover:bg-blue-50 transition-colors" title="View"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button 
-                          onClick={() => navigate(`/user-management/edit/${user.id}`)}
-                          className="text-gray-400 hover:text-green-600 p-1.5 rounded-md hover:bg-green-50 transition-colors" title="Edit"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            setSelectedUserId(user.id);
-                            setSelectedUserName(user.employee?.fullName || (user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : user.username));
-                            setPermissionsModalOpen(true);
-                          }}
-                          className="text-gray-400 hover:text-purple-600 p-1.5 rounded-md hover:bg-purple-50 transition-colors" title="Special Permissions"
-                        >
-                          <Shield className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => confirmDelete(user.id)}
-                          className="text-gray-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors" title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {canEdit && (
+                          <button 
+                            onClick={() => navigate(`/user-management/edit/${listUser.id}`)}
+                            className="text-gray-400 hover:text-green-600 p-1.5 rounded-md hover:bg-green-50 transition-colors" title="Edit"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        )}
+                        {canEdit && (
+                          <button 
+                            onClick={() => {
+                              setSelectedUserId(listUser.id);
+                              setSelectedUserName(listUser.employee?.fullName || (listUser.firstName || listUser.lastName ? `${listUser.firstName || ''} ${listUser.lastName || ''}`.trim() : listUser.username));
+                              setPermissionsModalOpen(true);
+                            }}
+                            className="text-gray-400 hover:text-purple-600 p-1.5 rounded-md hover:bg-purple-50 transition-colors" title="Special Permissions"
+                          >
+                            <Shield className="w-4 h-4" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button 
+                            onClick={() => confirmDelete(listUser.id)}
+                            className="text-gray-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors" title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

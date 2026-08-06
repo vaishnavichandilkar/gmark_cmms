@@ -15,6 +15,12 @@ const availableModules = [
   { id: 'machine_management', name: 'Machine Management' },
 ];
 
+const isActionAllowed = (moduleId: string, action: string) => {
+  if ((moduleId === 'dashboard' || moduleId === 'assets') && action !== 'view') return false;
+  if (['manage_access', 'user_management', 'facility_management', 'machine_management'].includes(moduleId) && action === 'import') return false;
+  return true;
+};
+
 export function AddRole() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -91,15 +97,23 @@ export function AddRole() {
 
   const handleSelectAllRow = (moduleId: string, checked: boolean) => {
     if (isViewMode) return;
-    setPermissions(prev => ({
-      ...prev,
-      [moduleId]: { view: checked, create: checked, edit: checked, delete: checked, import: checked, export: checked, print: checked }
-    }));
+    setPermissions(prev => {
+      const next = { ...prev };
+      const newPerms = { ...next[moduleId] };
+      ['view', 'create', 'edit', 'delete', 'import', 'export', 'print'].forEach(action => {
+        if (isActionAllowed(moduleId, action)) {
+          newPerms[action] = checked;
+        }
+      });
+      next[moduleId] = newPerms;
+      return next;
+    });
   };
 
   const isRowAllSelected = (moduleId: string) => {
-    const p = permissions[moduleId];
-    return p.view && p.create && p.edit && p.delete && p.import && p.export && p.print;
+    return ['view', 'create', 'edit', 'delete', 'import', 'export', 'print']
+      .filter(action => isActionAllowed(moduleId, action))
+      .every(action => permissions[moduleId][action]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -198,10 +212,14 @@ export function AddRole() {
                         <td className="px-6 py-4 text-sm font-medium text-gray-900">{mod.name}</td>
                         {['view', 'create', 'edit', 'delete', 'import', 'export', 'print'].map(action => (
                           <td key={action} className="px-6 py-4 text-center">
-                            {permissions[mod.id][action] ? (
-                              <CheckCircle2 size={20} className="text-green-500 mx-auto" />
+                            {isActionAllowed(mod.id, action) ? (
+                              permissions[mod.id][action] ? (
+                                <CheckCircle2 size={20} className="text-green-500 mx-auto" />
+                              ) : (
+                                <XCircle size={20} className="text-gray-300 mx-auto" />
+                              )
                             ) : (
-                              <XCircle size={20} className="text-gray-300 mx-auto" />
+                              <span className="text-gray-300">-</span>
                             )}
                           </td>
                         ))}
@@ -288,13 +306,17 @@ export function AddRole() {
                     
                     {['view', 'create', 'edit', 'delete', 'import', 'export', 'print'].map(action => (
                       <td key={action} className="px-6 py-4 text-center">
-                        <input 
-                          type="checkbox"
-                          checked={permissions[mod.id][action]}
-                          onChange={(e) => handlePermissionChange(mod.id, action, e.target.checked)}
-                          disabled={isViewMode}
-                          className="w-6 h-6 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                        />
+                        {isActionAllowed(mod.id, action) ? (
+                          <input 
+                            type="checkbox"
+                            checked={permissions[mod.id][action]}
+                            onChange={(e) => handlePermissionChange(mod.id, action, e.target.checked)}
+                            disabled={isViewMode}
+                            className="w-6 h-6 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          />
+                        ) : (
+                          <span className="text-gray-300">-</span>
+                        )}
                       </td>
                     ))}
 

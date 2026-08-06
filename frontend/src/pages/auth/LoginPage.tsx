@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Lock, User, ShieldAlert, Check } from 'lucide-react';
@@ -15,7 +15,7 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
-  const location = useLocation();
+
   const dispatch = useDispatch();
 
 

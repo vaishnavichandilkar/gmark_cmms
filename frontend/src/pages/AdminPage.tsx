@@ -6,21 +6,16 @@ import {
   Pencil,
   Plus,
   Search,
-  Wrench,
   Wifi,
   Users,
-  UserPlus,
   X,
   User as UserIcon,
-  Mail,
-  Phone,
   Settings,
   Sliders,
   LayoutGrid,
   FileEdit,
   Cpu,
   Upload,
-  Download,
   Printer,
   Filter,
   FileText,
@@ -640,8 +635,8 @@ export function AdminPage() {
   const handleExportUsers = (format: 'pdf' | 'excel') => {
     const headers = ['User', 'Contact', 'Role', 'Status'];
     const rows = filteredUsers.map(user => [
-      user.name || user.email || '-',
-      user.phone || '-',
+      user.username || user.firstName || user.email || '-',
+      user.mobileNumber || '-',
       user.role || '-',
       user.isActive ? 'Active' : 'Inactive'
     ]);

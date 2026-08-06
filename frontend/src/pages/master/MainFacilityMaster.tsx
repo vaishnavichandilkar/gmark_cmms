@@ -11,8 +11,20 @@ import type { FilterOption } from '../../components/TableActions';
 import { ImportModal } from '../../components/ImportModal';
 import type { ImportConfig } from '../../components/ImportModal';
 import { exportData } from '../../utils/exportUtils';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../../store';
+import { hasPermission } from '../../utils/permissions';
 
 export function MainFacilityMaster() {
+  const { user } = useSelector((state: RootState) => state.auth);
+  
+  const canCreate = hasPermission(user, 'master_main_facility', 'create');
+  const canEdit = hasPermission(user, 'master_main_facility', 'edit');
+  const canDelete = hasPermission(user, 'master_main_facility', 'delete');
+  const canExport = hasPermission(user, 'master_main_facility', 'export');
+  const canPrint = hasPermission(user, 'master_main_facility', 'print');
+  const canImport = hasPermission(user, 'master_main_facility', 'import');
+
   const navigate = useNavigate();
 
   const [facilities, setFacilities] = useState<any[]>([]);
@@ -160,13 +172,15 @@ export function MainFacilityMaster() {
           <h1 className="text-3xl font-black text-gray-900 tracking-tight">Facility Master</h1>
           <p className="text-sm font-medium text-gray-500 mt-1">Manage all main facilities in the system</p>
         </div>
-        <button
-          onClick={() => navigate('/master/main-facility/new')}
-          className="flex items-center justify-center w-full sm:w-auto gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Add Facility
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => navigate('/master/main-facility/new')}
+            className="flex items-center justify-center w-full sm:w-auto gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Add Facility
+          </button>
+        )}
       </div>
 
       <div className="print:hidden">
@@ -174,9 +188,9 @@ export function MainFacilityMaster() {
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           searchPlaceholder="Search main facilities..."
-          onImport={() => setIsImportOpen(true)}
-          onExport={handleExport}
-          onPrint={handlePrint}
+          onImport={canImport ? () => setIsImportOpen(true) : undefined}
+          onExport={canExport ? handleExport : undefined}
+          onPrint={canPrint ? handlePrint : undefined}
           filterOptions={filterOptions}
           activeFilters={activeFilters}
           onFilterChange={setActiveFilters}
@@ -226,18 +240,22 @@ export function MainFacilityMaster() {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => navigate(`/master/main-facility/edit/${facility.id}`)}
-                          className="text-gray-400 hover:text-green-600 p-1.5 rounded-md hover:bg-green-50 transition-colors" title="Edit"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => confirmDelete(facility.id)}
-                          className="text-gray-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors" title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {canEdit && (
+                          <button
+                            onClick={() => navigate(`/master/main-facility/edit/${facility.id}`)}
+                            className="text-gray-400 hover:text-green-600 p-1.5 rounded-md hover:bg-green-50 transition-colors" title="Edit"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            onClick={() => confirmDelete(facility.id)}
+                            className="text-gray-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors" title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

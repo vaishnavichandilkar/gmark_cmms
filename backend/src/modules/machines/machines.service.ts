@@ -5,20 +5,38 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 export class MachinesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getAllMachines(user: any) {
+  async getAllMachines(jwtUser: any) {
+    // Fetch latest user data from DB to ensure we have mainFacilityId which might be missing in older JWTs
+    const user = await this.prisma.user.findUnique({ 
+      where: { id: jwtUser.userId },
+      include: { employee: true }
+    }) || jwtUser;
+
     let whereClause: any = {};
 
     if (user.role === 'SUPER_ADMIN') {
       whereClause = {};
+    } else if (user.mainFacilityId) {
+      // If user is assigned to a main facility, show machines in facilities under that main facility
+      whereClause = {
+        facility: { mainFacilityId: user.mainFacilityId },
+      };
     } else if (user.role === 'SOCIETY_ADMIN') {
       whereClause = {
         building: { societyId: user.societyId },
       };
     } else {
-      whereClause = {
-        building: { societyId: user.societyId },
-        buildingId: { in: user.buildingIds || [] },
-      };
+      whereClause = { OR: [] };
+      if (user.employee) {
+        whereClause.OR.push({ machineOwner: user.employee.fullName });
+        whereClause.OR.push({ maintenanceHead: user.employee.fullName });
+      }
+      if (jwtUser.buildingIds && jwtUser.buildingIds.length > 0) {
+        whereClause.OR.push({ buildingId: { in: jwtUser.buildingIds } });
+      }
+      if (whereClause.OR.length === 0) {
+        whereClause = { id: -1 }; // Return nothing
+      }
     }
 
     const machines = await this.prisma.machine.findMany({
@@ -78,15 +96,33 @@ export class MachinesService {
     });
   }
 
-  async getMachineById(id: number, user: any) {
+  async getMachineById(id: number, jwtUser: any) {
+    const user = await this.prisma.user.findUnique({ 
+      where: { id: jwtUser.userId },
+      include: { employee: true }
+    }) || jwtUser;
     let whereClause: any = { id };
 
     if (user.role !== 'SUPER_ADMIN') {
-      if (user.role === 'SOCIETY_ADMIN') {
+      if (user.mainFacilityId) {
+        whereClause.facility = { mainFacilityId: user.mainFacilityId };
+      } else if (user.role === 'SOCIETY_ADMIN') {
         whereClause.building = { societyId: user.societyId };
       } else {
-        whereClause.building = { societyId: user.societyId };
-        whereClause.buildingId = { in: user.buildingIds || [] };
+        const orConditions = [];
+        if (user.employee) {
+          orConditions.push({ machineOwner: user.employee.fullName });
+          orConditions.push({ maintenanceHead: user.employee.fullName });
+        }
+        if (jwtUser.buildingIds && jwtUser.buildingIds.length > 0) {
+          orConditions.push({ buildingId: { in: jwtUser.buildingIds } });
+        }
+        
+        if (orConditions.length > 0) {
+          whereClause.OR = orConditions;
+        } else {
+          whereClause.id = -1; // Return nothing
+        }
       }
     }
 

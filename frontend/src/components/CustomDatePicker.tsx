@@ -63,8 +63,9 @@ export function CustomDatePicker({
         dateFormat="dd/MM/yyyy"
         className={`w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 text-gray-900 ${disabled ? 'opacity-60 cursor-not-allowed bg-gray-50' : 'cursor-pointer'}`}
         wrapperClassName="w-full"
-        popperClassName="!w-full pt-2"
-        calendarClassName="!w-full !border-gray-200 !shadow-lg border-0"
+        popperClassName="pt-2"
+        calendarClassName="!border-gray-200 !shadow-lg border-0"
+        portalId="datepicker-portal"
         showPopperArrow={false}
         shouldCloseOnSelect={true}
         open={pickerOpen}

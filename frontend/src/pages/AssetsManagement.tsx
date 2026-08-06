@@ -5,8 +5,11 @@ import { AssetDetails } from '../components/AssetDetails';
 import { api } from '../lib/api';
 import { Skeleton } from '../components/ui/Skeleton';
 import { X } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../store';
 
 export function AssetsManagement() {
+  const { user } = useSelector((state: RootState) => state.auth);
   const [treeData, setTreeData] = useState<TreeNodeData[]>([]);
   const [selectedNode, setSelectedNode] = useState<TreeNodeData | null>(null);
   const [detailsNode, setDetailsNode] = useState<TreeNodeData | null>(null);
@@ -29,11 +32,41 @@ export function AssetsManagement() {
         api.get('/facilities').catch(() => ({ data: [] })),
       ]);
 
-      const societies = Array.isArray(societiesRes.data) ? societiesRes.data : [];
-      const buildings = Array.isArray(buildingsRes.data) ? buildingsRes.data : [];
-      const machines = Array.isArray(machinesRes.data) ? machinesRes.data : [];
-      const mainFacilities = Array.isArray(mainFacilitiesRes.data) ? mainFacilitiesRes.data : [];
-      const facilities = Array.isArray(facilitiesRes.data) ? facilitiesRes.data : [];
+      let societies = Array.isArray(societiesRes.data) ? societiesRes.data : [];
+      let buildings = Array.isArray(buildingsRes.data) ? buildingsRes.data : [];
+      let machines = Array.isArray(machinesRes.data) ? machinesRes.data : [];
+      let mainFacilities = Array.isArray(mainFacilitiesRes.data) ? mainFacilitiesRes.data : [];
+      let facilities = Array.isArray(facilitiesRes.data) ? facilitiesRes.data : [];
+
+      if (user?.role !== 'SUPER_ADMIN') {
+        if (user?.mainFacilityId) {
+          mainFacilities = mainFacilities.filter((mf: any) => mf.id === user.mainFacilityId);
+          // Only show facilities that belong to this main facility
+          facilities = facilities.filter((f: any) => f.mainFacilityId === user.mainFacilityId);
+          societies = [];
+          buildings = [];
+        } else if (user?.societyId) {
+          societies = societies.filter((s: any) => s.id === user.societyId);
+          buildings = buildings.filter((b: any) => b.societyId === user.societyId);
+          mainFacilities = [];
+          facilities = [];
+        } else {
+          // Operator/Viewer fallback: only show facilities/buildings where they actually have assigned machines
+          const assignedFacilityIds = new Set(machines.map((m: any) => m.facilityId).filter(Boolean));
+          const assignedBuildingIds = new Set(machines.map((m: any) => m.buildingId).filter(Boolean));
+          
+          facilities = facilities.filter((f: any) => assignedFacilityIds.has(f.id));
+          buildings = buildings.filter((b: any) => assignedBuildingIds.has(b.id));
+
+          // Retain mainFacilities that are parents to the retained facilities
+          const activeMainFacIds = new Set(facilities.map((f: any) => f.mainFacilityId).filter(Boolean));
+          mainFacilities = mainFacilities.filter((mf: any) => activeMainFacIds.has(mf.id));
+
+          // Retain societies that are parents to the retained buildings
+          const activeSocIds = new Set(buildings.map((b: any) => b.societyId).filter(Boolean));
+          societies = societies.filter((s: any) => activeSocIds.has(s.id));
+        }
+      }
 
       // Pre-process machine hierarchy
       const machineMap: Record<number, TreeNodeData> = {};

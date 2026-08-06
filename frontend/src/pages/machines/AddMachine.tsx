@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Search, Calendar } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Search } from 'lucide-react';
 import { CustomSelect } from '../../components/CustomSelect';
 import { CustomDatePicker } from '../../components/CustomDatePicker';
 import { api } from '../../lib/api';
@@ -73,7 +73,7 @@ export function AddMachine() {
       api.get('/facilities'),
       api.get('/main-facilities'),
       api.get('/employees')
-    ]).then(([facRes, mainFacRes, empRes]) => {
+    ]).then(([_, __, empRes]) => {
       setEmployees(empRes.data);
     }).catch(console.error);
   }, []);
@@ -283,7 +283,7 @@ export function AddMachine() {
         <h1 className="text-2xl font-bold text-gray-900">New Machine</h1>
       </div>
 
-      <div className={`bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden w-full relative ${step !== 3 ? 'p-4 sm:p-8' : ''}`}>
+      <div className={`bg-white rounded-xl shadow-sm border border-gray-200 w-full relative ${step !== 3 ? 'p-4 sm:p-8' : ''}`}>
         {step === 1 && (
           <div className="space-y-6 w-full">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -297,7 +297,7 @@ export function AddMachine() {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">Maintenance Head</label>
-                <CustomSelect name="maintenanceHead" value={formData.maintenanceHead} onChange={handleChange} placeholder="Select Head" options={employees.map(e => ({ label: `${e.fullName} (${e.department || 'N/A'})`, value: e.fullName }))} />
+                <CustomSelect name="maintenanceHead" value={formData.maintenanceHead} onChange={handleChange} placeholder="Select Head" options={employees.map(e => ({ label: `${e.designation || 'N/A'} - ${e.fullName}`, value: e.fullName }))} />
               </div>
             </div>
             <div className="flex justify-end mt-12">
@@ -313,10 +313,10 @@ export function AddMachine() {
               <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Code<span className="text-red-500">*</span></label><input type="text" name="machineCode" value={formData.machineCode} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all" /></div>
               <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Status<span className="text-red-500">*</span></label><CustomSelect name="status" value={formData.status} onChange={handleChange} placeholder="Select Status" options={[{ label: 'Online', value: 'Online' }, { label: 'Offline', value: 'Offline' }]} /></div>
               <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Serial Number<span className="text-red-500">*</span></label><input type="text" name="serialNumber" value={formData.serialNumber} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all" /></div>
-              <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Make<span className="text-red-500">*</span></label><CustomSelect name="make" value={formData.make} onChange={handleChange} placeholder="Select" options={[{ label: 'Make 1', value: 'Make 1' }]} /></div>
-              <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Model Number<span className="text-red-500">*</span></label><CustomSelect name="modelNumber" value={formData.modelNumber} onChange={handleChange} placeholder="Select" options={[{ label: 'Model 1', value: 'Model 1' }]} /></div>
-              <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Category<span className="text-red-500">*</span></label><CustomSelect name="machineCategory" value={formData.machineCategory} onChange={handleChange} placeholder="Select" options={[{ label: 'Category 1', value: 'Category 1' }]} /></div>
-              <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Sub-Category<span className="text-red-500">*</span></label><CustomSelect name="machineSubCategory" value={formData.machineSubCategory} onChange={handleChange} placeholder="Select" options={[{ label: 'Sub-Category 1', value: 'Sub-Category 1' }]} /></div>
+              <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Make<span className="text-red-500">*</span></label><CustomSelect name="make" value={formData.make} onChange={handleChange} placeholder="Select" options={[{ label: 'Make 1', value: 'Make 1' }]} allowCustom={true} /></div>
+              <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Model Number<span className="text-red-500">*</span></label><CustomSelect name="modelNumber" value={formData.modelNumber} onChange={handleChange} placeholder="Select" options={[{ label: 'Model 1', value: 'Model 1' }]} allowCustom={true} /></div>
+              <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Category<span className="text-red-500">*</span></label><CustomSelect name="machineCategory" value={formData.machineCategory} onChange={handleChange} placeholder="Select" options={[{ label: 'Category 1', value: 'Category 1' }]} allowCustom={true} /></div>
+              <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Sub-Category<span className="text-red-500">*</span></label><CustomSelect name="machineSubCategory" value={formData.machineSubCategory} onChange={handleChange} placeholder="Select" options={[{ label: 'Sub-Category 1', value: 'Sub-Category 1' }]} allowCustom={true} /></div>
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Description</label>
@@ -375,8 +375,8 @@ export function AddMachine() {
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Asset Code<span className="text-red-500">*</span></label><input type="text" name="assetCode" value={formData.assetCode} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
                     <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Cost Center<span className="text-red-500">*</span></label><input type="text" name="costCenter" value={formData.costCenter} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
-                    <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Select Head of Department<span className="text-red-500">*</span></label><CustomSelect name="headOfDepartment" value={formData.headOfDepartment} onChange={handleChange} options={employees.map(e => ({ label: e.fullName, value: e.fullName }))} /></div>
-                    <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Owner<span className="text-red-500">*</span></label><CustomSelect name="machineOwner" value={formData.machineOwner} onChange={handleChange} options={employees.map(e => ({ label: e.fullName, value: e.fullName }))} /></div>
+                    <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Select Head of Department<span className="text-red-500">*</span></label><CustomSelect name="headOfDepartment" value={formData.headOfDepartment} onChange={handleChange} options={employees.map(e => ({ label: `${e.designation || 'N/A'} - ${e.fullName}`, value: e.fullName }))} /></div>
+                    <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Owner<span className="text-red-500">*</span></label><CustomSelect name="machineOwner" value={formData.machineOwner} onChange={handleChange} options={employees.map(e => ({ label: `${e.designation || 'N/A'} - ${e.fullName}`, value: e.fullName }))} /></div>
                     <div className="col-span-4"><label className="block text-xs font-semibold text-gray-700 mb-1.5">Notes</label><textarea name="notes" value={formData.notes} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 resize-none h-12"></textarea></div>
                   </div>
                 </div>

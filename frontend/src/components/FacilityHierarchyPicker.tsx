@@ -3,6 +3,8 @@ import { ChevronDown, X, Building2, Plus } from 'lucide-react';
 import { api } from '../lib/api';
 import { AssetTree } from './AssetTree';
 import type { TreeNodeData } from './AssetTree';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../store';
 
 interface FacilityHierarchyPickerProps {
   name: string;
@@ -31,6 +33,7 @@ export function FacilityHierarchyPicker({
   selectableTypes,
   onEmptyStateAdd
 }: FacilityHierarchyPickerProps) {
+  const { user } = useSelector((state: RootState) => state.auth);
   const [isOpen, setIsOpen] = useState(false);
   const [treeData, setTreeData] = useState<TreeNodeData[]>([]);
   const [selectedNode, setSelectedNode] = useState<TreeNodeData | null>(null);
@@ -56,6 +59,20 @@ export function FacilityHierarchyPicker({
       let mainFacilities = Array.isArray(mainFacRes.data) ? mainFacRes.data : [];
       let facilities = Array.isArray(facRes.data) ? facRes.data : [];
 
+      if (user?.role !== 'SUPER_ADMIN') {
+        if (user?.mainFacilityId) {
+          mainFacilities = mainFacilities.filter((mf: any) => mf.id === user.mainFacilityId);
+          facilities = facilities.filter((f: any) => f.mainFacilityId === user.mainFacilityId);
+          societies = [];
+          buildings = [];
+        } else if (user?.societyId) {
+          societies = societies.filter((s: any) => s.id === user.societyId);
+          buildings = buildings.filter((b: any) => b.societyId === user.societyId);
+          mainFacilities = [];
+          facilities = [];
+        }
+      }
+
       if (filterByMainFacilityId) {
         mainFacilities = mainFacilities.filter((mf: any) => mf.id.toString() === filterByMainFacilityId);
         facilities = facilities.filter((fac: any) => fac.mainFacilityId?.toString() === filterByMainFacilityId);
@@ -68,11 +85,17 @@ export function FacilityHierarchyPicker({
       if (value) {
         const selectedMf = mainFacilities.find(m => m.id.toString() === value);
         const selectedFac = facilities.find(f => f.id.toString() === value);
+        const selectedSoc = societies.find(s => s.id.toString() === value);
+        const selectedBldg = buildings.find(b => b.id.toString() === value);
         
-        if (selectedMf) {
+        if (selectedMf && (!selectableTypes || selectableTypes.includes('mainFacility'))) {
           setDisplayValue(selectedMf.mainFacilityName);
-        } else if (selectedFac) {
+        } else if (selectedFac && (!selectableTypes || selectableTypes.includes('facility'))) {
           setDisplayValue(selectedFac.facilityName);
+        } else if (selectedSoc && (!selectableTypes || selectableTypes.includes('society'))) {
+          setDisplayValue(selectedSoc.name);
+        } else if (selectedBldg && (!selectableTypes || selectableTypes.includes('building'))) {
+          setDisplayValue(selectedBldg.name);
         }
       }
 
@@ -159,29 +182,25 @@ export function FacilityHierarchyPicker({
       // Restore selected node in tree if value exists
       if (value) {
         const initialSelectedMf = mfNodesWithPrefix.find(mf => mf.originalData.id.toString() === value);
-        if (initialSelectedMf) setSelectedNode(initialSelectedMf);
-        else {
-          const initialSelectedFac = Object.values(facMap).find(fac => fac.originalData.id.toString() === value);
-          if (initialSelectedFac) setSelectedNode(initialSelectedFac);
-          else {
-            const initialSelectedSoc = societyNodes.find(soc => soc.originalData.id.toString() === value);
-            if (initialSelectedSoc) setSelectedNode(initialSelectedSoc);
-            else {
-              // We'd have to search buildings too
-              let found = false;
-              societyNodes.forEach(s => {
-                const bldg = s.children?.find(b => b.originalData.id.toString() === value);
-                if (bldg) { setSelectedNode(bldg); found = true; }
-              });
-              if (!found) {
-                finalTree.forEach(n => {
-                  if (n.type === 'building' && n.originalData.id.toString() === value) {
-                    setSelectedNode(n);
-                  }
-                });
-              }
-            }
-          }
+        const initialSelectedFac = Object.values(facMap).find(fac => fac.originalData.id.toString() === value);
+        const initialSelectedSoc = societyNodes.find(soc => soc.originalData.id.toString() === value);
+        let initialSelectedBldg: TreeNodeData | undefined;
+        societyNodes.forEach(s => {
+          const bldg = s.children?.find(b => b.originalData.id.toString() === value);
+          if (bldg) { initialSelectedBldg = bldg; }
+        });
+        if (!initialSelectedBldg) {
+          initialSelectedBldg = finalTree.find(n => n.type === 'building' && n.originalData.id.toString() === value);
+        }
+
+        if (initialSelectedMf && (!selectableTypes || selectableTypes.includes('mainFacility'))) {
+          setSelectedNode(initialSelectedMf);
+        } else if (initialSelectedFac && (!selectableTypes || selectableTypes.includes('facility'))) {
+          setSelectedNode(initialSelectedFac);
+        } else if (initialSelectedSoc && (!selectableTypes || selectableTypes.includes('society'))) {
+          setSelectedNode(initialSelectedSoc);
+        } else if (initialSelectedBldg && (!selectableTypes || selectableTypes.includes('building'))) {
+          setSelectedNode(initialSelectedBldg);
         }
       }
 

@@ -8,6 +8,9 @@ import { TableSkeleton } from '../components/ui/TableSkeleton';
 import { TableActions } from '../components/TableActions';
 import { exportData } from '../utils/exportUtils';
 import toast from 'react-hot-toast';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../store';
+import { hasPermission } from '../utils/permissions';
 
 interface Device {
   id: string;
@@ -25,6 +28,14 @@ interface Device {
 }
 
 export function MachineManagement() {
+  const { user } = useSelector((state: RootState) => state.auth);
+  
+  const canCreate = hasPermission(user, 'machine_management', 'create');
+  const canEdit = hasPermission(user, 'machine_management', 'edit');
+  const canDelete = hasPermission(user, 'machine_management', 'delete');
+  const canExport = hasPermission(user, 'machine_management', 'export');
+  const canPrint = hasPermission(user, 'machine_management', 'print');
+
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [machines, setMachines] = useState<Device[]>([]);
@@ -124,13 +135,15 @@ export function MachineManagement() {
           <h1 className="text-3xl font-black text-gray-900 tracking-tight">Machines</h1>
           <p className="text-sm font-medium text-gray-500 mt-1">Add, edit, and monitor all hardware devices across your facilities</p>
         </div>
-        <button 
-          onClick={() => navigate('/machine-management/new')}
-          className="flex items-center justify-center w-full sm:w-auto gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Add New Machine
-        </button>
+        {canCreate && (
+          <button 
+            onClick={() => navigate('/machine-management/new')}
+            className="flex items-center justify-center w-full sm:w-auto gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Add New Machine
+          </button>
+        )}
       </div>
 
       {/* Search Section */}
@@ -138,8 +151,8 @@ export function MachineManagement() {
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         searchPlaceholder="Search machines..."
-        onExport={handleExport}
-        onPrint={handlePrint}
+        onExport={canExport ? handleExport : undefined}
+        onPrint={canPrint ? handlePrint : undefined}
       />
 
       {/* Table Section */}
@@ -191,18 +204,22 @@ export function MachineManagement() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <button 
-                          onClick={() => navigate(`/machine-management/edit/${machine.id}`)}
-                          className="text-gray-400 hover:text-green-600 p-1.5 rounded-md hover:bg-green-50 transition-colors" title="Edit"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => confirmDelete(machine.id)}
-                          className="text-gray-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors" title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {canEdit && (
+                          <button 
+                            onClick={() => navigate(`/machine-management/edit/${machine.id}`)}
+                            className="text-gray-400 hover:text-green-600 p-1.5 rounded-md hover:bg-green-50 transition-colors" title="Edit"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button 
+                            onClick={() => confirmDelete(machine.id)}
+                            className="text-gray-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors" title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

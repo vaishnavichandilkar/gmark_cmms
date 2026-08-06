@@ -1,14 +1,24 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Pencil, Eye, Trash2, Shield } from 'lucide-react';
+import { Plus, Pencil, Eye, Trash2, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 import { TablePagination } from '../components/TablePagination';
 import { TableActions } from '../components/TableActions';
 import { exportData } from '../utils/exportUtils';
-
+import { useSelector } from 'react-redux';
+import type { RootState } from '../store';
+import { hasPermission } from '../utils/permissions';
 import { api } from '../lib/api';
 
 export function ManageAccess() {
+  const { user } = useSelector((state: RootState) => state.auth);
+  
+  const canCreate = hasPermission(user, 'manage_access', 'create');
+  const canEdit = hasPermission(user, 'manage_access', 'edit');
+  const canDelete = hasPermission(user, 'manage_access', 'delete');
+  const canExport = hasPermission(user, 'manage_access', 'export');
+  const canPrint = hasPermission(user, 'manage_access', 'print');
+
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [roles, setRoles] = useState<any[]>([]);
@@ -96,13 +106,15 @@ export function ManageAccess() {
           <h1 className="text-3xl font-black text-gray-900 tracking-tight">Manage Access</h1>
           <p className="text-sm font-medium text-gray-500 mt-1">Configure designations and module permissions</p>
         </div>
-        <button 
-          onClick={() => navigate('/manage-access/new')}
-          className="flex items-center justify-center w-full sm:w-auto gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Add New Designation
-        </button>
+        {canCreate && (
+          <button 
+            onClick={() => navigate('/manage-access/new')}
+            className="flex items-center justify-center w-full sm:w-auto gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Add New Designation
+          </button>
+        )}
       </div>
 
       {/* Search Section */}
@@ -110,8 +122,8 @@ export function ManageAccess() {
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         searchPlaceholder="Search designations..."
-        onExport={handleExport}
-        onPrint={handlePrint}
+        onExport={canExport ? handleExport : undefined}
+        onPrint={canPrint ? handlePrint : undefined}
       />
 
       {/* Table Section */}
@@ -165,18 +177,22 @@ export function ManageAccess() {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button 
-                          onClick={() => navigate(`/manage-access/edit/${role.id}`)}
-                          className="text-gray-400 hover:text-green-600 p-1.5 rounded-md hover:bg-green-50 transition-colors" title="Edit"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => confirmDelete(role.id)}
-                          className="text-gray-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors" title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {canEdit && (
+                          <button 
+                            onClick={() => navigate(`/manage-access/edit/${role.id}`)}
+                            className="text-gray-400 hover:text-green-600 p-1.5 rounded-md hover:bg-green-50 transition-colors" title="Edit"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button 
+                            onClick={() => confirmDelete(role.id)}
+                            className="text-gray-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors" title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

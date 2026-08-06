@@ -15,9 +15,10 @@ interface CustomSelectProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  allowCustom?: boolean;
 }
 
-export function CustomSelect({ name, value, options, onChange, placeholder = 'Select...', className = '', disabled = false }: CustomSelectProps) {
+export function CustomSelect({ name, value, options, onChange, placeholder = 'Select...', className = '', disabled = false, allowCustom = false }: CustomSelectProps) {
   const getLabel = (val: string) => {
     const opt = options.find(o => {
       if (typeof o === 'string') return o === val;
@@ -48,15 +49,31 @@ export function CustomSelect({ name, value, options, onChange, placeholder = 'Se
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [value]);
 
-  const filteredOptions = options.filter(opt => {
+  let filteredOptions = options.filter(opt => {
     const label = typeof opt === 'string' ? opt : opt.label;
     return label.toLowerCase().includes(search.toLowerCase());
   });
 
+  if (allowCustom && search.trim() !== '') {
+    const exactMatch = options.some(opt => {
+      const label = typeof opt === 'string' ? opt : opt.label;
+      return label.toLowerCase() === search.trim().toLowerCase();
+    });
+
+    if (!exactMatch) {
+      filteredOptions = [
+        ...filteredOptions,
+        { label: `Add "${search.trim()}"`, value: search.trim(), isAction: true }
+      ];
+    }
+  }
+
   const handleSelect = (option: string | CustomSelectOption) => {
     const label = typeof option === 'string' ? option : option.label;
     const val = typeof option === 'string' ? option : option.value;
-    setSearch(label);
+    const isAction = typeof option !== 'string' && option.isAction;
+    
+    setSearch(isAction ? val : label);
     setIsOpen(false);
     onChange({ target: { name, value: val } });
   };

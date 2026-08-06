@@ -37,12 +37,12 @@ export function AddMainFacility() {
   const [initialLoading, setInitialLoading] = useState(false);
 
   const [mainFacilities, setMainFacilities] = useState<any[]>([]);
+
   const { user } = useSelector((state: RootState) => state.auth);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [globalError, setGlobalError] = useState('');
 
   useEffect(() => {
-    fetchEmployees();
     fetchMainFacilities();
     
     let restoredDraft = false;
@@ -74,14 +74,6 @@ export function AddMainFacility() {
     }
   }, [id]);
 
-  const fetchEmployees = async () => {
-    try {
-      const response = await api.get('/employees');
-      setEmployees(response.data);
-    } catch (error) {
-      console.error('Failed to fetch employees list:', error);
-    }
-  };
 
   const fetchMainFacilities = async () => {
     try {
