@@ -186,7 +186,7 @@ export function FloatingNavbar() {
           className={`relative flex items-center h-11 w-full transition-all duration-200 focus:outline-none cursor-pointer rounded-lg ${isExpanded ? 'justify-between px-3' : 'justify-center mx-auto w-11'}`}
           title={!isExpanded ? item.label : undefined}
         >
-          {isActive && isExpanded && !hasChildren && (
+          {((isActive && isExpanded && !hasChildren) || ((isActive || childIsActive) && !isExpanded)) && (
              <motion.div
                layoutId="activeTabBg"
                transition={{ type: 'spring', stiffness: 380, damping: 30 }}
@@ -198,7 +198,7 @@ export function FloatingNavbar() {
             className={`relative flex items-center ${isExpanded ? 'w-full' : 'justify-center'} z-10`}
             style={{ paddingLeft: isExpanded ? paddingLeft : undefined }}
           >
-            <span className={`shrink-0 transition-colors ${textColor} ${!isExpanded && isActive ? 'text-green-600' : ''}`}>
+            <span className={`shrink-0 transition-colors ${textColor}`}>
               {item.icon}
             </span>
             
