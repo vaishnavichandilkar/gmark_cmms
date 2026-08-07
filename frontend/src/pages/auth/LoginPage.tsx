@@ -29,7 +29,7 @@ export function LoginPage() {
       const response = await api.post('/auth/login', { username, password });
       const { user, accessToken, refreshToken, buildingIds } = response.data;
 
-      dispatch(setCredentials({ user, accessToken, refreshToken, buildingIds }));
+      dispatch(setCredentials({ user, accessToken, refreshToken, buildingIds, rememberMe }));
       navigate('/', { replace: true });
     } catch (err: any) {
       setError(

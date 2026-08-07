@@ -13,10 +13,11 @@ interface AuthState {
 
 const getStoredAuth = () => {
   try {
-    const token = localStorage.getItem('token');
-    const refreshToken = localStorage.getItem('refreshToken');
-    const userStr = localStorage.getItem('user');
-    const buildingIdsStr = localStorage.getItem('buildingIds');
+    const getStorageItem = (key: string) => sessionStorage.getItem(key) || localStorage.getItem(key);
+    const token = getStorageItem('token');
+    const refreshToken = getStorageItem('refreshToken');
+    const userStr = getStorageItem('user');
+    const buildingIdsStr = getStorageItem('buildingIds');
 
     if (token && userStr) {
       return {
@@ -28,7 +29,7 @@ const getStoredAuth = () => {
       };
     }
   } catch (e) {
-    console.error('Error reading localStorage', e);
+    console.error('Error reading storage', e);
   }
   return {
     user: null,
@@ -51,26 +52,37 @@ const authSlice = createSlice({
   reducers: {
     setCredentials: (
       state,
-      action: PayloadAction<{ user: any; accessToken: string; refreshToken: string; buildingIds: number[] }>,
+      action: PayloadAction<{ user: any; accessToken: string; refreshToken: string; buildingIds: number[]; rememberMe?: boolean }>,
     ) => {
-      const { user, accessToken, refreshToken, buildingIds } = action.payload;
+      const { user, accessToken, refreshToken, buildingIds, rememberMe } = action.payload;
       state.user = user;
       state.accessToken = accessToken;
       state.refreshToken = refreshToken;
       state.buildingIds = buildingIds;
       state.isAuthenticated = true;
 
-      localStorage.setItem('token', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
-      localStorage.setItem('user', JSON.stringify(user));
-      localStorage.setItem('buildingIds', JSON.stringify(buildingIds));
+      const storage = rememberMe ? localStorage : sessionStorage;
+      const otherStorage = rememberMe ? sessionStorage : localStorage;
+
+      otherStorage.removeItem('token');
+      otherStorage.removeItem('refreshToken');
+      otherStorage.removeItem('user');
+      otherStorage.removeItem('buildingIds');
+
+      storage.setItem('token', accessToken);
+      storage.setItem('refreshToken', refreshToken);
+      storage.setItem('user', JSON.stringify(user));
+      storage.setItem('buildingIds', JSON.stringify(buildingIds));
     },
     updateAccessToken: (state, action: PayloadAction<{ accessToken: string; refreshToken?: string }>) => {
       state.accessToken = action.payload.accessToken;
-      localStorage.setItem('token', action.payload.accessToken);
+      
+      const storage = sessionStorage.getItem('token') ? sessionStorage : localStorage;
+      
+      storage.setItem('token', action.payload.accessToken);
       if (action.payload.refreshToken) {
         state.refreshToken = action.payload.refreshToken;
-        localStorage.setItem('refreshToken', action.payload.refreshToken);
+        storage.setItem('refreshToken', action.payload.refreshToken);
       }
     },
     logout: (state) => {
@@ -84,6 +96,11 @@ const authSlice = createSlice({
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
       localStorage.removeItem('buildingIds');
+
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('refreshToken');
+      sessionStorage.removeItem('user');
+      sessionStorage.removeItem('buildingIds');
     },
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.loading = action.payload;
