@@ -3,7 +3,7 @@ import { ArrowLeft, Bell, Settings, LogOut, Wifi } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { logout } from '../../../../../store/slices/authSlice';
-import { LogoutConfirmModal } from '../../../../../components/LogoutConfirmModal';
+import { LogoutConfirmModal } from '../../../../../components/shared/LogoutConfirmModal';
 
 interface ScadaHeaderProps {
   title: string;

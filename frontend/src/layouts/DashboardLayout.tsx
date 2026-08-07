@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
-import { FloatingNavbar } from '../components/FloatingNavbar';
+import { FloatingNavbar } from '../components/shared/FloatingNavbar';
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const location = useLocation();

@@ -1,38 +1,36 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { store } from './store';
-import { ProtectedRoute } from './components/ProtectedRoute';
+import { ProtectedRoute } from './components/shared/ProtectedRoute';
 import { LoginPage } from './pages/auth/LoginPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
-import { ChangePasswordPage } from './pages/auth/ChangePasswordPage';
-import { ProfilePage } from './pages/auth/ProfilePage';
 
-import { SocietiesPage } from './pages/SocietiesPage';
-import { FacilityOverview } from './pages/FacilityOverview';
-import { BuildingDetails } from './pages/BuildingDetails';
-import { AddTower } from './pages/AddTower';
+import { SocietiesPage } from './pages/4m/facilities/SocietiesPage';
+import { FacilityOverview } from './pages/4m/facilities/FacilityOverview';
+import { BuildingDetails } from './pages/4m/facilities/BuildingDetails';
+import { AddTower } from './pages/4m/facilities/AddTower';
 import { DashboardLayout } from './layouts/DashboardLayout';
-import { DashboardHub } from './pages/DashboardHub';
+import { DashboardHub } from './pages/scada/dashboard/DashboardHub';
 import { BoosterDashboard } from './pages/scada/templates/booster/BoosterDashboard';
-import { DevicesPage } from './pages/devices/DevicesPage';
-import { DeviceLiveMonitor } from './pages/devices/DeviceLiveMonitor';
-import { AdminPage } from './pages/AdminPage';
-import { ScrollToTop } from './components/ScrollToTop';
-import { AddEmployee } from './pages/master/AddEmployee';
-import { EmployeeMaster } from './pages/master/EmployeeMaster';
-import { AddMainFacility } from './pages/master/AddMainFacility';
-import { MainFacilityMaster } from './pages/master/MainFacilityMaster';
-import { UserManagement } from './pages/UserManagement';
-import { AddUser } from './pages/AddUser';
-import { FacilityManagement } from './pages/FacilityManagement';
-import { AddFacility } from './pages/master/AddFacility';
-import { AssetsManagement } from './pages/AssetsManagement';
-import { MachineManagement } from './pages/MachineManagement';
-import { AddMachine } from './pages/machines/AddMachine';
-import { EditMachine } from './pages/machines/EditMachine';
-import { ManageAccess } from './pages/ManageAccess';
-import { AddRole } from './pages/AddRole';
+import { DevicesPage } from './pages/scada/devices/DevicesPage';
+import { DeviceLiveMonitor } from './pages/scada/devices/DeviceLiveMonitor';
+import { AdminPage } from './pages/4m/admin/AdminPage';
+import { ScrollToTop } from './components/shared/ScrollToTop';
+import { AddEmployee } from './pages/4m/master/AddEmployee';
+import { EmployeeMaster } from './pages/4m/master/EmployeeMaster';
+import { AddMainFacility } from './pages/4m/master/AddMainFacility';
+import { MainFacilityMaster } from './pages/4m/master/MainFacilityMaster';
+import { UserManagement } from './pages/4m/users/UserManagement';
+import { AddUser } from './pages/4m/users/AddUser';
+import { FacilityManagement } from './pages/4m/facilities/FacilityManagement';
+import { AddFacility } from './pages/4m/master/AddFacility';
+import { AssetsManagement } from './pages/4m/machines/AssetsManagement';
+import { MachineManagement } from './pages/4m/machines/MachineManagement';
+import { AddMachine } from './pages/4m/machines/AddMachine';
+import { EditMachine } from './pages/4m/machines/EditMachine';
+import { ManageAccess } from './pages/4m/access/ManageAccess';
+import { AddRole } from './pages/4m/access/AddRole';
 
 import { Toaster } from 'react-hot-toast';
 
@@ -121,16 +119,6 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <BuildingDetails />
-                </DashboardLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/change-password"
-            element={
-              <ProtectedRoute>
-                <DashboardLayout>
-                  <ChangePasswordPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -290,16 +278,6 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <DeviceLiveMonitor />
-                </DashboardLayout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <DashboardLayout>
-                  <ProfilePage />
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -544,6 +522,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </Provider>
