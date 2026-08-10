@@ -56,10 +56,10 @@ export const AnimatedPump: React.FC<AnimatedPumpProps> = ({ isRunning, isFault }
         
         {/* Fan blades (Visible through slits, animated when running) */}
         <g className={isRunning ? 'fan-spin' : ''}>
-          <line x1="162" y1="55" x2="162" y2="85" stroke="#9ca3af" strokeWidth="2" />
-          <line x1="147" y1="70" x2="177" y2="70" stroke="#9ca3af" strokeWidth="2" />
-          <line x1="151" y1="59" x2="173" y2="81" stroke="#9ca3af" strokeWidth="2" />
-          <line x1="151" y1="81" x2="173" y2="59" stroke="#9ca3af" strokeWidth="2" />
+          <line x1="162" y1="58" x2="162" y2="82" stroke="#9ca3af" strokeWidth="2" />
+          <line x1="150" y1="70" x2="174" y2="70" stroke="#9ca3af" strokeWidth="2" />
+          <line x1="154" y1="62" x2="170" y2="78" stroke="#9ca3af" strokeWidth="2" />
+          <line x1="154" y1="78" x2="170" y2="62" stroke="#9ca3af" strokeWidth="2" />
           <circle cx="162" cy="70" r="3" fill="#cbd5e1" />
         </g>
 

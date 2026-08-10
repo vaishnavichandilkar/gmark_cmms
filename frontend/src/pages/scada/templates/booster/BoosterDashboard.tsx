@@ -10,8 +10,6 @@ import { TxCard } from './components/TxCard';
 import { DelaySettingsCard } from './components/DelaySettingsCard';
 import { FaultResetCard } from './components/FaultResetCard';
 import { PressureTrendCard } from './components/PressureTrendCard';
-import { QuickStatusCard } from './components/QuickStatusCard';
-import { SystemInfoCard } from './components/SystemInfoCard';
 import { ProcessFlowContainer } from './components/ProcessFlow/PipeNetwork';
 import { CustomSelect } from '../../../../components/shared/CustomSelect';
 import { api } from '../../../../lib/api';
@@ -115,6 +113,23 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
       setMachines(mRes.data);
     }).catch(console.error);
   }, []);
+
+  const isLimitedAccess = ['OPERATOR', 'VIEWER', 'BUILDING_ADMIN'].includes(user?.role);
+
+  const visibleFacilities = React.useMemo(() => {
+    if (isLimitedAccess && buildingIds && buildingIds.length > 0) {
+      return facilities.filter(f => buildingIds.includes(f.id));
+    }
+    return facilities;
+  }, [facilities, isLimitedAccess, buildingIds]);
+
+  const visibleMainFacilities = React.useMemo(() => {
+    if (isLimitedAccess && buildingIds && buildingIds.length > 0) {
+      const allowedMainFacilityIds = new Set(visibleFacilities.map(f => f.mainFacilityId));
+      return mainFacilities.filter(mf => allowedMainFacilityIds.has(mf.id));
+    }
+    return mainFacilities;
+  }, [mainFacilities, visibleFacilities, isLimitedAccess, buildingIds]);
 
   const processPayload = (data: any, isInitial: boolean) => {
     setPumps(prev => {
@@ -257,14 +272,16 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center bg-white p-1 rounded-xl border border-gray-200 shadow-sm w-full md:w-auto">
-          <CustomSelect
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <span className="text-base font-bold text-gray-500 whitespace-nowrap">Select Asset :</span>
+          <div className="flex items-center bg-white p-1 rounded-xl border border-gray-200 shadow-sm flex-1 md:flex-none">
+            <CustomSelect
             name="mainFacility"
             placeholder="Facility..."
             className="w-full md:w-52"
             variant="ghost"
             value={selectedMainFacilityId?.toString() || ''}
-            options={mainFacilities.map(mf => ({ label: mf.mainFacilityName, value: mf.id.toString() }))}
+            options={visibleMainFacilities.map(mf => ({ label: mf.mainFacilityName, value: mf.id.toString() }))}
             onChange={(e) => {
                const val = e.target.value ? Number(e.target.value) : null;
                setSelectedMainFacilityId(val);
@@ -282,7 +299,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
             variant="ghost"
             disabled={!selectedMainFacilityId}
             value={selectedFacilityId?.toString() || ''}
-            options={facilities.filter(f => f.mainFacilityId === selectedMainFacilityId).map(f => ({ label: f.facilityName, value: f.id.toString() }))}
+            options={visibleFacilities.filter(f => f.mainFacilityId === selectedMainFacilityId).map(f => ({ label: f.facilityName, value: f.id.toString() }))}
             onChange={(e) => {
                const val = e.target.value ? Number(e.target.value) : null;
                setSelectedFacilityId(val);
@@ -319,6 +336,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
                }
             }}
           />
+        </div>
         </div>
       </div>
 
@@ -366,12 +384,6 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
             vfdResetAfter={dashboardData.vfdResetAfter}
           />
           <FaultResetCard hasFault={totalFaults > 0 || dashboardData.inputPowerFaultType > 0} />
-        </div>
-
-        {/* Footer info */}
-        <div className="flex gap-4 mt-2">
-          <QuickStatusCard powerStatus={dashboardData.inputPowerFaultType === 0 ? 'OK' : 'FAULT'} />
-          <SystemInfoCard systemName={title} location={buildingName} panelId={panelId} />
         </div>
       </div>
     </div>
