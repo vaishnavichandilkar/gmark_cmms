@@ -16,9 +16,10 @@ interface CustomSelectProps {
   className?: string;
   disabled?: boolean;
   allowCustom?: boolean;
+  variant?: 'default' | 'ghost';
 }
 
-export function CustomSelect({ name, value, options, onChange, placeholder = 'Select...', className = '', disabled = false, allowCustom = false }: CustomSelectProps) {
+export function CustomSelect({ name, value, options, onChange, placeholder = 'Select...', className = '', disabled = false, allowCustom = false, variant = 'default' }: CustomSelectProps) {
   const getLabel = (val: string) => {
     const opt = options.find(o => {
       if (typeof o === 'string') return o === val;
@@ -88,8 +89,10 @@ export function CustomSelect({ name, value, options, onChange, placeholder = 'Se
   return (
     <div className={`relative ${className}`} ref={wrapperRef}>
       <div 
-        className={`flex items-center w-full px-4 py-2.5 border rounded-lg transition-all ${disabled ? 'bg-gray-100 cursor-not-allowed text-gray-500' : 'bg-white cursor-text'} ${
-          isOpen ? 'border-green-500 ring-2 ring-green-500/20' : 'border-gray-300 hover:border-gray-400'
+        className={`flex items-center w-full transition-all ${
+          variant === 'ghost'
+            ? `px-3 py-2 bg-transparent border-none ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-text hover:bg-gray-50 rounded-lg'} ${isOpen ? 'bg-gray-50' : ''}`
+            : `px-4 py-2.5 border rounded-lg ${disabled ? 'bg-gray-100 cursor-not-allowed text-gray-500' : 'bg-white cursor-text'} ${isOpen ? 'border-green-500 ring-2 ring-green-500/20' : 'border-gray-300 hover:border-gray-400'}`
         }`}
         onClick={() => {
           if (!disabled) setIsOpen(true);
@@ -135,7 +138,7 @@ export function CustomSelect({ name, value, options, onChange, placeholder = 'Se
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+        <div className="absolute z-50 min-w-full w-max mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
           {filteredOptions.length > 0 ? (
             <div className="py-1">
               {filteredOptions.map((option, idx) => {

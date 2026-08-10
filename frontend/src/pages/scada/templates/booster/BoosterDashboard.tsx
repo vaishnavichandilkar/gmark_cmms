@@ -257,11 +257,12 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap w-full md:w-auto">
+        <div className="flex items-center bg-white p-1 rounded-xl border border-gray-200 shadow-sm w-full md:w-auto">
           <CustomSelect
             name="mainFacility"
-            placeholder="Select Facility"
-            className="w-full md:w-48"
+            placeholder="Facility..."
+            className="w-full md:w-52"
+            variant="ghost"
             value={selectedMainFacilityId?.toString() || ''}
             options={mainFacilities.map(mf => ({ label: mf.mainFacilityName, value: mf.id.toString() }))}
             onChange={(e) => {
@@ -271,10 +272,14 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
                setSelectedMachineId(null);
             }}
           />
+          
+          <div className="w-px h-6 bg-gray-200 mx-1 shrink-0"></div>
+          
           <CustomSelect
             name="facility"
-            placeholder="Select Sub-Facility"
-            className="w-full md:w-48"
+            placeholder="Sub-Facility..."
+            className="w-full md:w-52"
+            variant="ghost"
             disabled={!selectedMainFacilityId}
             value={selectedFacilityId?.toString() || ''}
             options={facilities.filter(f => f.mainFacilityId === selectedMainFacilityId).map(f => ({ label: f.facilityName, value: f.id.toString() }))}
@@ -284,10 +289,14 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
                setSelectedMachineId(null);
             }}
           />
+
+          <div className="w-px h-6 bg-gray-200 mx-1 shrink-0"></div>
+
           <CustomSelect
             name="machine"
-            placeholder="Select Machine"
-            className="w-full md:w-48"
+            placeholder="Machine..."
+            className="w-full md:w-52"
+            variant="ghost"
             disabled={!selectedFacilityId}
             value={selectedMachineId?.toString() || ''}
             options={machines.filter(m => m.facilityId === selectedFacilityId).map(m => ({ label: m.name, value: m.id.toString() }))}
