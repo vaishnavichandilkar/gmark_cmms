@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Eye, EyeOff, Lock, User, ShieldAlert, Check } from 'lucide-react';
 import { api } from '../../lib/api';
 import { setCredentials } from '../../store/slices/authSlice';
+import Logo4M from '../../assets/4MLogo.png';
 
 export function LoginPage() {
   const [username, setUsername] = useState('');
@@ -32,9 +33,16 @@ export function LoginPage() {
       dispatch(setCredentials({ user, accessToken, refreshToken, buildingIds, rememberMe }));
       navigate('/', { replace: true });
     } catch (err: any) {
-      setError(
-        err.response?.data?.message || 'Login failed. Please check your credentials and try again.',
-      );
+      const errorData = err.response?.data;
+      if (errorData?.message) {
+        if (Array.isArray(errorData.message)) {
+          setError(errorData.message.join(', '));
+        } else {
+          setError(errorData.message);
+        }
+      } else {
+        setError('Login failed. Please check your credentials and try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -49,10 +57,8 @@ export function LoginPage() {
         className="w-full max-w-[440px] px-6 z-10"
       >
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-green-100 mb-4 shadow-sm">
-            <span className="text-3xl font-black text-green-600">
-              H
-            </span>
+          <div className="flex justify-center mb-4">
+            <img src={Logo4M} alt="4M Logo" className="h-24 object-contain" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">Welcome back</h1>
           <p className="text-sm text-gray-500 mt-1.5">Sign in to control & monitor your systems</p>
@@ -73,7 +79,7 @@ export function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
-                USERNAME
+                USERNAME OR EMAIL
               </label>
               <div className="relative">
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -82,7 +88,7 @@ export function LoginPage() {
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Enter your username"
+                  placeholder="Enter your username or email"
                   className="w-full pl-10 pr-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-all"
                 />
               </div>
@@ -155,6 +161,15 @@ export function LoginPage() {
               )}
             </button>
           </form>
+          
+          <div className="mt-6 text-center">
+            <span className="text-sm text-gray-500">
+              Don't have an account?{' '}
+              <Link to="/signup" className="text-green-600 font-semibold hover:underline">
+                Sign Up
+              </Link>
+            </span>
+          </div>
         </div>
       </motion.div>
     </div>

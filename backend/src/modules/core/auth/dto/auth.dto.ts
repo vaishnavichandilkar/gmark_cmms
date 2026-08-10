@@ -7,6 +7,7 @@ import {
   IsBoolean,
   IsInt,
   IsArray,
+  Matches,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
@@ -61,6 +62,66 @@ export class RegisterDto {
   @IsInt({ each: true })
   @IsOptional()
   buildingIds?: number[];
+}
+
+export class SignupDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  fullName: string;
+
+  @ApiProperty()
+  @IsEmail()
+  @IsNotEmpty()
+  workEmail: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^[0-9]{10}$/, { message: 'Phone number must be exactly 10 digits' })
+  phoneNumber: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  password: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  companyName: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, { message: 'Invalid GST format. Example: 22AAAAA0000A1Z5' })
+  gstNumber: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  city: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  state: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  country: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^[0-9]{6}$/, { message: 'Zip code must be exactly 6 digits' })
+  zipCode: string;
+
+  @ApiProperty()
+  @IsBoolean()
+  @IsNotEmpty()
+  termsAccepted: boolean;
 }
 
 export class LoginDto {

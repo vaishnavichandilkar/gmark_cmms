@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import type { TreeNodeData } from './AssetTree';
-import { Building2, Building, Cpu, FileText, Settings, Wifi, Image as ImageIcon, QrCode, Activity, Wrench, MapPin, User, Navigation } from 'lucide-react';
+import { Building2, Building, Cpu, Wifi, Image as ImageIcon, QrCode, Activity, MapPin, User, Navigation, Settings, FileText, Wrench } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { getDeviceDashboardRoute } from '../../utils/deviceRoutes';
+import { getDeviceDashboardRoute, navigateToDeviceDashboard } from '../../utils/deviceRoutes';
 
 interface AssetDetailsProps {
   node: TreeNodeData | null;
@@ -50,6 +50,20 @@ export const AssetDetails = ({ node }: AssetDetailsProps) => {
 
 const FacilityDetails = ({ node }: { node: TreeNodeData }) => {
   const data = node.originalData;
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setImageSrc(url);
+    }
+  };
+
+  const triggerUpload = () => {
+    fileInputRef.current?.click();
+  };
 
   const idCode = data.mainFacilityCode || data.facilityCode || data.id || 'N/A';
   const name = node.name || 'N/A';
@@ -148,11 +162,18 @@ const FacilityDetails = ({ node }: { node: TreeNodeData }) => {
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm flex items-center justify-center h-48 text-gray-400 flex-col group relative overflow-hidden">
-        <ImageIcon className="w-12 h-12 mb-3 text-gray-300" />
-        <p className="text-sm font-medium">No Cover Image Available</p>
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm flex items-center justify-center h-48 text-gray-400 flex-col group relative overflow-hidden">
+        {imageSrc ? (
+          <img src={imageSrc} alt="Facility Cover" className="w-full h-full object-cover" />
+        ) : (
+          <>
+            <ImageIcon className="w-12 h-12 mb-3 text-gray-300" />
+            <p className="text-sm font-medium">No Cover Image Available</p>
+          </>
+        )}
         <div className="absolute inset-0 bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <button className="bg-white border border-gray-200 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm hover:text-[#00a651] transition-colors">Upload Image</button>
+          <button onClick={triggerUpload} className="bg-white border border-gray-200 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm hover:text-[#00a651] transition-colors">Upload Image</button>
+          <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageUpload} />
         </div>
       </div>
     </div>
@@ -160,8 +181,22 @@ const FacilityDetails = ({ node }: { node: TreeNodeData }) => {
 };
 
 const DeviceDetails = ({ device }: { device: any }) => {
-  const [activeTab, setActiveTab] = useState('general');
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('general');
+  const [imageSrc, setImageSrc] = useState<string>("https://images.unsplash.com/photo-1611145624794-d4212df88289?auto=format&fit=crop&w=800&q=80");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setImageSrc(url);
+    }
+  };
+
+  const triggerUpload = () => {
+    fileInputRef.current?.click();
+  };
 
   const tabs = [
     { id: 'general', label: 'General', icon: <Settings className="w-4 h-4" /> },
@@ -175,11 +210,18 @@ const DeviceDetails = ({ device }: { device: any }) => {
     <div className="flex flex-col h-full gap-6">
       {/* Top Section */}
       <div className="flex gap-6 h-48 shrink-0">
-        <div className="flex-1 bg-white border border-gray-200 rounded-xl shadow-sm flex items-center justify-center overflow-hidden relative group">
-          <ImageIcon className="w-16 h-16 text-gray-200" />
-          <p className="text-xs text-gray-400 mt-2 font-medium">No Image Uploaded</p>
+        <div className="flex-1 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden relative group">
+          <img 
+            src={imageSrc} 
+            alt="Device" 
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1581092580497-e0d23cbdf1dc?auto=format&fit=crop&q=80';
+            }}
+          />
           <div className="absolute inset-0 bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-            <button className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium shadow-sm hover:text-[#00a651]">Upload Image</button>
+            <button onClick={triggerUpload} className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium shadow-sm hover:text-[#00a651]">Upload Image</button>
+            <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageUpload} />
           </div>
         </div>
         <div className="w-64 bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col items-center justify-center p-4">
@@ -242,11 +284,11 @@ const DeviceDetails = ({ device }: { device: any }) => {
               <p className="text-sm text-gray-500 mb-8 leading-relaxed">This device is connected to the cloud via MAC ID: <br /><span className="font-mono bg-gray-50 px-3 py-1 rounded text-gray-800 mt-2 inline-block border border-gray-200">{device.deviceId}</span></p>
 
               <button
-                onClick={() => navigate(getDeviceDashboardRoute(device.deviceId))}
+                onClick={() => navigateToDeviceDashboard(device, undefined, navigate)}
                 className="bg-[#00a651] hover:bg-[#009040] text-white px-8 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm w-full flex items-center justify-center gap-2"
               >
                 <Activity size={18} />
-                Open Live Monitor
+                Open SCADA Dashboard
               </button>
             </div>
           )}

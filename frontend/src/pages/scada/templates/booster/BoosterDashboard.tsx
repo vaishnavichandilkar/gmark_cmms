@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { io } from 'socket.io-client';
-import { ScadaHeader } from './components/ScadaHeader';
-import { PerformanceCard } from './components/PerformanceCard';
+import { VoltageCard } from './components/VoltageCard';
+import { InputPowerCard } from './components/InputPowerCard';
 import { PressureCard } from './components/PressureCard';
+import { TxCard } from './components/TxCard';
 import { DelaySettingsCard } from './components/DelaySettingsCard';
 import { FaultResetCard } from './components/FaultResetCard';
+import { PressureTrendCard } from './components/PressureTrendCard';
 import { QuickStatusCard } from './components/QuickStatusCard';
 import { SystemInfoCard } from './components/SystemInfoCard';
 import { ProcessFlowContainer } from './components/ProcessFlow/PipeNetwork';
+import { CustomSelect } from '../../../../components/shared/CustomSelect';
 import { api } from '../../../../lib/api';
 import type { RootState } from '../../../../store';
 import './scada.css'; // Will create this
@@ -91,6 +95,26 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
     pumpOnDelay: 0, nextFillingTime: 0, overloadResetDelay: 0, underloadResetDelay: 0,
     vfdResetAfter: 0
   });
+
+  const [mainFacilities, setMainFacilities] = useState<any[]>([]);
+  const [facilities, setFacilities] = useState<any[]>([]);
+  const [machines, setMachines] = useState<any[]>([]);
+  
+  const [selectedMainFacilityId, setSelectedMainFacilityId] = useState<number | null>(null);
+  const [selectedFacilityId, setSelectedFacilityId] = useState<number | null>(null);
+  const [selectedMachineId, setSelectedMachineId] = useState<number | null>(null);
+
+  useEffect(() => {
+    Promise.all([
+      api.get('/main-facilities'),
+      api.get('/facilities'),
+      api.get('/machines')
+    ]).then(([mfRes, fRes, mRes]) => {
+      setMainFacilities(mfRes.data);
+      setFacilities(fRes.data);
+      setMachines(mRes.data);
+    }).catch(console.error);
+  }, []);
 
   const processPayload = (data: any, isInitial: boolean) => {
     setPumps(prev => {
@@ -217,47 +241,102 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
   const totalCurrentB = visiblePumps.reduce((sum, p) => sum + p.currentB, 0);
 
   return (
-    <div className="scada-dashboard">
-      <ScadaHeader title={title} isOnline={dashboardData.deviceActive} />
+    <div className="scada-dashboard p-4 lg:p-6 lg:pb-12">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 -mt-2">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => navigate(-1)}
+            className="w-10 h-10 rounded-xl bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors flex items-center justify-center shadow-sm cursor-pointer shrink-0"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div className="flex flex-col">
+            <h1 className="text-xl font-bold text-gray-900 tracking-tight leading-tight">{title}</h1>
+            <p className="text-xs font-semibold text-gray-500 tracking-wider uppercase">{buildingName}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 flex-wrap w-full md:w-auto">
+          <CustomSelect
+            name="mainFacility"
+            placeholder="Select Facility"
+            className="w-full md:w-48"
+            value={selectedMainFacilityId?.toString() || ''}
+            options={mainFacilities.map(mf => ({ label: mf.mainFacilityName, value: mf.id.toString() }))}
+            onChange={(e) => {
+               const val = e.target.value ? Number(e.target.value) : null;
+               setSelectedMainFacilityId(val);
+               setSelectedFacilityId(null);
+               setSelectedMachineId(null);
+            }}
+          />
+          <CustomSelect
+            name="facility"
+            placeholder="Select Sub-Facility"
+            className="w-full md:w-48"
+            disabled={!selectedMainFacilityId}
+            value={selectedFacilityId?.toString() || ''}
+            options={facilities.filter(f => f.mainFacilityId === selectedMainFacilityId).map(f => ({ label: f.facilityName, value: f.id.toString() }))}
+            onChange={(e) => {
+               const val = e.target.value ? Number(e.target.value) : null;
+               setSelectedFacilityId(val);
+               setSelectedMachineId(null);
+            }}
+          />
+          <CustomSelect
+            name="machine"
+            placeholder="Select Machine"
+            className="w-full md:w-48"
+            disabled={!selectedFacilityId}
+            value={selectedMachineId?.toString() || ''}
+            options={machines.filter(m => m.facilityId === selectedFacilityId).map(m => ({ label: m.name, value: m.id.toString() }))}
+            onChange={(e) => {
+               const mId = e.target.value ? Number(e.target.value) : null;
+               setSelectedMachineId(mId);
+               if (mId) {
+                 const machine = machines.find(m => m.id === mId);
+                 if (machine) {
+                   const f = facilities.find(fac => fac.id === machine.facilityId);
+                   navigate('.', { 
+                     replace: true, 
+                     state: { 
+                       panelId: machine.deviceId, 
+                       title: machine.name, 
+                       buildingName: f?.facilityName || machine.name 
+                     } 
+                   });
+                 }
+               }
+            }}
+          />
+        </div>
+      </div>
 
       <div className="scada-grid-layout">
-        {/* LEFT COLUMN: Metrics & Settings */}
-        <div className="scada-left-panel">
-          <PerformanceCard
+        {/* ROW 1: Metrics */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          <VoltageCard
             voltageR={dashboardData.ryVoltage}
             voltageY={dashboardData.ybVoltage}
             voltageB={dashboardData.rbVoltage}
+          />
+          <InputPowerCard
             currentR={totalCurrentR}
             currentY={totalCurrentY}
             currentB={totalCurrentB}
             inputPowerStatus={dashboardData.inputPowerFaultType}
           />
-
-          {showPressureCard && (
-            <PressureCard
-              pressure={dashboardData.pressureBar}
-              isConnected={dashboardData.transmitterConnected}
-            />
+          {showPressureCard ? (
+            <PressureCard pressure={dashboardData.pressureBar} />
+          ) : (
+            <div></div> // Placeholder if no pressure card
           )}
-
-          <DelaySettingsCard
-            pumpOnDelay={dashboardData.pumpOnDelay}
-            nextFillingTime={dashboardData.nextFillingTime}
-            overloadResetDelay={dashboardData.overloadResetDelay}
-            underloadResetDelay={dashboardData.underloadResetDelay}
-            vfdResetAfter={dashboardData.vfdResetAfter}
-          />
-
-          <FaultResetCard hasFault={totalFaults > 0 || dashboardData.inputPowerFaultType > 0} />
-          
-          <div className="scada-footer-row">
-            <QuickStatusCard powerStatus={dashboardData.inputPowerFaultType === 0 ? 'OK' : 'FAULT'} />
-            <SystemInfoCard systemName={title} location={buildingName} panelId={panelId} />
-          </div>
+          <TxCard isConnected={dashboardData.transmitterConnected} />
         </div>
 
-        {/* RIGHT COLUMN: Process Flow / Diagram */}
-        <div className="scada-right-panel">
+        {/* ROW 2: Process Flow */}
+        <div className="w-full">
           <ProcessFlowContainer 
             pumps={visiblePumps}
             dashboardData={dashboardData}
@@ -265,6 +344,25 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
             outletTitle={outletTitle}
             outletType={outletType}
           />
+        </div>
+
+        {/* ROW 3: Trends & Settings */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <PressureTrendCard />
+          <DelaySettingsCard
+            pumpOnDelay={dashboardData.pumpOnDelay}
+            nextFillingTime={dashboardData.nextFillingTime}
+            overloadResetDelay={dashboardData.overloadResetDelay}
+            underloadResetDelay={dashboardData.underloadResetDelay}
+            vfdResetAfter={dashboardData.vfdResetAfter}
+          />
+          <FaultResetCard hasFault={totalFaults > 0 || dashboardData.inputPowerFaultType > 0} />
+        </div>
+
+        {/* Footer info */}
+        <div className="flex gap-4 mt-2">
+          <QuickStatusCard powerStatus={dashboardData.inputPowerFaultType === 0 ? 'OK' : 'FAULT'} />
+          <SystemInfoCard systemName={title} location={buildingName} panelId={panelId} />
         </div>
       </div>
     </div>

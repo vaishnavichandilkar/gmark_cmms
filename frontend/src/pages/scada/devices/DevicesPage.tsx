@@ -4,7 +4,7 @@ import { Search, Filter, RefreshCw, Activity, AlertTriangle, CheckCircle2, WifiO
 import { api } from '../../../lib/api';
 import { TableSkeleton } from '../../../components/shared/ui/TableSkeleton';
 import { exportData } from '../../../utils/exportUtils';
-import { getDeviceDashboardRoute } from '../../../utils/deviceRoutes';
+import { getDeviceDashboardRoute, navigateToDeviceDashboard } from '../../../utils/deviceRoutes';
 
 interface DeviceData {
   id: number;
@@ -250,7 +250,7 @@ export function DevicesPage() {
                   return (
                     <tr 
                       key={device.id} 
-                      onClick={() => navigate(getDeviceDashboardRoute(device.deviceId))}
+                      onClick={() => navigateToDeviceDashboard(device, device.building, navigate)}
                       className={`group transition-all duration-200 cursor-pointer ${
                         hasAlerts && isOnline 
                           ? 'bg-rose-50/30 hover:bg-rose-50/80' 

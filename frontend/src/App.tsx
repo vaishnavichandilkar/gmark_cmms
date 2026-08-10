@@ -5,6 +5,7 @@ import { ProtectedRoute } from './components/shared/ProtectedRoute';
 import { LoginPage } from './pages/auth/LoginPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
+import { SignUpPage } from './pages/auth/SignUpPage';
 
 import { SocietiesPage } from './pages/4m/facilities/SocietiesPage';
 import { FacilityOverview } from './pages/4m/facilities/FacilityOverview';
@@ -69,6 +70,7 @@ function App() {
         <Routes>
           {/* Public Auth Routes */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignUpPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
 

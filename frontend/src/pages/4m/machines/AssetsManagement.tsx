@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AssetTree } from '../../../components/4m/AssetTree';
 import type { TreeNodeData } from '../../../components/4m/AssetTree';
 import { AssetDetails } from '../../../components/4m/AssetDetails';
@@ -7,8 +8,11 @@ import { Skeleton } from '../../../components/shared/ui/Skeleton';
 import { X } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../store';
+import { navigateToDeviceDashboard } from '../../../utils/deviceRoutes';
 
 export function AssetsManagement() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useSelector((state: RootState) => state.auth);
   const [treeData, setTreeData] = useState<TreeNodeData[]>([]);
   const [selectedNode, setSelectedNode] = useState<TreeNodeData | null>(null);
@@ -18,6 +22,26 @@ export function AssetsManagement() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Restore detailsNode from location state if we navigate back
+  useEffect(() => {
+    if (treeData.length > 0 && location.state?.detailId) {
+      const findNode = (nodes: TreeNodeData[], id: string): TreeNodeData | null => {
+        for (const n of nodes) {
+          if (n.id === id) return n;
+          if (n.children) {
+            const found = findNode(n.children, id);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+      const node = findNode(treeData, location.state.detailId);
+      if (node && (!detailsNode || detailsNode.id !== node.id)) {
+        setDetailsNode(node);
+      }
+    }
+  }, [treeData, location.state?.detailId]);
 
   const fetchData = async () => {
     try {
@@ -249,6 +273,7 @@ export function AssetsManagement() {
                 if (['OPERATOR', 'VIEWER'].includes(user?.role as string) && node.type !== 'device') {
                   return; // Restrict access to facility/building details for these roles
                 }
+                navigate('.', { replace: true, state: { ...location.state, detailId: node.id } });
                 setDetailsNode(node);
               }}
               selectedId={selectedNode?.id || null} 
@@ -261,14 +286,20 @@ export function AssetsManagement() {
       {detailsNode && (
         <div 
           className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setDetailsNode(null)}
+          onClick={() => {
+            setDetailsNode(null);
+            navigate('.', { replace: true, state: { ...location.state, detailId: null } });
+          }}
         >
           <div 
             className="bg-white rounded-2xl shadow-xl w-full max-w-4xl h-[85vh] overflow-hidden flex flex-col relative animate-in fade-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             <button 
-              onClick={() => setDetailsNode(null)}
+              onClick={() => {
+                setDetailsNode(null);
+                navigate('.', { replace: true, state: { ...location.state, detailId: null } });
+              }}
               className="absolute top-4 right-4 z-50 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors shadow-sm"
             >
               <X size={18} className="text-gray-700" />

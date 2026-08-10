@@ -7,10 +7,11 @@ import {
   ChevronRight, ChevronLeft, LogOut, 
   LayoutDashboard, Wrench, Cpu, Droplet, 
   Flame, ArrowUpDown, MoreHorizontal, Users, 
-  ChevronDown, Boxes, ShieldCheck, Menu, X
+  ChevronDown, Boxes, ShieldCheck, Menu, X, Key
 } from 'lucide-react';
 import { logout } from '../../store/slices/authSlice';
 import { LogoutConfirmModal } from './LogoutConfirmModal';
+import { ChangePasswordModal } from './ChangePasswordModal';
 import type { RootState } from '../../store';
 import logo4m from '../../assets/4MLogo.png';
 
@@ -33,6 +34,7 @@ export function FloatingNavbar() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfilePopupOpen, setIsProfilePopupOpen] = useState(false);
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
     'IOT': true,
     'HYPN': true,
@@ -317,7 +319,16 @@ export function FloatingNavbar() {
                         </div>
                       </div>
                       <div className="p-2">
-
+                        <button 
+                          onClick={() => {
+                            setIsProfilePopupOpen(false);
+                            setIsChangePasswordModalOpen(true);
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-emerald-600 rounded-xl transition-colors"
+                        >
+                          <Key size={16} />
+                          Change Password
+                        </button>
                         <button 
                           onClick={() => {
                             setIsProfilePopupOpen(false);
@@ -418,7 +429,17 @@ export function FloatingNavbar() {
                       className="overflow-hidden"
                     >
                       <div className="flex flex-col gap-1 mt-2 bg-white rounded-xl border border-gray-200 p-2 shadow-sm">
-
+                        <button 
+                          onClick={() => {
+                            setIsProfilePopupOpen(false);
+                            setIsMobileMenuOpen(false);
+                            setIsChangePasswordModalOpen(true);
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-emerald-600 rounded-lg transition-colors"
+                        >
+                          <Key size={16} />
+                          Change Password
+                        </button>
                         <button 
                           onClick={() => {
                             setIsProfilePopupOpen(false);
@@ -444,6 +465,11 @@ export function FloatingNavbar() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onConfirm={handleLogoutConfirm}
+      />
+
+      <ChangePasswordModal 
+        isOpen={isChangePasswordModalOpen} 
+        onClose={() => setIsChangePasswordModalOpen(false)} 
       />
     </>
   );

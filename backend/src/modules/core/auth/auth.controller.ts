@@ -20,6 +20,7 @@ import {
   ForgotPasswordDto,
   ResetPasswordDto,
   RefreshTokenDto,
+  SignupDto,
 } from './dto/auth.dto';
 
 @ApiTags('auth')
@@ -42,6 +43,24 @@ export class AuthController {
     await this.auditLogService.create(
       user.id,
       `User registered: ${user.email}`,
+      'AUTH',
+      ip,
+    );
+    return user;
+  }
+
+  @Post('signup')
+  @ApiOperation({ summary: 'Sign up a new admin and main facility' })
+  @ApiResponse({ status: 201, description: 'Admin successfully signed up.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid input or user already exists.',
+  })
+  async signup(@Body() dto: SignupDto, @Ip() ip: string) {
+    const user = await this.authService.signup(dto);
+    await this.auditLogService.create(
+      user.id,
+      `Admin signed up: ${user.email}`,
       'AUTH',
       ip,
     );

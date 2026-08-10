@@ -141,6 +141,17 @@ export class UsersService {
       },
     });
 
+    // Mock send invitation email -> log to console
+    console.log(`\n========================================`);
+    console.log(`[USER INVITATION EMAIL]`);
+    console.log(`To: ${user.email}`);
+    console.log(`Subject: Your Account Credentials`);
+    console.log(`Body: Hello ${user.firstName || 'User'},`);
+    console.log(`Your login account has been created.`);
+    console.log(`Username: ${user.username}`);
+    console.log(`Password: ${rawPassword}`);
+    console.log(`========================================\n`);
+
     if (data.buildingIds && data.buildingIds.length > 0) {
       await this.prisma.userBuilding.createMany({
         data: data.buildingIds.map((buildingId) => ({

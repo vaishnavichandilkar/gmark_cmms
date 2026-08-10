@@ -49,11 +49,26 @@ model User {
   employee        Employee?        @relation(fields: [employeeId], references: [id], onDelete: SetNull)
   mainFacilityId  Int?
   mainFacility    MainFacility?    @relation(fields: [mainFacilityId], references: [id], onDelete: SetNull)
+  registration    Registration?
   buildings       UserBuilding[]
   userPermissions UserPermission[]
   refreshToken    String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+}
+
+model Registration {
+  id          Int      @id @default(autoincrement())
+  companyName String
+  gstNumber   String   @unique
+  city        String?
+  state       String?
+  country     String?
+  zipCode     String?
+  userId      Int      @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model UserBuilding {
@@ -102,7 +117,7 @@ model Device {
   controller  String? @default("AIPCU")
   macType     String? @default("Primary MAC")
 
-  building       Building?              @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  building Building? @relation(fields: [buildingId], references: [id], onDelete: Cascade)
 
   latestData Json?
   lastSeen   DateTime?
@@ -336,10 +351,10 @@ model CodeSequence {
 }
 
 model Machine {
-  id                 Int      @id @default(autoincrement())
-  name               String
-  deviceId           String?  @unique // Link to Device (MAC ID) for IoT data
-  
+  id       Int     @id @default(autoincrement())
+  name     String
+  deviceId String? @unique // Link to Device (MAC ID) for IoT data
+
   company            String?
   maintenanceHead    String?
   machineCode        String?
@@ -357,21 +372,21 @@ model Machine {
   latitude           String?
   longitude          String?
   notes              String?
-  
-  buildingId         Int?
-  building           Building? @relation(fields: [buildingId], references: [id], onDelete: Cascade)
-  facilityId         Int?
-  facility           Facility? @relation(fields: [facilityId], references: [id], onDelete: Cascade)
-  
-  parentMachineId    Int?
-  parentMachine      Machine?  @relation("MachineHierarchy", fields: [parentMachineId], references: [id])
-  childMachines      Machine[] @relation("MachineHierarchy")
 
-  documents          MachineDocument[]
-  specifications     MachineSpecification[]
+  buildingId Int?
+  building   Building? @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  facilityId Int?
+  facility   Facility? @relation(fields: [facilityId], references: [id], onDelete: Cascade)
 
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  parentMachineId Int?
+  parentMachine   Machine?  @relation("MachineHierarchy", fields: [parentMachineId], references: [id])
+  childMachines   Machine[] @relation("MachineHierarchy")
+
+  documents      MachineDocument[]
+  specifications MachineSpecification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model MachineDocument {

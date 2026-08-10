@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useId } from 'react';
 import { motion } from 'framer-motion';
 import { Tank } from './Tank';
 import { PumpUnit } from './PumpUnit';
@@ -11,63 +11,65 @@ interface PipeProps {
   path?: string;
   flowDirection?: 'forward' | 'backward' | 'none';
   hasFault?: boolean;
+  hasFault?: boolean;
   capStyle?: 'round' | 'butt' | 'square';
+  hideBase?: boolean;
+  hideAnimation?: boolean;
 }
 
-export const Pipe: React.FC<PipeProps> = ({ x1 = 0, y1 = 0, x2 = 0, y2 = 0, path, flowDirection = 'forward', hasFault = false, capStyle = 'round' }) => {
+export const Pipe: React.FC<PipeProps> = ({ x1 = 0, y1 = 0, x2 = 0, y2 = 0, path, flowDirection = 'forward', hasFault = false, capStyle = 'round', hideBase = false, hideAnimation = false }) => {
   const isFlowing = flowDirection !== 'none';
-  const flowColor = hasFault ? '#FF453A' : '#14b8a6'; // Changed to match new Teal theme
-  const strokeDasharray = "6 12";
-  const animateTo = flowDirection === 'forward' ? -36 : flowDirection === 'backward' ? 36 : 0;
+  const pathId = useId();
   
   const d = path || `M ${x1} ${y1} L ${x2} ${y2}`;
+  const isBackward = flowDirection === 'backward';
 
   return (
     <svg className="absolute inset-0 pointer-events-none w-full h-full overflow-visible">
-      {/* Acrylic outer wall (specular edge reflection) */}
-      <path 
-        d={d}
-        stroke="rgba(255,255,255,0.08)" strokeWidth="14" strokeLinecap={capStyle} strokeLinejoin="round" fill="none"
-      />
-      {/* Acrylic body core (refracted dark glass) */}
-      <path 
-        d={d}
-        stroke="rgba(10,10,12,0.6)" strokeWidth="12" strokeLinecap={capStyle} strokeLinejoin="round" fill="none"
-      />
-      
-      {/* Liquid core back blur / glow (slowly pulsing) */}
-      <motion.path 
-        d={d}
-        stroke={flowColor} strokeWidth="8" strokeLinecap={capStyle} strokeLinejoin="round" fill="none"
-        className="blur-[4px] transition-opacity duration-300"
-        strokeDasharray={strokeDasharray}
-        initial={{ strokeDashoffset: 0, opacity: 0.08 }}
-        animate={isFlowing ? { 
-          strokeDashoffset: animateTo,
-          opacity: [0.15, 0.35, 0.15]
-        } : { opacity: 0.08 }}
-        transition={isFlowing ? { 
-          strokeDashoffset: { duration: 1.2, repeat: Infinity, ease: "linear" },
-          opacity: { duration: 2, repeat: Infinity, ease: "easeInOut" }
-        } : {}}
-      />
+      <defs>
+        <path id={pathId} d={d} fill="none" />
+      </defs>
 
-      {/* Inner flowing water particles (sharp stream) */}
-      <motion.path 
-        d={d}
-        stroke={flowColor} strokeWidth="3" strokeLinecap={capStyle} strokeLinejoin="round" fill="none"
-        className={`transition-opacity duration-300 ${isFlowing ? 'opacity-80' : 'opacity-10'}`}
-        strokeDasharray={strokeDasharray}
-        initial={{ strokeDashoffset: 0 }}
-        animate={isFlowing ? { strokeDashoffset: animateTo } : {}}
-        transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
-      />
+      {/* Blue Water Stream (3D Effect) */}
+      {isFlowing && !hideBase && (
+        <g>
+          <path d={d} stroke="#1d4ed8" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+          <path d={d} stroke="#3b82f6" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+          <path d={d} stroke="#60a5fa" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        </g>
+      )}
 
-      {/* Specular central reflection line (creates cylindrical shine) */}
-      <path 
-        d={d}
-        stroke="rgba(255,255,255,0.18)" strokeWidth="1.2" strokeLinecap={capStyle} strokeLinejoin="round" fill="none"
-      />
+      {/* Wave Particles (Flow Animation) */}
+      {isFlowing && !hideAnimation && (
+        <>
+          <motion.path
+            d={d}
+            stroke="#ffffff"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray="2 22"
+            initial={{ strokeDashoffset: isBackward ? 0 : 24 }}
+            animate={{ strokeDashoffset: isBackward ? 24 : 0 }}
+            transition={{ duration: 0.6, repeat: Infinity, ease: "linear" }}
+            fill="none"
+            style={{ opacity: 0.8 }}
+          />
+          <motion.path
+            d={d}
+            stroke="#93c5fd"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray="2 30"
+            initial={{ strokeDashoffset: isBackward ? 0 : 32 }}
+            animate={{ strokeDashoffset: isBackward ? 32 : 0 }}
+            transition={{ duration: 0.4, repeat: Infinity, ease: "linear" }}
+            fill="none"
+            style={{ opacity: 0.5 }}
+          />
+        </>
+      )}
     </svg>
   );
 };
@@ -143,27 +145,68 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
   const visiblePumps = pumps.filter(p => p.isVisible);
   const hasFlow = visiblePumps.some(p => p.status === 'RUNNING');
 
-  const pumpSpacing = 270;
+  const pumpSpacing = 500; // Increased spacing for proper gaps between horizontal pump cards
   const isTankOutlet = outletType === 'tank';
-  const leftTankLeft = 20;
+  const leftTankLeft = 60;
   const leftTankCenter = leftTankLeft + 64;
 
-  const pumpLefts = visiblePumps.map((_, idx) => leftTankLeft + 155 + (idx * pumpSpacing));
-  const pumpCenters = pumpLefts.map(left => left + 130);
+  const pumpLefts = visiblePumps.map((_, idx) => leftTankLeft + 240 + (idx * pumpSpacing));
+  const pumpCenters = pumpLefts.map(left => left + 210); // center of horizontal card
+  const pumpPipeXs = pumpLefts.map(left => left + 147); // Center of the pump's green body (top discharge flange)
+  const pumpInletXs = pumpLefts.map(left => left - 40); // 40px gap outside the pump card
 
   const numPumps = visiblePumps.length || 1; 
-  let rightTankLeft = leftTankLeft + 155 + (numPumps * pumpSpacing) + 17;
-  let outletEndX = rightTankLeft + 2;
-  const canvasWidth = rightTankLeft + (isTankOutlet ? 150 : 100);
+  let rightTankLeft = leftTankLeft + 240 + (numPumps * pumpSpacing);
+  let outletEndX = rightTankLeft + 60;
+  const canvasWidth = Math.max(rightTankLeft + (isTankOutlet ? 180 : 150), 1000);
 
-  const tankBottomY = 550;
-  const manifoldY = isTankOutlet ? 85 : 55;
+  const tankBottomY = 448;
+  const manifoldY = 60;
+  const bottomManifoldY = 600;
+
+  const allPaths: string[] = [];
+  if (visiblePumps.length > 0) {
+    allPaths.push(`M ${leftTankCenter} ${tankBottomY} L ${leftTankCenter} ${bottomManifoldY - 16} A 16 16 0 0 0 ${leftTankCenter + 16} ${bottomManifoldY} L ${visiblePumps.length === 1 ? pumpInletXs[0] - 16 : pumpInletXs[0]} ${bottomManifoldY}`);
+    visiblePumps.forEach((p, i) => {
+      const isLast = i === visiblePumps.length - 1;
+      if (isLast) {
+        allPaths.push(`M ${pumpInletXs[i] - 16} ${bottomManifoldY} A 16 16 0 0 0 ${pumpInletXs[i]} ${bottomManifoldY - 16} L ${pumpInletXs[i]} 314 A 16 16 0 0 1 ${pumpInletXs[i] + 16} 298 L ${pumpLefts[i]} 298`);
+      } else {
+        allPaths.push(`M ${pumpInletXs[i]} ${bottomManifoldY} L ${pumpInletXs[i]} 314 A 16 16 0 0 1 ${pumpInletXs[i] + 16} 298 L ${pumpLefts[i]} 298`);
+      }
+      if (!isLast) {
+        const nextX = i + 1 === visiblePumps.length - 1 ? pumpInletXs[i + 1] - 16 : pumpInletXs[i + 1];
+        allPaths.push(`M ${pumpInletXs[i]} ${bottomManifoldY} L ${nextX} ${bottomManifoldY}`);
+      }
+    });
+    visiblePumps.forEach((p, i) => {
+      if (i === 0) {
+        allPaths.push(`M ${pumpPipeXs[i]} 135 L ${pumpPipeXs[i]} ${manifoldY + 16} A 16 16 0 0 1 ${pumpPipeXs[i] + 16} ${manifoldY}`);
+      } else {
+        allPaths.push(`M ${pumpPipeXs[i]} 135 L ${pumpPipeXs[i]} ${manifoldY}`);
+      }
+    });
+    visiblePumps.forEach((p, i) => {
+      const isLast = i === visiblePumps.length - 1;
+      const startX = i === 0 ? pumpPipeXs[i] + 16 : pumpPipeXs[i];
+      const endX = isLast ? (isTankOutlet ? rightTankLeft + 64 - 16 : outletEndX) : pumpPipeXs[i + 1];
+      allPaths.push(`M ${startX} ${manifoldY} L ${endX} ${manifoldY}`);
+    });
+    if (isTankOutlet) {
+      allPaths.push(`M ${rightTankLeft + 64 - 16} ${manifoldY} A 16 16 0 0 1 ${rightTankLeft + 64} ${manifoldY + 16} L ${rightTankLeft + 64} ${manifoldY + 55}`);
+    }
+  }
+  const combinedPath = allPaths.join(' ');
 
   return (
-    <div className="relative w-full h-[760px] liquid-glass rounded-[24px] p-6 flex items-center overflow-hidden">
+    <div className="scada-card relative w-full h-[660px] flex flex-col overflow-hidden">
+      <div className="scada-card-title shrink-0">
+        <h2>PUMPS OVERVIEW</h2>
+      </div>
+
       <div
         ref={scrollRef}
-        className={`w-full overflow-x-auto pb-2 custom-scrollbar relative h-full flex ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+        className={`w-full overflow-x-auto pb-2 custom-scrollbar relative flex-1 flex ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
         onMouseDown={handleMouseDown}
         onMouseLeave={handleMouseLeave}
         onMouseUp={handleMouseUp}
@@ -172,12 +215,20 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
         <div style={{ minWidth: `${canvasWidth}px`, width: `${canvasWidth}px`, height: '100%', position: 'relative', margin: '0 auto' }}>
           {/* Draw Pipes via absolute overlay */}
           <div className="absolute inset-0 z-0">
-            <div className="absolute text-[10px] text-gray-400 font-bold whitespace-nowrap leading-tight text-left z-0" style={{ left: `${leftTankCenter + 16}px`, top: '560px' }}>FROM<br />TANK</div>
+            {/* Base Pipe Network rendered as a single path layer stack for perfect intersections */}
+            <svg className="absolute inset-0 pointer-events-none w-full h-full overflow-visible">
+              <path d={combinedPath} stroke="#64748b" strokeWidth="22" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              <path d={combinedPath} stroke="#94a3b8" strokeWidth="20" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              <path d={combinedPath} stroke="#cbd5e1" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              <path d={combinedPath} stroke="#f8fafc" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            </svg>
+
+            <div className="absolute text-[10px] text-gray-500 font-bold whitespace-nowrap leading-tight text-left z-0" style={{ left: `${leftTankCenter + 16}px`, top: '490px' }}>FROM<br />TANK</div>
 
             {visiblePumps.length > 0 && (
               <>
                 <Pipe
-                  path={`M ${leftTankCenter} ${tankBottomY} L ${leftTankCenter} ${680 - 16} A 16 16 0 0 0 ${leftTankCenter + 16} 680 L ${visiblePumps.length === 1 ? pumpCenters[0] - 16 : pumpCenters[0]} 680`}
+                  path={`M ${leftTankCenter} ${tankBottomY} L ${leftTankCenter} ${bottomManifoldY - 16} A 16 16 0 0 0 ${leftTankCenter + 16} ${bottomManifoldY} L ${visiblePumps.length === 1 ? pumpInletXs[0] - 16 : pumpInletXs[0]} ${bottomManifoldY}`}
                   flowDirection={hasFlow ? 'forward' : 'none'}
                 />
 
@@ -187,9 +238,9 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
                   return (
                     <React.Fragment key={`inlet-pipe-vert-${p.id}`}>
                       {isLast ? (
-                        <Pipe path={`M ${pumpCenters[i] - 16} 680 A 16 16 0 0 0 ${pumpCenters[i]} ${680 - 16} L ${pumpCenters[i]} 585`} flowDirection={isRunning ? 'forward' : 'none'} />
+                        <Pipe path={`M ${pumpInletXs[i] - 16} ${bottomManifoldY} A 16 16 0 0 0 ${pumpInletXs[i]} ${bottomManifoldY - 16} L ${pumpInletXs[i]} 314 A 16 16 0 0 1 ${pumpInletXs[i] + 16} 298 L ${pumpLefts[i]} 298`} flowDirection={isRunning ? 'forward' : 'none'} hideAnimation={true} />
                       ) : (
-                        <Pipe path={`M ${pumpCenters[i]} 680 L ${pumpCenters[i]} 585`} flowDirection={isRunning ? 'forward' : 'none'} capStyle="butt" />
+                        <Pipe path={`M ${pumpInletXs[i]} ${bottomManifoldY} L ${pumpInletXs[i]} 314 A 16 16 0 0 1 ${pumpInletXs[i] + 16} 298 L ${pumpLefts[i]} 298`} flowDirection={isRunning ? 'forward' : 'none'} hideAnimation={true} />
                       )}
                     </React.Fragment>
                   );
@@ -201,7 +252,7 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
                   return (
                     <React.Fragment key={`inlet-pipe-horiz-${p.id}`}>
                       {!isLast && (
-                        <Pipe path={`M ${pumpCenters[i]} 680 L ${i + 1 === visiblePumps.length - 1 ? pumpCenters[i + 1] - 16 : pumpCenters[i + 1]} 680`} flowDirection={nextRunning ? 'forward' : 'none'} />
+                        <Pipe path={`M ${pumpInletXs[i]} ${bottomManifoldY} L ${i + 1 === visiblePumps.length - 1 ? pumpInletXs[i + 1] - 16 : pumpInletXs[i + 1]} ${bottomManifoldY}`} flowDirection={nextRunning ? 'forward' : 'none'} />
                       )}
                     </React.Fragment>
                   );
@@ -212,9 +263,9 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
                   return (
                     <React.Fragment key={`outlet-pipe-vert-${p.id}`}>
                       {i === 0 ? (
-                        <Pipe path={`M ${pumpCenters[i]} 145 L ${pumpCenters[i]} ${manifoldY + 16} A 16 16 0 0 1 ${pumpCenters[i] + 16} ${manifoldY}`} flowDirection={isRunning ? 'forward' : 'none'} />
+                        <Pipe path={`M ${pumpPipeXs[i]} 135 L ${pumpPipeXs[i]} ${manifoldY + 16} A 16 16 0 0 1 ${pumpPipeXs[i] + 16} ${manifoldY}`} flowDirection={isRunning ? 'forward' : 'none'} hideAnimation={true} />
                       ) : (
-                        <Pipe path={`M ${pumpCenters[i]} 145 L ${pumpCenters[i]} ${manifoldY}`} flowDirection={isRunning ? 'forward' : 'none'} capStyle="butt" />
+                        <Pipe path={`M ${pumpPipeXs[i]} 135 L ${pumpPipeXs[i]} ${manifoldY}`} flowDirection={isRunning ? 'forward' : 'none'} hideAnimation={true} />
                       )}
                     </React.Fragment>
                   );
@@ -226,7 +277,7 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
                   return (
                     <React.Fragment key={`outlet-pipe-horiz-${p.id}`}>
                       <Pipe
-                        path={`M ${i === 0 ? pumpCenters[i] + 16 : pumpCenters[i]} ${manifoldY} L ${isLast ? (isTankOutlet ? rightTankLeft + 64 - 16 : outletEndX) : pumpCenters[i + 1]} ${manifoldY}`}
+                        path={`M ${i === 0 ? pumpPipeXs[i] + 16 : pumpPipeXs[i]} ${manifoldY} L ${isLast ? (isTankOutlet ? rightTankLeft + 64 - 16 : outletEndX) : pumpPipeXs[i + 1]} ${manifoldY}`}
                         flowDirection={currentOrPrevRunning ? 'forward' : 'none'}
                       />
                     </React.Fragment>
@@ -243,14 +294,14 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
             )}
           </div>
 
-          <div className="absolute z-10" style={{ left: `${leftTankLeft}px`, top: '285px' }}>
-            <Tank level={dashboardData.waterAvailable ? 100 : 0} title={inletTankTitle} />
+          <div className="absolute z-10" style={{ left: `${leftTankLeft}px`, top: '180px' }}>
+            <Tank level={dashboardData.waterAvailable ? 75.6 : 0} title={inletTankTitle} />
           </div>
 
           {isTankOutlet ? (
             <>
               <div className="absolute z-10 w-32 flex justify-center text-center" style={{ left: `${rightTankLeft}px`, top: '45px' }}>
-                <h3 className="text-white text-xs font-bold tracking-widest uppercase leading-tight">
+                <h3 className="text-gray-900 text-xs font-bold tracking-widest uppercase leading-tight">
                   {outletTitle.split(' ').map((word: string, index: number) => (
                     <React.Fragment key={index}>
                       {word}
@@ -264,13 +315,13 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
               </div>
             </>
           ) : (
-            <div className="absolute top-[55px] z-10 -translate-y-1/2 flex items-center" style={{ left: `${outletEndX + 10}px` }}>
-              <h3 className="text-white text-xs font-bold tracking-widest uppercase whitespace-nowrap">{outletTitle}</h3>
+            <div className="absolute top-[100px] z-10 -translate-y-1/2 flex items-center bg-gray-100 px-3 py-1.5 rounded-full border border-gray-200" style={{ left: `${outletEndX + 10}px` }}>
+              <h3 className="text-gray-700 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap">{outletTitle}</h3>
             </div>
           )}
 
           {visiblePumps.map((p, idx) => (
-            <div key={p.id} className="absolute top-[145px] z-10" style={{ left: `${pumpLefts[idx]}px` }}>
+            <div key={p.id} className="absolute top-[135px] z-10" style={{ left: `${pumpLefts[idx]}px` }}>
               <PumpUnit
                 name={p.name}
                 status={p.status}
@@ -283,17 +334,52 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
             </div>
           ))}
 
+          {/* OVERLAY FOR EXTENDED ANIMATIONS (z-20 to draw over pump cards) */}
+          <div className="absolute inset-0 z-20 pointer-events-none">
+            {visiblePumps.map((p, i) => {
+              const isRunning = p.status === 'RUNNING';
+              if (!isRunning) return null;
+              
+              const isLast = i === visiblePumps.length - 1;
+              const dischargeEndX = i === 0 ? pumpPipeXs[i] + 16 : pumpPipeXs[i]; // End right after the bend/start for consistency
+              
+              return (
+                <React.Fragment key={`anim-overlay-${p.id}`}>
+                  {/* Suction animation (extended to pump flange X = pumpLefts[i] + 46) */}
+                  <Pipe 
+                    path={isLast 
+                      ? `M ${pumpInletXs[i] - 16} ${bottomManifoldY} A 16 16 0 0 0 ${pumpInletXs[i]} ${bottomManifoldY - 16} L ${pumpInletXs[i]} 314 A 16 16 0 0 1 ${pumpInletXs[i] + 16} 298 L ${pumpLefts[i] + 46} 298`
+                      : `M ${pumpInletXs[i]} ${bottomManifoldY} L ${pumpInletXs[i]} 314 A 16 16 0 0 1 ${pumpInletXs[i] + 16} 298 L ${pumpLefts[i] + 46} 298`
+                    } 
+                    flowDirection="forward" 
+                    hideBase={true} 
+                  />
+                  
+                  {/* Discharge animation (extended to pump flange Y = 228) */}
+                  <Pipe 
+                    path={i === 0 
+                      ? `M ${pumpPipeXs[i]} 228 L ${pumpPipeXs[i]} ${manifoldY + 16} A 16 16 0 0 1 ${pumpPipeXs[i] + 16} ${manifoldY}`
+                      : `M ${pumpPipeXs[i]} 228 L ${pumpPipeXs[i]} ${manifoldY}`
+                    }
+                    flowDirection="forward" 
+                    hideBase={true} 
+                  />
+                </React.Fragment>
+              );
+            })}
+          </div>
+
           {visiblePumps.length === 0 && (
             <div
               className="absolute z-10 flex items-center justify-center pointer-events-none"
               style={{
-                left: `${leftTankLeft + 155}px`,
+                left: `${leftTankLeft + 195}px`,
                 top: '145px',
                 width: '260px',
                 height: '350px'
               }}
             >
-              <div className="bg-[#0f172a]/80 px-6 py-6 rounded-[24px] border border-white/10 text-[rgba(255,255,255,0.45)] font-bold text-[14px] uppercase tracking-widest text-center shadow-[0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur-md">
+              <div className="bg-white px-6 py-6 rounded-xl border border-gray-200 text-gray-500 font-bold text-[14px] uppercase tracking-widest text-center shadow-sm">
                 No Pumps Configured in Panel
               </div>
             </div>

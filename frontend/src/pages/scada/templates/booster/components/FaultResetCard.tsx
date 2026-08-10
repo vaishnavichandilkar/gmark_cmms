@@ -6,29 +6,33 @@ interface Props {
 }
 
 export const FaultResetCard: React.FC<Props> = ({ hasFault = false }) => {
-  const cardClass = hasFault 
-    ? 'liquid-glass-fault rounded-[24px] p-5 transition-all duration-300 hover:-translate-y-[3px]'
-    : 'liquid-glass rounded-[24px] p-5 transition-all duration-300 hover:-translate-y-[3px]';
-
   return (
-    <div className={cardClass}>
-      <div className="flex items-center gap-2 mb-4">
-        <AlertTriangle size={18} className={`text-[#FF453A] ${hasFault ? 'animate-pulse' : ''}`} />
-        <h2 className="text-white font-semibold text-sm tracking-widest uppercase">Faults Reset Delay Settings</h2>
+    <div className={`scada-card flex flex-col h-full ${hasFault ? 'border-[#ef4444] bg-[#ef4444]/5' : ''}`}>
+      <div className="scada-card-title">
+        <AlertTriangle size={16} className={hasFault ? 'text-[#ef4444] animate-pulse' : 'text-gray-400'} />
+        <h2 className={hasFault ? 'text-[#ef4444]' : ''}>FAULTS RESET DELAY SETTINGS</h2>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-4 text-center">
-        <div className="flex flex-col items-center justify-center sm:border-r border-b sm:border-b-0 border-white/[0.03] pb-4 sm:pb-0">
-          <span className="text-xs text-[rgba(255,255,255,0.45)] font-semibold tracking-wider uppercase mb-2">Overload Fault<br/>Reset Time</span>
-          <span className="text-3xl font-mono text-white font-semibold tracking-widest">00:00</span>
+      <div className="flex flex-col gap-3 flex-1 justify-center">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">OVERLOAD FAULT RESET TIME</span>
+          <div className="bg-white border border-gray-200 rounded px-3 py-1 shadow-sm">
+            <span className="font-mono text-sm font-bold text-gray-900">00:00</span>
+          </div>
         </div>
-        <div className="flex flex-col items-center justify-center sm:border-r border-b sm:border-b-0 border-white/[0.03] pb-4 sm:pb-0">
-          <span className="text-xs text-[rgba(255,255,255,0.45)] font-semibold tracking-wider uppercase mb-2">Under-Load Fault<br/>Reset Time</span>
-          <span className="text-3xl font-mono text-white font-semibold tracking-widest">00:00</span>
+        
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">UNDER-LOAD FAULT RESET TIME</span>
+          <div className="bg-white border border-gray-200 rounded px-3 py-1 shadow-sm">
+            <span className="font-mono text-sm font-bold text-gray-900">00:00</span>
+          </div>
         </div>
-        <div className="flex flex-col items-center justify-center">
-          <span className="text-xs text-[rgba(255,255,255,0.45)] font-semibold tracking-wider uppercase mb-2">VFD Fault<br/>Reset Time</span>
-          <span className="text-3xl font-mono text-white font-semibold tracking-widest">00:00</span>
+
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">VFD FAULT RESET TIME</span>
+          <div className="bg-white border border-gray-200 rounded px-3 py-1 shadow-sm">
+            <span className="font-mono text-sm font-bold text-gray-900">00:00</span>
+          </div>
         </div>
       </div>
     </div>

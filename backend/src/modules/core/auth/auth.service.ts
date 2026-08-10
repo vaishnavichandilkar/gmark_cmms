@@ -14,6 +14,7 @@ import {
   ChangePasswordDto,
   ForgotPasswordDto,
   ResetPasswordDto,
+  SignupDto,
 } from './dto/auth.dto';
 
 @Injectable()
@@ -69,9 +70,90 @@ export class AuthService {
     return this.sanitizeUser(user);
   }
 
+  async signup(dto: SignupDto) {
+    if (!validatePasswordStrength(dto.password)) {
+      throw new BadRequestException(
+        'Password must be at least 8 characters long and contain uppercase, lowercase, numbers, and special characters.',
+      );
+    }
+
+    const existingUser = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ email: dto.workEmail }, { username: dto.workEmail }],
+      },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException('Email already exists');
+    }
+
+    const existingRegistration = await this.prisma.registration.findFirst({
+      where: { gstNumber: dto.gstNumber },
+    });
+
+    if (existingRegistration) {
+      throw new BadRequestException('GST number already registered. Please use a different GST number.');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+    const [firstName, ...lastNameParts] = dto.fullName.split(' ');
+    const lastName = lastNameParts.join(' ');
+
+    const employee = await this.prisma.employee.create({
+      data: {
+        employeeCode: 'EMP-' + Math.floor(Math.random() * 100000).toString(),
+        fullName: dto.fullName,
+        mobileNumber: dto.phoneNumber,
+        officialEmail: dto.workEmail,
+        dateOfJoining: new Date(),
+        dateOfBirth: new Date(), // default
+        department: 'Management',
+        designation: 'Administrator',
+      }
+    });
+
+    const user = await this.prisma.user.create({
+      data: {
+        username: dto.workEmail, // using workEmail as username
+        email: dto.workEmail,
+        mobileNumber: dto.phoneNumber,
+        password: hashedPassword,
+        role: 'SUPER_ADMIN',
+        firstName: firstName,
+        lastName: lastName || null,
+        isActive: true,
+        employeeId: employee.id,
+        city: dto.city,
+        state: dto.state,
+        country: dto.country || 'India',
+        pincode: dto.zipCode,
+      },
+    });
+
+    await this.prisma.registration.create({
+      data: {
+        companyName: dto.companyName || (dto.fullName + ' Organization'),
+        gstNumber: dto.gstNumber,
+        city: dto.city,
+        state: dto.state,
+        country: dto.country || 'India',
+        zipCode: dto.zipCode,
+        userId: user.id
+      }
+    });
+
+    return this.sanitizeUser(user);
+  }
+
   async login(dto: LoginDto, ipAddress: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { username: dto.username },
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { username: dto.username },
+          { email: dto.username }
+        ]
+      },
       include: {
         buildings: true,
         employee: true,
@@ -97,6 +179,7 @@ export class AuthService {
       user.email,
       user.role,
       user.societyId,
+      user.mainFacilityId,
       buildingIds,
     );
     await this.updateRefreshToken(user.id, tokens.refreshToken);
@@ -176,6 +259,7 @@ export class AuthService {
         user.email,
         user.role,
         user.societyId,
+        user.mainFacilityId,
         buildingIds,
       );
       await this.updateRefreshToken(user.id, tokens.refreshToken);
@@ -330,6 +414,7 @@ export class AuthService {
     email: string,
     role: string,
     societyId: number | null,
+    mainFacilityId: number | null,
     buildingIds: number[],
   ) {
     const payload = {
@@ -337,6 +422,7 @@ export class AuthService {
       email,
       role,
       societyId,
+      mainFacilityId,
       buildingIds,
     };
 
