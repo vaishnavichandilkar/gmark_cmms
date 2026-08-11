@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Wrench, Boxes, RotateCcw } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { LayoutDashboard, Wrench, Boxes, RotateCcw, Server, Save } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { CustomSelect } from '../../../components/shared/CustomSelect';
 import { MultiSelect } from '../../../components/shared/MultiSelect';
@@ -14,10 +14,99 @@ export function DashboardPage() {
   const [mainFacilities, setMainFacilities] = useState<any[]>([]);
   const [facilities, setFacilities] = useState<any[]>([]);
   const [machines, setMachines] = useState<any[]>([]);
-  
+
   const [selectedMainFacilityId, setSelectedMainFacilityId] = useState<number | null>(null);
   const [selectedFacilityId, setSelectedFacilityId] = useState<number | null>(null);
   const [selectedMachineIds, setSelectedMachineIds] = useState<number[]>([]);
+  const [activeMachineId, setActiveMachineId] = useState<number | null>(null);
+
+  // Default selection logic
+  const defaultSelectionKey = `dashboard_default_selection_${user?.id}`;
+  const getSavedDefault = () => {
+    try {
+      const saved = localStorage.getItem(defaultSelectionKey);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  };
+  const [savedDefault, setSavedDefault] = useState<any>(getSavedDefault());
+  const [showDefaultPrompt, setShowDefaultPrompt] = useState(false);
+  const [isMachineDropdownOpen, setIsMachineDropdownOpen] = useState(false);
+  const [dismissedSelection, setDismissedSelection] = useState<string | null>(null);
+  const hasInitialized = React.useRef(false);
+
+  // Initialize from saved default once data is loaded
+  useEffect(() => {
+    if (!hasInitialized.current && machines.length > 0) {
+      hasInitialized.current = true;
+      if (savedDefault) {
+        const validMachines = machines.filter(m => savedDefault.machineIds.includes(m.id));
+        if (validMachines.length > 0) {
+          setSelectedMainFacilityId(savedDefault.mainFacilityId);
+          setSelectedFacilityId(savedDefault.facilityId);
+          setSelectedMachineIds(validMachines.map(m => m.id));
+        }
+      }
+    }
+  }, [machines, savedDefault]);
+
+  // Prompt to save logic
+  useEffect(() => {
+    if (selectedMachineIds.length > 0 && selectedFacilityId && selectedMainFacilityId && !isMachineDropdownOpen) {
+      const currentSelectionStr = JSON.stringify({
+        mainFacilityId: selectedMainFacilityId,
+        facilityId: selectedFacilityId,
+        machineIds: [...selectedMachineIds].sort()
+      });
+
+      const isDifferentFromSaved = !savedDefault ||
+        savedDefault.mainFacilityId !== selectedMainFacilityId ||
+        savedDefault.facilityId !== selectedFacilityId ||
+        JSON.stringify(savedDefault.machineIds.sort()) !== JSON.stringify([...selectedMachineIds].sort());
+
+      const isNotDismissed = dismissedSelection !== currentSelectionStr;
+
+      if (isDifferentFromSaved && isNotDismissed) {
+        setShowDefaultPrompt(true);
+      } else {
+        setShowDefaultPrompt(false);
+      }
+    } else {
+      setShowDefaultPrompt(false);
+    }
+  }, [selectedMachineIds, selectedFacilityId, selectedMainFacilityId, savedDefault, dismissedSelection, isMachineDropdownOpen]);
+
+  const handleSaveDefault = () => {
+    const newDefault = {
+      mainFacilityId: selectedMainFacilityId,
+      facilityId: selectedFacilityId,
+      machineIds: selectedMachineIds
+    };
+    localStorage.setItem(defaultSelectionKey, JSON.stringify(newDefault));
+    setSavedDefault(newDefault);
+    setShowDefaultPrompt(false);
+  };
+
+  const handleDismissDefault = () => {
+    const currentSelectionStr = JSON.stringify({
+      mainFacilityId: selectedMainFacilityId,
+      facilityId: selectedFacilityId,
+      machineIds: [...selectedMachineIds].sort()
+    });
+    setDismissedSelection(currentSelectionStr);
+    setShowDefaultPrompt(false);
+  };
+
+  useEffect(() => {
+    if (selectedMachineIds.length > 0) {
+      if (!activeMachineId || !selectedMachineIds.includes(activeMachineId)) {
+        setActiveMachineId(selectedMachineIds[0]);
+      }
+    } else {
+      setActiveMachineId(null);
+    }
+  }, [selectedMachineIds, activeMachineId]);
 
   useEffect(() => {
     Promise.all([
@@ -50,7 +139,7 @@ export function DashboardPage() {
 
   return (
     <div className="h-full flex flex-col w-full mx-auto min-h-[calc(100vh-8rem)]">
-      
+
       {/* Top Bar for Asset Selection */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
         <div className="flex items-center gap-3">
@@ -77,7 +166,7 @@ export function DashboardPage() {
               setSelectedMachineIds([]);
             }}
           />
-          
+
           <CustomSelect
             name="facility"
             placeholder="Sub-Facility..."
@@ -102,6 +191,9 @@ export function DashboardPage() {
             onChange={(selectedValues) => {
               setSelectedMachineIds(selectedValues.map(v => Number(v)));
             }}
+            onToggle={(isOpen) => {
+              setIsMachineDropdownOpen(isOpen);
+            }}
           />
 
           {(selectedMainFacilityId || selectedFacilityId || selectedMachineIds.length > 0) && (
@@ -110,6 +202,8 @@ export function DashboardPage() {
                 setSelectedMainFacilityId(null);
                 setSelectedFacilityId(null);
                 setSelectedMachineIds([]);
+                setSavedDefault(null);
+                localStorage.removeItem(defaultSelectionKey);
               }}
               className="p-2 md:p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100 flex items-center justify-center"
               title="Reset Filters"
@@ -121,25 +215,52 @@ export function DashboardPage() {
       </div>
 
       {selectedMachineIds.length > 0 ? (
-        <div className="flex-1 mt-2 flex flex-col gap-8">
-          {selectedMachineIds.map(mId => {
-            const machine = machines.find(m => m.id === mId);
-            const facility = facilities.find(fac => fac.id === machine?.facilityId);
-            if (!machine) return null;
-            return (
-              <div key={machine.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <BoosterDashboard 
-                  title={machine.name} 
-                  panelId={machine.deviceId} 
-                  buildingName={facility?.facilityName || machine.name} 
-                />
-              </div>
-            );
-          })}
+        <div className="flex-1 mt-2 flex flex-col gap-4">
+
+          {/* Quick Navigation Icons */}
+          {selectedMachineIds.length > 1 && (
+            <div className="flex flex-wrap gap-3 pb-2">
+              {selectedMachineIds.map(mId => {
+                const machine = machines.find(m => m.id === mId);
+                if (!machine) return null;
+                const isActive = activeMachineId === mId;
+                return (
+                  <button
+                    key={mId}
+                    onClick={() => setActiveMachineId(mId)}
+                    className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm ${isActive
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white border border-blue-600 shadow-blue-500/20 ring-2 ring-blue-500/20'
+                        : 'bg-white text-gray-700 hover:text-gray-900 hover:bg-gray-50 border border-gray-200'
+                      }`}
+                  >
+                    <Server size={18} className={isActive ? 'text-blue-100' : 'text-gray-400'} />
+                    <span>{machine.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Active Machine Dashboard */}
+          {activeMachineId && machines.find(m => m.id === activeMachineId) && (
+            (() => {
+              const machine = machines.find(m => m.id === activeMachineId);
+              const facility = facilities.find(fac => fac.id === machine?.facilityId);
+              return (
+                <div key={machine!.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex-1">
+                  <BoosterDashboard
+                    title={machine!.name}
+                    panelId={machine!.deviceId}
+                    buildingName={facility?.facilityName || machine!.name}
+                  />
+                </div>
+              );
+            })()
+          )}
         </div>
       ) : (
         <div className="flex flex-1 items-center justify-center">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-center max-w-md bg-white p-10 rounded-3xl border border-gray-100 shadow-sm"
@@ -156,6 +277,44 @@ export function DashboardPage() {
           </motion.div>
         </div>
       )}
+
+      {/* Save Default Selection Modal */}
+      <AnimatePresence>
+        {showDefaultPrompt && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-gray-100"
+            >
+              <div className="p-6 text-center">
+                <div className="w-16 h-16 bg-green-50 text-[#00a651] rounded-full flex items-center justify-center mx-auto mb-4 border border-green-100 shadow-sm">
+                  <Save size={28} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Save as Default View?</h3>
+                <p className="text-gray-500 mb-8 px-2 text-sm leading-relaxed">
+                  Would you like to automatically load these selected machines every time you visit the dashboard?
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleDismissDefault}
+                    className="flex-1 px-4 py-2.5 rounded-xl text-gray-600 bg-gray-100 hover:bg-gray-200 hover:text-gray-800 font-semibold transition-colors"
+                  >
+                    No, thanks
+                  </button>
+                  <button
+                    onClick={handleSaveDefault}
+                    className="flex-1 px-4 py-2.5 rounded-xl text-white bg-[#00a651] hover:bg-[#009040] shadow-sm shadow-green-500/20 font-semibold transition-colors"
+                  >
+                    Yes, save it
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

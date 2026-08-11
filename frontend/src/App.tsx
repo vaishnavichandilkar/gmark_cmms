@@ -77,7 +77,7 @@ function App() {
           {/* Protected Routes */}
           <Route
             path="/"
-            element={<Navigate to="/societies" replace />}
+            element={<Navigate to="/dashboard" replace />}
           />
           <Route
             path="/dashboard"

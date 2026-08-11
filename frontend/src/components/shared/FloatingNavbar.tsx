@@ -160,8 +160,11 @@ export function FloatingNavbar() {
 
   const isPathActive = (path?: string) => {
     if (!path) return false;
+    if (path === '/dashboard') {
+      return location.pathname === '/' || location.pathname === '/dashboard';
+    }
     if (path === '/societies') {
-      return location.pathname === '/' || location.pathname.startsWith('/society') || location.pathname.startsWith('/societies') || location.pathname.startsWith('/building');
+      return location.pathname.startsWith('/society') || location.pathname.startsWith('/societies') || location.pathname.startsWith('/building');
     }
     return location.pathname.startsWith(path);
   };

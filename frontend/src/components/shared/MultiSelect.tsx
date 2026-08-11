@@ -11,6 +11,7 @@ interface MultiSelectProps {
   values: string[];
   options: (string | MultiSelectOption)[];
   onChange: (selectedValues: string[]) => void;
+  onToggle?: (isOpen: boolean) => void;
   placeholder?: string;
   className?: string;
   disabled?: boolean;
@@ -20,7 +21,8 @@ export function MultiSelect({
   name, 
   values, 
   options, 
-  onChange, 
+  onChange,
+  onToggle,
   placeholder = 'Select...', 
   className = '', 
   disabled = false 
@@ -28,6 +30,14 @@ export function MultiSelect({
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const prevIsOpen = useRef(isOpen);
+
+  useEffect(() => {
+    if (prevIsOpen.current !== isOpen && onToggle) {
+      onToggle(isOpen);
+    }
+    prevIsOpen.current = isOpen;
+  }, [isOpen, onToggle]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
