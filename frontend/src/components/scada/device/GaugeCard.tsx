@@ -37,13 +37,13 @@ export const GaugeCard: React.FC<GaugeCardProps> = ({ value, min = 0, max = 0.5,
   };
 
   return (
-    <div className="bg-black/20 rounded-2xl p-4 sm:p-6 border border-white/10 shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)] flex flex-col items-center justify-between h-full w-full min-w-0 transition-all duration-300 hover:scale-[1.01] hover:bg-black/30 hover:border-blue-500/20 hover:shadow-[0_8px_20px_rgba(0,100,255,0.04)]">
-      <h3 className="text-[10px] sm:text-xs md:text-sm text-gray-400 font-semibold uppercase tracking-wider mb-1 md:mb-2 text-center truncate w-full">{label}</h3>
+    <div className="bg-gray-50 rounded-2xl p-4 sm:p-6 border border-gray-200 shadow-sm flex flex-col items-center justify-between h-full w-full min-w-0 transition-all duration-300 hover:scale-[1.01] hover:bg-gray-100 hover:border-[#00a651]/20 hover:shadow-md">
+      <h3 className="text-[10px] sm:text-xs md:text-sm text-gray-500 font-semibold uppercase tracking-wider mb-1 md:mb-2 text-center truncate w-full">{label}</h3>
       
       <div className="relative flex-1 w-full max-w-[280px] flex items-center justify-center min-h-[120px] sm:min-h-[160px] md:min-h-[200px]">
         <svg viewBox={`-45 0 390 410`} className="w-full h-full drop-shadow-sm">
           {/* Background Track Arc */}
-          <path d={createArc(0, 1.0)} fill="none" stroke="#1e293b" strokeWidth={strokeWidth} strokeLinecap="butt" />
+          <path d={createArc(0, 1.0)} fill="none" stroke="#e2e8f0" strokeWidth={strokeWidth} strokeLinecap="butt" />
 
           {/* Green Zone (0% - 60%) */}
           <path d={createArc(0, 0.6)} fill="none" stroke="#10b981" strokeWidth={strokeWidth} strokeLinecap="butt" />
@@ -73,8 +73,8 @@ export const GaugeCard: React.FC<GaugeCardProps> = ({ value, min = 0, max = 0.5,
 
             return (
               <g key={tickPercent}>
-                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#334155" strokeWidth="2" />
-                <text x={lx} y={ly} textAnchor="middle" alignmentBaseline="middle" fill="#cbd5e1" fontSize="24" fontWeight="600">
+                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#94a3b8" strokeWidth="2" />
+                <text x={lx} y={ly} textAnchor="middle" alignmentBaseline="middle" fill="#64748b" fontSize="24" fontWeight="600">
                   {tickVal.toFixed(1)}
                 </text>
               </g>
@@ -82,13 +82,13 @@ export const GaugeCard: React.FC<GaugeCardProps> = ({ value, min = 0, max = 0.5,
           })}
 
           {/* Needle Base */}
-          <circle cx={cx} cy={cy} r="10" fill="#e2e8f0" />
+          <circle cx={cx} cy={cy} r="10" fill="#64748b" />
           
           {/* Needle */}
           <g transform={`rotate(${needleAngle}, ${cx}, ${cy})`} className="transition-transform duration-1000 ease-out">
-            <path d={`M ${cx - 4} ${cy} L ${cx} ${cy - radius + 15} L ${cx + 4} ${cy} Z`} fill="#e2e8f0" />
+            <path d={`M ${cx - 4} ${cy} L ${cx} ${cy - radius + 15} L ${cx + 4} ${cy} Z`} fill="#64748b" />
             {/* Needle center dot */}
-            <circle cx={cx} cy={cy} r="4" fill="#334155" />
+            <circle cx={cx} cy={cy} r="4" fill="#1e293b" />
           </g>
 
           {/* Value Display */}
@@ -96,7 +96,7 @@ export const GaugeCard: React.FC<GaugeCardProps> = ({ value, min = 0, max = 0.5,
             x={cx} 
             y={cy + 128} 
             textAnchor="middle" 
-            fill="#ffffff" 
+            fill="#0f172a" 
             fontSize="115" 
             fontWeight="600"
           >
@@ -106,7 +106,7 @@ export const GaugeCard: React.FC<GaugeCardProps> = ({ value, min = 0, max = 0.5,
             x={cx} 
             y={cy + 162} 
             textAnchor="middle" 
-            fill="#94a3b8" 
+            fill="#64748b" 
             fontSize="32" 
             fontWeight="600" 
             letterSpacing="0.05em"

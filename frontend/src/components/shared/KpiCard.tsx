@@ -27,13 +27,13 @@ export function KpiCard({ title, value, icon, subtitle, colorScheme, subtitleCol
   }[colorScheme];
 
   return (
-    <div className="bg-white/5 rounded-[20px] p-6 shadow-sm border border-white/10 flex items-center gap-6">
+    <div className="bg-white rounded-[20px] p-6 shadow-sm border border-gray-200 flex items-center gap-6">
       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 ${colorStyles}`}>
         {icon}
       </div>
       <div className="flex flex-col">
-        <p className="text-[11px] font-bold text-gray-400 tracking-wider mb-1 uppercase">{title}</p>
-        <motion.span className="text-4xl font-extrabold text-white leading-none mb-1">
+        <p className="text-[11px] font-bold text-gray-500 tracking-wider mb-1 uppercase">{title}</p>
+        <motion.span className="text-4xl font-extrabold text-gray-900 leading-none mb-1">
           {displayValue}
         </motion.span>
         <p className={`text-[11px] font-bold ${subtitleColor}`}>{subtitle}</p>

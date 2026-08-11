@@ -226,7 +226,11 @@ export function EmployeeMaster() {
                 <TableSkeleton columns={7} rows={5} />
               ) : currentEmployees.length > 0 ? (
                 currentEmployees.map((emp, index) => (
-                  <tr key={index} className="hover:bg-gray-50/50 transition-colors group">
+                  <tr 
+                    key={index} 
+                    onClick={() => navigate(`/master/employee/view/${emp.id}`)}
+                    className="hover:bg-gray-50/50 transition-colors group cursor-pointer"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{emp.employeeCode}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{emp.fullName}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{emp.mobileNumber}</td>
@@ -240,14 +244,14 @@ export function EmployeeMaster() {
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                         <button 
-                          onClick={() => navigate(`/master/employee/view/${emp.id}`)}
+                          onClick={(e) => { e.stopPropagation(); navigate(`/master/employee/view/${emp.id}`); }}
                           className="text-gray-400 hover:text-blue-600 p-1.5 rounded-md hover:bg-blue-50 transition-colors" title="View"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         {canEdit && (
                           <button 
-                            onClick={() => navigate(`/master/employee/edit/${emp.id}`)}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/master/employee/edit/${emp.id}`); }}
                             className="text-gray-400 hover:text-green-600 p-1.5 rounded-md hover:bg-green-50 transition-colors" title="Edit"
                           >
                             <Pencil className="w-4 h-4" />
@@ -255,7 +259,7 @@ export function EmployeeMaster() {
                         )}
                         {canDelete && (
                           <button 
-                            onClick={() => confirmDelete(emp.id)}
+                            onClick={(e) => { e.stopPropagation(); confirmDelete(emp.id); }}
                             className="text-gray-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors" title="Delete"
                           >
                             <Trash2 className="w-4 h-4" />

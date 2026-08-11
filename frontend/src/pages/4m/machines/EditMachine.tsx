@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { CustomSelect } from '../../../components/shared/CustomSelect';
 import { CustomDatePicker } from '../../../components/shared/CustomDatePicker';
-import { ArrowLeft, Search, Plus } from 'lucide-react';
+import { ArrowLeft, Search, Plus, Wifi, Activity } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { FacilityHierarchyPicker } from '../../../components/4m/FacilityHierarchyPicker';
 import { MachineHierarchyPicker } from '../../../components/4m/MachineHierarchyPicker';
 import { io, Socket } from 'socket.io-client';
 import toast from 'react-hot-toast';
+import { navigateToDeviceDashboard } from '../../../utils/deviceRoutes';
+import { BoosterDashboard } from '../../scada/templates/booster/BoosterDashboard';
 
 export function EditMachine() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const location = useLocation();
   
-  const [activeTab, setActiveTab] = useState('General');
+  const [activeTab, setActiveTab] = useState(location.state?.tab || 'General');
   const [saving, setSaving] = useState(false);
   
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
@@ -846,6 +849,7 @@ export function EditMachine() {
           ) : activeTab === 'IOT' ? (
             <IOTTabContent 
               deviceId={formData.deviceId}
+              deviceData={formData}
               onAddSystem={() => { setTempMacId(''); setIsIotModalOpen(true); }}
             />
           ) : (
@@ -1469,67 +1473,15 @@ export function EditMachine() {
 }
 
 function IOTTabContent({ 
-  deviceId, 
+  deviceId,
+  deviceData,
   onAddSystem
 }: { 
   deviceId: string, 
+  deviceData: any,
   onAddSystem: () => void
 }) {
-  const [registers, setRegisters] = useState<{register: string | number, value: string | number}[]>([]);
-  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-
-  useEffect(() => {
-    if (!deviceId) return;
-    setInitialLoadComplete(false);
-
-    api.get(`/devices/${deviceId}/snapshot`)
-      .then((res) => {
-        if (res.data?.payload?.registers) {
-          const initialRegisters = res.data.payload.registers;
-          initialRegisters.sort((a: any, b: any) => Number(a.register) - Number(b.register));
-          setRegisters(initialRegisters);
-        }
-        setInitialLoadComplete(true);
-      })
-      .catch((err) => {
-        console.log('No initial snapshot found', err);
-        setInitialLoadComplete(true);
-      });
-
-    const token = localStorage.getItem('token');
-    const socket: Socket = io('http://localhost:3001', {
-      transports: ['websocket'],
-      auth: { token },
-    });
-
-    socket.on('connect', () => {
-      socket.emit('join-device', { topic: deviceId });
-    });
-
-    socket.on('disconnect', () => {
-      // Do nothing
-    });
-
-    socket.on('device-update', (data: any) => {
-      if (data.deviceId === deviceId) {
-        if (data.rawRegisters && Array.isArray(data.rawRegisters)) {
-          setRegisters((prev) => {
-            const mergedMap = new Map<number, number | string>();
-            prev.forEach((r) => mergedMap.set(Number(r.register), r.value));
-            data.rawRegisters.forEach((r: any) => mergedMap.set(Number(r.register), r.value));
-            const mergedList = Array.from(mergedMap.entries()).map(([register, value]) => ({ register, value }));
-            mergedList.sort((a, b) => a.register - b.register);
-            return mergedList;
-          });
-        }
-      }
-    });
-
-    return () => {
-      socket.emit('leave-device', { topic: deviceId });
-      socket.disconnect();
-    };
-  }, [deviceId]);
+  const navigate = useNavigate();
 
   return (
     <div className="w-full">
@@ -1564,38 +1516,12 @@ function IOTTabContent({
             <p className="text-sm text-gray-500 text-center max-w-sm">Connect an IoT edge device to start monitoring live machine telemetry and status updates.</p>
           </div>
         ) : (
-          /* Live Monitor */
-          <div className="space-y-6 w-full flex flex-col">
-            
-            {!initialLoadComplete ? (
-               <div className="flex flex-col items-center justify-center py-12 border border-gray-200 rounded-xl bg-gray-50/50">
-                 <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mb-4"></div>
-                 <h3 className="text-lg font-bold text-gray-700">Loading Device Data...</h3>
-               </div>
-            ) : registers.length === 0 ? (
-               <div className="flex flex-col items-center justify-center py-12 border border-gray-200 rounded-xl bg-gray-50/50">
-                 <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mb-4 text-emerald-600">
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                 </div>
-                 <h3 className="text-lg font-bold text-gray-700">No Data Available Yet</h3>
-                 <p className="text-sm text-gray-500 mt-1">Waiting for the physical device to send its first telemetry update.</p>
-               </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 bg-gray-50/50 p-4 rounded-xl border border-gray-200">
-                {registers.map((reg, idx) => (
-                   <div key={idx} className="bg-white border border-gray-200 rounded-xl p-3 flex flex-col items-center justify-center text-center shadow-sm">
-                      <div className="text-[10px] font-bold text-gray-500 tracking-wider uppercase mb-1">
-                        Reg {reg.register}
-                      </div>
-                      <div className="font-mono text-lg font-black tracking-tight text-gray-900">
-                        {reg.value}
-                      </div>
-                   </div>
-                ))}
-              </div>
-            )}
+          <div className="w-full h-[600px] overflow-y-auto mt-4 rounded-xl border border-gray-200">
+            <BoosterDashboard 
+              title={deviceData.name || 'Machine Dashboard'}
+              panelId={deviceId}
+              buildingName={deviceData.locationName || 'N/A'}
+            />
           </div>
         )}
       </div>

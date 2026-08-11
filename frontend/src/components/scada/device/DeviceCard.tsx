@@ -73,17 +73,17 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, buildingName }) 
   const getGlassStyle = () => {
     switch (status) {
       case 'ONLINE':
-      case 'RUNNING': return 'liquid-glass-active border-emerald-500/30';
-      case 'WARNING': return 'liquid-glass-active border-amber-500/30';
-      case 'FAULT': return 'liquid-glass-fault border-red-500/30';
+      case 'RUNNING': return 'bg-white border border-emerald-500/30';
+      case 'WARNING': return 'bg-white border border-amber-500/30';
+      case 'FAULT': return 'bg-white border border-red-500/30';
       case 'OFFLINE':
-      default: return 'liquid-glass-inactive';
+      default: return 'bg-white border border-gray-200';
     }
   };
 
   return (
     <div
-      className={`rounded-[2rem] overflow-hidden ${getGlassStyle()} transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8)] ${isScada ? 'cursor-pointer hover:border-blue-500/30' : ''}`}
+      className={`rounded-[2rem] overflow-hidden ${getGlassStyle()} shadow-sm transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-lg ${isScada ? 'cursor-pointer hover:border-[#00a651]/40' : ''}`}
       onClick={() => {
         if (!isScada) return;
 
@@ -192,7 +192,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, buildingName }) 
       }}
     >
       {/* Separated Header Section */}
-      <div className="px-6 py-3 md:px-8 md:py-3.5 border-b border-white/[0.08]">
+      <div className="px-6 py-3 md:px-8 md:py-3.5 border-b border-gray-100">
         <DeviceHeader name={name} status={status} faults={latestData.faults} />
       </div>
 
@@ -233,7 +233,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, buildingName }) 
       </div>
 
       {/* Separated Footer Section */}
-      <div className="px-6 py-4 md:px-8 border-t border-white/[0.08]">
+      <div className="px-6 py-4 md:px-8 border-t border-gray-100">
         <DeviceFooter timestamp={latestData.timestamp} />
       </div>
     </div>

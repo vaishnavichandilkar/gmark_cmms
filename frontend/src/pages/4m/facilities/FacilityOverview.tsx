@@ -106,7 +106,7 @@ export function FacilityOverview() {
   const percentageOnline = stats.totalDevices > 0 ? ((stats.onlineDevices / stats.totalDevices) * 100).toFixed(1) : '0';
 
   return (
-    <div className="min-h-[calc(100vh-3.5rem)] lg:min-h-screen bg-black -m-4 sm:-m-6 md:-m-8 p-4 sm:p-6 md:p-8 pb-12 text-white relative">
+    <div className="min-h-[calc(100vh-3.5rem)] lg:min-h-screen bg-gray-50/30 -m-4 sm:-m-6 md:-m-8 p-4 sm:p-6 md:p-8 pb-12 text-gray-900 relative">
       <Header facilityName={societyName} />
 
       {/* KPIs */}
@@ -155,10 +155,10 @@ export function FacilityOverview() {
         <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
           {(['all', 'healthy', 'warning', 'critical'] as const).map(f => {
             const colors = {
-              all: 'bg-blue-600 text-white border-blue-600',
-              healthy: 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10 hover:text-white',
-              warning: 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10 hover:text-white',
-              critical: 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10 hover:text-white'
+              all: 'bg-[#00a651] text-white border-[#00a651]',
+              healthy: 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-gray-700',
+              warning: 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-gray-700',
+              critical: 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-gray-700'
             };
             const dots = {
               all: <div className="w-2 h-2 rounded-full bg-white mr-2" />,

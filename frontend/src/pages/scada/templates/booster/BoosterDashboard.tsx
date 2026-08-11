@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { io } from 'socket.io-client';
 import { VoltageCard } from './components/VoltageCard';
@@ -260,84 +259,13 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 -mt-2">
         <div className="flex items-center gap-4">
-          <button 
-            onClick={() => navigate(-1)}
-            className="w-10 h-10 rounded-xl bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors flex items-center justify-center shadow-sm cursor-pointer shrink-0"
-          >
-            <ArrowLeft size={20} />
-          </button>
           <div className="flex flex-col">
             <h1 className="text-xl font-bold text-gray-900 tracking-tight leading-tight">{title}</h1>
             <p className="text-xs font-semibold text-gray-500 tracking-wider uppercase">{buildingName}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <span className="text-base font-bold text-gray-500 whitespace-nowrap">Select Asset :</span>
-          <div className="flex items-center bg-white p-1 rounded-xl border border-gray-200 shadow-sm flex-1 md:flex-none">
-            <CustomSelect
-            name="mainFacility"
-            placeholder="Facility..."
-            className="w-full md:w-52"
-            variant="ghost"
-            value={selectedMainFacilityId?.toString() || ''}
-            options={visibleMainFacilities.map(mf => ({ label: mf.mainFacilityName, value: mf.id.toString() }))}
-            onChange={(e) => {
-               const val = e.target.value ? Number(e.target.value) : null;
-               setSelectedMainFacilityId(val);
-               setSelectedFacilityId(null);
-               setSelectedMachineId(null);
-            }}
-          />
-          
-          <div className="w-px h-6 bg-gray-200 mx-1 shrink-0"></div>
-          
-          <CustomSelect
-            name="facility"
-            placeholder="Sub-Facility..."
-            className="w-full md:w-52"
-            variant="ghost"
-            disabled={!selectedMainFacilityId}
-            value={selectedFacilityId?.toString() || ''}
-            options={visibleFacilities.filter(f => f.mainFacilityId === selectedMainFacilityId).map(f => ({ label: f.facilityName, value: f.id.toString() }))}
-            onChange={(e) => {
-               const val = e.target.value ? Number(e.target.value) : null;
-               setSelectedFacilityId(val);
-               setSelectedMachineId(null);
-            }}
-          />
-
-          <div className="w-px h-6 bg-gray-200 mx-1 shrink-0"></div>
-
-          <CustomSelect
-            name="machine"
-            placeholder="Machine..."
-            className="w-full md:w-52"
-            variant="ghost"
-            disabled={!selectedFacilityId}
-            value={selectedMachineId?.toString() || ''}
-            options={machines.filter(m => m.facilityId === selectedFacilityId).map(m => ({ label: m.name, value: m.id.toString() }))}
-            onChange={(e) => {
-               const mId = e.target.value ? Number(e.target.value) : null;
-               setSelectedMachineId(mId);
-               if (mId) {
-                 const machine = machines.find(m => m.id === mId);
-                 if (machine) {
-                   const f = facilities.find(fac => fac.id === machine.facilityId);
-                   navigate('.', { 
-                     replace: true, 
-                     state: { 
-                       panelId: machine.deviceId, 
-                       title: machine.name, 
-                       buildingName: f?.facilityName || machine.name 
-                     } 
-                   });
-                 }
-               }
-            }}
-          />
-        </div>
-        </div>
+        
       </div>
 
       <div className="scada-grid-layout">

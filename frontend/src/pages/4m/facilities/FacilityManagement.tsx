@@ -156,7 +156,11 @@ export function FacilityManagement() {
                 <TableSkeleton columns={6} rows={5} />
               ) : currentFacilities.length > 0 ? (
                 currentFacilities.map((facility, index) => (
-                  <tr key={facility.id || index} className="hover:bg-gray-50/50 transition-colors group">
+                  <tr 
+                    key={facility.id || index} 
+                    onClick={() => navigate(`/master/facility/view/${facility.id}`)}
+                    className="hover:bg-gray-50/50 transition-colors group cursor-pointer"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
                       {facility.facilityCode}
                     </td>
@@ -169,14 +173,14 @@ export function FacilityManagement() {
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button 
-                          onClick={() => navigate(`/master/facility/edit/${facility.id}?view=true`)}
+                          onClick={(e) => { e.stopPropagation(); navigate(`/master/facility/view/${facility.id}`); }}
                           className="text-gray-400 hover:text-blue-600 p-1.5 rounded-md hover:bg-blue-50 transition-colors" title="View"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         {canEdit && (
                           <button 
-                            onClick={() => navigate(`/master/facility/edit/${facility.id}`)}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/master/facility/edit/${facility.id}`); }}
                             className="text-gray-400 hover:text-green-600 p-1.5 rounded-md hover:bg-green-50 transition-colors" title="Edit"
                           >
                             <Pencil className="w-4 h-4" />
@@ -184,7 +188,7 @@ export function FacilityManagement() {
                         )}
                         {canDelete && (
                           <button 
-                            onClick={() => confirmDelete(facility.id)}
+                            onClick={(e) => { e.stopPropagation(); confirmDelete(facility.id); }}
                             className="text-gray-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors" title="Delete"
                           >
                             <Trash2 className="w-4 h-4" />

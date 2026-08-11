@@ -59,7 +59,7 @@ export function FloatingNavbar() {
   const menuData: MenuItem[] = [
     {
       label: 'Dashboard',
-      path: '/', 
+      path: '/dashboard',
       icon: <LayoutDashboard size={20} />,
       moduleId: 'dashboard'
     },
@@ -117,6 +117,24 @@ export function FloatingNavbar() {
       path: '/machine-management',
       icon: <Cpu size={20} />,
       moduleId: 'machine_management'
+    },
+    {
+      label: 'HYPN System',
+      icon: <Droplet size={20} />,
+      children: [
+        {
+          label: 'Societies',
+          path: '/societies',
+          icon: <Building2 size={16} />,
+          moduleId: 'dashboard'
+        },
+        {
+          label: 'Alerts',
+          path: '/devices',
+          icon: <AlertCircle size={16} />,
+          moduleId: 'dashboard'
+        }
+      ]
     }
   ];
 
@@ -142,7 +160,7 @@ export function FloatingNavbar() {
 
   const isPathActive = (path?: string) => {
     if (!path) return false;
-    if (path === '/') {
+    if (path === '/societies') {
       return location.pathname === '/' || location.pathname.startsWith('/society') || location.pathname.startsWith('/societies') || location.pathname.startsWith('/building');
     }
     return location.pathname.startsWith(path);

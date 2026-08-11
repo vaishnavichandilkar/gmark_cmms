@@ -180,7 +180,13 @@ export function MachineManagement() {
                 <TableSkeleton columns={8} rows={5} />
               ) : currentMachines.length > 0 ? (
                 currentMachines.map((machine, index) => (
-                  <tr key={machine.id || index} className="hover:bg-gray-50/50 transition-colors group">
+                  <tr 
+                    key={machine.id || index} 
+                    className={`hover:bg-gray-50/50 transition-colors group ${canEdit ? 'cursor-pointer' : ''}`}
+                    onClick={() => {
+                      if (canEdit) navigate(`/machine-management/edit/${machine.id}`, { state: { tab: 'IOT' } });
+                    }}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
                       {machine.name || '-'}
                     </td>
@@ -206,7 +212,10 @@ export function MachineManagement() {
                       <div className="flex items-center justify-end gap-1">
                         {canEdit && (
                           <button 
-                            onClick={() => navigate(`/machine-management/edit/${machine.id}`)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/machine-management/edit/${machine.id}`, { state: { tab: 'IOT' } });
+                            }}
                             className="text-gray-400 hover:text-green-600 p-1.5 rounded-md hover:bg-green-50 transition-colors" title="Edit"
                           >
                             <Pencil className="w-4 h-4" />
@@ -214,7 +223,10 @@ export function MachineManagement() {
                         )}
                         {canDelete && (
                           <button 
-                            onClick={() => confirmDelete(machine.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              confirmDelete(machine.id);
+                            }}
                             className="text-gray-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors" title="Delete"
                           >
                             <Trash2 className="w-4 h-4" />

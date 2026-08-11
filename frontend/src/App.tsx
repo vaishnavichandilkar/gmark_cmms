@@ -12,7 +12,7 @@ import { FacilityOverview } from './pages/4m/facilities/FacilityOverview';
 import { BuildingDetails } from './pages/4m/facilities/BuildingDetails';
 import { AddTower } from './pages/4m/facilities/AddTower';
 import { DashboardLayout } from './layouts/DashboardLayout';
-import { DashboardHub } from './pages/scada/dashboard/DashboardHub';
+import { DashboardPage } from './pages/4m/dashboard/DashboardPage';
 import { BoosterDashboard } from './pages/scada/templates/booster/BoosterDashboard';
 import { DevicesPage } from './pages/scada/devices/DevicesPage';
 import { DeviceLiveMonitor } from './pages/scada/devices/DeviceLiveMonitor';
@@ -77,10 +77,14 @@ function App() {
           {/* Protected Routes */}
           <Route
             path="/"
+            element={<Navigate to="/societies" replace />}
+          />
+          <Route
+            path="/dashboard"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <DashboardHub />
+                  <DashboardPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }
@@ -127,6 +131,16 @@ function App() {
           />
 
           {/* SCADA screens protected */}
+          <Route
+            path="/scada-dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <BoosterDashboard title="" panelId="" buildingName="" />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/scada/flushing-terrace"
             element={
@@ -378,6 +392,16 @@ function App() {
             path="/master/facility/edit/:id"
             element={
               <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+                <DashboardLayout>
+                  <AddFacility />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/master/facility/view/:id"
+            element={
+              <ProtectedRoute>
                 <DashboardLayout>
                   <AddFacility />
                 </DashboardLayout>

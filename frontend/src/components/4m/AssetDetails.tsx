@@ -3,7 +3,7 @@ import type { TreeNodeData } from './AssetTree';
 import { Building2, Building, Cpu, Wifi, Image as ImageIcon, QrCode, Activity, MapPin, User, Navigation, Settings, FileText, Wrench } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { getDeviceDashboardRoute, navigateToDeviceDashboard } from '../../utils/deviceRoutes';
+import { navigateToDeviceDashboard } from '../../utils/deviceRoutes';
 
 interface AssetDetailsProps {
   node: TreeNodeData | null;
@@ -182,7 +182,7 @@ const FacilityDetails = ({ node }: { node: TreeNodeData }) => {
 
 const DeviceDetails = ({ device }: { device: any }) => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('general');
+  const [activeTab, setActiveTab] = useState('iot');
   const [imageSrc, setImageSrc] = useState<string>("https://images.unsplash.com/photo-1611145624794-d4212df88289?auto=format&fit=crop&w=800&q=80");
   const fileInputRef = useRef<HTMLInputElement>(null);
 

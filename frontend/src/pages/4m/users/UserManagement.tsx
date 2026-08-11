@@ -172,7 +172,11 @@ export function UserManagement() {
                 <TableSkeleton columns={8} rows={5} />
               ) : currentUsers.length > 0 ? (
                 currentUsers.map((listUser, index) => (
-                  <tr key={listUser.id || index} className="hover:bg-gray-50/50 transition-colors group">
+                  <tr 
+                    key={listUser.id || index} 
+                    onClick={() => navigate(`/user-management/view/${listUser.id}`)}
+                    className="hover:bg-gray-50/50 transition-colors group cursor-pointer"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       {listUser.employee?.fullName || (listUser.firstName || listUser.lastName ? `${listUser.firstName || ''} ${listUser.lastName || ''}`.trim() : listUser.username)}
                     </td>
@@ -197,14 +201,14 @@ export function UserManagement() {
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button 
-                          onClick={() => navigate(`/user-management/view/${listUser.id}`)}
+                          onClick={(e) => { e.stopPropagation(); navigate(`/user-management/view/${listUser.id}`); }}
                           className="text-gray-400 hover:text-blue-600 p-1.5 rounded-md hover:bg-blue-50 transition-colors" title="View"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         {canEdit && (
                           <button 
-                            onClick={() => navigate(`/user-management/edit/${listUser.id}`)}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/user-management/edit/${listUser.id}`); }}
                             className="text-gray-400 hover:text-green-600 p-1.5 rounded-md hover:bg-green-50 transition-colors" title="Edit"
                           >
                             <Pencil className="w-4 h-4" />
@@ -212,7 +216,8 @@ export function UserManagement() {
                         )}
                         {canEdit && (
                           <button 
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setSelectedUserId(listUser.id);
                               setSelectedUserName(listUser.employee?.fullName || (listUser.firstName || listUser.lastName ? `${listUser.firstName || ''} ${listUser.lastName || ''}`.trim() : listUser.username));
                               setPermissionsModalOpen(true);
@@ -224,7 +229,7 @@ export function UserManagement() {
                         )}
                         {canDelete && (
                           <button 
-                            onClick={() => confirmDelete(listUser.id)}
+                            onClick={(e) => { e.stopPropagation(); confirmDelete(listUser.id); }}
                             className="text-gray-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors" title="Delete"
                           >
                             <Trash2 className="w-4 h-4" />

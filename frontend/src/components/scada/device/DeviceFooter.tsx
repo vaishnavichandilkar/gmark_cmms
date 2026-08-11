@@ -26,9 +26,9 @@ export const DeviceFooter: React.FC<DeviceFooterProps> = ({ timestamp }) => {
           <span className="truncate uppercase tracking-wider text-[9px] sm:text-[10px]">Live Auto-refresh</span>
         </div>
       </div>
-      <div className="flex items-center gap-1 shrink-0 text-gray-400">
+      <div className="flex items-center gap-1 shrink-0 text-gray-500">
         <span className="uppercase tracking-wider text-[9px] sm:text-[10px]">Updated:</span>
-        <span className="font-extrabold text-white bg-white/10 px-2 py-0.5 rounded text-[9px] sm:text-[10px] shadow-[inset_0_1px_2px_rgba(255,255,255,0.03)]">{formatTimestamp(timestamp)}</span>
+        <span className="font-extrabold text-gray-900 bg-gray-100 px-2 py-0.5 rounded text-[9px] sm:text-[10px] shadow-sm border border-gray-200">{formatTimestamp(timestamp)}</span>
       </div>
     </div>
   );
