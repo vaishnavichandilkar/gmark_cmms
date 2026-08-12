@@ -143,7 +143,7 @@ export function DashboardPage() {
       {/* Top Bar for Asset Selection */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-green-50 text-[#00a651] flex items-center justify-center">
             <Boxes size={20} />
           </div>
           <div>
@@ -229,11 +229,11 @@ export function DashboardPage() {
                     key={mId}
                     onClick={() => setActiveMachineId(mId)}
                     className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm ${isActive
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white border border-blue-600 shadow-blue-500/20 ring-2 ring-blue-500/20'
+                        ? 'bg-gradient-to-r from-[#00a651] to-[#009040] text-white border border-[#00a651] shadow-green-500/20 ring-2 ring-green-500/20'
                         : 'bg-white text-gray-700 hover:text-gray-900 hover:bg-gray-50 border border-gray-200'
                       }`}
                   >
-                    <Server size={18} className={isActive ? 'text-blue-100' : 'text-gray-400'} />
+                    <Server size={18} className={isActive ? 'text-green-100' : 'text-gray-400'} />
                     <span>{machine.name}</span>
                   </button>
                 );
@@ -265,8 +265,8 @@ export function DashboardPage() {
             animate={{ opacity: 1, y: 0 }}
             className="text-center max-w-md bg-white p-10 rounded-3xl border border-gray-100 shadow-sm"
           >
-            <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Boxes size={40} className="text-blue-500" />
+            <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Boxes size={40} className="text-[#00a651]" />
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-4">
               System Overview
