@@ -13,12 +13,17 @@ export function DashboardPage() {
 
   const [mainFacilities, setMainFacilities] = useState<any[]>([]);
   const [facilities, setFacilities] = useState<any[]>([]);
+  const [societies, setSocieties] = useState<any[]>([]);
+  const [buildings, setBuildings] = useState<any[]>([]);
   const [machines, setMachines] = useState<any[]>([]);
+  const [devices, setDevices] = useState<any[]>([]);
 
-  const [selectedMainFacilityId, setSelectedMainFacilityId] = useState<number | null>(null);
-  const [selectedFacilityId, setSelectedFacilityId] = useState<number | null>(null);
-  const [selectedMachineIds, setSelectedMachineIds] = useState<number[]>([]);
-  const [activeMachineId, setActiveMachineId] = useState<number | null>(null);
+  const [selectedMainFacilityId, setSelectedMainFacilityId] = useState<string | null>(null);
+  const [selectedFacilityId, setSelectedFacilityId] = useState<string | null>(null);
+  const [selectedMachineIds, setSelectedMachineIds] = useState<string[]>([]);
+  const [activeMachineId, setActiveMachineId] = useState<string | null>(null);
+  
+  const [isTabsExpanded, setIsTabsExpanded] = useState(false);
 
   // Default selection logic
   const defaultSelectionKey = `dashboard_default_selection_${user?.id}`;
@@ -41,15 +46,21 @@ export function DashboardPage() {
     if (!hasInitialized.current && machines.length > 0) {
       hasInitialized.current = true;
       if (savedDefault) {
-        const validMachines = machines.filter(m => savedDefault.machineIds.includes(m.id));
-        if (validMachines.length > 0) {
+        // Find valid assets (either in machines or devices)
+        const validAssets = [];
+        savedDefault.machineIds.forEach((id: string) => {
+          if (id.startsWith('m_') && machines.find(m => m.id === Number(id.replace('m_','')))) validAssets.push(id);
+          if (id.startsWith('d_') && devices.find(d => d.id === Number(id.replace('d_','')))) validAssets.push(id);
+        });
+
+        if (validAssets.length > 0) {
           setSelectedMainFacilityId(savedDefault.mainFacilityId);
           setSelectedFacilityId(savedDefault.facilityId);
-          setSelectedMachineIds(validMachines.map(m => m.id));
+          setSelectedMachineIds(validAssets);
         }
       }
     }
-  }, [machines, savedDefault]);
+  }, [machines, devices, savedDefault]);
 
   // Prompt to save logic
   useEffect(() => {
@@ -106,17 +117,51 @@ export function DashboardPage() {
     } else {
       setActiveMachineId(null);
     }
-  }, [selectedMachineIds, activeMachineId]);
+  }, [selectedMachineIds]);
+
+  useEffect(() => {
+    if (selectedMachineIds.length === 0) return;
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const id = entry.target.id.replace('dashboard-', '');
+            if (id) setActiveMachineId(id);
+          }
+        });
+      },
+      { threshold: 0.3, rootMargin: '-10% 0px -10% 0px' }
+    );
+
+    const timeout = setTimeout(() => {
+      selectedMachineIds.forEach((mId) => {
+        const el = document.getElementById(`dashboard-${mId}`);
+        if (el) observer.observe(el);
+      });
+    }, 100);
+
+    return () => {
+      clearTimeout(timeout);
+      observer.disconnect();
+    };
+  }, [selectedMachineIds]);
 
   useEffect(() => {
     Promise.all([
       api.get('/main-facilities'),
       api.get('/facilities'),
-      api.get('/machines')
-    ]).then(([mfRes, fRes, mRes]) => {
+      api.get('/societies'),
+      api.get('/buildings'),
+      api.get('/machines'),
+      api.get('/devices')
+    ]).then(([mfRes, fRes, sRes, bRes, mRes, dRes]) => {
       setMainFacilities(mfRes.data);
       setFacilities(fRes.data);
+      setSocieties(sRes.data);
+      setBuildings(bRes.data);
       setMachines(mRes.data);
+      setDevices(dRes.data);
     }).catch(console.error);
   }, []);
 
@@ -137,126 +182,223 @@ export function DashboardPage() {
     return mainFacilities;
   }, [mainFacilities, visibleFacilities, isLimitedAccess, buildingIds]);
 
+  const visibleBuildings = React.useMemo(() => {
+    if (isLimitedAccess && buildingIds && buildingIds.length > 0) {
+      return buildings.filter(b => buildingIds.includes(b.id));
+    }
+    return buildings;
+  }, [buildings, isLimitedAccess, buildingIds]);
+
+  const visibleSocieties = React.useMemo(() => {
+    if (isLimitedAccess && buildingIds && buildingIds.length > 0) {
+      const allowedSocietyIds = new Set(visibleBuildings.map(b => b.societyId));
+      return societies.filter(s => allowedSocietyIds.has(s.id));
+    }
+    return societies;
+  }, [societies, visibleBuildings, isLimitedAccess, buildingIds]);
+
+  // Combined dropdown options
+  const combinedMainOptions = React.useMemo(() => {
+    return [
+      ...visibleMainFacilities.map(mf => ({ label: mf.mainFacilityName, value: `mf_${mf.id}` })),
+      ...visibleSocieties.map(s => ({ label: s.name, value: `soc_${s.id}` }))
+    ];
+  }, [visibleMainFacilities, visibleSocieties]);
+
+  const combinedSubOptions = React.useMemo(() => {
+    if (!selectedMainFacilityId) return [];
+    if (selectedMainFacilityId.startsWith('mf_')) {
+      const mfId = Number(selectedMainFacilityId.replace('mf_', ''));
+      return visibleFacilities.filter(f => f.mainFacilityId === mfId).map(f => ({ label: f.facilityName, value: `f_${f.id}` }));
+    }
+    if (selectedMainFacilityId.startsWith('soc_')) {
+      const socId = Number(selectedMainFacilityId.replace('soc_', ''));
+      return visibleBuildings.filter(b => b.societyId === socId).map(b => ({ label: b.name, value: `b_${b.id}` }));
+    }
+    return [];
+  }, [selectedMainFacilityId, visibleFacilities, visibleBuildings]);
+
+  const filteredMachines = React.useMemo(() => {
+    if (!selectedFacilityId) return [];
+    if (selectedFacilityId.startsWith('f_')) {
+      const fId = Number(selectedFacilityId.replace('f_', ''));
+      return machines.filter(m => m.facilityId === fId).map(m => ({ ...m, uniqueId: `m_${m.id}` }));
+    }
+    if (selectedFacilityId.startsWith('b_')) {
+      const bId = Number(selectedFacilityId.replace('b_', ''));
+      const bldgMachines = machines.filter(m => m.buildingId === bId).map(m => ({ ...m, uniqueId: `m_${m.id}` }));
+      const bldgDevices = devices.filter(d => d.buildingId === bId).map(d => ({ ...d, uniqueId: `d_${d.id}` }));
+      return [...bldgMachines, ...bldgDevices];
+    }
+    return [];
+  }, [selectedFacilityId, machines, devices]);
+  
+  const getAssetDetails = (uniqueId: string) => {
+    if (uniqueId.startsWith('m_')) {
+      const m = machines.find(m => m.id === Number(uniqueId.replace('m_', '')));
+      return m ? { ...m, uniqueId } : null;
+    }
+    if (uniqueId.startsWith('d_')) {
+      const d = devices.find(d => d.id === Number(uniqueId.replace('d_', '')));
+      return d ? { ...d, uniqueId } : null;
+    }
+    return null;
+  };
+
   return (
-    <div className="h-full flex flex-col w-full mx-auto min-h-[calc(100vh-8rem)]">
+    <div className="flex flex-col w-full mx-auto min-h-full">
 
-      {/* Top Bar for Asset Selection */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-green-50 text-[#00a651] flex items-center justify-center">
-            <Boxes size={20} />
+      {/* Sticky Header Section */}
+      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md pt-4 pb-6 -mt-4 -mx-4 px-4 sm:-mt-6 sm:-mx-6 sm:px-6 md:-mt-8 md:-mx-8 md:px-8 border-b border-gray-100 mb-8 shadow-sm">
+        {/* Top Bar for Asset Selection */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-green-50 text-[#00a651] flex items-center justify-center">
+              <Boxes size={20} />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Select Asset</h2>
+              <p className="text-xs text-gray-500 font-medium">Choose a machine to view its dashboard</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">Select Asset</h2>
-            <p className="text-xs text-gray-500 font-medium">Choose a machine to view its dashboard</p>
-          </div>
-        </div>
 
-        <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
-          <CustomSelect
-            name="mainFacility"
-            placeholder="Facility..."
-            className="w-full md:w-48"
-            value={selectedMainFacilityId?.toString() || ''}
-            options={visibleMainFacilities.map(mf => ({ label: mf.mainFacilityName, value: mf.id.toString() }))}
-            onChange={(e) => {
-              const val = e.target.value ? Number(e.target.value) : null;
-              setSelectedMainFacilityId(val);
-              setSelectedFacilityId(null);
-              setSelectedMachineIds([]);
-            }}
-          />
-
-          <CustomSelect
-            name="facility"
-            placeholder="Sub-Facility..."
-            className="w-full md:w-48"
-            disabled={!selectedMainFacilityId}
-            value={selectedFacilityId?.toString() || ''}
-            options={visibleFacilities.filter(f => f.mainFacilityId === selectedMainFacilityId).map(f => ({ label: f.facilityName, value: f.id.toString() }))}
-            onChange={(e) => {
-              const val = e.target.value ? Number(e.target.value) : null;
-              setSelectedFacilityId(val);
-              setSelectedMachineIds([]);
-            }}
-          />
-
-          <MultiSelect
-            name="machine"
-            placeholder="Machines..."
-            className="w-full md:w-64"
-            disabled={!selectedFacilityId}
-            values={selectedMachineIds.map(id => id.toString())}
-            options={machines.filter(m => m.facilityId === selectedFacilityId).map(m => ({ label: m.name, value: m.id.toString() }))}
-            onChange={(selectedValues) => {
-              setSelectedMachineIds(selectedValues.map(v => Number(v)));
-            }}
-            onToggle={(isOpen) => {
-              setIsMachineDropdownOpen(isOpen);
-            }}
-          />
-
-          {(selectedMainFacilityId || selectedFacilityId || selectedMachineIds.length > 0) && (
-            <button
-              onClick={() => {
-                setSelectedMainFacilityId(null);
+          <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+            <CustomSelect
+              name="mainFacility"
+              placeholder="Facility..."
+              className="w-full md:w-48"
+              value={selectedMainFacilityId || ''}
+              options={combinedMainOptions}
+              onChange={(e) => {
+                const val = e.target.value || null;
+                setSelectedMainFacilityId(val);
                 setSelectedFacilityId(null);
                 setSelectedMachineIds([]);
-                setSavedDefault(null);
-                localStorage.removeItem(defaultSelectionKey);
               }}
-              className="p-2 md:p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100 flex items-center justify-center"
-              title="Reset Filters"
-            >
-              <RotateCcw size={20} />
-            </button>
-          )}
+            />
+
+            <CustomSelect
+              name="facility"
+              placeholder="Sub-Facility..."
+              className="w-full md:w-48"
+              disabled={!selectedMainFacilityId}
+              value={selectedFacilityId || ''}
+              options={combinedSubOptions}
+              onChange={(e) => {
+                const val = e.target.value || null;
+                setSelectedFacilityId(val);
+                setSelectedMachineIds([]);
+              }}
+            />
+
+            <MultiSelect
+              name="machine"
+              placeholder="Machines..."
+              className="w-full md:w-64"
+              disabled={!selectedFacilityId}
+              values={selectedMachineIds}
+              options={filteredMachines.map(m => ({ label: m.name, value: m.uniqueId }))}
+              onChange={(selectedValues) => {
+                setSelectedMachineIds(selectedValues);
+              }}
+              onToggle={(isOpen) => {
+                setIsMachineDropdownOpen(isOpen);
+              }}
+            />
+
+            {(selectedMainFacilityId || selectedFacilityId || selectedMachineIds.length > 0) && (
+              <button
+                onClick={() => {
+                  setSelectedMainFacilityId(null);
+                  setSelectedFacilityId(null);
+                  setSelectedMachineIds([]);
+                  setSavedDefault(null);
+                  localStorage.removeItem(defaultSelectionKey);
+                }}
+                className="p-2 md:p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100 flex items-center justify-center"
+                title="Reset Filters"
+              >
+                <RotateCcw size={20} />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
 
-      {selectedMachineIds.length > 0 ? (
-        <div className="flex-1 mt-2 flex flex-col gap-4">
-
-          {/* Quick Navigation Icons */}
-          {selectedMachineIds.length > 1 && (
-            <div className="flex flex-wrap gap-3 pb-2">
-              {selectedMachineIds.map(mId => {
-                const machine = machines.find(m => m.id === mId);
+        {/* Quick Navigation Icons */}
+        {selectedMachineIds.length > 1 && (
+          <div className="px-2 w-full">
+            <div className="flex flex-wrap gap-4 items-center">
+              {(isTabsExpanded ? selectedMachineIds : selectedMachineIds.slice(0, 3)).map(mId => {
+                const machine = getAssetDetails(mId);
                 if (!machine) return null;
                 const isActive = activeMachineId === mId;
                 return (
                   <button
                     key={mId}
-                    onClick={() => setActiveMachineId(mId)}
+                    onClick={() => {
+                      setActiveMachineId(mId);
+                      document.getElementById(`dashboard-${mId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
                     className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm ${isActive
                         ? 'bg-gradient-to-r from-[#00a651] to-[#009040] text-white border border-[#00a651] shadow-green-500/20 ring-2 ring-green-500/20'
                         : 'bg-white text-gray-700 hover:text-gray-900 hover:bg-gray-50 border border-gray-200'
                       }`}
                   >
                     <Server size={18} className={isActive ? 'text-green-100' : 'text-gray-400'} />
-                    <span>{machine.name}</span>
+                    <span className="truncate max-w-[200px]">{machine.name}</span>
                   </button>
                 );
               })}
+              
+              {selectedMachineIds.length > 3 && (
+                <button
+                  onClick={() => setIsTabsExpanded(!isTabsExpanded)}
+                  className="flex items-center whitespace-nowrap gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-green-600 bg-green-50 hover:bg-green-100 border border-green-200 transition-colors shadow-sm"
+                >
+                  {isTabsExpanded ? (
+                    <>Show Less</>
+                  ) : (
+                    <>+ {selectedMachineIds.length - 3} More</>
+                  )}
+                </button>
+              )}
             </div>
-          )}
+          </div>
+        )}
+      </div>
 
-          {/* Active Machine Dashboard */}
-          {activeMachineId && machines.find(m => m.id === activeMachineId) && (
-            (() => {
-              const machine = machines.find(m => m.id === activeMachineId);
-              const facility = facilities.find(fac => fac.id === machine?.facilityId);
+      {selectedMachineIds.length > 0 ? (
+        <div className="flex-1 mt-2 flex flex-col gap-4">
+          <div className="flex flex-col gap-10 w-full pb-12">
+            {selectedMachineIds.map(mId => {
+              const machine = getAssetDetails(mId);
+              if (!machine) return null;
+              
+              let buildingName = machine.name;
+              if (machine.facilityId) {
+                const facility = facilities.find(fac => fac.id === machine.facilityId);
+                if (facility) buildingName = facility.facilityName;
+              } else if (machine.buildingId) {
+                const building = buildings.find(b => b.id === machine.buildingId);
+                if (building) buildingName = building.name;
+              }
+              
               return (
-                <div key={machine!.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex-1">
+                <div 
+                  key={machine.uniqueId} 
+                  id={`dashboard-${machine.uniqueId}`}
+                  className="scroll-mt-64 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden w-full flex-shrink-0 relative"
+                  style={{ minHeight: '800px' }}
+                >
                   <BoosterDashboard
-                    title={machine!.name}
-                    panelId={machine!.deviceId}
-                    buildingName={facility?.facilityName || machine!.name}
+                    title={machine.name}
+                    panelId={machine.deviceId}
+                    buildingName={buildingName}
                   />
                 </div>
               );
-            })()
-          )}
+            })}
+          </div>
         </div>
       ) : (
         <div className="flex flex-1 items-center justify-center">

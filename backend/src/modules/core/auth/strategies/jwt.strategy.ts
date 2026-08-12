@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { PrismaService } from '../../../../common/prisma/prisma.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor() {
+  constructor(private readonly prisma: PrismaService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -13,6 +14,20 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found or has been removed.');
+    }
+
+    // Invalidate tokens from before the database was reset/re-seeded
+    // If the token was issued BEFORE the user was actually created in the DB
+    if (payload.iat && (payload.iat * 1000) < user.createdAt.getTime() - 5000) {
+      throw new UnauthorizedException('Token is from an older database state.');
+    }
+
     return {
       userId: payload.userId,
       email: payload.email,

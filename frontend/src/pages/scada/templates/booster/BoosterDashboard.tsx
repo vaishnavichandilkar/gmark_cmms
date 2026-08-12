@@ -66,7 +66,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, buildingIds } = useSelector((state: RootState) => state.auth);
+  const { user, buildingIds, accessToken } = useSelector((state: RootState) => state.auth);
   const state = location.state as any;
 
   const title = state?.title ?? initialTitle;
@@ -227,9 +227,8 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
       })
       .catch(console.error);
 
-    const token = localStorage.getItem('token');
     const socket = io('http://localhost:3001', {
-      auth: { token },
+      auth: { token: accessToken },
     });
 
     socket.on('connect', () => {
@@ -261,7 +260,15 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
         <div className="flex items-center gap-4">
           <div className="flex flex-col">
             <h1 className="text-xl font-bold text-gray-900 tracking-tight leading-tight">{title}</h1>
-            <p className="text-xs font-semibold text-gray-500 tracking-wider uppercase">{buildingName}</p>
+            <p className="text-xs font-semibold text-gray-500 tracking-wider uppercase flex items-center gap-2">
+              <span>{buildingName}</span>
+              {panelId && (
+                <>
+                  <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                  <span className="text-gray-400">MAC: {panelId}</span>
+                </>
+              )}
+            </p>
           </div>
         </div>
 

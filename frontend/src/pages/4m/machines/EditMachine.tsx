@@ -1369,6 +1369,10 @@ export function EditMachine() {
               <div className="flex justify-center mt-8">
                 <button 
                   onClick={async () => {
+                    if (!tempMacId.trim()) {
+                      toast.error('Please enter a MAC ID');
+                      return;
+                    }
                     try {
                       setSaving(true);
                       await api.put(`/machines/${id}`, {

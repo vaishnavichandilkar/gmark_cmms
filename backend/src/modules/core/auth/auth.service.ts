@@ -8,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { validatePasswordStrength } from './utils/password.validator';
+
 import {
   LoginDto,
   RegisterDto,
@@ -100,18 +101,7 @@ export class AuthService {
     const [firstName, ...lastNameParts] = dto.fullName.split(' ');
     const lastName = lastNameParts.join(' ');
 
-    const employee = await this.prisma.employee.create({
-      data: {
-        employeeCode: 'EMP-' + Math.floor(Math.random() * 100000).toString(),
-        fullName: dto.fullName,
-        mobileNumber: dto.phoneNumber,
-        officialEmail: dto.workEmail,
-        dateOfJoining: new Date(),
-        dateOfBirth: new Date(), // default
-        department: 'Management',
-        designation: 'Administrator',
-      }
-    });
+
 
     const user = await this.prisma.user.create({
       data: {
@@ -123,7 +113,6 @@ export class AuthService {
         firstName: firstName,
         lastName: lastName || null,
         isActive: true,
-        employeeId: employee.id,
         city: dto.city,
         state: dto.state,
         country: dto.country || 'India',

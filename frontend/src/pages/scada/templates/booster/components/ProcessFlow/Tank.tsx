@@ -69,9 +69,16 @@ export const Tank: React.FC<TankProps> = ({
 
           {/* Text Overlay */}
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-30" style={{ filter: 'drop-shadow(0px 1px 3px rgba(0,0,0,0.8))' }}>
-            <span className="text-white text-[9px] font-extrabold tracking-widest uppercase mb-1">Water Level</span>
-            <span className="text-white text-[32px] font-bold leading-none my-0.5">{clampedLevel.toFixed(1)}%</span>
-            <span className="text-white text-[11px] font-bold mt-1">{(clampedLevel * 0.05).toFixed(2)} m</span>
+            <span className="text-white text-[10px] font-extrabold tracking-widest uppercase mb-2">Water Status</span>
+            {clampedLevel > 0 ? (
+              <span className="text-white text-sm font-black tracking-wider uppercase bg-white/20 px-3 py-1 rounded-full border border-white/30 backdrop-blur-sm shadow-sm">
+                Available
+              </span>
+            ) : (
+              <span className="text-white/80 text-sm font-black tracking-wider uppercase bg-black/20 px-3 py-1 rounded-full border border-white/10 text-center leading-tight backdrop-blur-sm">
+                Not Available
+              </span>
+            )}
           </div>
         </div>
 
