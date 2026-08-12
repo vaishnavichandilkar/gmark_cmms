@@ -24,7 +24,7 @@ export const PumpUnit: React.FC<PumpUnitProps> = ({ name, status, currentR, curr
   return (
     <div className="flex flex-col items-center w-[420px]">
       <div
-        className={`relative rounded-3xl p-4 bg-white border ${isFault ? 'border-[#ef4444]' : 'border-gray-100'} shadow-sm w-full flex flex-col transition-all duration-300`}
+        className={`relative rounded-3xl p-4 bg-white border ${isFault ? 'border-[#ef4444]' : 'border-gray-200'} shadow-xl hover:shadow-2xl w-full flex flex-col transition-all duration-300`}
       >
         {/* Internal Pipe Connections (Top and Bottom) */}
         <svg className="absolute inset-0 pointer-events-none w-full h-full z-0 overflow-visible">

@@ -160,9 +160,9 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
   let outletEndX = rightTankLeft + 60;
   const canvasWidth = Math.max(rightTankLeft + (isTankOutlet ? 180 : 150), 1000);
 
-  const tankBottomY = 448;
-  const manifoldY = 60;
-  const bottomManifoldY = 600;
+  const tankBottomY = 408;
+  const manifoldY = 20;
+  const bottomManifoldY = 560;
 
   const allPaths: string[] = [];
   if (visiblePumps.length > 0) {
@@ -170,9 +170,9 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
     visiblePumps.forEach((p, i) => {
       const isLast = i === visiblePumps.length - 1;
       if (isLast) {
-        allPaths.push(`M ${pumpInletXs[i] - 16} ${bottomManifoldY} A 16 16 0 0 0 ${pumpInletXs[i]} ${bottomManifoldY - 16} L ${pumpInletXs[i]} 314 A 16 16 0 0 1 ${pumpInletXs[i] + 16} 298 L ${pumpLefts[i]} 298`);
+        allPaths.push(`M ${pumpInletXs[i] - 16} ${bottomManifoldY} A 16 16 0 0 0 ${pumpInletXs[i]} ${bottomManifoldY - 16} L ${pumpInletXs[i]} 274 A 16 16 0 0 1 ${pumpInletXs[i] + 16} 258 L ${pumpLefts[i]} 258`);
       } else {
-        allPaths.push(`M ${pumpInletXs[i]} ${bottomManifoldY} L ${pumpInletXs[i]} 314 A 16 16 0 0 1 ${pumpInletXs[i] + 16} 298 L ${pumpLefts[i]} 298`);
+        allPaths.push(`M ${pumpInletXs[i]} ${bottomManifoldY} L ${pumpInletXs[i]} 274 A 16 16 0 0 1 ${pumpInletXs[i] + 16} 258 L ${pumpLefts[i]} 258`);
       }
       if (!isLast) {
         const nextX = i + 1 === visiblePumps.length - 1 ? pumpInletXs[i + 1] - 16 : pumpInletXs[i + 1];
@@ -181,9 +181,9 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
     });
     visiblePumps.forEach((p, i) => {
       if (i === 0) {
-        allPaths.push(`M ${pumpPipeXs[i]} 135 L ${pumpPipeXs[i]} ${manifoldY + 16} A 16 16 0 0 1 ${pumpPipeXs[i] + 16} ${manifoldY}`);
+        allPaths.push(`M ${pumpPipeXs[i]} 95 L ${pumpPipeXs[i]} ${manifoldY + 16} A 16 16 0 0 1 ${pumpPipeXs[i] + 16} ${manifoldY}`);
       } else {
-        allPaths.push(`M ${pumpPipeXs[i]} 135 L ${pumpPipeXs[i]} ${manifoldY}`);
+        allPaths.push(`M ${pumpPipeXs[i]} 95 L ${pumpPipeXs[i]} ${manifoldY}`);
       }
     });
     visiblePumps.forEach((p, i) => {
@@ -223,7 +223,7 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
               <path d={combinedPath} stroke="#f8fafc" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
             </svg>
 
-            <div className="absolute text-[10px] text-gray-500 font-bold whitespace-nowrap leading-tight text-left z-0" style={{ left: `${leftTankCenter + 16}px`, top: '490px' }}>FROM<br />TANK</div>
+            <div className="absolute text-[10px] text-gray-500 font-bold whitespace-nowrap leading-tight text-left z-0" style={{ left: `${leftTankCenter + 16}px`, top: '450px' }}>FROM<br />TANK</div>
 
             {visiblePumps.length > 0 && (
               <>
@@ -238,9 +238,9 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
                   return (
                     <React.Fragment key={`inlet-pipe-vert-${p.id}`}>
                       {isLast ? (
-                        <Pipe path={`M ${pumpInletXs[i] - 16} ${bottomManifoldY} A 16 16 0 0 0 ${pumpInletXs[i]} ${bottomManifoldY - 16} L ${pumpInletXs[i]} 314 A 16 16 0 0 1 ${pumpInletXs[i] + 16} 298 L ${pumpLefts[i]} 298`} flowDirection={isRunning ? 'forward' : 'none'} hideAnimation={true} />
+                        <Pipe path={`M ${pumpInletXs[i] - 16} ${bottomManifoldY} A 16 16 0 0 0 ${pumpInletXs[i]} ${bottomManifoldY - 16} L ${pumpInletXs[i]} 274 A 16 16 0 0 1 ${pumpInletXs[i] + 16} 258 L ${pumpLefts[i]} 258`} flowDirection={isRunning ? 'forward' : 'none'} hideAnimation={true} />
                       ) : (
-                        <Pipe path={`M ${pumpInletXs[i]} ${bottomManifoldY} L ${pumpInletXs[i]} 314 A 16 16 0 0 1 ${pumpInletXs[i] + 16} 298 L ${pumpLefts[i]} 298`} flowDirection={isRunning ? 'forward' : 'none'} hideAnimation={true} />
+                        <Pipe path={`M ${pumpInletXs[i]} ${bottomManifoldY} L ${pumpInletXs[i]} 274 A 16 16 0 0 1 ${pumpInletXs[i] + 16} 258 L ${pumpLefts[i]} 258`} flowDirection={isRunning ? 'forward' : 'none'} hideAnimation={true} />
                       )}
                     </React.Fragment>
                   );
@@ -263,9 +263,9 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
                   return (
                     <React.Fragment key={`outlet-pipe-vert-${p.id}`}>
                       {i === 0 ? (
-                        <Pipe path={`M ${pumpPipeXs[i]} 135 L ${pumpPipeXs[i]} ${manifoldY + 16} A 16 16 0 0 1 ${pumpPipeXs[i] + 16} ${manifoldY}`} flowDirection={isRunning ? 'forward' : 'none'} hideAnimation={true} />
+                        <Pipe path={`M ${pumpPipeXs[i]} 95 L ${pumpPipeXs[i]} ${manifoldY + 16} A 16 16 0 0 1 ${pumpPipeXs[i] + 16} ${manifoldY}`} flowDirection={isRunning ? 'forward' : 'none'} hideAnimation={true} />
                       ) : (
-                        <Pipe path={`M ${pumpPipeXs[i]} 135 L ${pumpPipeXs[i]} ${manifoldY}`} flowDirection={isRunning ? 'forward' : 'none'} hideAnimation={true} />
+                        <Pipe path={`M ${pumpPipeXs[i]} 95 L ${pumpPipeXs[i]} ${manifoldY}`} flowDirection={isRunning ? 'forward' : 'none'} hideAnimation={true} />
                       )}
                     </React.Fragment>
                   );
@@ -294,13 +294,13 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
             )}
           </div>
 
-          <div className="absolute z-10" style={{ left: `${leftTankLeft}px`, top: '180px' }}>
+          <div className="absolute z-10" style={{ left: `${leftTankLeft}px`, top: '140px' }}>
             <Tank level={dashboardData.waterAvailable ? 75.6 : 0} title={inletTankTitle} />
           </div>
 
           {isTankOutlet ? (
             <>
-              <div className="absolute z-10 w-32 flex justify-center text-center" style={{ left: `${rightTankLeft}px`, top: '45px' }}>
+              <div className="absolute z-10 w-32 flex justify-center text-center" style={{ left: `${rightTankLeft}px`, top: '5px' }}>
                 <h3 className="text-gray-900 text-xs font-bold tracking-widest uppercase leading-tight">
                   {outletTitle.split(' ').map((word: string, index: number) => (
                     <React.Fragment key={index}>
@@ -310,18 +310,18 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
                   ))}
                 </h3>
               </div>
-              <div className="absolute z-10" style={{ left: `${rightTankLeft}px`, top: '110px' }}>
+              <div className="absolute z-10" style={{ left: `${rightTankLeft}px`, top: '70px' }}>
                 <Tank level={75} title="" />
               </div>
             </>
           ) : (
-            <div className="absolute top-[100px] z-10 -translate-y-1/2 flex items-center bg-gray-100 px-3 py-1.5 rounded-full border border-gray-200" style={{ left: `${outletEndX + 10}px` }}>
+            <div className="absolute top-[60px] z-10 -translate-y-1/2 flex items-center bg-gray-100 px-3 py-1.5 rounded-full border border-gray-200" style={{ left: `${outletEndX + 10}px` }}>
               <h3 className="text-gray-700 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap">{outletTitle}</h3>
             </div>
           )}
 
           {visiblePumps.map((p, idx) => (
-            <div key={p.id} className="absolute top-[135px] z-10" style={{ left: `${pumpLefts[idx]}px` }}>
+            <div key={p.id} className="absolute top-[95px] z-10" style={{ left: `${pumpLefts[idx]}px` }}>
               <PumpUnit
                 name={p.name}
                 status={p.status}
@@ -348,8 +348,8 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
                   {/* Suction animation (extended to pump flange X = pumpLefts[i] + 46) */}
                   <Pipe 
                     path={isLast 
-                      ? `M ${pumpInletXs[i] - 16} ${bottomManifoldY} A 16 16 0 0 0 ${pumpInletXs[i]} ${bottomManifoldY - 16} L ${pumpInletXs[i]} 314 A 16 16 0 0 1 ${pumpInletXs[i] + 16} 298 L ${pumpLefts[i] + 46} 298`
-                      : `M ${pumpInletXs[i]} ${bottomManifoldY} L ${pumpInletXs[i]} 314 A 16 16 0 0 1 ${pumpInletXs[i] + 16} 298 L ${pumpLefts[i] + 46} 298`
+                      ? `M ${pumpInletXs[i] - 16} ${bottomManifoldY} A 16 16 0 0 0 ${pumpInletXs[i]} ${bottomManifoldY - 16} L ${pumpInletXs[i]} 274 A 16 16 0 0 1 ${pumpInletXs[i] + 16} 258 L ${pumpLefts[i] + 46} 258`
+                      : `M ${pumpInletXs[i]} ${bottomManifoldY} L ${pumpInletXs[i]} 274 A 16 16 0 0 1 ${pumpInletXs[i] + 16} 258 L ${pumpLefts[i] + 46} 258`
                     } 
                     flowDirection="forward" 
                     hideBase={true} 
@@ -358,8 +358,8 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
                   {/* Discharge animation (extended to pump flange Y = 228) */}
                   <Pipe 
                     path={i === 0 
-                      ? `M ${pumpPipeXs[i]} 228 L ${pumpPipeXs[i]} ${manifoldY + 16} A 16 16 0 0 1 ${pumpPipeXs[i] + 16} ${manifoldY}`
-                      : `M ${pumpPipeXs[i]} 228 L ${pumpPipeXs[i]} ${manifoldY}`
+                      ? `M ${pumpPipeXs[i]} 188 L ${pumpPipeXs[i]} ${manifoldY + 16} A 16 16 0 0 1 ${pumpPipeXs[i] + 16} ${manifoldY}`
+                      : `M ${pumpPipeXs[i]} 188 L ${pumpPipeXs[i]} ${manifoldY}`
                     }
                     flowDirection="forward" 
                     hideBase={true} 
@@ -374,7 +374,7 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
               className="absolute z-10 flex items-center justify-center pointer-events-none"
               style={{
                 left: `${leftTankLeft + 195}px`,
-                top: '145px',
+                top: '105px',
                 width: '260px',
                 height: '350px'
               }}
