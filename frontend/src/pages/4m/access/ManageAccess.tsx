@@ -139,7 +139,7 @@ export function ManageAccess() {
                 <th className="px-6 py-4">Designation Name</th>
                 <th className="px-6 py-4">Total Users</th>
                 <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 w-12"></th>
+                <th className="px-6 py-4 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">

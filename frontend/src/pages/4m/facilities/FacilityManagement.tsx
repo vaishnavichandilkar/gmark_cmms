@@ -148,7 +148,7 @@ export function FacilityManagement() {
                 <th className="px-6 py-4">Facility</th>
                 <th className="px-6 py-4">Category</th>
                 <th className="px-6 py-4">Date Added</th>
-                <th className="px-6 py-4 w-12"></th>
+                <th className="px-6 py-4 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
