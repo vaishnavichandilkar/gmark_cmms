@@ -2,324 +2,196 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { io } from 'socket.io-client';
-import { VoltageCard } from './components/VoltageCard';
-import { InputPowerCard } from './components/InputPowerCard';
-import { PressureCard } from './components/PressureCard';
-import { TxCard } from './components/TxCard';
-import { DelaySettingsCard } from './components/DelaySettingsCard';
-import { FaultResetCard } from './components/FaultResetCard';
-import { PressureTrendCard } from './components/PressureTrendCard';
-import { ProcessFlowContainer } from './components/ProcessFlow/PipeNetwork';
-import { CustomSelect } from '../../../../components/shared/CustomSelect';
+import { ShieldAlert, Droplets, CloudRain, CheckCircle2 } from 'lucide-react';
 import { api } from '../../../../lib/api';
 import type { RootState } from '../../../../store';
-import './scada.css'; // Will create this
+import { SectionHeader } from './components/SectionHeader';
+import { FirePumpCard } from './components/FirePumpCard';
+import { PressureZoneCard } from './components/PressureZoneCard';
+import { DieselEngineCard } from './components/DieselEngineCard';
+import './scada.css';
 
-export interface BoosterDashboardProps {
+export interface FirePanelDashboardProps {
   title: string;
   panelId: string;
   buildingName: string;
-  inletTankTitle?: string;
-  outletType?: 'label' | 'tank';
-  outletTitle?: string;
-  showPressureCard?: boolean;
 }
 
 interface PumpState {
   id: string;
-  name: string;
-  status: 'ONLINE' | 'OFFLINE' | 'RUNNING' | 'FAULT' | 'WARNING' | 'OFF';
-  currentR: number;
-  currentY: number;
-  currentB: number;
-  mode: 'AUTO' | 'MANUAL' | 'OFF';
-  runOnTime: string;
-  faults: number;
-  isVisible: boolean;
+  title: string;
+  status: 'ON' | 'OFF' | 'TRIP';
+  mode: 'AUTO' | 'MANUAL';
+  toggleState: boolean;
 }
 
-interface DashboardState {
-  averageVoltage: number;
-  ryVoltage: number;
-  ybVoltage: number;
-  rbVoltage: number;
-  pressureBar: number;
-  transmitterConnected: boolean;
-  waterAvailable: boolean;
-  deviceActive: boolean;
-  inputPowerFaultType: number;
-  pumpOnDelay: number;
-  nextFillingTime: number;
-  overloadResetDelay: number;
-  underloadResetDelay: number;
-  vfdResetAfter: number;
-}
-
-export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
-  title: initialTitle,
-  panelId: initialPanelId,
-  buildingName: initialBuildingName,
-  inletTankTitle: initialInletTankTitle = 'Underground Tank',
-  outletType: initialOutletType = 'label',
-  outletTitle: initialOutletTitle = 'OUTLET',
-  showPressureCard: initialShowPressureCard = true
+export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
+  title,
+  panelId,
+  buildingName
 }) => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { user, buildingIds, accessToken } = useSelector((state: RootState) => state.auth);
-  const state = location.state as any;
+  const [hydrantFaults, setHydrantFaults] = useState(0);
+  const [sprinklerFaults, setSprinklerFaults] = useState(0);
+  const [boosterFaults, setBoosterFaults] = useState(0);
+  const [dieselFaults, setDieselFaults] = useState(0);
 
-  const title = state?.title ?? initialTitle;
-  const panelId = state?.panelId ?? initialPanelId;
-  const buildingName = state?.buildingName ?? initialBuildingName;
-  const inletTankTitle = state?.inletTankTitle ?? initialInletTankTitle;
-  const outletType = state?.outletType ?? initialOutletType;
-  const outletTitle = state?.outletTitle ?? initialOutletTitle;
-  const showPressureCard = state?.showPressureCard ?? initialShowPressureCard;
-  const deviceTopic = panelId;
-
-  const [pumps, setPumps] = useState<PumpState[]>([
-    { id: '1', name: 'Pump 1', status: 'OFFLINE', currentR: 0, currentY: 0, currentB: 0, mode: 'AUTO', runOnTime: '0:0 Hrs', faults: 0, isVisible: true },
-    { id: '2', name: 'Pump 2', status: 'OFFLINE', currentR: 0, currentY: 0, currentB: 0, mode: 'AUTO', runOnTime: '0:0 Hrs', faults: 0, isVisible: true },
-    { id: '3', name: 'Pump 3', status: 'OFFLINE', currentR: 0, currentY: 0, currentB: 0, mode: 'AUTO', runOnTime: '0:0 Hrs', faults: 0, isVisible: false },
-    { id: '4', name: 'Pump 4', status: 'OFFLINE', currentR: 0, currentY: 0, currentB: 0, mode: 'AUTO', runOnTime: '0:0 Hrs', faults: 0, isVisible: false },
-  ]);
-
-  const [dashboardData, setDashboardData] = useState<DashboardState>({
-    averageVoltage: 0, ryVoltage: 0, ybVoltage: 0, rbVoltage: 0,
-    pressureBar: 0, transmitterConnected: false, waterAvailable: false,
-    deviceActive: false, inputPowerFaultType: 0,
-    pumpOnDelay: 0, nextFillingTime: 0, overloadResetDelay: 0, underloadResetDelay: 0,
-    vfdResetAfter: 0
+  // Mocked states for pumps to match UI exactly
+  const [pumps, setPumps] = useState<Record<string, PumpState>>({
+    jockeyHydrant: { id: '1', title: 'JOCKEY HYDRANT PUMP', status: 'OFF', mode: 'AUTO', toggleState: true },
+    mainHydrant: { id: '2', title: 'MAIN HYDRANT PUMP', status: 'OFF', mode: 'AUTO', toggleState: true },
+    jockeySprinkler: { id: '3', title: 'JOCKEY SPRINKLER PUMP', status: 'OFF', mode: 'AUTO', toggleState: true },
+    mainSprinkler: { id: '4', title: 'MAIN SPRINKLER PUMP', status: 'OFF', mode: 'AUTO', toggleState: true },
+    terraceBooster48: { id: '5', title: 'TERRACE BOOSTER-1', status: 'OFF', mode: 'AUTO', toggleState: true },
+    terraceBooster49: { id: '6', title: 'TERRACE BOOSTER-2', status: 'OFF', mode: 'AUTO', toggleState: true },
+    jockeyPumpSet: { id: '7', title: 'JOCKEY PUMP SET', status: 'OFF', mode: 'AUTO', toggleState: true },
   });
 
-  const [mainFacilities, setMainFacilities] = useState<any[]>([]);
-  const [facilities, setFacilities] = useState<any[]>([]);
-  const [machines, setMachines] = useState<any[]>([]);
-  
-  const [selectedMainFacilityId, setSelectedMainFacilityId] = useState<number | null>(null);
-  const [selectedFacilityId, setSelectedFacilityId] = useState<number | null>(null);
-  const [selectedMachineId, setSelectedMachineId] = useState<number | null>(null);
-
-  useEffect(() => {
-    Promise.all([
-      api.get('/main-facilities'),
-      api.get('/facilities'),
-      api.get('/machines')
-    ]).then(([mfRes, fRes, mRes]) => {
-      setMainFacilities(mfRes.data);
-      setFacilities(fRes.data);
-      setMachines(mRes.data);
-    }).catch(console.error);
-  }, []);
-
-  const isLimitedAccess = ['OPERATOR', 'VIEWER', 'BUILDING_ADMIN'].includes(user?.role);
-
-  const visibleFacilities = React.useMemo(() => {
-    if (isLimitedAccess && buildingIds && buildingIds.length > 0) {
-      return facilities.filter(f => buildingIds.includes(f.id));
-    }
-    return facilities;
-  }, [facilities, isLimitedAccess, buildingIds]);
-
-  const visibleMainFacilities = React.useMemo(() => {
-    if (isLimitedAccess && buildingIds && buildingIds.length > 0) {
-      const allowedMainFacilityIds = new Set(visibleFacilities.map(f => f.mainFacilityId));
-      return mainFacilities.filter(mf => allowedMainFacilityIds.has(mf.id));
-    }
-    return mainFacilities;
-  }, [mainFacilities, visibleFacilities, isLimitedAccess, buildingIds]);
-
-  const processPayload = (data: any, isInitial: boolean) => {
-    setPumps(prev => {
-      const newPumps = [...prev];
-      const getBool = (val: any) => typeof val === 'boolean' ? val : (Number(val) > 0);
-
-      for (let i = 0; i < 4; i++) {
-        const n = i + 1;
-        const statusKey = `motor${n}Status`;
-        const rCurrKey = `motor${n}RCurrent`;
-        const yCurrKey = `motor${n}YCurrent`;
-        const bCurrKey = `motor${n}BCurrent`;
-        const faultKey = `pump${n}FaultType`;
-        const timeKey = `motor${n}RunTime`;
-        const configKey = `motor${n}ConfigActivate`;
-
-        const p = { ...newPumps[i] };
-
-        if (data[rCurrKey] !== undefined) p.currentR = Number(data[rCurrKey]) || 0;
-        if (data[yCurrKey] !== undefined) p.currentY = Number(data[yCurrKey]) || 0;
-        if (data[bCurrKey] !== undefined) p.currentB = Number(data[bCurrKey]) || 0;
-        if (data[faultKey] !== undefined) p.faults = Number(data[faultKey]) || 0;
-        if (data[timeKey] !== undefined) p.runOnTime = `${data[timeKey]} Hrs`;
-
-        if (data[configKey] !== undefined) {
-          p.isVisible = getBool(data[configKey]);
-        } else if (isInitial) {
-          const hasData = (data[statusKey] !== undefined && getBool(data[statusKey])) ||
-            (data[rCurrKey] !== undefined && Number(data[rCurrKey]) > 0) ||
-            (data[yCurrKey] !== undefined && Number(data[yCurrKey]) > 0) ||
-            (data[bCurrKey] !== undefined && Number(data[bCurrKey]) > 0) ||
-            (data[faultKey] !== undefined && Number(data[faultKey]) > 0) ||
-            (data[timeKey] !== undefined && Number(data[timeKey]) > 0);
-          if (n <= 2) {
-            p.isVisible = true;
-          } else {
-            p.isVisible = hasData;
-          }
-        }
-
-        if (p.faults > 0) {
-          p.status = 'FAULT';
-        } else if (data[statusKey] !== undefined) {
-          p.status = getBool(data[statusKey]) ? 'RUNNING' : 'OFF';
-        } else if (isInitial) {
-          p.status = 'OFF';
-        }
-
-        newPumps[i] = p;
-      }
-      return newPumps;
-    });
-
-    setDashboardData(prev => ({
+  const handleToggle = (pumpKey: string) => {
+    setPumps(prev => ({
       ...prev,
-      averageVoltage: data.averageVoltage ?? prev.averageVoltage,
-      ryVoltage: data.ryVoltage ?? prev.ryVoltage,
-      ybVoltage: data.ybVoltage ?? prev.ybVoltage,
-      rbVoltage: data.rbVoltage ?? prev.rbVoltage,
-      pressureBar: data.pressureBar ?? prev.pressureBar,
-      transmitterConnected: data.transmitterConnected ?? prev.transmitterConnected,
-      waterAvailable: data.waterAvailable ?? prev.waterAvailable,
-      deviceActive: data.deviceActive ?? prev.deviceActive,
-      inputPowerFaultType: data.inputPowerFaultType ?? prev.inputPowerFaultType,
-      pumpOnDelay: data.pumpOnDelay ?? prev.pumpOnDelay,
-      nextFillingTime: data.nextFillingTime ?? prev.nextFillingTime,
-      overloadResetDelay: data.overloadResetDelay ?? prev.overloadResetDelay,
-      underloadResetDelay: data.underloadResetDelay ?? prev.underloadResetDelay,
-      vfdResetAfter: data.vfdResetAfter ?? prev.vfdResetAfter
+      [pumpKey]: { ...prev[pumpKey], toggleState: !prev[pumpKey].toggleState }
     }));
   };
 
-  useEffect(() => {
-    if (user && user.role !== 'SUPER_ADMIN' && user.role !== 'SOCIETY_ADMIN') {
-      let bId = 0;
-      if (buildingName === 'A Building') bId = 1;
-      else if (buildingName === 'B Building') bId = 2;
-      else if (buildingName === 'C Building') bId = 3;
-      else if (buildingName === 'STP') bId = 4;
-
-      if (bId > 0 && !buildingIds?.includes(bId)) {
-        navigate('/', { replace: true });
-      }
-    }
-  }, [user, buildingIds, buildingName, navigate]);
-
-  useEffect(() => {
-    if (!panelId) return;
-
-    api.get(`/devices/${panelId}/dashboard`)
-      .then(r => {
-        const res = r.data;
-        if (res && !res.error) {
-          processPayload(res, true);
-        }
-      })
-      .catch(console.error);
-
-    const socket = io('http://localhost:3001', {
-      auth: { token: accessToken },
-    });
-
-    socket.on('connect', () => {
-      socket.emit('join-device', { topic: deviceTopic });
-    });
-
-    socket.on('device-update', (update: { deviceId: string, registers: any }) => {
-      if (update.deviceId === panelId && update.registers) {
-        processPayload(update.registers, false);
-      }
-    });
-
-    return () => {
-      socket.emit('leave-device', { topic: deviceTopic });
-      socket.disconnect();
-    };
-  }, [panelId, deviceTopic]);
-
-  const visiblePumps = pumps.filter(p => p.isVisible);
-  const totalFaults = visiblePumps.reduce((sum, p) => sum + p.faults, 0);
-  const totalCurrentR = visiblePumps.reduce((sum, p) => sum + p.currentR, 0);
-  const totalCurrentY = visiblePumps.reduce((sum, p) => sum + p.currentY, 0);
-  const totalCurrentB = visiblePumps.reduce((sum, p) => sum + p.currentB, 0);
-
   return (
-    <div className="scada-dashboard p-4 lg:p-6 lg:pb-12">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 -mt-2">
-        <div className="flex items-center gap-4">
-          <div className="flex flex-col">
-            <h1 className="text-xl font-bold text-gray-900 tracking-tight leading-tight">{title}</h1>
-            <p className="text-xs font-semibold text-gray-500 tracking-wider uppercase flex items-center gap-2">
-              <span>{buildingName}</span>
-              {panelId && (
-                <>
-                  <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                  <span className="text-gray-400">MAC: {panelId}</span>
-                </>
-              )}
-            </p>
+    <div className="py-4 px-2 lg:py-6 lg:px-4 bg-white min-h-screen">
+      {/* Top Asset Title */}
+      <div className="flex flex-col mb-8">
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{title}</h1>
+        <p className="text-sm font-semibold text-gray-500 uppercase flex items-center gap-2 mt-1">
+          <span>{buildingName}</span>
+          {panelId && (
+            <>
+              <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+              <span className="text-gray-400">MAC: {panelId}</span>
+            </>
+          )}
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-8">
+        {/* HYDRANT & SPRINKLER SYSTEM SECTION */}
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative">
+            {/* Divider Line */}
+            <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-px bg-gray-200 -translate-x-1/2"></div>
+            
+            {/* Left Side: Hydrant */}
+            <div className="flex flex-col gap-2">
+              <SectionHeader 
+                title="HYDRANT SYSTEM" 
+                faultsCount={hydrantFaults} 
+                icon={<Droplets size={28} className="text-[#00a651]" />} 
+              />
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="col-span-1 md:col-span-1">
+                  <FirePumpCard 
+                    {...pumps.jockeyHydrant} 
+                    imageType="vertical"
+                    onToggle={() => handleToggle('jockeyHydrant')}
+                  />
+                </div>
+                <div className="col-span-1 md:col-span-1 flex flex-col gap-4">
+                  <PressureZoneCard title="UPPER ZONE" pressure={18.1} status="NORMAL" />
+                  <PressureZoneCard title="LOWER ZONE" pressure={10.8} status="NORMAL" />
+                </div>
+                <div className="col-span-2 md:col-span-1">
+                  <FirePumpCard 
+                    {...pumps.mainHydrant} 
+                    imageType="horizontal"
+                    onToggle={() => handleToggle('mainHydrant')}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Right Side: Sprinkler */}
+            <div className="flex flex-col gap-2">
+              <SectionHeader 
+                title="SPRINKLER SYSTEM" 
+                faultsCount={sprinklerFaults} 
+                icon={<CloudRain size={28} className="text-[#00a651]" />} 
+              />
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="col-span-1 md:col-span-1">
+                  <FirePumpCard 
+                    {...pumps.jockeySprinkler} 
+                    imageType="vertical"
+                    onToggle={() => handleToggle('jockeySprinkler')}
+                  />
+                </div>
+                <div className="col-span-1 md:col-span-1 flex flex-col gap-4">
+                  <PressureZoneCard title="UPPER ZONE" pressure={18.3} status="NORMAL" />
+                  <PressureZoneCard title="LOWER ZONE" pressure={10.9} status="NORMAL" />
+                </div>
+                <div className="col-span-2 md:col-span-1">
+                  <FirePumpCard 
+                    {...pumps.mainSprinkler} 
+                    imageType="horizontal"
+                    onToggle={() => handleToggle('mainSprinkler')}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        
-      </div>
+        {/* BOOSTER & DIESEL SYSTEM SECTION */}
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative">
+            {/* Divider Line */}
+            <div className="hidden lg:block absolute left-[41.666%] top-0 bottom-0 w-px bg-gray-200 -translate-x-1/2"></div>
+            
+            {/* Left Side: Booster */}
+            <div className="col-span-1 lg:col-span-5 flex flex-col gap-2 pr-0 lg:pr-4">
+              <SectionHeader 
+                title="TERRACE BOOSTER PUMPS" 
+                faultsCount={boosterFaults} 
+                icon={<ShieldAlert size={28} className="text-[#00a651]" />} 
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="col-span-1">
+                  <FirePumpCard 
+                    {...pumps.terraceBooster48} 
+                    imageType="horizontal"
+                    onToggle={() => handleToggle('terraceBooster48')}
+                  />
+                </div>
+                <div className="col-span-1">
+                  <FirePumpCard 
+                    {...pumps.terraceBooster49} 
+                    imageType="horizontal"
+                    onToggle={() => handleToggle('terraceBooster49')}
+                  />
+                </div>
+              </div>
+            </div>
 
-      <div className="scada-grid-layout">
-        {/* ROW 1: Metrics */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          <VoltageCard
-            voltageR={dashboardData.ryVoltage}
-            voltageY={dashboardData.ybVoltage}
-            voltageB={dashboardData.rbVoltage}
-          />
-          <InputPowerCard
-            currentR={totalCurrentR}
-            currentY={totalCurrentY}
-            currentB={totalCurrentB}
-            inputPowerStatus={dashboardData.inputPowerFaultType}
-          />
-          {showPressureCard ? (
-            <PressureCard pressure={dashboardData.pressureBar} />
-          ) : (
-            <div></div> // Placeholder if no pressure card
-          )}
-          <TxCard isConnected={dashboardData.transmitterConnected} />
+            {/* Right Side: Diesel */}
+            <div className="col-span-1 lg:col-span-7 flex flex-col gap-2 pl-0 lg:pl-4">
+              <SectionHeader 
+                title="DIESEL ENGINE PUMP" 
+                faultsCount={dieselFaults} 
+                icon={<ShieldAlert size={28} className="text-[#00a651]" />} 
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="col-span-1 sm:col-span-2">
+                  <DieselEngineCard />
+                </div>
+                <div className="col-span-1">
+                  <FirePumpCard 
+                    {...pumps.jockeyPumpSet} 
+                    title="CONTROL PANEL"
+                    imageType="horizontal"
+                    hideImage={true}
+                    onToggle={() => handleToggle('jockeyPumpSet')}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* ROW 2: Process Flow */}
-        <div className="w-full">
-          <ProcessFlowContainer 
-            pumps={visiblePumps}
-            dashboardData={dashboardData}
-            inletTankTitle={inletTankTitle}
-            outletTitle={outletTitle}
-            outletType={outletType}
-          />
-        </div>
-
-        {/* ROW 3: Trends & Settings */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <PressureTrendCard />
-          <DelaySettingsCard
-            pumpOnDelay={dashboardData.pumpOnDelay}
-            nextFillingTime={dashboardData.nextFillingTime}
-            overloadResetDelay={dashboardData.overloadResetDelay}
-            underloadResetDelay={dashboardData.underloadResetDelay}
-            vfdResetAfter={dashboardData.vfdResetAfter}
-          />
-          <FaultResetCard hasFault={totalFaults > 0 || dashboardData.inputPowerFaultType > 0} />
-        </div>
       </div>
     </div>
   );

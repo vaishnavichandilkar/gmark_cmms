@@ -5,6 +5,7 @@ import { useSelector } from 'react-redux';
 import { CustomSelect } from '../../../components/shared/CustomSelect';
 import { MultiSelect } from '../../../components/shared/MultiSelect';
 import { BoosterDashboard } from '../../scada/templates/booster/BoosterDashboard';
+import { FirePanelDashboard } from '../../scada/templates/fire-panel/FirePanelDashboard';
 import { api } from '../../../lib/api';
 import type { RootState } from '../../../store';
 
@@ -383,6 +384,8 @@ export function DashboardPage() {
                 if (building) buildingName = building.name;
               }
               
+              const isFirePanel = machine.template === 'fire-panel' || (machine.deviceId && devices.find(d => d.deviceId === machine.deviceId)?.template === 'fire-panel');
+
               return (
                 <div 
                   key={machine.uniqueId} 
@@ -390,11 +393,19 @@ export function DashboardPage() {
                   className="scroll-mt-64 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden w-full flex-shrink-0 relative"
                   style={{ minHeight: '800px' }}
                 >
-                  <BoosterDashboard
-                    title={machine.name}
-                    panelId={machine.deviceId}
-                    buildingName={buildingName}
-                  />
+                  {isFirePanel ? (
+                    <FirePanelDashboard
+                      title={machine.name}
+                      panelId={machine.deviceId}
+                      buildingName={buildingName}
+                    />
+                  ) : (
+                    <BoosterDashboard
+                      title={machine.name}
+                      panelId={machine.deviceId}
+                      buildingName={buildingName}
+                    />
+                  )}
                 </div>
               );
             })}

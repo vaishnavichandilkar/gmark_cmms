@@ -50,6 +50,7 @@ export class DevicesService {
         id: device.id,
         deviceId: device.deviceId,
         name: device.name,
+        template: device.template,
         building: device.building?.name || 'Unassigned',
         buildingId: device.buildingId,
         topic: device.topic,

@@ -32,6 +32,7 @@ async function main() {
     // A BUILDING
     { deviceId: '20260508012', name: 'Flushing Terrace Booster System', buildingId: 1, template: 'booster', systemName: 'Flushing Terrace Booster System', cardNo: '06' },
     { deviceId: '20260508045', name: 'Domestic Terrace Booster System', buildingId: 1, template: 'booster', systemName: 'Domestic Terrace Booster System', cardNo: '05' },
+    { deviceId: '20260813001', name: 'Main Fire Panel System', buildingId: 1, template: 'fire-panel', systemName: 'Main Fire Panel System', cardNo: '01' },
 
     // B BUILDING
     { deviceId: '2026051104', name: 'Sump Pump-05 (Basement-03)', buildingId: 2, template: 'booster', systemName: 'Sump Pump-05 (Basement-03)' },
