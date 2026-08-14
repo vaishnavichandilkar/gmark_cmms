@@ -53,3 +53,103 @@
   font-size: 1.875rem; /* text-3xl */
   line-height: 2.25rem;
 }
+
+/* LED Blink Animations */
+@keyframes led-blink-green {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(0, 255, 100, 0.6), inset 0 0 10px rgba(0, 255, 100, 1);
+    background-color: #00e65c !important;
+  }
+  50% {
+    box-shadow: 0 0 5px rgba(0, 166, 81, 0.4), inset 0 0 5px rgba(0, 166, 81, 0.5);
+    background-color: #008a3b !important;
+  }
+}
+
+@keyframes led-blink-red {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(255, 50, 50, 0.6), inset 0 0 10px rgba(255, 50, 50, 1);
+    background-color: #ff3333 !important;
+  }
+  50% {
+    box-shadow: 0 0 5px rgba(220, 38, 38, 0.4), inset 0 0 5px rgba(220, 38, 38, 0.5);
+    background-color: #dc2626 !important;
+  }
+}
+
+@keyframes led-blink-gray {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(107, 114, 128, 0.7), inset 0 0 10px rgba(107, 114, 128, 1);
+    background-color: #6b7280 !important;
+  }
+  50% {
+    box-shadow: 0 0 5px rgba(75, 85, 99, 0.4), inset 0 0 5px rgba(75, 85, 99, 0.5);
+    background-color: #374151 !important;
+  }
+}
+
+@keyframes led-wave {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+    border-width: 6px;
+  }
+  100% {
+    transform: scale(3.0);
+    opacity: 0;
+    border-width: 2px;
+  }
+}
+
+.led-blink-on, .led-blink-off, .led-blink-trip {
+  position: relative;
+}
+
+.led-blink-on {
+  animation: led-blink-green 1.2s ease-in-out infinite;
+}
+.led-blink-off {
+  animation: led-blink-gray 1.2s ease-in-out infinite;
+}
+.led-blink-trip {
+  animation: led-blink-red 1.2s ease-in-out infinite;
+}
+
+.led-blink-on::after, .led-blink-off::after, .led-blink-trip::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  border-style: solid;
+  animation: led-wave 1.2s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
+  pointer-events: none;
+}
+
+.led-blink-on::after {
+  border-color: #00ff66;
+  box-shadow: 0 0 15px rgba(0, 255, 102, 0.8), inset 0 0 8px rgba(0, 255, 102, 0.5);
+}
+.led-blink-off::after {
+  border-color: #6b7280;
+  box-shadow: 0 0 15px rgba(107, 114, 128, 0.8), inset 0 0 8px rgba(107, 114, 128, 0.5);
+}
+.led-blink-trip::after {
+  border-color: #ff6666;
+  box-shadow: 0 0 15px rgba(255, 102, 102, 0.8), inset 0 0 8px rgba(255, 102, 102, 0.5);
+}
+
+/* Pump Running Animation */
+@keyframes pump-vibrate {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(1px, -0.5px) rotate(0.2deg); }
+  50% { transform: translate(-0.5px, 1px) rotate(-0.2deg); }
+  75% { transform: translate(0.5px, 0.5px) rotate(0deg); }
+}
+
+.pump-running {
+  animation: pump-vibrate 0.1s linear infinite;
+  transform-origin: center bottom;
+}

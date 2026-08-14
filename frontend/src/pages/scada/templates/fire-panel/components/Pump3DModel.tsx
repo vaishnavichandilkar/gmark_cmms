@@ -21,7 +21,7 @@ export const Pump3DModel: React.FC<Pump3DModelProps> = ({ type, status = 'OFF' }
   const steelLight = "#f3f4f6";
 
   const renderHorizontal = () => (
-    <svg viewBox="0 0 220 140" className="w-full h-full drop-shadow-2xl overflow-visible">
+    <svg viewBox="0 0 220 140" className={`w-full h-full drop-shadow-2xl overflow-visible ${isSpinning ? 'pump-running' : ''}`}>
       <defs>
         <linearGradient id="hMotorGrad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={redLight} />
@@ -96,7 +96,7 @@ export const Pump3DModel: React.FC<Pump3DModelProps> = ({ type, status = 'OFF' }
   );
 
   const renderVertical = () => (
-    <svg viewBox="0 0 140 260" className="w-full h-full drop-shadow-2xl overflow-visible">
+    <svg viewBox="0 0 140 260" className={`w-full h-full drop-shadow-2xl overflow-visible ${isSpinning ? 'pump-running' : ''}`}>
       <defs>
         <linearGradient id="vMotorGrad" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0%" stopColor={redLight} />

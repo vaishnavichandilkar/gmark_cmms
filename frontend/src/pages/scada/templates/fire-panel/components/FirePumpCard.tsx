@@ -8,7 +8,8 @@ export interface FirePumpCardProps {
   mode: 'AUTO' | 'OFF' | 'MANUAL';
   imageType: 'vertical' | 'horizontal';
   toggleState: boolean;
-  onToggle?: () => void;
+  onModeChange?: (mode: 'AUTO' | 'OFF' | 'MANUAL') => void;
+  onStatusChange?: (status: 'ON' | 'OFF' | 'TRIP') => void;
   hideImage?: boolean;
 }
 
@@ -19,6 +20,8 @@ export const FirePumpCard: React.FC<FirePumpCardProps> = ({
   imageType,
   toggleState,
   onToggle,
+  onModeChange,
+  onStatusChange,
   hideImage = false
 }) => {
   return (
@@ -38,21 +41,30 @@ export const FirePumpCard: React.FC<FirePumpCardProps> = ({
             <div className="w-full h-full bg-[#ffcc00] rounded-lg shadow-[inset_0_2px_6px_rgba(0,0,0,0.15)] relative overflow-hidden">
               
               {/* OFF Text Top Center */}
-              <div className="absolute top-1.5 left-1/2 -translate-x-1/2 flex flex-col items-center z-10">
-                <span className="text-[10px] font-black text-gray-900 tracking-wider leading-none mb-1">OFF</span>
+              <div 
+                className="absolute top-1.5 left-1/2 -translate-x-1/2 flex flex-col items-center z-10 cursor-pointer hover:scale-105 transition-transform"
+                onClick={() => onModeChange?.('OFF')}
+              >
+                <span className="text-[10px] font-bold text-gray-900 tracking-wider leading-none mb-1">OFF</span>
                 <div className="w-1 h-1 bg-gray-900 rounded-full shadow-sm"></div>
               </div>
 
               {/* AUTO Section (Left) */}
-              <div className="absolute left-[8px] top-[26px] flex flex-col items-center z-10 w-[40px]">
-                <div className="text-gray-900 text-[9px] font-black px-1 py-0.5 mb-1.5 tracking-wider w-full text-center">AUTO</div>
+              <div 
+                className="absolute left-[8px] top-[26px] flex flex-col items-center z-10 w-[40px] cursor-pointer hover:scale-105 transition-transform"
+                onClick={() => onModeChange?.('AUTO')}
+              >
+                <div className="text-gray-900 text-[9px] font-bold px-1 py-0.5 mb-1.5 tracking-wider w-full text-center">AUTO</div>
                 <RefreshCcw size={12} className="text-gray-900 stroke-[2.5]" />
               </div>
               <div className="absolute top-[40px] left-[44px] w-[12px] h-[2.5px] bg-gray-900 rotate-[35deg] z-0 opacity-90 rounded-sm"></div>
 
               {/* MANUAL Section (Right) */}
-              <div className="absolute right-[8px] top-[26px] flex flex-col items-center z-10 w-[40px]">
-                <div className="text-gray-900 text-[9px] font-black px-1 py-0.5 mb-1.5 tracking-wider w-full text-center">MANUAL</div>
+              <div 
+                className="absolute right-[8px] top-[26px] flex flex-col items-center z-10 w-[40px] cursor-pointer hover:scale-105 transition-transform"
+                onClick={() => onModeChange?.('MANUAL')}
+              >
+                <div className="text-gray-900 text-[9px] font-bold px-1 py-0.5 mb-1.5 tracking-wider w-full text-center">MANUAL</div>
                 <Hand size={12} className="text-gray-900 stroke-[2.5]" />
               </div>
               <div className="absolute top-[40px] right-[44px] w-[12px] h-[2.5px] bg-gray-900 -rotate-[35deg] z-0 opacity-90 rounded-sm"></div>
@@ -60,7 +72,11 @@ export const FirePumpCard: React.FC<FirePumpCardProps> = ({
               {/* Rotary Knob Base */}
               <div className="absolute top-[56px] left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center z-20">
                 <svg 
-                  className="transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] drop-shadow-md"
+                  onClick={() => {
+                    const nextMode = mode === 'AUTO' ? 'OFF' : mode === 'OFF' ? 'MANUAL' : 'AUTO';
+                    onModeChange?.(nextMode);
+                  }}
+                  className="transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] drop-shadow-md cursor-pointer"
                   style={{ 
                     transformOrigin: '50% 50%',
                     transform: `rotate(${mode === 'AUTO' ? '-55deg' : mode === 'MANUAL' ? '55deg' : '0deg'})` 
@@ -133,29 +149,35 @@ export const FirePumpCard: React.FC<FirePumpCardProps> = ({
         {/* Replica LEDs */}
         <div className="flex items-center justify-between w-full px-5 mb-3">
           {/* ON LED */}
-          <div className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${status === 'ON' ? 'scale-105' : ''}`}>
-            <div className={`w-7 h-7 rounded-full bg-[#008a3b] flex items-center justify-center border-2 border-[#00682b] shadow-inner ${status === 'ON' ? 'shadow-[0_0_12px_rgba(0,166,81,0.8)] drop-shadow-md' : ''}`}>
+          <div 
+            className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${status === 'ON' ? 'scale-105' : ''}`}
+          >
+            <div className={`w-7 h-7 rounded-full bg-[#008a3b] flex items-center justify-center border-2 border-[#00682b] shadow-inner ${status === 'ON' ? 'led-blink-on drop-shadow-md' : ''}`}>
               <Power size={13} className="text-white stroke-[3] opacity-90" />
             </div>
-            <span className="text-[10px] font-black text-gray-900 tracking-wide">ON</span>
+            <span className={`text-[10px] font-black text-gray-900 tracking-wide transition-opacity duration-300 ${status === 'ON' ? 'opacity-100' : 'opacity-0'}`}>ON</span>
           </div>
 
           {/* OFF LED */}
-          <div className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${status === 'OFF' ? 'scale-105' : ''}`}>
-            <div className={`w-7 h-7 rounded-full bg-[#4b5563] flex items-center justify-center border-2 border-[#374151] shadow-inner ${status === 'OFF' ? 'shadow-[0_0_12px_rgba(107,114,128,0.8)] drop-shadow-md' : ''}`}>
+          <div 
+            className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${status === 'OFF' ? 'scale-105' : ''}`}
+          >
+            <div className={`w-7 h-7 rounded-full bg-[#4b5563] flex items-center justify-center border-2 border-[#374151] shadow-inner ${status === 'OFF' ? 'led-blink-off drop-shadow-md' : ''}`}>
               <div className="w-[14px] h-[14px] rounded-full border-[2.5px] border-white flex items-center justify-center opacity-90">
                 <div className="w-[3px] h-[3px] rounded-full bg-white"></div>
               </div>
             </div>
-            <span className="text-[10px] font-black text-gray-900 tracking-wide">OFF</span>
+            <span className={`text-[10px] font-black text-gray-900 tracking-wide transition-opacity duration-300 ${status === 'OFF' ? 'opacity-100' : 'opacity-0'}`}>OFF</span>
           </div>
 
           {/* TRIP LED */}
-          <div className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${status === 'TRIP' ? 'scale-105' : ''}`}>
-            <div className={`w-7 h-7 rounded-full bg-[#dc2626] flex items-center justify-center border-2 border-[#b91c1c] shadow-inner ${status === 'TRIP' ? 'shadow-[0_0_12px_rgba(220,38,38,0.8)] drop-shadow-md' : ''}`}>
+          <div 
+            className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${status === 'TRIP' ? 'scale-105' : ''}`}
+          >
+            <div className={`w-7 h-7 rounded-full bg-[#dc2626] flex items-center justify-center border-2 border-[#b91c1c] shadow-inner ${status === 'TRIP' ? 'led-blink-trip drop-shadow-md' : ''}`}>
               <AlertTriangle size={13} className="text-white stroke-[3] opacity-90" />
             </div>
-            <span className="text-[10px] font-black text-gray-900 tracking-wide">TRIP</span>
+            <span className={`text-[10px] font-black text-gray-900 tracking-wide transition-opacity duration-300 ${status === 'TRIP' ? 'opacity-100' : 'opacity-0'}`}>TRIP</span>
           </div>
         </div>
 

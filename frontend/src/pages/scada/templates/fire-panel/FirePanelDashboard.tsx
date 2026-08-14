@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { io } from 'socket.io-client';
-import { ShieldAlert, Droplets, CloudRain, CheckCircle2, Maximize, Minimize } from 'lucide-react';
+import { Droplets, CloudRain, CheckCircle2, Maximize, Minimize, Gauge, Fuel } from 'lucide-react';
 import { api } from '../../../../lib/api';
 import type { RootState } from '../../../../store';
 import { SectionHeader } from './components/SectionHeader';
@@ -21,7 +21,7 @@ interface PumpState {
   id: string;
   title: string;
   status: 'ON' | 'OFF' | 'TRIP';
-  mode: 'AUTO' | 'MANUAL';
+  mode: 'AUTO' | 'OFF' | 'MANUAL';
   toggleState: boolean;
 }
 
@@ -37,19 +37,56 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
 
   // Mocked states for pumps to match UI exactly
   const [pumps, setPumps] = useState<Record<string, PumpState>>({
-    jockeyHydrant: { id: '1', title: 'JOCKEY HYDRANT PUMP', status: 'OFF', mode: 'AUTO', toggleState: true },
-    mainHydrant: { id: '2', title: 'MAIN HYDRANT PUMP', status: 'OFF', mode: 'AUTO', toggleState: true },
-    jockeySprinkler: { id: '3', title: 'JOCKEY SPRINKLER PUMP', status: 'OFF', mode: 'AUTO', toggleState: true },
-    mainSprinkler: { id: '4', title: 'MAIN SPRINKLER PUMP', status: 'OFF', mode: 'AUTO', toggleState: true },
-    terraceBooster48: { id: '5', title: 'TERRACE BOOSTER-1', status: 'OFF', mode: 'AUTO', toggleState: true },
-    terraceBooster49: { id: '6', title: 'TERRACE BOOSTER-2', status: 'OFF', mode: 'AUTO', toggleState: true },
-    jockeyPumpSet: { id: '7', title: 'JOCKEY PUMP SET', status: 'OFF', mode: 'AUTO', toggleState: true },
+    jockeyHydrant: { id: '1', title: 'JOCKEY HYDRANT PUMP', status: 'OFF', mode: 'AUTO', toggleState: false },
+    mainHydrant: { id: '2', title: 'MAIN HYDRANT PUMP', status: 'OFF', mode: 'AUTO', toggleState: false },
+    jockeySprinkler: { id: '3', title: 'JOCKEY SPRINKLER PUMP', status: 'OFF', mode: 'AUTO', toggleState: false },
+    mainSprinkler: { id: '4', title: 'MAIN SPRINKLER PUMP', status: 'OFF', mode: 'AUTO', toggleState: false },
+    terraceBooster48: { id: '5', title: 'TERRACE BOOSTER-1', status: 'OFF', mode: 'AUTO', toggleState: false },
+    terraceBooster49: { id: '6', title: 'TERRACE BOOSTER-2', status: 'OFF', mode: 'AUTO', toggleState: false },
+    jockeyPumpSet: { id: '7', title: 'JOCKEY PUMP SET', status: 'OFF', mode: 'AUTO', toggleState: false },
   });
 
+  const [pressures, setPressures] = useState({
+    upper1: 18.1,
+    lower1: 10.8,
+    upper2: 18.3,
+    lower2: 10.9
+  });
+
+  // Mock MQTT data fluctuation
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPressures(prev => ({
+        upper1: Math.min(24, Math.max(0, prev.upper1 + (Math.random() * 0.4 - 0.2))),
+        lower1: Math.min(24, Math.max(0, prev.lower1 + (Math.random() * 0.4 - 0.2))),
+        upper2: Math.min(24, Math.max(0, prev.upper2 + (Math.random() * 0.4 - 0.2))),
+        lower2: Math.min(24, Math.max(0, prev.lower2 + (Math.random() * 0.4 - 0.2))),
+      }));
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleToggle = (pumpKey: string) => {
+    setPumps(prev => {
+      const nextToggleState = !prev[pumpKey].toggleState;
+      return {
+        ...prev,
+        [pumpKey]: { ...prev[pumpKey], toggleState: nextToggleState, status: nextToggleState ? 'ON' : 'OFF' }
+      };
+    });
+  };
+
+  const handleStatusChange = (pumpKey: string, newStatus: 'ON' | 'OFF' | 'TRIP') => {
     setPumps(prev => ({
       ...prev,
-      [pumpKey]: { ...prev[pumpKey], toggleState: !prev[pumpKey].toggleState }
+      [pumpKey]: { ...prev[pumpKey], status: newStatus }
+    }));
+  };
+
+  const handleModeChange = (pumpKey: string, newMode: 'AUTO' | 'OFF' | 'MANUAL') => {
+    setPumps(prev => ({
+      ...prev,
+      [pumpKey]: { ...prev[pumpKey], mode: newMode }
     }));
   };
 
@@ -122,17 +159,21 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
                     {...pumps.jockeyHydrant} 
                     imageType="vertical"
                     onToggle={() => handleToggle('jockeyHydrant')}
+                    onModeChange={(mode) => handleModeChange('jockeyHydrant', mode)}
+                    onStatusChange={(status) => handleStatusChange('jockeyHydrant', status)}
                   />
                 </div>
                 <div className="col-span-1 md:col-span-1 flex flex-col gap-4">
-                  <PressureZoneCard title="UPPER ZONE" pressure={18.1} status="NORMAL" />
-                  <PressureZoneCard title="LOWER ZONE" pressure={10.8} status="NORMAL" />
+                  <PressureZoneCard title="UPPER ZONE" pressure={pressures.upper1} status={pressures.upper1 > 22 ? 'FAULT' : 'NORMAL'} />
+                  <PressureZoneCard title="LOWER ZONE" pressure={pressures.lower1} status={pressures.lower1 > 22 ? 'FAULT' : 'NORMAL'} />
                 </div>
                 <div className="col-span-2 md:col-span-1">
                   <FirePumpCard 
                     {...pumps.mainHydrant} 
                     imageType="horizontal"
                     onToggle={() => handleToggle('mainHydrant')}
+                    onModeChange={(mode) => handleModeChange('mainHydrant', mode)}
+                    onStatusChange={(status) => handleStatusChange('mainHydrant', status)}
                   />
                 </div>
               </div>
@@ -151,17 +192,21 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
                     {...pumps.jockeySprinkler} 
                     imageType="vertical"
                     onToggle={() => handleToggle('jockeySprinkler')}
+                    onModeChange={(mode) => handleModeChange('jockeySprinkler', mode)}
+                    onStatusChange={(status) => handleStatusChange('jockeySprinkler', status)}
                   />
                 </div>
                 <div className="col-span-1 md:col-span-1 flex flex-col gap-4">
-                  <PressureZoneCard title="UPPER ZONE" pressure={18.3} status="NORMAL" />
-                  <PressureZoneCard title="LOWER ZONE" pressure={10.9} status="NORMAL" />
+                  <PressureZoneCard title="UPPER ZONE" pressure={pressures.upper2} status={pressures.upper2 > 22 ? 'FAULT' : 'NORMAL'} />
+                  <PressureZoneCard title="LOWER ZONE" pressure={pressures.lower2} status={pressures.lower2 > 22 ? 'FAULT' : 'NORMAL'} />
                 </div>
                 <div className="col-span-2 md:col-span-1">
                   <FirePumpCard 
                     {...pumps.mainSprinkler} 
                     imageType="horizontal"
                     onToggle={() => handleToggle('mainSprinkler')}
+                    onModeChange={(mode) => handleModeChange('mainSprinkler', mode)}
+                    onStatusChange={(status) => handleStatusChange('mainSprinkler', status)}
                   />
                 </div>
               </div>
@@ -180,7 +225,7 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
               <SectionHeader 
                 title="TERRACE BOOSTER PUMPS" 
                 faultsCount={boosterFaults} 
-                icon={<ShieldAlert size={28} className="text-[#00a651]" />} 
+                icon={<Gauge size={28} className="text-[#00a651]" />} 
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="col-span-1">
@@ -188,6 +233,8 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
                     {...pumps.terraceBooster48} 
                     imageType="horizontal"
                     onToggle={() => handleToggle('terraceBooster48')}
+                    onModeChange={(mode) => handleModeChange('terraceBooster48', mode)}
+                    onStatusChange={(status) => handleStatusChange('terraceBooster48', status)}
                   />
                 </div>
                 <div className="col-span-1">
@@ -195,6 +242,8 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
                     {...pumps.terraceBooster49} 
                     imageType="horizontal"
                     onToggle={() => handleToggle('terraceBooster49')}
+                    onModeChange={(mode) => handleModeChange('terraceBooster49', mode)}
+                    onStatusChange={(status) => handleStatusChange('terraceBooster49', status)}
                   />
                 </div>
               </div>
@@ -205,11 +254,11 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
               <SectionHeader 
                 title="DIESEL ENGINE PUMP" 
                 faultsCount={dieselFaults} 
-                icon={<ShieldAlert size={28} className="text-[#00a651]" />} 
+                icon={<Fuel size={28} className="text-[#00a651]" />} 
               />
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="col-span-1 sm:col-span-2">
-                  <DieselEngineCard />
+                  <DieselEngineCard status={pumps.jockeyPumpSet.status} />
                 </div>
                 <div className="col-span-1">
                   <FirePumpCard 
@@ -218,6 +267,8 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
                     imageType="horizontal"
                     hideImage={true}
                     onToggle={() => handleToggle('jockeyPumpSet')}
+                    onModeChange={(mode) => handleModeChange('jockeyPumpSet', mode)}
+                    onStatusChange={(status) => handleStatusChange('jockeyPumpSet', status)}
                   />
                 </div>
               </div>

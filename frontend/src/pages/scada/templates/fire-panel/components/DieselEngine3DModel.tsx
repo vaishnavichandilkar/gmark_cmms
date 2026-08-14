@@ -1,6 +1,11 @@
 import React from 'react';
 
-export const DieselEngine3DModel: React.FC = () => {
+export interface DieselEngine3DModelProps {
+  status?: 'ON' | 'OFF' | 'TRIP';
+}
+
+export const DieselEngine3DModel: React.FC<DieselEngine3DModelProps> = ({ status = 'OFF' }) => {
+  const isSpinning = status === 'ON';
   // Industrial Yellow gradients
   const yellowMain = "#eab308"; // Caterpillar yellow style
   const yellowDark = "#a16207";
@@ -16,7 +21,7 @@ export const DieselEngine3DModel: React.FC = () => {
   const engineLight = "#374151";
 
   return (
-    <svg viewBox="0 0 350 220" className="w-full h-full drop-shadow-2xl overflow-visible">
+    <svg viewBox="0 0 350 220" className={`w-full h-full drop-shadow-2xl overflow-visible ${isSpinning ? 'pump-running' : ''}`}>
       <defs>
         <linearGradient id="deSteelGrad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={steelLight} />
