@@ -45,14 +45,14 @@ export const FirePumpCard: React.FC<FirePumpCardProps> = ({
 
               {/* AUTO Section (Left) */}
               <div className="absolute left-[8px] top-[26px] flex flex-col items-center z-10 w-[40px]">
-                <div className="bg-gray-900 text-white text-[7px] font-black px-1 py-0.5 rounded mb-1.5 tracking-wider shadow-sm w-full text-center">AUTO</div>
+                <div className="text-gray-900 text-[9px] font-black px-1 py-0.5 mb-1.5 tracking-wider w-full text-center">AUTO</div>
                 <RefreshCcw size={12} className="text-gray-900 stroke-[2.5]" />
               </div>
               <div className="absolute top-[40px] left-[44px] w-[12px] h-[2.5px] bg-gray-900 rotate-[35deg] z-0 opacity-90 rounded-sm"></div>
 
               {/* MANUAL Section (Right) */}
               <div className="absolute right-[8px] top-[26px] flex flex-col items-center z-10 w-[40px]">
-                <div className="bg-gray-900 text-white text-[7px] font-black px-1 py-0.5 rounded mb-1.5 tracking-wider shadow-sm w-full text-center">MANUAL</div>
+                <div className="text-gray-900 text-[9px] font-black px-1 py-0.5 mb-1.5 tracking-wider w-full text-center">MANUAL</div>
                 <Hand size={12} className="text-gray-900 stroke-[2.5]" />
               </div>
               <div className="absolute top-[40px] right-[44px] w-[12px] h-[2.5px] bg-gray-900 -rotate-[35deg] z-0 opacity-90 rounded-sm"></div>

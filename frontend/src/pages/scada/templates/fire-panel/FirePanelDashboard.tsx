@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { io } from 'socket.io-client';
-import { ShieldAlert, Droplets, CloudRain, CheckCircle2 } from 'lucide-react';
+import { ShieldAlert, Droplets, CloudRain, CheckCircle2, Maximize, Minimize } from 'lucide-react';
 import { api } from '../../../../lib/api';
 import type { RootState } from '../../../../store';
 import { SectionHeader } from './components/SectionHeader';
@@ -53,20 +53,53 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
     }));
   };
 
+  const dashboardRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      dashboardRef.current?.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
   return (
-    <div className="py-4 px-2 lg:py-6 lg:px-4 bg-white min-h-screen">
+    <div ref={dashboardRef} className={`py-4 px-2 lg:py-6 lg:px-4 bg-white ${isFullscreen ? 'h-screen overflow-y-auto' : 'min-h-screen'}`}>
       {/* Top Asset Title */}
-      <div className="flex flex-col mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{title}</h1>
-        <p className="text-sm font-semibold text-gray-500 uppercase flex items-center gap-2 mt-1">
-          <span>{buildingName}</span>
-          {panelId && (
-            <>
-              <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-              <span className="text-gray-400">MAC: {panelId}</span>
-            </>
-          )}
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col">
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{title}</h1>
+          <p className="text-sm font-semibold text-gray-500 uppercase flex items-center gap-2 mt-1">
+            <span>{buildingName}</span>
+            {panelId && (
+              <>
+                <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                <span className="text-gray-400">MAC: {panelId}</span>
+              </>
+            )}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleFullscreen}
+            className="p-2 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-center text-gray-600 shadow-sm"
+            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+          >
+            {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-8">

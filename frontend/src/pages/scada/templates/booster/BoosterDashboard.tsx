@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { io } from 'socket.io-client';
+import { Maximize, Minimize } from 'lucide-react';
 import { VoltageCard } from './components/VoltageCard';
 import { InputPowerCard } from './components/InputPowerCard';
 import { PressureCard } from './components/PressureCard';
@@ -253,8 +254,29 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
   const totalCurrentY = visiblePumps.reduce((sum, p) => sum + p.currentY, 0);
   const totalCurrentB = visiblePumps.reduce((sum, p) => sum + p.currentB, 0);
 
+  const dashboardRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      dashboardRef.current?.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
   return (
-    <div className="scada-dashboard p-4 lg:p-6 lg:pb-12">
+    <div ref={dashboardRef} className={`scada-dashboard p-4 lg:p-6 ${isFullscreen ? 'bg-gray-50 h-screen overflow-y-auto' : 'lg:pb-12'}`}>
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 -mt-2">
         <div className="flex items-center gap-4">
@@ -272,7 +294,15 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
           </div>
         </div>
 
-        
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleFullscreen}
+            className="p-2 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-center text-gray-600 shadow-sm"
+            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+          >
+            {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+          </button>
+        </div>
       </div>
 
       <div className="scada-grid-layout">
