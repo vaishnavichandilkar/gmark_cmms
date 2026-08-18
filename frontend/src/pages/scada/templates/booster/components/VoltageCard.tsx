@@ -24,7 +24,7 @@ export const VoltageCard: React.FC<VoltageCardProps> = ({
           {avgVoltage} <span className="text-sm text-gray-500 font-semibold">V</span>
         </div>
 
-        <div className="flex gap-4 w-full justify-center">
+        <div className="flex flex-wrap gap-2 sm:gap-4 w-full justify-center">
           <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-md text-xs font-semibold">
             <span className="w-2 h-2 rounded-full bg-[#ef4444]"></span>
             <span className="text-gray-700">{voltageR}</span>

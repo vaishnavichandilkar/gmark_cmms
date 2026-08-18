@@ -13,15 +13,15 @@ export const PressureCard: React.FC<PressureCardProps> = ({ pressure = 0.0 }) =>
         <h2>PRESSURE</h2>
       </div>
 
-      <div className="flex flex-row items-center flex-1 py-1">
+      <div className="flex flex-col sm:flex-row items-center justify-center flex-1 py-1 gap-2 sm:gap-0">
         {/* Left metrics */}
-        <div className="flex flex-col items-center justify-center w-1/2 pr-4 border-r border-gray-100">
+        <div className="flex flex-col items-center justify-center w-full sm:w-1/2 sm:pr-4 sm:border-r border-gray-100 mb-2 sm:mb-0">
           <span className="text-[9px] text-gray-400 font-semibold uppercase tracking-wider mb-1">Current Pressure</span>
           <span className="text-gray-900 font-bold text-3xl">{pressure.toFixed(1)} <span className="text-sm font-semibold text-gray-500">bar</span></span>
         </div>
 
         {/* Right Legends */}
-        <div className="flex flex-col gap-2 w-1/2 pl-4 justify-center">
+        <div className="flex flex-col gap-2 w-full sm:w-1/2 sm:pl-4 justify-center">
           <div className="flex justify-between items-center text-[10px]">
             <span className="text-gray-500 font-semibold uppercase tracking-wider flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 bg-[#3b82f6] rounded-full"></span> PT-Value

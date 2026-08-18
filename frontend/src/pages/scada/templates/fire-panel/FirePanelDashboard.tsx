@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+
 import { useSelector } from 'react-redux';
 import { io } from 'socket.io-client';
-import { Droplets, CloudRain, CheckCircle2, Maximize, Minimize, Gauge, Fuel } from 'lucide-react';
+import { Droplets, CloudRain, Maximize, Minimize, Gauge, Fuel } from 'lucide-react';
 import { api } from '../../../../lib/api';
 import type { RootState } from '../../../../store';
 import { SectionHeader } from './components/SectionHeader';
@@ -30,10 +30,10 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
   panelId,
   buildingName
 }) => {
-  const [hydrantFaults, setHydrantFaults] = useState(0);
-  const [sprinklerFaults, setSprinklerFaults] = useState(0);
-  const [boosterFaults, setBoosterFaults] = useState(0);
-  const [dieselFaults, setDieselFaults] = useState(0);
+  const [hydrantFaults] = useState(0);
+  const [sprinklerFaults] = useState(0);
+  const [boosterFaults] = useState(0);
+  const [dieselFaults] = useState(0);
 
   const { accessToken } = useSelector((state: RootState) => state.auth);
   const deviceTopic = panelId;
@@ -56,7 +56,7 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
     lower2: 0
   });
 
-  const processPayload = (data: any, isInitial: boolean) => {
+  const processPayload = (data: any, _isInitial: boolean) => {
     setPumps(prev => {
       const p = { 
         jockeyHydrant: { ...prev.jockeyHydrant },
@@ -244,7 +244,7 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
 
       <div className="flex flex-col gap-8">
         {/* HYDRANT & SPRINKLER SYSTEM SECTION */}
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 w-full">
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-4 sm:p-6 lg:p-8 w-full">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative">
             {/* Divider Line */}
             <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-px bg-gray-200 -translate-x-1/2"></div>
@@ -256,8 +256,8 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
                 faultsCount={hydrantFaults} 
                 icon={<Droplets size={28} className="text-[#00a651]" />} 
               />
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div className="col-span-1 md:col-span-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-8">
+                <div className="col-span-1">
                   <FirePumpCard 
                     {...pumps.jockeyHydrant} 
                     imageType="vertical"
@@ -266,11 +266,11 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
                     onStatusChange={(status) => handleStatusChange('jockeyHydrant', status)}
                   />
                 </div>
-                <div className="col-span-1 md:col-span-1 flex flex-col gap-4">
+                <div className="col-span-1 flex flex-col gap-4">
                   <PressureZoneCard title="UPPER ZONE" pressure={pressures.upper1} status={pressures.upper1 > 22 ? 'FAULT' : 'NORMAL'} />
                   <PressureZoneCard title="LOWER ZONE" pressure={pressures.lower1} status={pressures.lower1 > 22 ? 'FAULT' : 'NORMAL'} />
                 </div>
-                <div className="col-span-2 md:col-span-1">
+                <div className="col-span-1 sm:col-span-2 lg:col-span-1">
                   <FirePumpCard 
                     {...pumps.mainHydrant} 
                     imageType="horizontal"
@@ -289,8 +289,8 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
                 faultsCount={sprinklerFaults} 
                 icon={<CloudRain size={28} className="text-[#00a651]" />} 
               />
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div className="col-span-1 md:col-span-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-8">
+                <div className="col-span-1">
                   <FirePumpCard 
                     {...pumps.jockeySprinkler} 
                     imageType="vertical"
@@ -299,11 +299,11 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
                     onStatusChange={(status) => handleStatusChange('jockeySprinkler', status)}
                   />
                 </div>
-                <div className="col-span-1 md:col-span-1 flex flex-col gap-4">
+                <div className="col-span-1 flex flex-col gap-4">
                   <PressureZoneCard title="UPPER ZONE" pressure={pressures.upper2} status={pressures.upper2 > 22 ? 'FAULT' : 'NORMAL'} />
                   <PressureZoneCard title="LOWER ZONE" pressure={pressures.lower2} status={pressures.lower2 > 22 ? 'FAULT' : 'NORMAL'} />
                 </div>
-                <div className="col-span-2 md:col-span-1">
+                <div className="col-span-1 sm:col-span-2 lg:col-span-1">
                   <FirePumpCard 
                     {...pumps.mainSprinkler} 
                     imageType="horizontal"
@@ -318,7 +318,7 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
         </div>
 
         {/* BOOSTER & DIESEL SYSTEM SECTION */}
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 w-full">
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-4 sm:p-6 lg:p-8 w-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative">
             {/* Divider Line */}
             <div className="hidden lg:block absolute left-[41.666%] top-0 bottom-0 w-px bg-gray-200 -translate-x-1/2"></div>

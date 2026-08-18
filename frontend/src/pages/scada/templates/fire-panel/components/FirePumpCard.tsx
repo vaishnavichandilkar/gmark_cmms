@@ -8,6 +8,7 @@ export interface FirePumpCardProps {
   mode: 'AUTO' | 'OFF' | 'MANUAL';
   imageType: 'vertical' | 'horizontal';
   toggleState: boolean;
+  onToggle?: () => void;
   onModeChange?: (mode: 'AUTO' | 'OFF' | 'MANUAL') => void;
   onStatusChange?: (status: 'ON' | 'OFF' | 'TRIP') => void;
   hideImage?: boolean;
@@ -55,7 +56,6 @@ export const FirePumpCard: React.FC<FirePumpCardProps> = ({
                 <div className="text-gray-900 text-[9px] font-bold px-1 py-0.5 mb-1.5 tracking-wider w-full text-center">MANUAL</div>
                 <Hand size={12} className="text-gray-900 stroke-[2.5]" />
               </div>
-              <div className="absolute top-[40px] left-[44px] w-[12px] h-[2.5px] bg-gray-900 rotate-[35deg] z-0 opacity-90 rounded-sm"></div>
 
               {/* AUTO Section (Right) */}
               <div 
@@ -64,7 +64,6 @@ export const FirePumpCard: React.FC<FirePumpCardProps> = ({
                 <div className="text-gray-900 text-[9px] font-bold px-1 py-0.5 mb-1.5 tracking-wider w-full text-center">AUTO</div>
                 <RefreshCcw size={12} className="text-gray-900 stroke-[2.5]" />
               </div>
-              <div className="absolute top-[40px] right-[44px] w-[12px] h-[2.5px] bg-gray-900 -rotate-[35deg] z-0 opacity-90 rounded-sm"></div>
 
               {/* Rotary Knob Base */}
               <div className="absolute top-[56px] left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center z-20">

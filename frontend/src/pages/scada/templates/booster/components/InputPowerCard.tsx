@@ -44,7 +44,7 @@ export const InputPowerCard: React.FC<InputPowerCardProps> = ({
           {statusObj.text}
         </div>
 
-        <div className="flex gap-4 w-full justify-center">
+        <div className="flex flex-wrap gap-2 sm:gap-4 w-full justify-center">
           <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-md text-xs font-semibold">
             <span className="w-2 h-2 rounded-full bg-[#ef4444]"></span>
             <span className="text-gray-700">{currentR.toFixed(1)}</span>

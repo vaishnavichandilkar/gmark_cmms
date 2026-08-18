@@ -11,7 +11,7 @@ import { DelaySettingsCard } from './components/DelaySettingsCard';
 import { FaultResetCard } from './components/FaultResetCard';
 import { PressureTrendCard } from './components/PressureTrendCard';
 import { ProcessFlowContainer } from './components/ProcessFlow/PipeNetwork';
-import { CustomSelect } from '../../../../components/shared/CustomSelect';
+
 import { api } from '../../../../lib/api';
 import type { RootState } from '../../../../store';
 import './scada.css'; // Will create this
@@ -96,21 +96,15 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
 
   const [mainFacilities, setMainFacilities] = useState<any[]>([]);
   const [facilities, setFacilities] = useState<any[]>([]);
-  const [machines, setMachines] = useState<any[]>([]);
-  
-  const [selectedMainFacilityId, setSelectedMainFacilityId] = useState<number | null>(null);
-  const [selectedFacilityId, setSelectedFacilityId] = useState<number | null>(null);
-  const [selectedMachineId, setSelectedMachineId] = useState<number | null>(null);
+
 
   useEffect(() => {
     Promise.all([
       api.get('/main-facilities'),
-      api.get('/facilities'),
-      api.get('/machines')
-    ]).then(([mfRes, fRes, mRes]) => {
+      api.get('/facilities')
+    ]).then(([mfRes, fRes]) => {
       setMainFacilities(mfRes.data);
       setFacilities(fRes.data);
-      setMachines(mRes.data);
     }).catch(console.error);
   }, []);
 
@@ -123,13 +117,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
     return facilities;
   }, [facilities, isLimitedAccess, buildingIds]);
 
-  const visibleMainFacilities = React.useMemo(() => {
-    if (isLimitedAccess && buildingIds && buildingIds.length > 0) {
-      const allowedMainFacilityIds = new Set(visibleFacilities.map(f => f.mainFacilityId));
-      return mainFacilities.filter(mf => allowedMainFacilityIds.has(mf.id));
-    }
-    return mainFacilities;
-  }, [mainFacilities, visibleFacilities, isLimitedAccess, buildingIds]);
+
 
   const processPayload = (data: any, isInitial: boolean) => {
     setPumps(prev => {
@@ -307,7 +295,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
 
       <div className="scada-grid-layout">
         {/* ROW 1: Metrics */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
           <VoltageCard
             voltageR={dashboardData.ryVoltage}
             voltageY={dashboardData.ybVoltage}
@@ -339,7 +327,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
         </div>
 
         {/* ROW 3: Trends & Settings */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
           <PressureTrendCard />
           <DelaySettingsCard
             pumpOnDelay={dashboardData.pumpOnDelay}
