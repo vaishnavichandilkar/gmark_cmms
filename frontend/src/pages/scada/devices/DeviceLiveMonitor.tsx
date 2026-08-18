@@ -68,7 +68,40 @@ const REGISTER_NAMES: Record<number, string> = {
   40089: 'Motor 1 Activate/Deactivate',
   40090: 'Motor 2 Activate/Deactivate',
   40091: 'Motor 3 Activate/Deactivate',
-  40092: 'Motor 4 Activate/Deactivate'
+  40092: 'Motor 4 Activate/Deactivate',
+
+  // Fire Panel Registers
+  40141: 'Line-1 Main Pump On (Cmd)',
+  40142: 'Line-2 Main Pump On (Cmd)',
+  40143: 'Line-2 Jockey Pump On (Cmd)',
+  40144: 'Line-1 Jockey Pump On (Cmd)',
+  40145: 'DG On (Cmd)',
+  40146: 'Line-2 Main Pump Off (Cmd)',
+  40147: 'Line-2 Jockey Pump Off (Cmd)',
+  40148: 'Line-1 Jockey Pump Off (Cmd)',
+  
+  40151: 'Line-1 Main Pump Auto',
+  40152: 'Line-1 Main Pump Manual',
+  40153: 'Line-1 Main Pump ON',
+  40154: 'Line-1 Main Pump OFF',
+  40155: 'Line-1 Main Pump Trip',
+  40156: 'UZ Line-1 Pressure',
+  40157: 'UZ Line-2 Pressure',
+  
+  40161: 'Line-2 Main Pump Auto',
+  40162: 'Line-2 Main Pump Manual',
+  40163: 'Line-2 Main Pump ON',
+  40164: 'Line-2 Main Pump OFF',
+  40165: 'Line-2 Main Pump Trip',
+  
+  40166: 'Line-1 Jockey Pump Auto',
+  40167: 'Line-1 Jockey Pump Manual',
+  40168: 'Line-1 Jockey Pump ON',
+  40169: 'Line-1 Jockey Pump OFF',
+  40170: 'Line-1 Jockey Pump Trip',
+  
+  40171: 'DG Auto ON',
+  40172: 'DG Manual ON'
 };
 
 export function DeviceLiveMonitor() {
@@ -270,7 +303,7 @@ export function DeviceLiveMonitor() {
                     className="relative bg-white border border-gray-200 rounded-xl p-2 flex flex-col items-center justify-center text-center group hover:border-emerald-300 hover:shadow-md transition-all duration-200 cursor-help min-h-[64px] shadow-sm"
                   >
                     <div className="text-[10px] font-bold text-gray-500 tracking-wider uppercase mb-1">
-                      Reg {normReg}
+                      Reg {reg.register}
                     </div>
                     <div className={`font-mono text-lg font-black tracking-tight ${isZero ? 'text-gray-400' : 'text-gray-900 group-hover:text-emerald-600'} transition-colors`}>
                       {reg.value}
@@ -315,7 +348,7 @@ export function DeviceLiveMonitor() {
                     className="relative bg-white border border-gray-200 rounded-xl p-2 flex flex-col items-center justify-center text-center group hover:border-emerald-300 hover:shadow-md transition-all duration-200 cursor-help min-h-[64px] shadow-sm"
                   >
                     <div className="text-[10px] font-bold text-gray-500 tracking-wider uppercase mb-1">
-                      Reg {normReg}
+                      Reg {reg.register}
                     </div>
                     <div className={`font-mono text-lg font-black tracking-tight ${isZero ? 'text-gray-400' : 'text-gray-900 group-hover:text-emerald-600'} transition-colors`}>
                       {reg.value}

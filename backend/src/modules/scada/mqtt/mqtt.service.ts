@@ -51,6 +51,12 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
     'AGC/SE-20260223035',
     'AGC/SE-2026052022',
     'AGC/SE-20260526023',
+    'AGC/SE-3004202546',
+    'AGC/SE-3004202547',
+    'AGC/3004202546',
+    'AGC/3004202547',
+    'AGC/SE-2806202501',
+    'AGC/2806202501',
   ];
 
   constructor(
@@ -183,11 +189,24 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
 
       for (const reg of payload.registers) {
         const rawAddress = Number(reg.register);
-        const address = rawAddress < 40000 ? rawAddress + 40000 : rawAddress;
-        reg.register = address; // Normalize it in the payload to be sent to UI
+        
+        // Dynamic Address Lookup
+        // For Fire Panels: address is sent exactly as in the definitions (e.g. 141, 164)
+        // For Boosters: address is sent as 1, 2 but definitions are 40001, 40002
+        let address = rawAddress;
+        let def = this.registerDefinitions[rawAddress];
+        
+        if (!def && rawAddress < 40000) {
+          const normalizedAddress = rawAddress + 40000;
+          if (this.registerDefinitions[normalizedAddress]) {
+            address = normalizedAddress;
+            def = this.registerDefinitions[normalizedAddress];
+            reg.register = address; // Normalize only if we matched a 40000-series definition
+          }
+        }
+
         const value = Number(reg.value);
 
-        const def = this.registerDefinitions[address];
         if (def) {
           // Add to parsedState if there's a mapped key
           if (def.mappedKey) {

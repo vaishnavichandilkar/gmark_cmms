@@ -188,6 +188,66 @@ model DeviceState {
   motor2RunTime        Int      @default(0)
   motor3RunTime        Int      @default(0)
   motor4RunTime        Int      @default(0)
+
+  // Fire Panel specific fields
+  line1JockeyAuto       Int @default(0)
+  line1JockeyManual     Int @default(0)
+  line1JockeyOn         Int @default(0)
+  line1JockeyTrip       Int @default(0)
+  line1JockeyControlOff Int @default(0)
+  line1JockeyControlOn  Int @default(0)
+
+  line1MainAuto         Int @default(0)
+  line1MainManual       Int @default(0)
+  line1MainOn           Int @default(0)
+  line1MainTrip         Int @default(0)
+  line1MainControlOff   Int @default(0)
+  line1MainControlOn    Int @default(0)
+
+  line2JockeyAuto       Int @default(0)
+  line2JockeyManual     Int @default(0)
+  line2JockeyOn         Int @default(0)
+  line2JockeyTrip       Int @default(0)
+  line2JockeyControlOff Int @default(0)
+  line2JockeyControlOn  Int @default(0)
+
+  line2MainAuto         Int @default(0)
+  line2MainManual       Int @default(0)
+  line2MainOn           Int @default(0)
+  line2MainTrip         Int @default(0)
+  line2MainControlOff   Int @default(0)
+  line2MainControlOn    Int @default(0)
+
+  terraceBooster1Auto       Int @default(0)
+  terraceBooster1Manual     Int @default(0)
+  terraceBooster1On         Int @default(0)
+  terraceBooster1Trip       Int @default(0)
+  terraceBooster1ControlOff Int @default(0)
+  terraceBooster1ControlOn  Int @default(0)
+
+  terraceBooster2Auto       Int @default(0)
+  terraceBooster2Manual     Int @default(0)
+  terraceBooster2On         Int @default(0)
+  terraceBooster2Trip       Int @default(0)
+  terraceBooster2ControlOff Int @default(0)
+  terraceBooster2ControlOn  Int @default(0)
+
+  dieselEngineAuto       Int @default(0)
+  dieselEngineManual     Int @default(0)
+  dieselEngineOn         Int @default(0)
+  dieselEngineControlOff Int @default(0)
+  dieselEngineControlOn  Int @default(0)
+
+  // Additional fields from handwritten notes
+  dgControlOn            Int @default(0)
+  line1MainOff           Int @default(0)
+  line2MainOff           Int @default(0)
+  line1JockeyOff         Int @default(0)
+  dgAuto                 Int @default(0)
+  dgManual               Int @default(0)
+  uzLine1Pressure        Float @default(0)
+  uzLine2Pressure        Float @default(0)
+
   updatedAt            DateTime @updatedAt
 }
 

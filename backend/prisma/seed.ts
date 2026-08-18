@@ -8,12 +8,19 @@ async function main() {
   await prisma.$executeRawUnsafe(`TRUNCATE TABLE "DeviceRegisterValue", "RegisterDefinition", "Device", "Building", "DeviceState", "DeviceSnapshot", "Society", "User", "UserBuilding", "AuditLog" CASCADE;`);
 
   console.log('Seeding societies...');
-  await prisma.society.create({
-    data: {
-      id: 4,
-      name: 'Gera Imperium',
-      city: 'Pune',
-    },
+  await prisma.society.createMany({
+    data: [
+      {
+        id: 4,
+        name: 'Gera Imperium',
+        city: 'Pune',
+      },
+      {
+        id: 5,
+        name: 'AGC House',
+        city: 'Pune',
+      }
+    ]
   });
 
   console.log('Seeding buildings...');
@@ -23,6 +30,7 @@ async function main() {
       { id: 2, name: 'B Building', societyId: 4, info: '3F - 3 flats' },
       { id: 3, name: 'C Building', societyId: 4, info: '9F - 315 flats' },
       { id: 4, name: 'STP', societyId: 4, info: '1F - 0 flats' },
+      { id: 5, name: 'Building A', societyId: 5, info: 'TBD' },
     ],
   });
 
@@ -66,6 +74,13 @@ async function main() {
     { deviceId: '20260223035', name: 'TOWER B FLUSHING SYSTEM', buildingId: 4, template: 'booster', systemName: 'TOWER B FLUSHING SYSTEM' },
     { deviceId: '2026052022', name: 'TOWER A&C FLUSHING SYSTEM', buildingId: 4, template: 'booster', systemName: 'TOWER A&C FLUSHING SYSTEM' },
     { deviceId: '2026526023', name: 'GARDAN SYSTEM', buildingId: 4, template: 'booster', systemName: 'GARDAN SYSTEM' },
+
+    // NEW DEVICES
+    { deviceId: '3004202546', name: 'Fire Panel System 3004202546', buildingId: 1, template: 'fire-panel', systemName: 'Fire Panel System 3004202546', cardNo: '02' },
+    { deviceId: '3004202547', name: 'Fire Panel System 3004202547', buildingId: 1, template: 'fire-panel', systemName: 'Fire Panel System 3004202547', cardNo: '03' },
+    
+    // AGC HOUSE
+    { deviceId: '2806202501', name: 'Free Demo Kit', buildingId: 5, template: 'fire-panel', systemName: 'Free Demo Kit' },
   ];
 
   await prisma.device.createMany({
@@ -202,8 +217,55 @@ async function main() {
     { address: 40119, name: 'CT wound', units: 'TURNS', description: 'NUMBER OF TURNS TO CT COIL' }
   ];
 
+  const firePanelRegisterDefinitions = [
+    // Control Write Registers (On/Off)
+    { address: 141, name: 'Line-1 Main Pump On', range: '0-1', mappedKey: 'line1MainControlOn' },
+    { address: 142, name: 'Line-2 Main Pump On', range: '0-1', mappedKey: 'line2MainControlOn' },
+    { address: 143, name: 'Line-2 Jockey Pump On', range: '0-1', mappedKey: 'line2JockeyControlOn' },
+    { address: 144, name: 'Line-1 Jockey Pump On', range: '0-1', mappedKey: 'line1JockeyControlOn' },
+    { address: 145, name: 'DG On', range: '0-1', mappedKey: 'dgControlOn' },
+    { address: 146, name: 'Line-2 Main Pump Off', range: '0-1', mappedKey: 'line2MainControlOff' },
+    { address: 147, name: 'Line-2 Jockey Pump Off', range: '0-1', mappedKey: 'line2JockeyControlOff' },
+    { address: 148, name: 'Line-1 Jockey Pump Off', range: '0-1', mappedKey: 'line1JockeyControlOff' },
+
+    // Status Registers - Line 1 Main Pump
+    { address: 151, name: 'Line-1 Main Pump Auto', range: '0-1', mappedKey: 'line1MainAuto' },
+    { address: 152, name: 'Line-1 Main Pump Manual', range: '0-1', mappedKey: 'line1MainManual' },
+    { address: 153, name: 'Line-1 Main Pump ON', range: '0-1', mappedKey: 'line1MainOn' },
+    { address: 154, name: 'Line-1 Main Pump OFF', range: '0-1', mappedKey: 'line1MainOff' },
+    { address: 155, name: 'Line-1 Main Pump Trip', range: '0-1', mappedKey: 'line1MainTrip' },
+
+    // Status Registers - Line 2 Main Pump
+    { address: 161, name: 'Line-2 Main Pump Auto', range: '0-1', mappedKey: 'line2MainAuto' },
+    { address: 162, name: 'Line-2 Main Pump Manual', range: '0-1', mappedKey: 'line2MainManual' },
+    { address: 163, name: 'Line-2 Main Pump ON', range: '0-1', mappedKey: 'line2MainOn' },
+    { address: 164, name: 'Line-2 Main Pump OFF', range: '0-1', mappedKey: 'line2MainOff' },
+    { address: 165, name: 'Line-2 Main Pump Trip', range: '0-1', mappedKey: 'line2MainTrip' },
+
+    // Status Registers - Line 1 Jockey Pump
+    { address: 166, name: 'Line-1 Jockey Pump Auto', range: '0-1', mappedKey: 'line1JockeyAuto' },
+    { address: 167, name: 'Line-1 Jockey Pump Manual', range: '0-1', mappedKey: 'line1JockeyManual' },
+    { address: 168, name: 'Line-1 Jockey Pump ON', range: '0-1', mappedKey: 'line1JockeyOn' },
+    { address: 169, name: 'Line-1 Jockey Pump OFF', range: '0-1', mappedKey: 'line1JockeyOff' },
+    { address: 170, name: 'Line-1 Jockey Pump Trip', range: '0-1', mappedKey: 'line1JockeyTrip' },
+
+    // Status Registers - DG
+    { address: 171, name: 'DG Auto ON', range: '0-1', mappedKey: 'dgAuto' },
+    { address: 172, name: 'DG Manual ON', range: '0-1', mappedKey: 'dgManual' },
+
+    // Pressure
+    { address: 156, name: 'UZ Line-1 Pressure', range: '0-250', mappedKey: 'uzLine1Pressure' },
+    { address: 157, name: 'UZ Line-2 Pressure', range: '0-250', mappedKey: 'uzLine2Pressure' }
+  ];
+
   await prisma.registerDefinition.createMany({
-    data: registerDefinitions
+    data: registerDefinitions,
+    skipDuplicates: true
+  });
+
+  await prisma.registerDefinition.createMany({
+    data: firePanelRegisterDefinitions,
+    skipDuplicates: true
   });
 
   console.log('Seeding users...');

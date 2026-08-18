@@ -42,44 +42,37 @@ export const FirePumpCard: React.FC<FirePumpCardProps> = ({
               
               {/* OFF Text Top Center */}
               <div 
-                className="absolute top-1.5 left-1/2 -translate-x-1/2 flex flex-col items-center z-10 cursor-pointer hover:scale-105 transition-transform"
-                onClick={() => onModeChange?.('OFF')}
+                className="absolute top-1.5 left-1/2 -translate-x-1/2 flex flex-col items-center z-10"
               >
                 <span className="text-[10px] font-bold text-gray-900 tracking-wider leading-none mb-1">OFF</span>
                 <div className="w-1 h-1 bg-gray-900 rounded-full shadow-sm"></div>
               </div>
 
-              {/* AUTO Section (Left) */}
+              {/* MANUAL Section (Left) */}
               <div 
-                className="absolute left-[8px] top-[26px] flex flex-col items-center z-10 w-[40px] cursor-pointer hover:scale-105 transition-transform"
-                onClick={() => onModeChange?.('AUTO')}
-              >
-                <div className="text-gray-900 text-[9px] font-bold px-1 py-0.5 mb-1.5 tracking-wider w-full text-center">AUTO</div>
-                <RefreshCcw size={12} className="text-gray-900 stroke-[2.5]" />
-              </div>
-              <div className="absolute top-[40px] left-[44px] w-[12px] h-[2.5px] bg-gray-900 rotate-[35deg] z-0 opacity-90 rounded-sm"></div>
-
-              {/* MANUAL Section (Right) */}
-              <div 
-                className="absolute right-[8px] top-[26px] flex flex-col items-center z-10 w-[40px] cursor-pointer hover:scale-105 transition-transform"
-                onClick={() => onModeChange?.('MANUAL')}
+                className="absolute left-[8px] top-[26px] flex flex-col items-center z-10 w-[40px]"
               >
                 <div className="text-gray-900 text-[9px] font-bold px-1 py-0.5 mb-1.5 tracking-wider w-full text-center">MANUAL</div>
                 <Hand size={12} className="text-gray-900 stroke-[2.5]" />
+              </div>
+              <div className="absolute top-[40px] left-[44px] w-[12px] h-[2.5px] bg-gray-900 rotate-[35deg] z-0 opacity-90 rounded-sm"></div>
+
+              {/* AUTO Section (Right) */}
+              <div 
+                className="absolute right-[8px] top-[26px] flex flex-col items-center z-10 w-[40px]"
+              >
+                <div className="text-gray-900 text-[9px] font-bold px-1 py-0.5 mb-1.5 tracking-wider w-full text-center">AUTO</div>
+                <RefreshCcw size={12} className="text-gray-900 stroke-[2.5]" />
               </div>
               <div className="absolute top-[40px] right-[44px] w-[12px] h-[2.5px] bg-gray-900 -rotate-[35deg] z-0 opacity-90 rounded-sm"></div>
 
               {/* Rotary Knob Base */}
               <div className="absolute top-[56px] left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center z-20">
                 <svg 
-                  onClick={() => {
-                    const nextMode = mode === 'AUTO' ? 'OFF' : mode === 'OFF' ? 'MANUAL' : 'AUTO';
-                    onModeChange?.(nextMode);
-                  }}
-                  className="transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] drop-shadow-md cursor-pointer"
+                  className="transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] drop-shadow-md"
                   style={{ 
                     transformOrigin: '50% 50%',
-                    transform: `rotate(${mode === 'AUTO' ? '-55deg' : mode === 'MANUAL' ? '55deg' : '0deg'})` 
+                    transform: `rotate(${mode === 'MANUAL' ? '-55deg' : mode === 'AUTO' ? '55deg' : '0deg'})` 
                   }}
                   width="52" 
                   height="52" 

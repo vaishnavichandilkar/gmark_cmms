@@ -35,6 +35,9 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
   const [boosterFaults, setBoosterFaults] = useState(0);
   const [dieselFaults, setDieselFaults] = useState(0);
 
+  const { accessToken } = useSelector((state: RootState) => state.auth);
+  const deviceTopic = panelId;
+
   // Mocked states for pumps to match UI exactly
   const [pumps, setPumps] = useState<Record<string, PumpState>>({
     jockeyHydrant: { id: '1', title: 'JOCKEY HYDRANT PUMP', status: 'OFF', mode: 'AUTO', toggleState: false },
@@ -47,24 +50,124 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
   });
 
   const [pressures, setPressures] = useState({
-    upper1: 18.1,
-    lower1: 10.8,
-    upper2: 18.3,
-    lower2: 10.9
+    upper1: 0,
+    lower1: 0,
+    upper2: 0,
+    lower2: 0
   });
 
-  // Mock MQTT data fluctuation
+  const processPayload = (data: any, isInitial: boolean) => {
+    setPumps(prev => {
+      const p = { 
+        jockeyHydrant: { ...prev.jockeyHydrant },
+        mainHydrant: { ...prev.mainHydrant },
+        jockeySprinkler: { ...prev.jockeySprinkler },
+        mainSprinkler: { ...prev.mainSprinkler },
+        terraceBooster48: { ...prev.terraceBooster48 },
+        terraceBooster49: { ...prev.terraceBooster49 },
+        jockeyPumpSet: { ...prev.jockeyPumpSet },
+      };
+
+      const mapPump = (key: keyof typeof p, dbPrefix: string) => {
+        // Status mapping
+        if (data[`${dbPrefix}Trip`] !== undefined && Number(data[`${dbPrefix}Trip`]) > 0) {
+          p[key].status = 'TRIP';
+        } else if (data[`${dbPrefix}On`] !== undefined && Number(data[`${dbPrefix}On`]) > 0) {
+          p[key].status = 'ON';
+        } else if (data[`${dbPrefix}Off`] !== undefined && Number(data[`${dbPrefix}Off`]) > 0) {
+          p[key].status = 'OFF';
+        } else if (data[`${dbPrefix}On`] !== undefined) {
+          p[key].status = Number(data[`${dbPrefix}On`]) > 0 ? 'ON' : 'OFF';
+        } else if (data[`${dbPrefix}ControlOn`] !== undefined) {
+          // Fallback to Control registers if Status registers are missing (e.g., line2Jockey)
+          p[key].status = Number(data[`${dbPrefix}ControlOn`]) > 0 ? 'ON' : 'OFF';
+        }
+
+        // Mode mapping
+        if (data[`${dbPrefix}Auto`] !== undefined || data[`${dbPrefix}Manual`] !== undefined) {
+          const isAuto = Number(data[`${dbPrefix}Auto`]) > 0;
+          const isManual = Number(data[`${dbPrefix}Manual`]) > 0;
+          if (isAuto) p[key].mode = 'AUTO';
+          else if (isManual) p[key].mode = 'MANUAL';
+          else p[key].mode = 'OFF';
+        }
+        
+        // Command / Toggle State mapping
+        // If we don't have a specific control register, we bind it to the ON status for now
+        if (data[`${dbPrefix}ControlOn`] !== undefined) {
+          p[key].toggleState = Number(data[`${dbPrefix}ControlOn`]) > 0;
+        } else if (p[key].status === 'ON') {
+          p[key].toggleState = true;
+        } else if (p[key].status === 'OFF') {
+          p[key].toggleState = false;
+        }
+      };
+
+      mapPump('jockeyHydrant', 'line1Jockey');
+      mapPump('mainHydrant', 'line1Main');
+      // Line-2 Jockey lacks Status registers on this demo kit, so we rely on the ControlOn fallback added above
+      mapPump('jockeySprinkler', 'line2Jockey');
+      mapPump('mainSprinkler', 'line2Main');
+      mapPump('terraceBooster48', 'terraceBooster1');
+      mapPump('terraceBooster49', 'terraceBooster2');
+      
+      // Diesel pump
+      if (data.dgAuto !== undefined || data.dgManual !== undefined) {
+        const isAuto = Number(data.dgAuto) > 0;
+        const isManual = Number(data.dgManual) > 0;
+        p.jockeyPumpSet.mode = isAuto ? 'AUTO' : isManual ? 'MANUAL' : 'OFF';
+      }
+      
+      if (data.dgOn !== undefined) {
+        p.jockeyPumpSet.status = Number(data.dgOn) > 0 ? 'ON' : 'OFF';
+        p.jockeyPumpSet.toggleState = Number(data.dgOn) > 0;
+      } else if (data.dgControlOn !== undefined) {
+        const isOn = Number(data.dgControlOn) > 0;
+        p.jockeyPumpSet.status = isOn ? 'ON' : 'OFF';
+        p.jockeyPumpSet.toggleState = isOn;
+      }
+
+      return p;
+    });
+
+    setPressures(prev => ({
+      ...prev,
+      upper1: data.uzLine1Pressure !== undefined ? Number(data.uzLine1Pressure) / 100.0 : prev.upper1,
+      upper2: data.uzLine2Pressure !== undefined ? Number(data.uzLine2Pressure) / 100.0 : prev.upper2,
+    }));
+  };
+
   useEffect(() => {
-    const interval = setInterval(() => {
-      setPressures(prev => ({
-        upper1: Math.min(24, Math.max(0, prev.upper1 + (Math.random() * 0.4 - 0.2))),
-        lower1: Math.min(24, Math.max(0, prev.lower1 + (Math.random() * 0.4 - 0.2))),
-        upper2: Math.min(24, Math.max(0, prev.upper2 + (Math.random() * 0.4 - 0.2))),
-        lower2: Math.min(24, Math.max(0, prev.lower2 + (Math.random() * 0.4 - 0.2))),
-      }));
-    }, 2000);
-    return () => clearInterval(interval);
-  }, []);
+    if (!panelId) return;
+
+    api.get(`/devices/${panelId}/dashboard`)
+      .then(r => {
+        const res = r.data;
+        if (res && !res.error) {
+          processPayload(res, true);
+        }
+      })
+      .catch(console.error);
+
+    const socket = io('http://localhost:3001', {
+      auth: { token: accessToken },
+    });
+
+    socket.on('connect', () => {
+      socket.emit('join-device', { topic: deviceTopic });
+    });
+
+    socket.on('device-update', (update: { deviceId: string, registers: any }) => {
+      if (update.deviceId === panelId && update.registers) {
+        processPayload(update.registers, false);
+      }
+    });
+
+    return () => {
+      socket.emit('leave-device', { topic: deviceTopic });
+      socket.disconnect();
+    };
+  }, [panelId, deviceTopic, accessToken]);
 
   const handleToggle = (pumpKey: string) => {
     setPumps(prev => {
