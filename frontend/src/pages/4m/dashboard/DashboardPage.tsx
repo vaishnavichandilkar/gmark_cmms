@@ -412,21 +412,35 @@ export function DashboardPage() {
           </div>
         </div>
       ) : (
-        <div className="flex flex-1 items-center justify-center">
+        <div className="flex flex-1 items-center justify-center p-6 mt-12">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center max-w-md bg-white p-10 rounded-3xl border border-gray-100 shadow-sm"
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="relative overflow-hidden text-center max-w-lg w-full bg-white/80 backdrop-blur-xl p-12 rounded-[2rem] border border-white/60 shadow-[0_20px_60px_-15px_rgba(0,166,81,0.15)] group hover:shadow-[0_20px_60px_-15px_rgba(0,166,81,0.25)] transition-all duration-500"
           >
-            <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Boxes size={40} className="text-[#00a651]" />
+            {/* Background Glow */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-gradient-to-b from-green-50/80 to-transparent pointer-events-none rounded-[2rem]" />
+            
+            <motion.div 
+              whileHover={{ scale: 1.05, rotate: 5 }}
+              transition={{ type: "spring", stiffness: 300 }}
+              className="relative w-28 h-28 mx-auto mb-8"
+            >
+              <div className="absolute inset-0 bg-gradient-to-tr from-[#00a651]/10 to-[#00a651]/5 rounded-3xl rotate-6 group-hover:rotate-12 transition-transform duration-500" />
+              <div className="absolute inset-0 bg-white rounded-3xl -rotate-3 group-hover:-rotate-6 transition-transform duration-500 shadow-xl shadow-green-500/10 border border-green-50 flex items-center justify-center backdrop-blur-sm">
+                <Boxes size={44} strokeWidth={1.5} className="text-[#00a651]" />
+              </div>
+            </motion.div>
+            
+            <div className="relative">
+              <h1 className="text-3xl font-extrabold tracking-tight mb-4 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                System Overview
+              </h1>
+              <p className="text-[1.05rem] text-gray-500 leading-relaxed font-medium">
+                Select one or more assets from the top menu to monitor their real-time <span className="text-gray-700 font-semibold">SCADA metrics</span>.
+              </p>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">
-              System Overview
-            </h1>
-            <p className="text-gray-500 leading-relaxed">
-              Select one or more assets from the top menu to monitor their real-time SCADA metrics.
-            </p>
           </motion.div>
         </div>
       )}
