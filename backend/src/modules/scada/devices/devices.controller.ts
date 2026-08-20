@@ -9,6 +9,7 @@ import {
   ParseIntPipe,
   UseGuards,
   Ip,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -26,6 +27,8 @@ import { CurrentUser } from '../../core/auth/decorators/current-user.decorator';
 import { UserRole } from '@prisma/client';
 import { AuditLogService } from '../../core/audit-log/audit-log.service';
 
+import { MqttService } from '../mqtt/mqtt.service';
+
 @ApiTags('devices')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, RolesGuard, BuildingAccessGuard)
@@ -34,6 +37,7 @@ export class DevicesController {
   constructor(
     private readonly devicesService: DevicesService,
     private readonly auditLogService: AuditLogService,
+    private readonly mqttService: MqttService,
   ) {}
 
   @Get()
@@ -133,6 +137,34 @@ export class DevicesController {
       ip,
     );
     return result;
+  }
+
+  @Post(':deviceId/command')
+  @ApiOperation({ summary: 'Send a command to a specific device' })
+  @ApiParam({ name: 'deviceId', description: 'Device ID string' })
+  @ApiResponse({ status: 200, description: 'Command published successfully.' })
+  @ApiResponse({ status: 401, description: 'Invalid password.' })
+  async sendCommand(
+    @Param('deviceId') deviceId: string,
+    @Body() body: { command: any; password?: string },
+    @CurrentUser() user: any,
+    @Ip() ip: string,
+  ) {
+    // Basic fixed PIN check for now. Later can be verified against user.password
+    if (body.password !== '8250') {
+      throw new UnauthorizedException('Invalid security code.');
+    }
+
+    const result = this.mqttService.publishCommand(deviceId, body.command);
+    
+    await this.auditLogService.create(
+      user.userId,
+      `Command sent to device ${deviceId}: ${JSON.stringify(body.command)}`,
+      'DEVICES',
+      ip,
+    );
+
+    return { success: result };
   }
 
   @Get(':deviceId/snapshot')

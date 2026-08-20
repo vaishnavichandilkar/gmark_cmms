@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { io } from 'socket.io-client';
-import { Maximize, Minimize } from 'lucide-react';
+import { Maximize, Minimize, AlertTriangle } from 'lucide-react';
 import { VoltageCard } from './components/VoltageCard';
 import { InputPowerCard } from './components/InputPowerCard';
 import { PressureCard } from './components/PressureCard';
@@ -96,6 +96,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
 
   const [mainFacilities, setMainFacilities] = useState<any[]>([]);
   const [facilities, setFacilities] = useState<any[]>([]);
+  const [activeAlerts, setActiveAlerts] = useState<any[]>([]);
 
 
   useEffect(() => {
@@ -216,6 +217,12 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
       })
       .catch(console.error);
 
+    api.get(`/alerts/${panelId}/active`)
+      .then(r => {
+        if (r.data) setActiveAlerts(r.data);
+      })
+      .catch(console.error);
+
     const socket = io('http://localhost:3001', {
       auth: { token: accessToken },
     });
@@ -227,6 +234,18 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
     socket.on('device-update', (update: { deviceId: string, registers: any }) => {
       if (update.deviceId === panelId && update.registers) {
         processPayload(update.registers, false);
+      }
+    });
+
+    socket.on('device-alert', (alert: any) => {
+      if (alert.deviceId === panelId) {
+        setActiveAlerts((prev) => [alert, ...prev]);
+      }
+    });
+
+    socket.on('device-alert-resolved', (alert: any) => {
+      if (alert.deviceId === panelId) {
+        setActiveAlerts((prev) => prev.filter(a => a.id !== alert.id));
       }
     });
 
@@ -292,6 +311,20 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
           </button>
         </div>
       </div>
+
+      {activeAlerts.length > 0 && (
+        <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm animate-pulse">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="text-red-500 shrink-0" size={24} />
+            <div>
+              <h3 className="text-red-800 font-bold">System Alerts ({activeAlerts.length})</h3>
+              <p className="text-red-600 text-sm font-medium">
+                {activeAlerts[0].message} {activeAlerts.length > 1 ? `(+ ${activeAlerts.length - 1} more active alerts)` : ''}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="scada-grid-layout">
         {/* ROW 1: Metrics */}

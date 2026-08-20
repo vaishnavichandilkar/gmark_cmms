@@ -21,6 +21,7 @@ import { PostalCodesModule } from './modules/4m/postal-codes/postal-codes.module
 import { MachineDocumentsModule } from './modules/4m/machine-documents/machine-documents.module';
 import { MachineSpecificationsModule } from './modules/4m/machine-specifications/machine-specifications.module';
 import { MachinesModule } from './modules/4m/machines/machines.module';
+import { AlertsModule } from './modules/scada/alerts/alerts.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { MachinesModule } from './modules/4m/machines/machines.module';
     }),
     PrismaModule,
     WebsocketModule,
+    AlertsModule,
     BuildingsModule,
     DevicesModule,
     SocietiesModule,

@@ -9,6 +9,7 @@ import { SectionHeader } from './components/SectionHeader';
 import { FirePumpCard } from './components/FirePumpCard';
 import { PressureZoneCard } from './components/PressureZoneCard';
 import { DieselEngineCard } from './components/DieselEngineCard';
+import { PasswordModal } from '../../../../components/shared/PasswordModal';
 import './scada.css';
 
 export interface FirePanelDashboardProps {
@@ -34,6 +35,9 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
   const [sprinklerFaults] = useState(0);
   const [boosterFaults] = useState(0);
   const [dieselFaults] = useState(0);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [pendingCommand, setPendingCommand] = useState<{pumpKey: string, nextState: boolean} | null>(null);
 
   const { accessToken } = useSelector((state: RootState) => state.auth);
   const deviceTopic = panelId;
@@ -169,16 +173,6 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
     };
   }, [panelId, deviceTopic, accessToken]);
 
-  const handleToggle = (pumpKey: string) => {
-    setPumps(prev => {
-      const nextToggleState = !prev[pumpKey].toggleState;
-      return {
-        ...prev,
-        [pumpKey]: { ...prev[pumpKey], toggleState: nextToggleState, status: nextToggleState ? 'ON' : 'OFF' }
-      };
-    });
-  };
-
   const handleStatusChange = (pumpKey: string, newStatus: 'ON' | 'OFF' | 'TRIP') => {
     setPumps(prev => ({
       ...prev,
@@ -191,6 +185,92 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
       ...prev,
       [pumpKey]: { ...prev[pumpKey], mode: newMode }
     }));
+  };
+
+  const handleToggleClick = (pumpKey: string) => {
+    // Open password modal before proceeding
+    const isCurrentlyOn = pumps[pumpKey].toggleState;
+    setPendingCommand({ pumpKey, nextState: !isCurrentlyOn });
+    setIsModalOpen(true);
+  };
+
+  const executeCommand = async (password: string) => {
+    if (!pendingCommand) return;
+    
+    const { pumpKey, nextState } = pendingCommand;
+    
+    // Map pump keys to their control register names (based on processPayload mapping)
+    const controlMapping: Record<string, string> = {
+      jockeyHydrant: 'line1JockeyControlOn',
+      mainHydrant: 'line1MainControlOn',
+      jockeySprinkler: 'line2JockeyControlOn',
+      mainSprinkler: 'line2MainControlOn',
+      jockeyPumpSet: 'dgControlOn',
+    };
+    
+    // Default to the ON registers. Value 1 = ON, Value 0 = OFF.
+    // If it's a booster, we'll map differently if needed, but the demo kit is a fire panel.
+    const mappedKey = controlMapping[pumpKey];
+    
+    // Find the register address from the key
+    // For a robust implementation, we would query the backend for the register map, 
+    // but for the demo we can use the known addresses.
+    const registerAddresses: Record<string, number> = {
+      line1MainControlOn: 141,
+      line2MainControlOn: 142,
+      line2JockeyControlOn: 143,
+      line1JockeyControlOn: 144,
+      dgControlOn: 145,
+    };
+    
+    const address = registerAddresses[mappedKey];
+    
+    // Some pumps have a separate OFF register (+4 offset in this demo kit pattern)
+    // 142(L2MainOn)->146(L2MainOff), 143(L2JockeyOn)->147(L2JockeyOff), 144(L1JockeyOn)->148(L1JockeyOff)
+    let targetAddress = address;
+    let targetValue = nextState ? 1 : 0;
+    
+    if (address !== undefined) {
+      // Pulse logic for OFF if it's one of the known momentary registers
+      if (!nextState && address >= 142 && address <= 144) {
+        targetAddress = address + 4; // Use the OFF register
+        targetValue = 1; // Send 1 to the OFF register to trigger the stop pulse
+      } else if (!nextState && address === 141) {
+        // We don't have a known separate OFF register for L1Main (141) in the seed.ts.
+        // Try sending 0 to 141 for now, or if 140 is the OFF register, we would use that.
+        targetValue = 0; 
+      }
+
+      try {
+        const payload = {
+          command: {
+            topic: `SE-${panelId}/MODBUS/REQ/96/9600/8/0/1`,
+            register: targetAddress.toString(),
+            slaveAddress: "1",
+            value: targetValue.toString()
+          },
+          password
+        };
+        
+        await api.post(`/devices/${panelId}/command`, payload);
+        
+        // Optimistically update the UI
+        setPumps(prev => ({
+          ...prev,
+          [pumpKey]: { ...prev[pumpKey], toggleState: nextState, status: nextState ? 'ON' : 'OFF' }
+        }));
+        
+        setIsModalOpen(false);
+        setPendingCommand(null);
+      } catch (error: any) {
+        console.error('Failed to send command:', error);
+        alert(error.response?.data?.message || 'Invalid password or failed to execute command.');
+      }
+    } else {
+       // If no mapping found (like terrace boosters on the fire panel), just close modal
+       alert('Control not supported for this pump in the demo.');
+       setIsModalOpen(false);
+    }
   };
 
   const dashboardRef = useRef<HTMLDivElement>(null);
@@ -216,6 +296,14 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
 
   return (
     <div ref={dashboardRef} className={`py-4 px-2 lg:py-6 lg:px-4 bg-white ${isFullscreen ? 'h-screen overflow-y-auto' : 'min-h-screen'}`}>
+      <PasswordModal 
+        isOpen={isModalOpen} 
+        onClose={() => {
+          setIsModalOpen(false);
+          setPendingCommand(null);
+        }}
+        onSubmit={executeCommand}
+      />
       {/* Top Asset Title */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div className="flex flex-col">
@@ -261,7 +349,7 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
                   <FirePumpCard 
                     {...pumps.jockeyHydrant} 
                     imageType="vertical"
-                    onToggle={() => handleToggle('jockeyHydrant')}
+                    onToggle={() => handleToggleClick('jockeyHydrant')}
                     onModeChange={(mode) => handleModeChange('jockeyHydrant', mode)}
                     onStatusChange={(status) => handleStatusChange('jockeyHydrant', status)}
                   />
@@ -274,7 +362,7 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
                   <FirePumpCard 
                     {...pumps.mainHydrant} 
                     imageType="horizontal"
-                    onToggle={() => handleToggle('mainHydrant')}
+                    onToggle={() => handleToggleClick('mainHydrant')}
                     onModeChange={(mode) => handleModeChange('mainHydrant', mode)}
                     onStatusChange={(status) => handleStatusChange('mainHydrant', status)}
                   />
@@ -294,7 +382,7 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
                   <FirePumpCard 
                     {...pumps.jockeySprinkler} 
                     imageType="vertical"
-                    onToggle={() => handleToggle('jockeySprinkler')}
+                    onToggle={() => handleToggleClick('jockeySprinkler')}
                     onModeChange={(mode) => handleModeChange('jockeySprinkler', mode)}
                     onStatusChange={(status) => handleStatusChange('jockeySprinkler', status)}
                   />

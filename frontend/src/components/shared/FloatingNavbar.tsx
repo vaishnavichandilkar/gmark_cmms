@@ -12,6 +12,7 @@ import {
 import { logout } from '../../store/slices/authSlice';
 import { LogoutConfirmModal } from './LogoutConfirmModal';
 import { ChangePasswordModal } from './ChangePasswordModal';
+import { NotificationBell } from './NotificationBell';
 import type { RootState } from '../../store';
 import logo4m from '../../assets/4MLogo.png';
 
@@ -269,7 +270,7 @@ export function FloatingNavbar() {
   return (
     <>
       {/* Desktop Sidebar */}
-      <div className={`hidden sm:flex flex-col bg-transparent transition-all duration-300 ease-in-out h-full shrink-0 relative print:hidden ${isExpanded ? 'w-[260px]' : 'w-[88px]'}`}>
+      <div className={`hidden sm:flex flex-col bg-transparent transition-all duration-300 ease-in-out h-full shrink-0 relative z-50 print:hidden ${isExpanded ? 'w-[260px]' : 'w-[88px]'}`}>
         
         {/* Toggle Expand Button - perfectly centered on the boundary */}
         <button
@@ -308,7 +309,7 @@ export function FloatingNavbar() {
                 </div>
               )}
 
-              <AnimatePresence>
+            <AnimatePresence>
                 {isProfilePopupOpen && (
                   <>
                     <div 
@@ -366,15 +367,23 @@ export function FloatingNavbar() {
                 )}
               </AnimatePresence>
             </div>
-            
+
             {isExpanded && (
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors shrink-0"
-                title="Logout"
-              >
-                <LogOut size={16} />
-              </button>
+              <div className="flex items-center gap-2">
+                <NotificationBell isExpanded={isExpanded} />
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                  title="Logout"
+                >
+                  <LogOut size={16} />
+                </button>
+              </div>
+            )}
+            {!isExpanded && (
+              <div className="flex flex-col gap-4">
+                <NotificationBell isExpanded={isExpanded} />
+              </div>
             )}
           </div>
         </div>

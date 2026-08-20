@@ -8,6 +8,7 @@ import * as mqtt from 'mqtt';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { WebsocketGateway } from '../../scada/websocket/websocket.gateway';
 import { BoosterRegisterParserService } from '../../scada/parser/booster-register-parser.service';
+import { AlertsService } from '../alerts/alerts.service';
 
 @Injectable()
 export class MqttService implements OnModuleInit, OnModuleDestroy {
@@ -15,6 +16,32 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(MqttService.name);
   private registerDefinitions: Record<number, any> = {};
   private verifiedDevices = new Set<string>();
+
+  // --- Publishing ---
+  publishCommand(deviceId: string, command: any) {
+    if (!this.client || !this.client.connected) {
+      this.logger.error(`Cannot publish command to ${deviceId}: MQTT client not connected.`);
+      return false;
+    }
+    
+    // If the command specifies a precise topic (like Modbus REQ), use it EXACTLY as provided
+    // Otherwise fallback to AGC/{deviceId}
+    const targetTopic = command.topic ? command.topic : `AGC/${deviceId}`;
+    
+    // Remove the topic from the payload before publishing
+    const { topic: _t, ...payloadData } = command;
+    const payload = JSON.stringify(payloadData);
+    
+    this.client.publish(targetTopic, payload, (err) => {
+      if (err) {
+        this.logger.error(`Failed to publish command to ${targetTopic}: ${err.message}`);
+      } else {
+        this.logger.log(`Published command to ${targetTopic}: ${payload}`);
+      }
+    });
+    
+    return true;
+  }
 
   // --- Configuration ---
   private readonly brokerUrl = 'mqtt://mqtt.gmarksoftware.com:1883';
@@ -63,6 +90,7 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
     private readonly prisma: PrismaService,
     private readonly websocketGateway: WebsocketGateway,
     private readonly boosterParser: BoosterRegisterParserService,
+    private readonly alertsService: AlertsService,
   ) {}
 
   onModuleInit() {
@@ -275,6 +303,14 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
     parsedState: any,
     registerValuesToUpsert: any[],
   ) {
+    // 0. Fetch previous state for alerts before updating
+    let previousState = null;
+    if (Object.keys(parsedState).length > 1) {
+      previousState = await this.prisma.deviceState.findUnique({
+        where: { deviceId },
+      });
+    }
+
     // A. Save snapshot
     await this.prisma.deviceSnapshot.create({
       data: {
@@ -319,5 +355,10 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
         lastSeen: new Date(),
       },
     });
+
+    // E. Evaluate Alerts
+    if (previousState) {
+      await this.alertsService.evaluateState(deviceId, parsedState, previousState);
+    }
   }
 }

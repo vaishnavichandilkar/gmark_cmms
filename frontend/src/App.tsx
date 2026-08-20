@@ -34,12 +34,14 @@ import { ManageAccess } from './pages/4m/access/ManageAccess';
 import { AddRole } from './pages/4m/access/AddRole';
 
 import { Toaster } from 'react-hot-toast';
+import { AlertToastManager } from './components/shared/AlertToastManager';
 
 function App() {
   return (
     <Provider store={store}>
       <BrowserRouter>
         <ScrollToTop />
+        <AlertToastManager />
         <Toaster 
           position="top-right"
           toastOptions={{

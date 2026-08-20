@@ -126,6 +126,7 @@ model Device {
   updatedAt DateTime @updatedAt
 
   registerValues DeviceRegisterValue[]
+  alerts         DeviceAlert[]
 }
 
 model DeviceSnapshot {
@@ -470,4 +471,20 @@ model MachineSpecification {
   machine   Machine  @relation(fields: [machineId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model DeviceAlert {
+  id          Int      @id @default(autoincrement())
+  deviceId    String
+  device      Device   @relation(fields: [deviceId], references: [deviceId], onDelete: Cascade)
+  message     String
+  type        String   @default("WARNING") // INFO, WARNING, CRITICAL
+  status      String   @default("ACTIVE") // ACTIVE, RESOLVED, ACKNOWLEDGED
+  
+  triggerKey  String?
+  
+  createdAt   DateTime @default(now())
+  resolvedAt  DateTime?
+
+  @@index([deviceId, status])
 }
