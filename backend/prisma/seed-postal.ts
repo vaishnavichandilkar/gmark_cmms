@@ -5,7 +5,7 @@ import * as path from 'path';
 const prisma = new PrismaClient();
 
 async function main() {
-  const csvPath = path.resolve(__dirname, '../../Locality_village_pincode_final_mar-2017.csv');
+  const csvPath = path.resolve(__dirname, './data/Locality_village_pincode_final_mar-2017.csv');
   console.log(`Reading CSV from ${csvPath}`);
 
   if (!fs.existsSync(csvPath)) {

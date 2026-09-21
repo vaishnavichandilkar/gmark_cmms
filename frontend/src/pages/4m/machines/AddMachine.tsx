@@ -42,6 +42,8 @@ export function AddMachine() {
   const [isIotModalOpen, setIsIotModalOpen] = useState(false);
   const [pendingMacId, setPendingMacId] = useState('');
   const [tempMacId, setTempMacId] = useState('');
+  const [pendingMachineType, setPendingMachineType] = useState('HYPN');
+  const [tempMachineType, setTempMachineType] = useState('HYPN');
 
   const [formData, setFormData] = useState({
     company: '',
@@ -149,8 +151,9 @@ export function AddMachine() {
         serialNumber: formData.serialNumber,
         make: formData.make,
         modelNumber: formData.modelNumber,
-        machineCategory: formData.machineCategory,
+        machineCategory: pendingMachineType || formData.machineCategory,
         machineSubCategory: formData.machineSubCategory,
+        machineType: pendingMachineType || formData.machineCategory || 'HYPN',
         description: formData.description,
         isLocationPart: formData.isLocationPart,
         parentDeviceId: formData.isLocationPart && formData.parentDeviceId ? parseInt(formData.parentDeviceId) : undefined,
@@ -161,7 +164,7 @@ export function AddMachine() {
         headOfDepartment: formData.headOfDepartment,
         machineOwner: formData.machineOwner,
         notes: formData.notes,
-        application: 'DOMESTIC_WATER_SYS',
+        application: pendingMachineType || 'DOMESTIC_WATER_SYS',
         pumpType: 'WMP_BOOSTER_PUMP',
         controller: 'AIPCU',
         macType: 'Primary MAC',
@@ -173,7 +176,11 @@ export function AddMachine() {
 
       // 2. Add MAC ID
       if (pendingMacId) {
-        await api.put(`/machines/${newMachineId}`, { ...payload, deviceId: pendingMacId });
+        await api.put(`/machines/${newMachineId}`, {
+          ...payload,
+          deviceId: pendingMacId,
+          machineType: pendingMachineType,
+        });
       }
 
       // 3. Add Specifications
@@ -690,14 +697,21 @@ export function AddMachine() {
                     <div className="flex justify-between items-center w-full mb-8">
                       <div>
                         {pendingMacId && (
-                          <div className="flex items-center gap-3 bg-gray-50 px-5 py-2.5 rounded-xl border border-gray-200 shadow-sm">
-                            <span className="text-sm font-semibold text-gray-500">System MAC ID:</span>
-                            <span className="text-base font-black text-gray-900 tracking-wider font-mono">{pendingMacId}</span>
+                          <div className="flex items-center gap-4 bg-gray-50 px-5 py-2.5 rounded-xl border border-gray-200 shadow-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-gray-500">MAC ID:</span>
+                              <span className="text-sm font-black text-gray-900 tracking-wider font-mono">{pendingMacId}</span>
+                            </div>
+                            <div className="h-4 w-px bg-gray-300" />
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-gray-500">Type:</span>
+                              <span className="text-xs font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md uppercase">{pendingMachineType}</span>
+                            </div>
                           </div>
                         )}
                       </div>
                       <button 
-                        onClick={() => { setTempMacId(''); setIsIotModalOpen(true); }}
+                        onClick={() => { setTempMacId(pendingMacId || ''); setTempMachineType(pendingMachineType || 'HYPN'); setIsIotModalOpen(true); }}
                         className="flex items-center gap-2 px-4 py-2 bg-[#00a651] hover:bg-[#009040] text-white font-bold text-sm rounded-lg transition-colors shadow-sm"
                       >
                         <Plus size={18} className="stroke-[3]" /> {pendingMacId ? 'Update System' : 'Add System'}
@@ -1047,10 +1061,68 @@ export function AddMachine() {
       {isIotModalOpen && (
         <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-lg p-8 shadow-xl relative">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Add MAC ID</h2>
-            <div className="space-y-6">
-              <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">MAC ID<span className="text-red-500">*</span></label><input type="text" value={tempMacId} onChange={e=>setTempMacId(e.target.value)} placeholder="Enter MAC ID" className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
-              <div className="flex gap-4 mt-8"><button onClick={()=>setIsIotModalOpen(false)} className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm transition-colors">Cancel</button><button onClick={() => { if (!tempMacId.trim()) { toast.error('Please enter a MAC ID'); return; } setPendingMacId(tempMacId); setIsIotModalOpen(false); }} className="flex-1 py-2.5 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors">Save</button></div>
+            <div className="flex items-center gap-3 mb-8">
+              <button onClick={() => setIsIotModalOpen(false)} className="text-gray-800 hover:text-black">
+                <ArrowLeft size={24} className="stroke-[2.5]" />
+              </button>
+              <h2 className="text-2xl font-bold text-gray-900">Add MAC ID</h2>
+            </div>
+            <div className="space-y-5 px-1">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  MAC ID<span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  value={tempMacId} 
+                  onChange={(e) => setTempMacId(e.target.value)} 
+                  placeholder="Enter MAC ID (e.g. 20260508012)" 
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400 font-mono" 
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  Machine / System Type<span className="text-red-500">*</span>
+                </label>
+                <CustomSelect
+                  name="machineType"
+                  value={tempMachineType}
+                  onChange={(e) => setTempMachineType(e.target.value)}
+                  options={[
+                    { label: 'HYPN (Hydro-Pneumatic / Booster Pump System)', value: 'HYPN' },
+                    { label: 'FIRE (Fire Fighting Panel System)', value: 'FIRE' },
+                    { label: 'STP (Sewage Treatment Plant)', value: 'STP' },
+                    { label: 'WTP (Water Treatment Plant)', value: 'WTP' },
+                    { label: 'SUMP (Sump & Drainage Pump System)', value: 'SUMP' },
+                    { label: 'CHILLER (HVAC & Chiller Plant)', value: 'CHILLER' },
+                    { label: 'OTHER (General Industrial Machine)', value: 'OTHER' },
+                  ]}
+                  placeholder="Select Machine / System Type"
+                  rounded="xl"
+                  inputClassName="px-4 py-3"
+                />
+                <p className="text-[11px] text-gray-400 mt-1.5">
+                  Select the machine type to link with this IoT device (e.g. Fire Panel, HYPN Booster).
+                </p>
+              </div>
+
+              <div className="flex justify-center mt-8">
+                <button 
+                  onClick={() => { 
+                    if (!tempMacId.trim()) { 
+                      toast.error('Please enter a MAC ID'); 
+                      return; 
+                    } 
+                    setPendingMacId(tempMacId.trim()); 
+                    setPendingMachineType(tempMachineType);
+                    setIsIotModalOpen(false); 
+                  }} 
+                  className="px-10 py-2.5 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors shadow-sm"
+                >
+                  Save
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -127,6 +127,7 @@ model Device {
 
   registerValues DeviceRegisterValue[]
   alerts         DeviceAlert[]
+  alertConfigs   RegisterAlertConfig[]
 }
 
 model DeviceSnapshot {
@@ -416,6 +417,7 @@ model Machine {
   name     String
   deviceId String? @unique // Link to Device (MAC ID) for IoT data
 
+  machineType        String? // e.g. 'HYPN', 'FIRE', 'STP', 'WTP', 'SUMP', etc.
   company            String?
   maintenanceHead    String?
   machineCode        String?
@@ -478,13 +480,35 @@ model DeviceAlert {
   deviceId    String
   device      Device   @relation(fields: [deviceId], references: [deviceId], onDelete: Cascade)
   message     String
-  type        String   @default("WARNING") // INFO, WARNING, CRITICAL
+  type        String   @default("WARNING") // INFO, WARNING, CRITICAL, EMERGENCY, NOTIFY
   status      String   @default("ACTIVE") // ACTIVE, RESOLVED, ACKNOWLEDGED
   
   triggerKey  String?
+  intensity   Int?     @default(1)
   
   createdAt   DateTime @default(now())
   resolvedAt  DateTime?
 
   @@index([deviceId, status])
 }
+
+model RegisterAlertConfig {
+  id             Int      @id @default(autoincrement())
+  deviceId       String
+  registerNumber Int      // Array index / register address
+  registerName   String?
+  enabled        Boolean  @default(true)
+  alertType      String   @default("WARNING") // EMERGENCY, WARNING, NOTIFY
+  intensity      Int      @default(1) // 1 to 5
+  conditionType  String   // GREATER_THAN, LESS_THAN, EQUAL_TO
+  conditionValue Float
+  message        String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  device         Device   @relation(fields: [deviceId], references: [deviceId], onDelete: Cascade)
+
+  @@unique([deviceId, registerNumber])
+  @@index([deviceId, enabled])
+}
+

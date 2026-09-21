@@ -360,5 +360,10 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
     if (previousState) {
       await this.alertsService.evaluateState(deviceId, parsedState, previousState);
     }
+
+    // F. Evaluate Dynamic Register Alerts
+    if (payload?.registers && Array.isArray(payload.registers)) {
+      await this.alertsService.evaluateRegisters(deviceId, payload.registers);
+    }
   }
 }

@@ -2,20 +2,26 @@ import { useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 import { io, Socket } from 'socket.io-client';
-import { AlertCircle, AlertTriangle, CheckCircle, Info } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle, Info, VolumeX } from 'lucide-react';
 import type { RootState } from '../../store';
+import { audioBuzzer } from '../../utils/audioBuzzer';
 
 let socket: Socket | null = null;
 
 export function AlertToastManager() {
-  const { isAuthenticated, accessToken } = useSelector((state: RootState) => state.auth);
+  const { accessToken } = useSelector((state: RootState) => state.auth);
+  const token =
+    accessToken ||
+    (typeof window !== 'undefined'
+      ? sessionStorage.getItem('token') || localStorage.getItem('token')
+      : null);
 
   useEffect(() => {
-    if (!isAuthenticated || !accessToken) return;
+    if (!token) return;
 
     // Connect to websocket to listen for global alerts
     socket = io('http://localhost:3001', {
-      auth: { token: accessToken },
+      auth: { token },
       transports: ['websocket'],
     });
 
@@ -24,15 +30,19 @@ export function AlertToastManager() {
     });
 
     socket.on('device-alert', (alert: any) => {
+      // Play synthesized industrial buzzer / beep sound
+      audioBuzzer.playAlertSound(alert.type, alert.intensity || 1);
+
       // Determine toast style based on alert type
-      let icon = <AlertCircle size={24} className="text-red-500" />;
+      let icon = <AlertCircle size={24} className="text-red-500 shrink-0" />;
       let style = { borderLeft: '4px solid #ef4444' };
+      const isUrgent = alert.type === 'CRITICAL' || alert.type === 'EMERGENCY';
       
       if (alert.type === 'WARNING') {
-        icon = <AlertTriangle size={24} className="text-amber-500" />;
+        icon = <AlertTriangle size={24} className="text-amber-500 shrink-0" />;
         style = { borderLeft: '4px solid #f59e0b' };
-      } else if (alert.type === 'INFO') {
-        icon = <Info size={24} className="text-blue-500" />;
+      } else if (alert.type === 'INFO' || alert.type === 'NOTIFY') {
+        icon = <Info size={24} className="text-blue-500 shrink-0" />;
         style = { borderLeft: '4px solid #3b82f6' };
       }
 
@@ -40,19 +50,44 @@ export function AlertToastManager() {
         <div className="flex items-start gap-3 w-full">
           <div className="flex-shrink-0 mt-0.5">{icon}</div>
           <div className="flex flex-col flex-1">
-            <span className="font-bold text-gray-900">{alert.type} ALERT</span>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-gray-900">{alert.type} ALERT</span>
+              {isUrgent && (
+                <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 bg-red-100 text-red-700 rounded-full animate-pulse">
+                  Buzzer Active
+                </span>
+              )}
+            </div>
             <span className="text-sm text-gray-600 mt-1">{alert.message}</span>
-            <span className="text-xs text-gray-400 mt-2">Device: {alert.deviceId}</span>
+            <span className="text-xs text-gray-400 mt-1">Device: {alert.deviceId}</span>
+
+            {isUrgent && (
+              <div className="mt-2 pt-1 border-t border-gray-100">
+                <button
+                  onClick={() => {
+                    audioBuzzer.stopAllSounds();
+                    toast.dismiss(t.id);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-red-700 bg-red-100/80 hover:bg-red-200/80 rounded-md transition-colors"
+                >
+                  <VolumeX size={14} />
+                  Silence Buzzer
+                </button>
+              </div>
+            )}
           </div>
           <button
-            onClick={() => toast.dismiss(t.id)}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            onClick={() => {
+              if (isUrgent) audioBuzzer.stopAllSounds();
+              toast.dismiss(t.id);
+            }}
+            className="text-gray-400 hover:text-gray-600 transition-colors p-1"
           >
             ✕
           </button>
         </div>
       ), {
-        duration: alert.type === 'CRITICAL' ? 10000 : 5000,
+        duration: isUrgent ? 45000 : 5000,
         position: 'top-right',
         style: {
           ...style,
@@ -64,6 +99,9 @@ export function AlertToastManager() {
     });
 
     socket.on('device-alert-resolved', (alert: any) => {
+      audioBuzzer.stopAllSounds();
+      audioBuzzer.playResolvedChime();
+
       toast.success(
         <div className="flex flex-col">
           <span className="font-bold">Alert Resolved</span>
@@ -84,7 +122,7 @@ export function AlertToastManager() {
         socket.disconnect();
       }
     };
-  }, [isAuthenticated, accessToken]);
+  }, [token]);
 
-  return null; // This component just manages side-effects (toasts)
+  return null; // This component just manages side-effects (toasts + audio)
 }

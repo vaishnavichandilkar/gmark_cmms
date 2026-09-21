@@ -170,6 +170,7 @@ export class MachinesService {
         deviceId: data.deviceId || null,
         buildingId: data.buildingId,
         facilityId: data.facilityId,
+        machineType: data.machineType || data.machineCategory || null,
         company: data.company,
         maintenanceHead: data.maintenanceHead,
         machineCode: data.machineCode,
@@ -190,6 +191,13 @@ export class MachinesService {
         parentMachineId: data.parentDeviceId, // It was parentDeviceId on frontend
       },
     });
+
+    if (data.deviceId && (data.machineType || data.machineCategory)) {
+      await this.prisma.device.updateMany({
+        where: { deviceId: data.deviceId },
+        data: { application: data.machineType || data.machineCategory },
+      }).catch(() => {});
+    }
 
     return machine;
   }
@@ -218,6 +226,7 @@ export class MachinesService {
         deviceId: data.deviceId || null,
         buildingId: data.buildingId,
         facilityId: data.facilityId,
+        machineType: data.machineType !== undefined ? data.machineType : (data.machineCategory !== undefined ? data.machineCategory : machine.machineType),
         company: data.company,
         maintenanceHead: data.maintenanceHead,
         machineCode: data.machineCode,
@@ -238,6 +247,13 @@ export class MachinesService {
         parentMachineId: data.parentDeviceId,
       },
     });
+
+    if (data.deviceId && (data.machineType || data.machineCategory)) {
+      await this.prisma.device.updateMany({
+        where: { deviceId: data.deviceId },
+        data: { application: data.machineType || data.machineCategory },
+      }).catch(() => {});
+    }
 
     return updated;
   }

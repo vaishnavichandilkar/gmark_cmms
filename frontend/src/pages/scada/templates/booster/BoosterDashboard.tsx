@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { io } from 'socket.io-client';
-import { Maximize, Minimize, AlertTriangle } from 'lucide-react';
+import { Maximize, Minimize, AlertTriangle, Database, ShieldAlert } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { VoltageCard } from './components/VoltageCard';
 import { InputPowerCard } from './components/InputPowerCard';
 import { PressureCard } from './components/PressureCard';
@@ -11,9 +12,11 @@ import { DelaySettingsCard } from './components/DelaySettingsCard';
 import { FaultResetCard } from './components/FaultResetCard';
 import { PressureTrendCard } from './components/PressureTrendCard';
 import { ProcessFlowContainer } from './components/ProcessFlow/PipeNetwork';
+import { PasswordModal } from '../../../../components/shared/PasswordModal';
 
 import { api } from '../../../../lib/api';
 import type { RootState } from '../../../../store';
+import { audioBuzzer } from '../../../../utils/audioBuzzer';
 import './scada.css'; // Will create this
 
 export interface BoosterDashboardProps {
@@ -94,31 +97,125 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
     vfdResetAfter: 0
   });
 
-  const [mainFacilities, setMainFacilities] = useState<any[]>([]);
-  const [facilities, setFacilities] = useState<any[]>([]);
   const [activeAlerts, setActiveAlerts] = useState<any[]>([]);
 
+  // Remote Control & Safety Interlock States
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [pendingPumpId, setPendingPumpId] = useState<string | null>(null);
+  const [pendingCommand, setPendingCommand] = useState<{ pumpId: string; action: 'TOGGLE' | 'MODE'; mode?: 'AUTO' | 'MANUAL' | 'OFF' } | null>(null);
+  const [safetyPrompt, setSafetyPrompt] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
-  useEffect(() => {
-    Promise.all([
-      api.get('/main-facilities'),
-      api.get('/facilities')
-    ]).then(([mfRes, fRes]) => {
-      setMainFacilities(mfRes.data);
-      setFacilities(fRes.data);
-    }).catch(console.error);
-  }, []);
+  const handleToggleClick = (pumpId: string) => {
+    const pump = pumps.find(p => p.id === pumpId);
+    if (!pump) return;
+    const willStart = pump.status !== 'RUNNING';
 
-  const isLimitedAccess = ['OPERATOR', 'VIEWER', 'BUILDING_ADMIN'].includes(user?.role);
-
-  const visibleFacilities = React.useMemo(() => {
-    if (isLimitedAccess && buildingIds && buildingIds.length > 0) {
-      return facilities.filter(f => buildingIds.includes(f.id));
+    // Operational Safety Interlocks
+    if (willStart && !dashboardData.waterAvailable) {
+      setSafetyPrompt({
+        message: `Low Water Alert: Underground tank water level is low. Starting ${pump.name} may risk a dry run. Are you sure you want to proceed?`,
+        onConfirm: () => {
+          setSafetyPrompt(null);
+          setPendingCommand({ pumpId, action: 'TOGGLE' });
+          setIsModalOpen(true);
+        }
+      });
+      return;
     }
-    return facilities;
-  }, [facilities, isLimitedAccess, buildingIds]);
 
+    if (!willStart && dashboardData.pressureBar > 0 && dashboardData.pressureBar < 1.5) {
+      setSafetyPrompt({
+        message: `Low Pressure Warning: Line pressure is currently ${dashboardData.pressureBar.toFixed(1)} bar. Stopping ${pump.name} may drop line pressure below minimum operating levels. Proceed?`,
+        onConfirm: () => {
+          setSafetyPrompt(null);
+          setPendingCommand({ pumpId, action: 'TOGGLE' });
+          setIsModalOpen(true);
+        }
+      });
+      return;
+    }
 
+    setPendingCommand({ pumpId, action: 'TOGGLE' });
+    setIsModalOpen(true);
+  };
+
+  const handleModeChange = (pumpId: string, mode: 'AUTO' | 'MANUAL' | 'OFF') => {
+    setPendingCommand({ pumpId, action: 'MODE', mode });
+    setIsModalOpen(true);
+  };
+
+  const executeCommand = async (password: string) => {
+    if (!pendingCommand) return;
+    const { pumpId, action, mode: newMode } = pendingCommand;
+    const pumpIndex = pumps.findIndex(p => p.id === pumpId);
+    if (pumpIndex === -1) return;
+
+    const pumpNum = Number(pumpId); // 1, 2, 3, 4
+    const currentPump = pumps[pumpIndex];
+    const nextRunning = action === 'TOGGLE' ? currentPump.status !== 'RUNNING' : currentPump.status === 'RUNNING';
+
+    // Register Mapping for Booster Pumps:
+    // 40001 (Motor 1), 40002 (Motor 2), 40003 (Motor 3), 40004 (Motor 4)
+    // Mode status register: 40038 (Pump 1), 40039 (Pump 2), etc.
+    const targetRegister = action === 'MODE' ? 40037 + pumpNum : 40000 + pumpNum;
+    let targetValue = 0;
+    if (action === 'TOGGLE') {
+      targetValue = nextRunning ? 1 : 0;
+    } else if (action === 'MODE') {
+      targetValue = newMode === 'AUTO' ? 1 : newMode === 'MANUAL' ? 22 : 2;
+    }
+
+    setPendingPumpId(pumpId);
+
+    const payload = {
+      command: {
+        topic: `SE-${panelId}/MODBUS/REQ/96/9600/8/0/1`,
+        slaveAddress: "1",
+        register: targetRegister.toString(),
+        value: targetValue.toString()
+      },
+      password
+    };
+
+    try {
+      await api.post(`/devices/${panelId}/command`, payload);
+
+      // Optimistic UI state update
+      setPumps(prev => {
+        const updated = [...prev];
+        if (action === 'TOGGLE') {
+          updated[pumpIndex] = {
+            ...updated[pumpIndex],
+            status: nextRunning ? 'RUNNING' : 'OFF',
+            currentR: nextRunning ? 12.4 : 0,
+            currentY: nextRunning ? 12.1 : 0,
+            currentB: nextRunning ? 12.5 : 0,
+          };
+        } else if (action === 'MODE' && newMode) {
+          updated[pumpIndex] = {
+            ...updated[pumpIndex],
+            mode: newMode
+          };
+        }
+        return updated;
+      });
+
+      toast.success(
+        action === 'TOGGLE'
+          ? `${currentPump.name} command sent: ${nextRunning ? 'START' : 'STOP'}`
+          : `${currentPump.name} mode switched to ${newMode}`,
+        { duration: 4000 }
+      );
+
+      setIsModalOpen(false);
+      setPendingCommand(null);
+    } catch (err: any) {
+      console.error('Failed to dispatch pump command:', err);
+      toast.error(err.response?.data?.message || 'Authorization failed or device unreachable.');
+    } finally {
+      setPendingPumpId(null);
+    }
+  };
 
   const processPayload = (data: any, isInitial: boolean) => {
     setPumps(prev => {
@@ -240,12 +337,14 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
     socket.on('device-alert', (alert: any) => {
       if (alert.deviceId === panelId) {
         setActiveAlerts((prev) => [alert, ...prev]);
+        audioBuzzer.playAlertSound(alert.type, alert.intensity || 1);
       }
     });
 
     socket.on('device-alert-resolved', (alert: any) => {
       if (alert.deviceId === panelId) {
         setActiveAlerts((prev) => prev.filter(a => a.id !== alert.id));
+        audioBuzzer.playResolvedChime();
       }
     });
 
@@ -302,6 +401,16 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {panelId && (
+            <button
+              onClick={() => navigate(`/devices/${panelId}`)}
+              className="px-3 py-1.5 bg-white border border-gray-200 rounded-md hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 transition-all flex items-center gap-1.5 text-xs font-bold text-gray-700 shadow-sm cursor-pointer"
+              title="View Live Register Values & Alert Rules"
+            >
+              <Database size={14} className="text-emerald-600" />
+              <span>Registers</span>
+            </button>
+          )}
           <button
             onClick={toggleFullscreen}
             className="p-2 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-center text-gray-600 shadow-sm"
@@ -350,12 +459,15 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
 
         {/* ROW 2: Process Flow */}
         <div className="w-full">
-          <ProcessFlowContainer 
+          <ProcessFlowContainer
             pumps={visiblePumps}
             dashboardData={dashboardData}
             inletTankTitle={inletTankTitle}
             outletTitle={outletTitle}
             outletType={outletType}
+            onTogglePump={handleToggleClick}
+            onModeChange={handleModeChange}
+            pendingPumpId={pendingPumpId}
           />
         </div>
 
@@ -372,6 +484,48 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
           <FaultResetCard hasFault={totalFaults > 0 || dashboardData.inputPowerFaultType > 0} />
         </div>
       </div>
+
+      {/* Operator Security Authorization Modal */}
+      <PasswordModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setPendingCommand(null);
+        }}
+        onSubmit={executeCommand}
+        title="Operator PIN Authorization (8250)"
+      />
+
+      {/* Operational Safety Interlock Dialog */}
+      {safetyPrompt && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-amber-200 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-start gap-4 mb-4">
+              <div className="p-3 bg-amber-100 rounded-xl text-amber-600 shrink-0">
+                <ShieldAlert size={26} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Safety Interlock Warning</h3>
+                <p className="text-sm text-gray-600 mt-1 leading-relaxed">{safetyPrompt.message}</p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setSafetyPrompt(null)}
+                className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={safetyPrompt.onConfirm}
+                className="px-4 py-2 text-sm font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-md transition-all cursor-pointer"
+              >
+                Acknowledge & Proceed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

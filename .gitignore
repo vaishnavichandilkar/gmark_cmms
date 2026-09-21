@@ -76,8 +76,6 @@ mqtt-config.local.json
 *.key
 *.crt
 
-# Miscellaneous Unwanted Files
-analyze.py
-get_dominant_colors.py
-Locality_village_pincode_final_mar-2017.csv
-update_mqtt.patch
+# Data and CSV files
+backend/prisma/data/*.csv
+*.csv

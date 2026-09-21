@@ -26,6 +26,7 @@ export function EditMachine() {
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [isIotModalOpen, setIsIotModalOpen] = useState(false);
   const [tempMacId, setTempMacId] = useState('');
+  const [tempMachineType, setTempMachineType] = useState('HYPN');
   const [isUploadMenuOpen, setIsUploadMenuOpen] = useState(false);
   const [uploadModalType, setUploadModalType] = useState<'File' | 'Link' | 'Note' | null>(null);
   const [documentToDelete, setDocumentToDelete] = useState<number | null>(null);
@@ -850,7 +851,11 @@ export function EditMachine() {
             <IOTTabContent 
               deviceId={formData.deviceId}
               deviceData={formData}
-              onAddSystem={() => { setTempMacId(''); setIsIotModalOpen(true); }}
+              onAddSystem={() => { 
+                setTempMacId(formData.deviceId || ''); 
+                setTempMachineType((formData as any).machineType || formData.machineCategory || 'HYPN'); 
+                setIsIotModalOpen(true); 
+              }}
             />
           ) : (
             <div className="flex items-center justify-center h-64 text-gray-400">
@@ -1354,16 +1359,44 @@ export function EditMachine() {
               <h2 className="text-2xl font-bold text-gray-900">Add MAC ID</h2>
             </div>
             
-            <div className="space-y-6 px-1">
+            <div className="space-y-5 px-1">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">MAC ID<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  MAC ID<span className="text-red-500">*</span>
+                </label>
                 <input 
                   type="text" 
                   value={tempMacId}
                   onChange={(e) => setTempMacId(e.target.value)}
-                  placeholder="Enter MAC ID"
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                  placeholder="Enter MAC ID (e.g. 20260508012)"
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400 font-mono"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  Machine / System Type<span className="text-red-500">*</span>
+                </label>
+                <CustomSelect
+                  name="machineType"
+                  value={tempMachineType}
+                  onChange={(e) => setTempMachineType(e.target.value)}
+                  options={[
+                    { label: 'HYPN (Hydro-Pneumatic / Booster Pump System)', value: 'HYPN' },
+                    { label: 'FIRE (Fire Fighting Panel System)', value: 'FIRE' },
+                    { label: 'STP (Sewage Treatment Plant)', value: 'STP' },
+                    { label: 'WTP (Water Treatment Plant)', value: 'WTP' },
+                    { label: 'SUMP (Sump & Drainage Pump System)', value: 'SUMP' },
+                    { label: 'CHILLER (HVAC & Chiller Plant)', value: 'CHILLER' },
+                    { label: 'OTHER (General Industrial Machine)', value: 'OTHER' },
+                  ]}
+                  placeholder="Select Machine / System Type"
+                  rounded="xl"
+                  inputClassName="px-4 py-3"
+                />
+                <p className="text-[11px] text-gray-400 mt-1.5">
+                  Select the machine type to link with this IoT device (e.g. Fire Panel, HYPN Booster).
+                </p>
               </div>
 
               <div className="flex justify-center mt-8">
@@ -1377,14 +1410,15 @@ export function EditMachine() {
                       setSaving(true);
                       await api.put(`/machines/${id}`, {
                         name: formData.name,
-                        deviceId: tempMacId,
+                        deviceId: tempMacId.trim(),
+                        machineType: tempMachineType,
                         company: formData.company,
                         maintenanceHead: formData.maintenanceHead,
                         machineCode: formData.machineCode,
                         serialNumber: formData.serialNumber,
                         make: formData.make,
                         modelNumber: formData.modelNumber,
-                        machineCategory: formData.machineCategory,
+                        machineCategory: tempMachineType || formData.machineCategory,
                         machineSubCategory: formData.machineSubCategory,
                         description: formData.description,
                         isLocationPart: formData.isLocationPart,
@@ -1397,9 +1431,14 @@ export function EditMachine() {
                         machineOwner: formData.machineOwner,
                         notes: formData.notes,
                       });
-                      setFormData(prev => ({ ...prev, deviceId: tempMacId }));
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        deviceId: tempMacId.trim(),
+                        machineType: tempMachineType,
+                        machineCategory: tempMachineType || prev.machineCategory,
+                      }));
                       setIsIotModalOpen(false);
-                      toast.success('MAC ID saved successfully!');
+                      toast.success('MAC ID and Machine Type saved successfully!');
                     } catch (error: any) {
                       console.error('Error saving MAC ID:', error);
                       toast.error(error.response?.data?.message || 'Failed to save MAC ID.');

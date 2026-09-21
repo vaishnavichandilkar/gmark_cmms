@@ -250,7 +250,7 @@ export function DevicesPage() {
                   return (
                     <tr 
                       key={device.id} 
-                      onClick={() => navigateToDeviceDashboard(device, device.building, navigate)}
+                      onClick={() => navigate(`/devices/${device.deviceId || device.id}`)}
                       className={`group transition-all duration-200 cursor-pointer ${
                         hasAlerts && isOnline 
                           ? 'bg-rose-50/30 hover:bg-rose-50/80' 
@@ -310,8 +310,32 @@ export function DevicesPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center ml-auto group-hover:bg-emerald-50 group-hover:border-emerald-200 group-hover:text-emerald-600 transition-all text-gray-400 shadow-sm">
-                          <ChevronRight size={16} />
+                        <div className="flex items-center justify-end gap-2">
+                          {(() => {
+                            const scadaRoute = getDeviceDashboardRoute(device.deviceId);
+                            const hasScada = scadaRoute && scadaRoute !== `/devices/${device.deviceId}`;
+                            if (!hasScada) return null;
+                            return (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(scadaRoute);
+                                }}
+                                className="px-2.5 py-1 text-xs font-bold text-gray-600 hover:text-emerald-700 bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-300 rounded-lg transition-all flex items-center gap-1 shadow-sm cursor-pointer"
+                                title="Open Visual SCADA Dashboard"
+                              >
+                                <Activity size={12} className="text-emerald-600" />
+                                <span className="hidden sm:inline">Dashboard</span>
+                              </button>
+                            );
+                          })()}
+                          <div 
+                            className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center group-hover:bg-emerald-50 group-hover:border-emerald-200 group-hover:text-emerald-600 transition-all text-gray-400 shadow-sm"
+                            title="View Registers"
+                          >
+                            <ChevronRight size={16} />
+                          </div>
                         </div>
                       </td>
                     </tr>

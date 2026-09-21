@@ -10,14 +10,11 @@ interface PipeProps {
   y2?: number;
   path?: string;
   flowDirection?: 'forward' | 'backward' | 'none';
-  hasFault?: boolean;
-  hasFault?: boolean;
-  capStyle?: 'round' | 'butt' | 'square';
   hideBase?: boolean;
   hideAnimation?: boolean;
 }
 
-export const Pipe: React.FC<PipeProps> = ({ x1 = 0, y1 = 0, x2 = 0, y2 = 0, path, flowDirection = 'forward', hasFault = false, capStyle = 'round', hideBase = false, hideAnimation = false }) => {
+export const Pipe: React.FC<PipeProps> = ({ x1 = 0, y1 = 0, x2 = 0, y2 = 0, path, flowDirection = 'forward', hideBase = false, hideAnimation = false }) => {
   const isFlowing = flowDirection !== 'none';
   const pathId = useId();
   
@@ -110,6 +107,9 @@ export interface ProcessFlowContainerProps {
   inletTankTitle?: string;
   outletTitle?: string;
   outletType?: 'label' | 'tank';
+  onTogglePump?: (pumpId: string) => void;
+  onModeChange?: (pumpId: string, mode: 'AUTO' | 'MANUAL' | 'OFF') => void;
+  pendingPumpId?: string | null;
 }
 
 export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({ 
@@ -117,7 +117,10 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
   dashboardData, 
   inletTankTitle = 'Underground Tank', 
   outletTitle = 'OUTLET', 
-  outletType = 'label' 
+  outletType = 'label',
+  onTogglePump,
+  onModeChange,
+  pendingPumpId
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -151,7 +154,6 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
   const leftTankCenter = leftTankLeft + 64;
 
   const pumpLefts = visiblePumps.map((_, idx) => leftTankLeft + 240 + (idx * pumpSpacing));
-  const pumpCenters = pumpLefts.map(left => left + 210); // center of horizontal card
   const pumpPipeXs = pumpLefts.map(left => left + 147); // Center of the pump's green body (top discharge flange)
   const pumpInletXs = pumpLefts.map(left => left - 40); // 40px gap outside the pump card
 
@@ -162,12 +164,12 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
 
   const tankBottomY = 408;
   const manifoldY = 20;
-  const bottomManifoldY = 560;
+  const bottomManifoldY = 585;
 
   const allPaths: string[] = [];
   if (visiblePumps.length > 0) {
     allPaths.push(`M ${leftTankCenter} ${tankBottomY} L ${leftTankCenter} ${bottomManifoldY - 16} A 16 16 0 0 0 ${leftTankCenter + 16} ${bottomManifoldY} L ${visiblePumps.length === 1 ? pumpInletXs[0] - 16 : pumpInletXs[0]} ${bottomManifoldY}`);
-    visiblePumps.forEach((p, i) => {
+    visiblePumps.forEach((_, i) => {
       const isLast = i === visiblePumps.length - 1;
       if (isLast) {
         allPaths.push(`M ${pumpInletXs[i] - 16} ${bottomManifoldY} A 16 16 0 0 0 ${pumpInletXs[i]} ${bottomManifoldY - 16} L ${pumpInletXs[i]} 274 A 16 16 0 0 1 ${pumpInletXs[i] + 16} 258 L ${pumpLefts[i]} 258`);
@@ -179,14 +181,14 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
         allPaths.push(`M ${pumpInletXs[i]} ${bottomManifoldY} L ${nextX} ${bottomManifoldY}`);
       }
     });
-    visiblePumps.forEach((p, i) => {
+    visiblePumps.forEach((_, i) => {
       if (i === 0) {
         allPaths.push(`M ${pumpPipeXs[i]} 95 L ${pumpPipeXs[i]} ${manifoldY + 16} A 16 16 0 0 1 ${pumpPipeXs[i] + 16} ${manifoldY}`);
       } else {
         allPaths.push(`M ${pumpPipeXs[i]} 95 L ${pumpPipeXs[i]} ${manifoldY}`);
       }
     });
-    visiblePumps.forEach((p, i) => {
+    visiblePumps.forEach((_, i) => {
       const isLast = i === visiblePumps.length - 1;
       const startX = i === 0 ? pumpPipeXs[i] + 16 : pumpPipeXs[i];
       const endX = isLast ? (isTankOutlet ? rightTankLeft + 64 - 16 : outletEndX) : pumpPipeXs[i + 1];
@@ -199,7 +201,7 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
   const combinedPath = allPaths.join(' ');
 
   return (
-    <div className="scada-card relative w-full h-[660px] flex flex-col overflow-hidden">
+    <div className="scada-card relative w-full h-[680px] flex flex-col overflow-hidden">
       <div className="scada-card-title shrink-0">
         <h2>PUMPS OVERVIEW</h2>
       </div>
@@ -330,6 +332,9 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
                 currentB={p.currentB}
                 mode={p.mode}
                 runOnTime={p.runOnTime}
+                onToggle={() => onTogglePump?.(p.id)}
+                onModeChange={(mode) => onModeChange?.(p.id, mode)}
+                isPending={pendingPumpId === p.id}
               />
             </div>
           ))}
@@ -341,7 +346,6 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
               if (!isRunning) return null;
               
               const isLast = i === visiblePumps.length - 1;
-              const dischargeEndX = i === 0 ? pumpPipeXs[i] + 16 : pumpPipeXs[i]; // End right after the bend/start for consistency
               
               return (
                 <React.Fragment key={`anim-overlay-${p.id}`}>
