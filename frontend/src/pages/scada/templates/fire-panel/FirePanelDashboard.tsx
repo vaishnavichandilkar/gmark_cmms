@@ -395,7 +395,7 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
                   <FirePumpCard 
                     {...pumps.mainSprinkler} 
                     imageType="horizontal"
-                    onToggle={() => handleToggle('mainSprinkler')}
+                    onToggle={() => handleToggleClick('mainSprinkler')}
                     onModeChange={(mode) => handleModeChange('mainSprinkler', mode)}
                     onStatusChange={(status) => handleStatusChange('mainSprinkler', status)}
                   />
@@ -423,7 +423,7 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
                   <FirePumpCard 
                     {...pumps.terraceBooster48} 
                     imageType="horizontal"
-                    onToggle={() => handleToggle('terraceBooster48')}
+                    onToggle={() => handleToggleClick('terraceBooster48')}
                     onModeChange={(mode) => handleModeChange('terraceBooster48', mode)}
                     onStatusChange={(status) => handleStatusChange('terraceBooster48', status)}
                   />
@@ -432,7 +432,7 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
                   <FirePumpCard 
                     {...pumps.terraceBooster49} 
                     imageType="horizontal"
-                    onToggle={() => handleToggle('terraceBooster49')}
+                    onToggle={() => handleToggleClick('terraceBooster49')}
                     onModeChange={(mode) => handleModeChange('terraceBooster49', mode)}
                     onStatusChange={(status) => handleStatusChange('terraceBooster49', status)}
                   />
@@ -457,7 +457,7 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
                     title="CONTROL PANEL"
                     imageType="horizontal"
                     hideImage={true}
-                    onToggle={() => handleToggle('jockeyPumpSet')}
+                    onToggle={() => handleToggleClick('jockeyPumpSet')}
                     onModeChange={(mode) => handleModeChange('jockeyPumpSet', mode)}
                     onStatusChange={(status) => handleStatusChange('jockeyPumpSet', status)}
                   />

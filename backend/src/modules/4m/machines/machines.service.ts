@@ -295,4 +295,78 @@ export class MachinesService {
       },
     });
   }
+
+  async getPublicMachineByCodeOrId(codeOrId: string) {
+    const isNum = !isNaN(Number(codeOrId));
+    let machine = await this.prisma.machine.findFirst({
+      where: isNum
+        ? { OR: [{ id: Number(codeOrId) }, { machineCode: codeOrId }, { serialNumber: codeOrId }] }
+        : { OR: [{ machineCode: { equals: codeOrId, mode: 'insensitive' } }, { serialNumber: { equals: codeOrId, mode: 'insensitive' } }] },
+      include: {
+        facility: {
+          include: { mainFacility: true },
+        },
+        building: {
+          include: { society: true },
+        },
+        specifications: true,
+        documents: true,
+        checkpoints: true,
+      },
+    });
+
+    if (!machine && !isNum) {
+      // Fallback: search by partial name or asset code
+      machine = await this.prisma.machine.findFirst({
+        where: {
+          OR: [
+            { name: { contains: codeOrId, mode: 'insensitive' } },
+            { assetCode: { contains: codeOrId, mode: 'insensitive' } },
+          ],
+        },
+        include: {
+          facility: { include: { mainFacility: true } },
+          building: { include: { society: true } },
+          specifications: true,
+          documents: true,
+          checkpoints: true,
+        },
+      });
+    }
+
+    if (!machine) {
+      throw new NotFoundException(`Machine '${codeOrId}' not found in database`);
+    }
+
+    // Auto-seed default checkpoints if empty
+    if (!machine.checkpoints || machine.checkpoints.length === 0) {
+      await this.prisma.machineCheckpoint.createMany({
+        data: [
+          { machineId: machine.id, title: 'Emergency Stop & Guard Interlock Safety Check', checkpointType: 'SAFETY', standardValue: 'Functional / Pass', frequency: 'DAILY' },
+          { machineId: machine.id, title: 'Motor & Pump Bearing Vibration & Noise Check', checkpointType: 'MECHANICAL', standardValue: '< 2.5 mm/s RMS', frequency: 'WEEKLY' },
+          { machineId: machine.id, title: 'Terminal Box Voltage & Current Balance Inspection', checkpointType: 'ELECTRICAL', standardValue: '415V ± 5%, < 5% Unbalance', frequency: 'MONTHLY' },
+          { machineId: machine.id, title: 'Mechanical Seal Grease & Lubrication Top-up', checkpointType: 'LUBRICATION', standardValue: 'ISO VG 46 Oil level at 75%', frequency: 'WEEKLY' },
+          { machineId: machine.id, title: 'Pressure Switch Cut-in & Cut-out Differential Test', checkpointType: 'OPERATIONAL', standardValue: 'Cut-in 3.5 bar / Cut-out 5.0 bar', frequency: 'DAILY' },
+        ],
+      });
+
+      // Refetch checkpoints
+      const updatedCheckpoints = await this.prisma.machineCheckpoint.findMany({
+        where: { machineId: machine.id },
+      });
+      machine.checkpoints = updatedCheckpoints;
+    }
+
+    return machine;
+  }
+
+  async getPublicMachineCheckpoints(id: number) {
+    const machine = await this.prisma.machine.findUnique({
+      where: { id: Number(id) },
+      include: { checkpoints: true },
+    });
+
+    if (!machine) throw new NotFoundException(`Machine #${id} not found`);
+    return machine.checkpoints;
+  }
 }

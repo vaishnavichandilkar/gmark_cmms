@@ -32,6 +32,13 @@ import { AddMachine } from './pages/4m/machines/AddMachine';
 import { EditMachine } from './pages/4m/machines/EditMachine';
 import { ManageAccess } from './pages/4m/access/ManageAccess';
 import { AddRole } from './pages/4m/access/AddRole';
+import { WorkOrderManagement } from './pages/4m/work-orders/WorkOrderManagement';
+import { CreateWorkOrderPage } from './pages/4m/work-orders/CreateWorkOrderPage';
+import { PublicMachineCard } from './pages/4m/machines/PublicMachineCard';
+import { ScheduleMaintenanceDashboard } from './pages/4m/schedules/ScheduleMaintenanceDashboard';
+import { AddSchedulePage } from './pages/4m/schedules/AddSchedulePage';
+import { SparesListPage } from './pages/4m/spares/SparesListPage';
+import { SpareDetailsPage } from './pages/4m/spares/SpareDetailsPage';
 
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -580,12 +587,86 @@ function App() {
               </ProtectedRoute>
             }
           />
+          {/* Public Machine View Route */}
+          <Route path="/public/machine/:codeOrId" element={<PublicMachineCard />} />
+
           <Route
-            path="/assets"
+            path="/work-orders"
             element={
               <ProtectedRoute moduleId="assets" action="view">
                 <DashboardLayout>
-                  <AssetsManagement />
+                  <WorkOrderManagement />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/work-orders/new"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <CreateWorkOrderPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/schedules"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ScheduleMaintenanceDashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/schedules/new"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AddSchedulePage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Spares Management Routes */}
+          <Route
+            path="/spares"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <SparesListPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/master/spare"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <SparesListPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/spares/new"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <SpareDetailsPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/spares/edit/:id"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <SpareDetailsPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }

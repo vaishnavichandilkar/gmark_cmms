@@ -53,6 +53,13 @@ model User {
   buildings       UserBuilding[]
   userPermissions UserPermission[]
   refreshToken    String?
+  createdWorkOrders  WorkOrder[]          @relation("WOCreator")
+  assignedWorkOrders WorkOrder[]          @relation("WOAssignedTech")
+  approvedWorkOrders WorkOrder[]          @relation("WOApprover")
+  level3ApprovedWorkOrders WorkOrder[]    @relation("WOLevel3Approver")
+  workOrderRevisions WorkOrderRevision[]
+  assignedScheduleTasks MaintenanceScheduleTask[]
+  userCheckpoints UserCheckpoint[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 }
@@ -445,8 +452,12 @@ model Machine {
   parentMachine   Machine?  @relation("MachineHierarchy", fields: [parentMachineId], references: [id])
   childMachines   Machine[] @relation("MachineHierarchy")
 
-  documents      MachineDocument[]
-  specifications MachineSpecification[]
+  documents            MachineDocument[]
+  specifications       MachineSpecification[]
+  workOrders           WorkOrder[]
+  checkpoints          MachineCheckpoint[]
+  maintenanceSchedules MaintenanceSchedule[]
+  userCheckpoints      UserCheckpoint[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -530,5 +541,250 @@ model RegisterAlertConfig {
 
   @@unique([deviceId, registerNumber])
   @@index([deviceId, enabled])
+}
+
+enum WorkOrderStatus {
+  PENDING_APPROVAL
+  APPROVED
+  IN_PROGRESS
+  REVISION_REQUESTED
+  COMPLETED
+  CLOSED
+  REJECTED
+}
+
+enum WorkOrderPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model WorkOrder {
+  id                 Int               @id @default(autoincrement())
+  woNumber           String            @unique
+  machineId          Int
+  machine            Machine           @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  problemDescription String
+  priority           WorkOrderPriority @default(MEDIUM)
+  status             WorkOrderStatus   @default(PENDING_APPROVAL)
+  triggerType        String            @default("MANUAL") // 'MANUAL', 'SCHEDULED', 'MACHINE_CARD'
+  
+  createdById        Int?
+  createdBy          User?             @relation("WOCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  creatorName        String?
+  creatorEmail       String?
+  
+  assignedTechnicianId Int?
+  assignedTechnician   User?           @relation("WOAssignedTech", fields: [assignedTechnicianId], references: [id], onDelete: SetNull)
+  
+  approvedById       Int?
+  approvedBy         User?             @relation("WOApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  estimatedStartDate DateTime?
+  estimatedEndDate   DateTime?
+  managerRemarks     String?
+  
+  isEscalated        Boolean           @default(false)
+  escalatedAt        DateTime?
+  escalatedTo        String?
+  
+  rejectionReason    String?
+  rejectedAt         DateTime?
+  rejectedById       Int?
+  
+  completionNotes    String?
+  completedAt        DateTime?
+  closedAt           DateTime?
+  closedById         Int?
+
+  // Level 3 Escalation & Maintenance Type
+  maintenanceCategory String           @default("BREAKDOWN") // 'PREVENTIVE', 'PREDICTIVE', 'CONDITION', 'BREAKDOWN'
+  breakdownLevel      Int              @default(1) // Level 1, Level 2, Level 3
+  level1ApprovedAt    DateTime?
+  level2ApprovedAt    DateTime?
+  level3ApprovedAt    DateTime?
+  level3ApprovedById  Int?
+  level3ApprovedBy    User?            @relation("WOLevel3Approver", fields: [level3ApprovedById], references: [id], onDelete: SetNull)
+  
+  media              WorkOrderMedia[]
+  spareParts         WorkOrderSparePart[]
+  revisions          WorkOrderRevision[]
+  
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+}
+
+model WorkOrderMedia {
+  id            Int       @id @default(autoincrement())
+  workOrderId   Int
+  workOrder     WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  fileUrl       String
+  fileName      String
+  fileType      String    // 'IMAGE', 'VIDEO', 'DOCUMENT'
+  uploadedStage String    @default("INITIAL") // 'INITIAL', 'PROOF_OF_WORK', 'REVISION'
+  uploadedById  Int?
+  createdAt     DateTime  @default(now())
+}
+
+model SparePartMaster {
+  id            Int                  @id @default(autoincrement())
+  partCode      String               @unique
+  partName      String
+  category      String?
+  stockQuantity Int                  @default(100)
+  unitOfMeasure String               @default("PCS")
+  unitCost      Float                @default(0)
+  location      String?
+  description   String?
+  woSpareParts    WorkOrderSparePart[]
+  scheduleSpares  MaintenanceScheduleSpare[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+}
+
+model WorkOrderSparePart {
+  id          Int              @id @default(autoincrement())
+  workOrderId Int
+  workOrder   WorkOrder        @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  sparePartId Int?
+  sparePart   SparePartMaster? @relation(fields: [sparePartId], references: [id], onDelete: SetNull)
+  partName    String
+  partCode    String?
+  quantity    Int              @default(1)
+  unitCost    Float            @default(0)
+  totalCost   Float            @default(0)
+  createdAt   DateTime         @default(now())
+}
+
+model WorkOrderRevision {
+  id                 Int       @id @default(autoincrement())
+  workOrderId        Int
+  workOrder          WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  requestedById      Int?
+  requestedBy        User?     @relation(fields: [requestedById], references: [id], onDelete: SetNull)
+  reason             String
+  previousEstEndDate DateTime?
+  proposedEstEndDate DateTime?
+  status             String    @default("PENDING") // 'PENDING', 'APPROVED', 'REJECTED'
+  createdAt          DateTime  @default(now())
+}
+
+model MachineCheckpoint {
+  id             Int      @id @default(autoincrement())
+  machineId      Int
+  machine        Machine  @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  title          String
+  checkpointType String   // 'SAFETY', 'MECHANICAL', 'ELECTRICAL', 'LUBRICATION', 'OPERATIONAL'
+  standardValue  String?
+  frequency      String?  // 'DAILY', 'WEEKLY', 'MONTHLY'
+  createdAt      DateTime @default(now())
+}
+
+model MaintenanceSchedule {
+  id                    Int               @id @default(autoincrement())
+  scheduleCode          String            @unique
+  scheduleType          String            @default("PREVENTIVE") // 'PREVENTIVE', 'PREDICTIVE', 'CONDITION', 'BREAKDOWN'
+  frequency             String            @default("MONTHLY")    // 'DAILY', 'WEEKLY', 'MONTHLY', 'BIMONTHLY', 'QUARTERLY', 'HALF_YEARLY', 'YEARLY'
+  priority              WorkOrderPriority @default(MEDIUM)
+  status                String            @default("ACTIVE")     // 'ACTIVE', 'PAUSED', 'COMPLETED'
+  
+  machineId             Int
+  machine               Machine           @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  
+  mainFacilityId        Int?
+  facilityId            Int?
+  buildingId            Int?
+  
+  prePlanToleranceDays  Int               @default(1)
+  postPlanToleranceDays Int               @default(1)
+  triggerTime           String            @default("09:00")
+  startDate             DateTime
+  endDate               DateTime?
+  nextRunDate           DateTime?
+  lastRunDate           DateTime?
+  completedBy           String?
+  notes                 String?
+  notifyUsers           String?           // JSON array string of user emails/IDs
+  
+  tasks                 MaintenanceScheduleTask[]
+  spares                MaintenanceScheduleSpare[]
+  logs                  MaintenanceScheduleLog[]
+  
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+}
+
+model MaintenanceScheduleTask {
+  id                   Int                  @id @default(autoincrement())
+  scheduleId           Int
+  schedule             MaintenanceSchedule  @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  description          String
+  taskType             String               @default("INSPECTION") // 'INSPECTION', 'SERVICING', 'REPLACEMENT', 'CALIBRATION', 'CLEANING'
+  frequency            String?
+  assignedTechnicianId Int?
+  assignedTechnician   User?                @relation(fields: [assignedTechnicianId], references: [id], onDelete: SetNull)
+  checkpointMasterId   Int?
+  checkpointMaster     CheckpointMaster?    @relation(fields: [checkpointMasterId], references: [id], onDelete: SetNull)
+  standardValue        String?
+  toleranceMin         Float?
+  toleranceMax         Float?
+  createdAt            DateTime             @default(now())
+}
+
+model MaintenanceScheduleSpare {
+  id          Int                 @id @default(autoincrement())
+  scheduleId  Int
+  schedule    MaintenanceSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  sparePartId Int?
+  sparePart   SparePartMaster?    @relation(fields: [sparePartId], references: [id], onDelete: SetNull)
+  partName    String
+  partCode    String?
+  quantity    Int                 @default(1)
+  createdAt   DateTime            @default(now())
+}
+
+model MaintenanceScheduleLog {
+  id          Int                 @id @default(autoincrement())
+  scheduleId  Int
+  schedule    MaintenanceSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  action      String              // 'CREATED', 'TRIGGERED_WO', 'PAUSED', 'RESUMED', 'COMPLETED'
+  details     String?
+  performedBy String?
+  createdAt   DateTime            @default(now())
+}
+
+model CheckpointMaster {
+  id             Int                       @id @default(autoincrement())
+  code           String                    @unique // e.g. 'CHK-PREV-001'
+  checkpointType String                    @default("PREVENTIVE") // 'PREVENTIVE', 'PREDICTIVE'
+  description    String
+  frequency      String                    @default("MONTHLY")
+  unit           String?
+  minValue       Float?
+  maxValue       Float?
+  standardValue  String?
+  category       String?
+  tasks          MaintenanceScheduleTask[]
+  userCheckpoints UserCheckpoint[]
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+}
+
+model UserCheckpoint {
+  id                 Int               @id @default(autoincrement())
+  checkpointMasterId Int?
+  checkpointMaster   CheckpointMaster? @relation(fields: [checkpointMasterId], references: [id], onDelete: SetNull)
+  machineId          Int
+  machine            Machine           @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  userId             Int?
+  user               User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  checkpointType     String
+  description        String
+  frequency          String
+  standardValue      String?
+  minValue           Float?
+  maxValue           Float?
+  status             String            @default("ACTIVE")
+  createdAt          DateTime          @default(now())
 }
 

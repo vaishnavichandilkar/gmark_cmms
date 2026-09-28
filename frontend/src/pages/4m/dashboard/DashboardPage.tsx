@@ -48,7 +48,7 @@ export function DashboardPage() {
       hasInitialized.current = true;
       if (savedDefault) {
         // Find valid assets (either in machines or devices)
-        const validAssets = [];
+        const validAssets: string[] = [];
         savedDefault.machineIds.forEach((id: string) => {
           if (id.startsWith('m_') && machines.find(m => m.id === Number(id.replace('m_','')))) validAssets.push(id);
           if (id.startsWith('d_') && devices.find(d => d.id === Number(id.replace('d_','')))) validAssets.push(id);

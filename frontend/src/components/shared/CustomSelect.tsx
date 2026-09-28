@@ -127,7 +127,9 @@ export function CustomSelect({
           }}
           placeholder={placeholder}
           disabled={disabled}
-          className={`flex-1 outline-none bg-transparent min-w-0 ${disabled ? 'text-gray-500 cursor-not-allowed' : 'text-gray-700'}`}
+          spellCheck={false}
+          readOnly={!allowCustom}
+          className={`flex-1 outline-none bg-transparent min-w-0 ${disabled ? 'text-gray-500 cursor-not-allowed' : 'text-gray-700 cursor-pointer'}`}
         />
         <div className="flex items-center gap-1 text-gray-400 ml-2">
           {value && !disabled && (

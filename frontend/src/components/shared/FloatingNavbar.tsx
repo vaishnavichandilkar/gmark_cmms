@@ -7,7 +7,7 @@ import {
   ChevronRight, ChevronLeft, LogOut, 
   LayoutDashboard, Wrench, Cpu, Droplet, 
   Flame, ArrowUpDown, MoreHorizontal, Users, 
-  ChevronDown, Boxes, ShieldCheck, Menu, X, Key
+  ChevronDown, Boxes, ShieldCheck, Menu, X, Key, Calendar
 } from 'lucide-react';
 import { logout } from '../../store/slices/authSlice';
 import { LogoutConfirmModal } from './LogoutConfirmModal';
@@ -88,10 +88,9 @@ export function FloatingNavbar() {
         },
         {
           label: 'Spare Master',
-          path: '/master/spare',
+          path: '/spares',
           icon: <Wrench size={16} />,
-          moduleId: 'master_spare',
-          isComingSoon: true
+          moduleId: 'master_spare'
         }
       ]
     },
@@ -118,6 +117,24 @@ export function FloatingNavbar() {
       path: '/machine-management',
       icon: <Cpu size={20} />,
       moduleId: 'machine_management'
+    },
+    {
+      label: 'Spares Management',
+      path: '/spares',
+      icon: <Wrench size={20} />,
+      moduleId: 'spares'
+    },
+    {
+      label: 'Work Orders',
+      path: '/work-orders',
+      icon: <Wrench size={20} />,
+      moduleId: 'work_orders'
+    },
+    {
+      label: 'Schedule Maintenance',
+      path: '/schedules',
+      icon: <Calendar size={20} />,
+      moduleId: 'schedules'
     },
     {
       label: 'HYPN System',

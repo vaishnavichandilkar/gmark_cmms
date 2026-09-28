@@ -22,6 +22,10 @@ import { MachineDocumentsModule } from './modules/4m/machine-documents/machine-d
 import { MachineSpecificationsModule } from './modules/4m/machine-specifications/machine-specifications.module';
 import { MachinesModule } from './modules/4m/machines/machines.module';
 import { AlertsModule } from './modules/scada/alerts/alerts.module';
+import { WorkOrdersModule } from './modules/4m/work-orders/work-orders.module';
+import { SparePartsModule } from './modules/4m/spare-parts/spare-parts.module';
+import { SchedulesModule } from './modules/4m/schedules/schedules.module';
+import { CheckpointsModule } from './modules/4m/checkpoints/checkpoints.module';
 
 @Module({
   imports: [
@@ -54,6 +58,10 @@ import { AlertsModule } from './modules/scada/alerts/alerts.module';
     MachineDocumentsModule,
     MachineSpecificationsModule,
     MachinesModule,
+    WorkOrdersModule,
+    SparePartsModule,
+    SchedulesModule,
+    CheckpointsModule,
   ],
   providers: [
     {

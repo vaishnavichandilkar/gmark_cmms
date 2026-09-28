@@ -5,7 +5,7 @@ import { CustomSelect } from './CustomSelect';
 export interface FilterOption {
   key: string;
   label: string;
-  options: string[];
+  options: (string | { label: string; value: string })[];
 }
 
 interface TableActionsProps {
@@ -152,23 +152,26 @@ export function TableActions({
             </button>
 
             {isFilterMenuOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden flex flex-col">
-                <div className="p-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                  <span className="text-sm font-bold text-gray-700">Filters</span>
+              <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col">
+                <div className="p-3.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/80">
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-emerald-600" />
+                    <span className="text-sm font-bold text-gray-800">Filter Work Orders</span>
+                  </div>
                   {hasActiveFilters && (
                     <button 
                       onClick={clearFilters}
-                      className="text-xs text-red-500 hover:text-red-700 font-semibold cursor-pointer"
+                      className="text-xs text-red-600 hover:text-red-700 font-bold hover:underline cursor-pointer"
                     >
                       Clear All
                     </button>
                   )}
                 </div>
                 
-                <div className="p-3 space-y-4 max-h-64 overflow-y-auto">
+                <div className="p-4 space-y-4 max-h-[75vh] overflow-y-auto">
                   {filterOptions.map(option => (
                     <div key={option.key} className="space-y-1.5">
-                      <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">
+                      <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block">
                         {option.label}
                       </label>
                       <CustomSelect
@@ -178,7 +181,9 @@ export function TableActions({
                         placeholder="All"
                         options={[
                           { label: 'All', value: '' },
-                          ...option.options.map(val => ({ label: val, value: val }))
+                          ...option.options.map(opt => 
+                            typeof opt === 'string' ? { label: opt, value: opt } : opt
+                          )
                         ]}
                       />
                     </div>

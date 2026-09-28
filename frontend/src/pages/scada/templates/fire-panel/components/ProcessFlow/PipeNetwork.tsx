@@ -11,7 +11,6 @@ interface PipeProps {
   path?: string;
   flowDirection?: 'forward' | 'backward' | 'none';
   hasFault?: boolean;
-  hasFault?: boolean;
   capStyle?: 'round' | 'butt' | 'square';
   hideBase?: boolean;
   hideAnimation?: boolean;
