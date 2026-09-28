@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, Power, Clock, Loader2 } from 'lucide-react';
+import { Zap, Power, Clock, Loader2, ShieldAlert } from 'lucide-react';
 import { AnimatedPump } from './AnimatedPump';
 
 interface PumpUnitProps {
@@ -13,6 +13,7 @@ interface PumpUnitProps {
   onToggle?: () => void;
   onModeChange?: (mode: 'AUTO' | 'MANUAL' | 'OFF') => void;
   isPending?: boolean;
+  isWaterAvailable?: boolean;
 }
 
 export const PumpUnit: React.FC<PumpUnitProps> = ({
@@ -26,9 +27,11 @@ export const PumpUnit: React.FC<PumpUnitProps> = ({
   onToggle,
   onModeChange,
   isPending = false,
+  isWaterAvailable = true,
 }) => {
   const isRunning = status === 'RUNNING';
   const isFault = status === 'FAULT';
+  const isStartBlocked = !isRunning && !isWaterAvailable;
 
   const totalCurrent = (currentR + currentY + currentB).toFixed(1);
   const powerKw = ((currentR + currentY + currentB) * 0.23).toFixed(1); // placeholder calc for kW
@@ -166,12 +169,15 @@ export const PumpUnit: React.FC<PumpUnitProps> = ({
           <button
             onClick={onToggle}
             disabled={isPending}
+            title={isStartBlocked ? 'Low Suction Water Level - Pumps Disabled (Dry-run protection)' : undefined}
             className={`w-full h-9 rounded-xl font-extrabold text-xs tracking-wider transition-all duration-300 shadow-md flex items-center justify-center gap-2 ${
               isPending
                 ? 'bg-gray-400 text-white cursor-wait opacity-90'
                 : isRunning
-                ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white shadow-red-500/20 active:scale-98'
-                : 'bg-gradient-to-r from-[#00a651] to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-emerald-500/20 active:scale-98'
+                ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white shadow-red-500/20 active:scale-98 cursor-pointer'
+                : isStartBlocked
+                ? 'bg-gray-100 text-gray-400 border border-gray-300 hover:bg-gray-100 shadow-none cursor-pointer'
+                : 'bg-gradient-to-r from-[#00a651] to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-emerald-500/20 active:scale-98 cursor-pointer'
             }`}
           >
             {isPending ? (
@@ -179,10 +185,20 @@ export const PumpUnit: React.FC<PumpUnitProps> = ({
                 <Loader2 size={15} className="animate-spin" />
                 <span>TRANSMITTING...</span>
               </>
+            ) : isRunning ? (
+              <>
+                <Power size={14} className="stroke-[2.5]" />
+                <span>STOP PUMP</span>
+              </>
+            ) : isStartBlocked ? (
+              <>
+                <ShieldAlert size={14} className="text-amber-500 stroke-[2.5]" />
+                <span className="text-gray-500">DISABLED (LOW WATER)</span>
+              </>
             ) : (
               <>
                 <Power size={14} className="stroke-[2.5]" />
-                <span>{isRunning ? 'STOP PUMP' : 'START PUMP'}</span>
+                <span>START PUMP</span>
               </>
             )}
           </button>

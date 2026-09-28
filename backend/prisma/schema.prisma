@@ -485,28 +485,48 @@ model DeviceAlert {
   
   triggerKey  String?
   intensity   Int?     @default(1)
+
+  emailSent              Boolean   @default(false)
+  emailSentTo            String?
+  rolesNotified          String?
   
-  createdAt   DateTime @default(now())
-  resolvedAt  DateTime?
+  // Escalation Matrix Tracking
+  isEscalated            Boolean   @default(false)
+  escalationLevel        Int       @default(1)
+  lastEscalatedAt        DateTime?
+  acknowledgedAt         DateTime?
+  acknowledgedBy         String?
+  
+  createdAt              DateTime  @default(now())
+  resolvedAt             DateTime?
 
   @@index([deviceId, status])
 }
 
 model RegisterAlertConfig {
-  id             Int      @id @default(autoincrement())
-  deviceId       String
-  registerNumber Int      // Array index / register address
-  registerName   String?
-  enabled        Boolean  @default(true)
-  alertType      String   @default("WARNING") // EMERGENCY, WARNING, NOTIFY
-  intensity      Int      @default(1) // 1 to 5
-  conditionType  String   // GREATER_THAN, LESS_THAN, EQUAL_TO
-  conditionValue Float
-  message        String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                        Int      @id @default(autoincrement())
+  deviceId                  String
+  registerNumber            Int      // Array index / register address
+  registerName              String?
+  enabled                   Boolean  @default(true)
+  alertType                 String   @default("WARNING") // EMERGENCY, WARNING, NOTIFY
+  intensity                 Int      @default(1) // 1 to 5
+  conditionType             String   // GREATER_THAN, LESS_THAN, EQUAL_TO
+  conditionValue            Float
+  message                   String
+  sendEmail                 Boolean  @default(true)
+  emailRecipients           String?  // Comma-separated email addresses
+  notifyRoles               String?  @default("SUPER_ADMIN,BUILDING_ADMIN,OPERATOR") // Comma-separated user roles
+  
+  // Escalation Matrix Policy
+  enableEscalation          Boolean  @default(false)
+  escalationIntervalMinutes Int      @default(60) // Minutes before escalating to next tier (e.g. 15, 30, 60, 120)
+  escalationChain           String?  @default("OPERATOR,BUILDING_ADMIN,SUPER_ADMIN") // Hierarchy order
 
-  device         Device   @relation(fields: [deviceId], references: [deviceId], onDelete: Cascade)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  device                    Device   @relation(fields: [deviceId], references: [deviceId], onDelete: Cascade)
 
   @@unique([deviceId, registerNumber])
   @@index([deviceId, enabled])

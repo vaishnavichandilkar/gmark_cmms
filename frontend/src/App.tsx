@@ -33,13 +33,53 @@ import { EditMachine } from './pages/4m/machines/EditMachine';
 import { ManageAccess } from './pages/4m/access/ManageAccess';
 import { AddRole } from './pages/4m/access/AddRole';
 
+import { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { setUser } from './store/slices/authSlice';
+import type { RootState } from './store';
+import { api } from './lib/api';
+
 import { Toaster } from 'react-hot-toast';
 import { AlertToastManager } from './components/shared/AlertToastManager';
+
+function AuthSync() {
+  const dispatch = useDispatch();
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const refreshUser = async () => {
+      try {
+        const res = await api.get('/auth/me');
+        if (res.data?.user) {
+          dispatch(setUser(res.data.user));
+        }
+      } catch (err) {
+        console.error('Failed to sync user profile:', err);
+      }
+    };
+
+    refreshUser();
+
+    const handleFocus = () => {
+      refreshUser();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [isAuthenticated, dispatch]);
+
+  return null;
+}
 
 function App() {
   return (
     <Provider store={store}>
       <BrowserRouter>
+        <AuthSync />
         <ScrollToTop />
         <AlertToastManager />
         <Toaster 
@@ -313,7 +353,7 @@ function App() {
           <Route
             path="/master/employee"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute moduleId="master_employee" action="view">
                 <DashboardLayout>
                   <EmployeeMaster />
                 </DashboardLayout>
@@ -323,7 +363,7 @@ function App() {
           <Route
             path="/master/employee/new"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute moduleId="master_employee" action="create">
                 <DashboardLayout>
                   <AddEmployee />
                 </DashboardLayout>
@@ -333,7 +373,7 @@ function App() {
           <Route
             path="/master/employee/edit/:id"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute moduleId="master_employee" action="edit">
                 <DashboardLayout>
                   <AddEmployee />
                 </DashboardLayout>
@@ -343,7 +383,7 @@ function App() {
           <Route
             path="/master/employee/view/:id"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute moduleId="master_employee" action="view">
                 <DashboardLayout>
                   <AddEmployee />
                 </DashboardLayout>
@@ -353,7 +393,7 @@ function App() {
           <Route
             path="/master/main-facility"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute moduleId="master_main_facility" action="view">
                 <DashboardLayout>
                   <MainFacilityMaster />
                 </DashboardLayout>
@@ -363,7 +403,7 @@ function App() {
           <Route
             path="/master/main-facility/new"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute moduleId="master_main_facility" action="create">
                 <DashboardLayout>
                   <AddMainFacility />
                 </DashboardLayout>
@@ -373,7 +413,7 @@ function App() {
           <Route
             path="/master/main-facility/edit/:id"
             element={
-              <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+              <ProtectedRoute moduleId="master_main_facility" action="edit">
                 <DashboardLayout>
                   <AddMainFacility />
                 </DashboardLayout>
@@ -383,7 +423,7 @@ function App() {
           <Route
             path="/master/facility/new"
             element={
-              <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+              <ProtectedRoute moduleId="master_main_facility" action="create">
                 <DashboardLayout>
                   <AddFacility />
                 </DashboardLayout>
@@ -393,7 +433,7 @@ function App() {
           <Route
             path="/master/facility/edit/:id"
             element={
-              <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+              <ProtectedRoute moduleId="master_main_facility" action="edit">
                 <DashboardLayout>
                   <AddFacility />
                 </DashboardLayout>
@@ -403,7 +443,7 @@ function App() {
           <Route
             path="/master/facility/view/:id"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute moduleId="master_main_facility" action="view">
                 <DashboardLayout>
                   <AddFacility />
                 </DashboardLayout>
@@ -413,7 +453,7 @@ function App() {
           <Route
             path="/master/main-facility/view/:id"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute moduleId="master_main_facility" action="view">
                 <DashboardLayout>
                   <AddMainFacility />
                 </DashboardLayout>
@@ -423,7 +463,7 @@ function App() {
           <Route
             path="/manage-access"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute moduleId="manage_access" action="view">
                 <DashboardLayout>
                   <ManageAccess />
                 </DashboardLayout>
@@ -433,7 +473,7 @@ function App() {
           <Route
             path="/manage-access/new"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute moduleId="manage_access" action="create">
                 <DashboardLayout>
                   <AddRole />
                 </DashboardLayout>
@@ -443,7 +483,7 @@ function App() {
           <Route
             path="/manage-access/edit/:id"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute moduleId="manage_access" action="edit">
                 <DashboardLayout>
                   <AddRole />
                 </DashboardLayout>
@@ -453,7 +493,7 @@ function App() {
           <Route
             path="/manage-access/view/:id"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute moduleId="manage_access" action="view">
                 <DashboardLayout>
                   <AddRole />
                 </DashboardLayout>
@@ -463,7 +503,7 @@ function App() {
           <Route
             path="/user-management"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute moduleId="user_management" action="view">
                 <DashboardLayout>
                   <UserManagement />
                 </DashboardLayout>
@@ -473,7 +513,7 @@ function App() {
           <Route
             path="/user-management/new"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute moduleId="user_management" action="create">
                 <DashboardLayout>
                   <AddUser />
                 </DashboardLayout>
@@ -483,7 +523,7 @@ function App() {
           <Route
             path="/user-management/edit/:id"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute moduleId="user_management" action="edit">
                 <DashboardLayout>
                   <AddUser />
                 </DashboardLayout>
@@ -493,7 +533,7 @@ function App() {
           <Route
             path="/user-management/view/:id"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute moduleId="user_management" action="view">
                 <DashboardLayout>
                   <AddUser />
                 </DashboardLayout>
@@ -503,7 +543,7 @@ function App() {
           <Route
             path="/facility-management"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute moduleId="facility_management" action="view">
                 <DashboardLayout>
                   <FacilityManagement />
                 </DashboardLayout>
@@ -513,7 +553,7 @@ function App() {
           <Route
             path="/machine-management"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute moduleId="machine_management" action="view">
                 <DashboardLayout>
                   <MachineManagement />
                 </DashboardLayout>
@@ -523,7 +563,7 @@ function App() {
           <Route
             path="/machine-management/new"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute moduleId="machine_management" action="create">
                 <DashboardLayout>
                   <AddMachine />
                 </DashboardLayout>
@@ -533,7 +573,7 @@ function App() {
           <Route
             path="/machine-management/edit/:id"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute moduleId="machine_management" action="edit">
                 <DashboardLayout>
                   <EditMachine />
                 </DashboardLayout>
@@ -543,7 +583,7 @@ function App() {
           <Route
             path="/assets"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute moduleId="assets" action="view">
                 <DashboardLayout>
                   <AssetsManagement />
                 </DashboardLayout>

@@ -173,36 +173,8 @@ export class AuthService {
     );
     await this.updateRefreshToken(user.id, tokens.refreshToken);
 
-    const userPermissions = await this.prisma.userPermission.findMany({
-      where: { userId: user.id }
-    });
-
-    let mergedPermissions: any[] = [];
-    if (user.employee?.designation) {
-      const designation = await this.prisma.designation.findUnique({
-        where: { name: user.employee.designation },
-        include: { permissions: true }
-      });
-      if (designation && designation.permissions) {
-        mergedPermissions = [...designation.permissions];
-      }
-    }
-
-    userPermissions.forEach(up => {
-      const index = mergedPermissions.findIndex(p => p.moduleId === up.moduleId);
-      if (index >= 0) {
-        mergedPermissions[index] = { ...mergedPermissions[index], ...up };
-      } else {
-        mergedPermissions.push(up);
-      }
-    });
-
-    const permissions = mergedPermissions.length > 0 ? mergedPermissions : null;
-
     const sanitizedUser = this.sanitizeUser(user);
-    if (permissions) {
-      (sanitizedUser as any).permissions = permissions;
-    }
+    sanitizedUser.permissions = await this.resolveUserPermissions(user);
 
     return {
       user: sanitizedUser,
@@ -217,6 +189,184 @@ export class AuthService {
       data: { refreshToken: null },
     });
     return { success: true };
+  }
+
+  async getMe(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        buildings: {
+          include: {
+            building: true,
+          },
+        },
+        employee: true,
+        mainFacility: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const sanitizedUser = this.sanitizeUser(user);
+    sanitizedUser.permissions = await this.resolveUserPermissions(user);
+    const buildingIds = user.buildings.map((b) => b.buildingId);
+
+    return {
+      user: sanitizedUser,
+      buildingIds,
+    };
+  }
+
+  async resolveUserPermissions(user: any): Promise<any[]> {
+    const modules = [
+      'dashboard',
+      'assets',
+      'master_employee',
+      'master_main_facility',
+      'manage_access',
+      'user_management',
+      'facility_management',
+      'machine_management',
+    ];
+
+    // 1. Role-based baseline
+    const role = user.role || 'VIEWER';
+    const isSuperAdmin = role === 'SUPER_ADMIN';
+    const isSocietyAdmin = role === 'SOCIETY_ADMIN';
+    const isBuildingAdmin = role === 'BUILDING_ADMIN';
+    const isOperator = role === 'OPERATOR';
+
+    const baseline = modules.map((moduleId) => {
+      if (isSuperAdmin || isSocietyAdmin) {
+        return {
+          moduleId,
+          canView: true,
+          canCreate: true,
+          canEdit: true,
+          canDelete: isSuperAdmin || moduleId !== 'manage_access',
+          canImport: !['manage_access', 'user_management', 'facility_management', 'machine_management', 'dashboard', 'assets'].includes(moduleId),
+          canExport: true,
+          canPrint: true,
+        };
+      }
+
+      if (isBuildingAdmin) {
+        const allowed = ['dashboard', 'assets', 'facility_management', 'machine_management'].includes(moduleId);
+        return {
+          moduleId,
+          canView: allowed,
+          canCreate: ['facility_management', 'machine_management'].includes(moduleId),
+          canEdit: ['facility_management', 'machine_management'].includes(moduleId),
+          canDelete: false,
+          canImport: false,
+          canExport: allowed,
+          canPrint: allowed,
+        };
+      }
+
+      if (isOperator) {
+        const allowed = ['dashboard', 'assets', 'machine_management'].includes(moduleId);
+        return {
+          moduleId,
+          canView: allowed,
+          canCreate: false,
+          canEdit: moduleId === 'machine_management',
+          canDelete: false,
+          canImport: false,
+          canExport: allowed,
+          canPrint: allowed,
+        };
+      }
+
+      // Default VIEWER
+      const allowed = ['dashboard', 'assets', 'facility_management', 'machine_management'].includes(moduleId);
+      return {
+        moduleId,
+        canView: allowed,
+        canCreate: false,
+        canEdit: false,
+        canDelete: false,
+        canImport: false,
+        canExport: allowed,
+        canPrint: allowed,
+      };
+    });
+
+    let mergedPermissions = [...baseline];
+
+    // 2. Overlay Designation permissions if user has employee designation
+    if (user.employee?.designation) {
+      const designationName = user.employee.designation.trim();
+      const designation = await this.prisma.designation.findFirst({
+        where: { name: { equals: designationName, mode: 'insensitive' } },
+        include: { permissions: true },
+      });
+
+      if (designation && designation.permissions && designation.permissions.length > 0) {
+        designation.permissions.forEach((dp) => {
+          const index = mergedPermissions.findIndex((p) => p.moduleId === dp.moduleId);
+          if (index >= 0) {
+            mergedPermissions[index] = {
+              ...mergedPermissions[index],
+              canView: dp.canView,
+              canCreate: dp.canCreate,
+              canEdit: dp.canEdit,
+              canDelete: dp.canDelete,
+              canImport: dp.canImport ?? false,
+              canExport: dp.canExport ?? false,
+              canPrint: dp.canPrint ?? false,
+            };
+          } else {
+            mergedPermissions.push({
+              moduleId: dp.moduleId,
+              canView: dp.canView,
+              canCreate: dp.canCreate,
+              canEdit: dp.canEdit,
+              canDelete: dp.canDelete,
+              canImport: dp.canImport ?? false,
+              canExport: dp.canExport ?? false,
+              canPrint: dp.canPrint ?? false,
+            });
+          }
+        });
+      }
+    }
+
+    // 3. Overlay specific userPermission overrides
+    const userPermissions = await this.prisma.userPermission.findMany({
+      where: { userId: user.id },
+    });
+
+    userPermissions.forEach((up) => {
+      const index = mergedPermissions.findIndex((p) => p.moduleId === up.moduleId);
+      if (index >= 0) {
+        mergedPermissions[index] = {
+          ...mergedPermissions[index],
+          canView: up.canView,
+          canCreate: up.canCreate,
+          canEdit: up.canEdit,
+          canDelete: up.canDelete,
+          canImport: up.canImport ?? false,
+          canExport: up.canExport ?? false,
+          canPrint: up.canPrint ?? false,
+        };
+      } else {
+        mergedPermissions.push({
+          moduleId: up.moduleId,
+          canView: up.canView,
+          canCreate: up.canCreate,
+          canEdit: up.canEdit,
+          canDelete: up.canDelete,
+          canImport: up.canImport ?? false,
+          canExport: up.canExport ?? false,
+          canPrint: up.canPrint ?? false,
+        });
+      }
+    });
+
+    return mergedPermissions;
   }
 
   async refresh(refreshToken: string) {
@@ -253,36 +403,8 @@ export class AuthService {
       );
       await this.updateRefreshToken(user.id, tokens.refreshToken);
 
-      const userPermissions = await this.prisma.userPermission.findMany({
-        where: { userId: user.id }
-      });
-
-      let mergedPermissions: any[] = [];
-      if (user.employee?.designation) {
-        const designation = await this.prisma.designation.findUnique({
-          where: { name: user.employee.designation },
-          include: { permissions: true }
-        });
-        if (designation && designation.permissions) {
-          mergedPermissions = [...designation.permissions];
-        }
-      }
-
-      userPermissions.forEach(up => {
-        const index = mergedPermissions.findIndex(p => p.moduleId === up.moduleId);
-        if (index >= 0) {
-          mergedPermissions[index] = { ...mergedPermissions[index], ...up };
-        } else {
-          mergedPermissions.push(up);
-        }
-      });
-
-      const permissions = mergedPermissions.length > 0 ? mergedPermissions : null;
-
       const sanitizedUser = this.sanitizeUser(user);
-      if (permissions) {
-        (sanitizedUser as any).permissions = permissions;
-      }
+      sanitizedUser.permissions = await this.resolveUserPermissions(user);
 
       return {
         user: sanitizedUser,

@@ -40,4 +40,28 @@ export class UpsertAlertConfigDto {
 
   @IsString()
   message: string;
+
+  @IsOptional()
+  @IsBoolean()
+  sendEmail?: boolean;
+
+  @IsOptional()
+  @IsString()
+  emailRecipients?: string;
+
+  @IsOptional()
+  @IsString()
+  notifyRoles?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  enableEscalation?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  escalationIntervalMinutes?: number;
+
+  @IsOptional()
+  @IsString()
+  escalationChain?: string;
 }

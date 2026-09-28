@@ -102,6 +102,11 @@ const authSlice = createSlice({
       sessionStorage.removeItem('user');
       sessionStorage.removeItem('buildingIds');
     },
+    setUser: (state, action: PayloadAction<any>) => {
+      state.user = action.payload;
+      const storage = sessionStorage.getItem('token') ? sessionStorage : localStorage;
+      storage.setItem('user', JSON.stringify(action.payload));
+    },
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.loading = action.payload;
     },
@@ -111,5 +116,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { setCredentials, updateAccessToken, logout, setLoading, setError } = authSlice.actions;
+export const { setCredentials, updateAccessToken, setUser, logout, setLoading, setError } = authSlice.actions;
 export default authSlice.reducer;

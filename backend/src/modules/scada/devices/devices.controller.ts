@@ -143,6 +143,7 @@ export class DevicesController {
   @ApiOperation({ summary: 'Send a command to a specific device' })
   @ApiParam({ name: 'deviceId', description: 'Device ID string' })
   @ApiResponse({ status: 200, description: 'Command published successfully.' })
+  @ApiResponse({ status: 400, description: 'Safety interlock violation.' })
   @ApiResponse({ status: 401, description: 'Invalid password.' })
   async sendCommand(
     @Param('deviceId') deviceId: string,
@@ -155,7 +156,7 @@ export class DevicesController {
       throw new UnauthorizedException('Invalid security code.');
     }
 
-    const result = this.mqttService.publishCommand(deviceId, body.command);
+    const result = await this.mqttService.publishCommand(deviceId, body.command);
     
     await this.auditLogService.create(
       user.userId,

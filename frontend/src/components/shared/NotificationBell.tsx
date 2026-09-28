@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, X, Volume2, VolumeX, Play } from 'lucide-react';
+import { Bell, X, Volume2, VolumeX, Play, Mail, Check } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
 import { io, Socket } from 'socket.io-client';
@@ -19,6 +19,17 @@ export function NotificationBell({ isExpanded }: { isExpanded: boolean }) {
     const unsubscribe = audioBuzzer.subscribe((muted) => setIsMuted(muted));
     return () => unsubscribe();
   }, []);
+
+  const handleAcknowledge = async (alertId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await api.post(`/alerts/${alertId}/acknowledge`);
+      setAlerts((prev) => prev.filter((a) => a.id !== alertId));
+      audioBuzzer.stopAllSounds();
+    } catch (err: any) {
+      console.error('Failed to acknowledge alert:', err);
+    }
+  };
 
   useEffect(() => {
     if (!isAuthenticated || !accessToken) return;
@@ -41,6 +52,10 @@ export function NotificationBell({ isExpanded }: { isExpanded: boolean }) {
 
     socket.on('device-alert', (alert: any) => {
       setAlerts((prev) => [alert, ...prev.filter((a) => a.id !== alert.id)]);
+    });
+
+    socket.on('device-alert-escalated', (escalated: any) => {
+      setAlerts((prev) => [escalated, ...prev.filter((a) => a.id !== escalated.id)]);
     });
 
     socket.on('device-alert-resolved', (alert: any) => {
@@ -141,12 +156,19 @@ export function NotificationBell({ isExpanded }: { isExpanded: boolean }) {
                         }`}
                       >
                         <div className="flex justify-between items-center">
-                          <span
-                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase ${badgeBg}`}
-                          >
-                            {alert.type}
-                            {alert.intensity ? ` (Lvl ${alert.intensity})` : ''}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase ${badgeBg}`}
+                            >
+                              {alert.type}
+                              {alert.intensity ? ` (Lvl ${alert.intensity})` : ''}
+                            </span>
+                            {alert.escalationLevel > 1 && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 border border-purple-200 uppercase tracking-tight">
+                                Tier {alert.escalationLevel}
+                              </span>
+                            )}
+                          </div>
                           <span className="text-[10px] text-gray-400 font-mono">
                             {new Date(alert.createdAt).toLocaleTimeString([], {
                               hour: '2-digit',
@@ -155,9 +177,32 @@ export function NotificationBell({ isExpanded }: { isExpanded: boolean }) {
                           </span>
                         </div>
                         <p className="text-sm text-gray-900 font-medium">{alert.message}</p>
-                        <span className="text-[11px] text-gray-500 font-mono">
-                          Device: {alert.deviceId}
-                        </span>
+                        <div className="flex items-center justify-between mt-0.5">
+                          <span className="text-[11px] text-gray-500 font-mono">
+                            Device: {alert.deviceId}
+                          </span>
+                          {alert.emailSent && (
+                            <span
+                              className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded flex items-center gap-1 font-medium"
+                              title={`Roles: ${alert.rolesNotified || 'Custom'} | Sent to: ${alert.emailSentTo || 'subscribers'}`}
+                            >
+                              <Mail size={10} /> Email ({alert.rolesNotified || 'Sent'})
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between mt-1 pt-1.5 border-t border-gray-100">
+                          <span className="text-[10px] text-gray-400 font-medium">
+                            {alert.escalationLevel > 1 ? `Escalated to Tier ${alert.escalationLevel}` : 'Active Incident'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => handleAcknowledge(alert.id, e)}
+                            className="px-2 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                            title="Acknowledge alarm to resolve and stop further escalation"
+                          >
+                            <Check size={11} /> Acknowledge
+                          </button>
+                        </div>
                       </div>
                     );
                   })

@@ -264,12 +264,36 @@ export class UsersService {
   }
 
   async getUserPermissions(id: number) {
-    // Verify user exists
-    await this.findOne(id);
-    
-    return this.prisma.userPermission.findMany({
-      where: { userId: id }
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: { employee: true },
     });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    const userOverrides = await this.prisma.userPermission.findMany({
+      where: { userId: id },
+    });
+
+    let basePermissions: any[] = [];
+    if (user.employee?.designation) {
+      const designation = await this.prisma.designation.findFirst({
+        where: { name: { equals: user.employee.designation.trim(), mode: 'insensitive' } },
+        include: { permissions: true },
+      });
+      if (designation && designation.permissions) {
+        basePermissions = designation.permissions;
+      }
+    }
+
+    return {
+      userId: id,
+      designation: user.employee?.designation || null,
+      role: user.role,
+      userOverrides,
+      basePermissions,
+    };
   }
 
   async updateUserPermissions(id: number, permissions: any[]) {

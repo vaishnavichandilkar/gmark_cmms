@@ -1,11 +1,13 @@
 export type ActionType = 'view' | 'create' | 'edit' | 'delete' | 'import' | 'export' | 'print';
 
 export const hasPermission = (user: any, moduleId: string, action: ActionType): boolean => {
+  if (!user) return false;
+
   // Super Admin has all permissions
   if (user?.role === 'SUPER_ADMIN') return true;
 
-  // If no permissions array is available, fallback to true (or handle according to business logic)
-  if (!user?.permissions || !Array.isArray(user.permissions)) return true;
+  // If no permissions array is available, deny access for security
+  if (!user?.permissions || !Array.isArray(user.permissions)) return false;
 
   const perm = user.permissions.find((p: any) => p.moduleId === moduleId);
   

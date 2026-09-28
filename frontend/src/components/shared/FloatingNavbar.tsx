@@ -140,12 +140,13 @@ export function FloatingNavbar() {
   ];
 
   const hasPermission = (moduleId?: string) => {
-    if (user?.role === 'SUPER_ADMIN') return true;
+    if (!user) return false;
+    if (user.role === 'SUPER_ADMIN') return true;
     if (!moduleId) return true;
-    if (!user?.permissions) return true; // fallback
+    if (!user.permissions || !Array.isArray(user.permissions)) return false;
 
     const perm = user.permissions.find((p: any) => p.moduleId === moduleId);
-    return perm ? perm.canView : false;
+    return perm ? !!perm.canView : false;
   };
 
   const filteredMenuData = menuData.map(item => {

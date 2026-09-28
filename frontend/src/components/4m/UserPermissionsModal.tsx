@@ -27,7 +27,14 @@ interface UserPermissionsModalProps {
   userName: string;
 }
 
+import { useSelector, useDispatch } from 'react-redux';
+import type { RootState } from '../../store';
+import { setUser } from '../../store/slices/authSlice';
+
 export function UserPermissionsModal({ isOpen, onClose, userId, userName }: UserPermissionsModalProps) {
+  const dispatch = useDispatch();
+  const currentUser = useSelector((state: RootState) => state.auth.user);
+
   const [loading, setLoading] = useState(false);
   const [permissions, setPermissions] = useState<Record<string, Record<string, boolean>>>(
     availableModules.reduce((acc, mod) => {
@@ -42,24 +49,25 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
     const fetchPermissions = async () => {
       try {
         setLoading(true);
-        // Fetch user to get their designation
-        const userRes = await api.get(`/users/${userId}`);
-        const designationName = userRes.data.employee?.designation;
+        // Fetch user permissions info from backend
+        const res = await api.get(`/users/${userId}/permissions`);
+        const raw = res.data;
+        const userOverrides = Array.isArray(raw) ? raw : (raw?.userOverrides || []);
+        let basePermissions: any[] = Array.isArray(raw?.basePermissions) ? raw.basePermissions : [];
 
-        let basePermissions: any[] = [];
-        if (designationName) {
-          // Find designation to get base permissions
-          const desigRes = await api.get('/designations');
-          const designation = desigRes.data.find((d: any) => d.name === designationName);
-          if (designation && designation.id) {
-            const desigDetailRes = await api.get(`/designations/${designation.id}`);
-            basePermissions = desigDetailRes.data.permissions || [];
+        // If basePermissions was empty, try fetching designation base permissions if designation exists
+        if (basePermissions.length === 0 && raw?.designation) {
+          try {
+            const desigRes = await api.get('/designations');
+            const desig = desigRes.data.find((d: any) => d.name?.trim().toLowerCase() === raw.designation.trim().toLowerCase());
+            if (desig?.id) {
+              const desigDetail = await api.get(`/designations/${desig.id}`);
+              basePermissions = desigDetail.data.permissions || [];
+            }
+          } catch (e) {
+            console.error('Failed to load fallback designation permissions', e);
           }
         }
-
-        // Fetch user-specific overrides
-        const overrideRes = await api.get(`/users/${userId}/permissions`);
-        const userOverrides = overrideRes.data || [];
 
         // Merge them: Start with base, then overwrite with overrides
         let merged: any[] = [...basePermissions];
@@ -78,13 +86,13 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
           merged.forEach((p: any) => {
             if (next[p.moduleId]) {
               next[p.moduleId] = {
-                view: p.canView || false,
-                create: p.canCreate || false,
-                edit: p.canEdit || false,
-                delete: p.canDelete || false,
-                import: p.canImport || false,
-                export: p.canExport || false,
-                print: p.canPrint || false
+                view: !!p.canView,
+                create: !!p.canCreate,
+                edit: !!p.canEdit,
+                delete: !!p.canDelete,
+                import: !!p.canImport,
+                export: !!p.canExport,
+                print: !!p.canPrint
               };
             }
           });
@@ -151,6 +159,19 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
 
       await api.put(`/users/${userId}/permissions`, payloadPermissions);
       toast.success('User permissions updated successfully!');
+
+      // If updating the currently logged in user, refresh their profile in Redux immediately
+      if (currentUser?.id === userId) {
+        try {
+          const meRes = await api.get('/auth/me');
+          if (meRes.data?.user) {
+            dispatch(setUser(meRes.data.user));
+          }
+        } catch (e) {
+          console.error('Failed to refresh active session after permissions update', e);
+        }
+      }
+
       onClose();
     } catch (err) {
       console.error('Failed to save permissions', err);

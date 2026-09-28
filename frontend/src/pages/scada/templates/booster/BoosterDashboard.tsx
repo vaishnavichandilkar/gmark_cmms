@@ -103,22 +103,24 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pendingPumpId, setPendingPumpId] = useState<string | null>(null);
   const [pendingCommand, setPendingCommand] = useState<{ pumpId: string; action: 'TOGGLE' | 'MODE'; mode?: 'AUTO' | 'MANUAL' | 'OFF' } | null>(null);
-  const [safetyPrompt, setSafetyPrompt] = useState<{ message: string; onConfirm: () => void } | null>(null);
+  const [safetyPrompt, setSafetyPrompt] = useState<{ message: string; title?: string; onConfirm?: () => void; isBlocked?: boolean } | null>(null);
+  const commandLocksRef = useRef<Record<string, { status: string; expiresAt: number }>>({});
 
   const handleToggleClick = (pumpId: string) => {
     const pump = pumps.find(p => p.id === pumpId);
     if (!pump) return;
     const willStart = pump.status !== 'RUNNING';
 
-    // Operational Safety Interlocks
+    // Operational Safety Interlocks: Dry Run Protection
     if (willStart && !dashboardData.waterAvailable) {
+      toast.error(
+        'Safety Interlock Active: Cannot start pump when suction water level is low (dry-run protection).',
+        { duration: 5000 }
+      );
       setSafetyPrompt({
-        message: `Low Water Alert: Underground tank water level is low. Starting ${pump.name} may risk a dry run. Are you sure you want to proceed?`,
-        onConfirm: () => {
-          setSafetyPrompt(null);
-          setPendingCommand({ pumpId, action: 'TOGGLE' });
-          setIsModalOpen(true);
-        }
+        title: 'Safety Interlock: Pump Start Disabled',
+        message: `Low Water Alert: Underground suction water level is currently low. In industrial pump controllers, dry-run protection locks out pump starting to prevent motor burnout and impeller destruction. Water supply must be restored before pumps can be started.`,
+        isBlocked: true,
       });
       return;
     }
@@ -155,9 +157,9 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
     const nextRunning = action === 'TOGGLE' ? currentPump.status !== 'RUNNING' : currentPump.status === 'RUNNING';
 
     // Register Mapping for Booster Pumps:
-    // 40001 (Motor 1), 40002 (Motor 2), 40003 (Motor 3), 40004 (Motor 4)
-    // Mode status register: 40038 (Pump 1), 40039 (Pump 2), etc.
-    const targetRegister = action === 'MODE' ? 40037 + pumpNum : 40000 + pumpNum;
+    // Physical Modbus register address: 1 (Motor 1), 2 (Motor 2), 3 (Motor 3), 4 (Motor 4)
+    // Mode status register address: 38 (Pump 1), 39 (Pump 2), etc.
+    const targetRegister = action === 'MODE' ? 37 + pumpNum : pumpNum;
     let targetValue = 0;
     if (action === 'TOGGLE') {
       targetValue = nextRunning ? 1 : 0;
@@ -180,6 +182,14 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
     try {
       await api.post(`/devices/${panelId}/command`, payload);
 
+      // Lock the pump state for 20s to prevent stale incoming telemetry from immediately turning it off
+      if (action === 'TOGGLE') {
+        commandLocksRef.current[pumpId] = {
+          status: nextRunning ? 'RUNNING' : 'OFF',
+          expiresAt: Date.now() + 20000,
+        };
+      }
+
       // Optimistic UI state update
       setPumps(prev => {
         const updated = [...prev];
@@ -199,6 +209,13 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
         }
         return updated;
       });
+
+      if (action === 'TOGGLE' && nextRunning) {
+        setDashboardData(prev => ({
+          ...prev,
+          pressureBar: Math.max(prev.pressureBar, 4.2),
+        }));
+      }
 
       toast.success(
         action === 'TOGGLE'
@@ -256,8 +273,21 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
           }
         }
 
+        const lock = commandLocksRef.current[p.id];
+        const isLocked = lock && Date.now() < lock.expiresAt;
+
         if (p.faults > 0) {
           p.status = 'FAULT';
+        } else if (isLocked) {
+          p.status = lock.status as any;
+          if (lock.status === 'RUNNING') {
+            p.currentR = Number(data[rCurrKey]) || p.currentR || 12.4;
+            p.currentY = Number(data[yCurrKey]) || p.currentY || 12.1;
+            p.currentB = Number(data[bCurrKey]) || p.currentB || 12.5;
+          }
+          if (data[statusKey] !== undefined && getBool(data[statusKey]) === (lock.status === 'RUNNING')) {
+            delete commandLocksRef.current[p.id];
+          }
         } else if (data[statusKey] !== undefined) {
           p.status = getBool(data[statusKey]) ? 'RUNNING' : 'OFF';
         } else if (isInitial) {
@@ -499,29 +529,42 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
       {/* Operational Safety Interlock Dialog */}
       {safetyPrompt && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-amber-200 animate-in fade-in zoom-in-95 duration-200">
+          <div className={`bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border ${safetyPrompt.isBlocked ? 'border-red-300' : 'border-amber-200'} animate-in fade-in zoom-in-95 duration-200`}>
             <div className="flex items-start gap-4 mb-4">
-              <div className="p-3 bg-amber-100 rounded-xl text-amber-600 shrink-0">
+              <div className={`p-3 ${safetyPrompt.isBlocked ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'} rounded-xl shrink-0`}>
                 <ShieldAlert size={26} />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Safety Interlock Warning</h3>
+                <h3 className={`text-lg font-bold ${safetyPrompt.isBlocked ? 'text-red-950' : 'text-gray-900'}`}>
+                  {safetyPrompt.title || 'Safety Interlock Warning'}
+                </h3>
                 <p className="text-sm text-gray-600 mt-1 leading-relaxed">{safetyPrompt.message}</p>
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => setSafetyPrompt(null)}
-                className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={safetyPrompt.onConfirm}
-                className="px-4 py-2 text-sm font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-md transition-all cursor-pointer"
-              >
-                Acknowledge & Proceed
-              </button>
+              {safetyPrompt.isBlocked ? (
+                <button
+                  onClick={() => setSafetyPrompt(null)}
+                  className="px-5 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-md transition-all cursor-pointer"
+                >
+                  Understood (Interlock Active)
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setSafetyPrompt(null)}
+                    className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={safetyPrompt.onConfirm}
+                    className="px-4 py-2 text-sm font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-md transition-all cursor-pointer"
+                  >
+                    Acknowledge & Proceed
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

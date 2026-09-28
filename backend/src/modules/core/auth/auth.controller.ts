@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Body,
   UseGuards,
@@ -106,6 +107,14 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid refresh token.' })
   async refresh(@Body() dto: RefreshTokenDto) {
     return this.authService.refresh(dto.refreshToken);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  @ApiOperation({ summary: 'Get current user profile and resolved permissions' })
+  @ApiResponse({ status: 200, description: 'Current user profile with permissions.' })
+  async getMe(@CurrentUser() user: any) {
+    return this.authService.getMe(user.userId);
   }
 
   @UseGuards(JwtAuthGuard)

@@ -335,6 +335,7 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
                 onToggle={() => onTogglePump?.(p.id)}
                 onModeChange={(mode) => onModeChange?.(p.id, mode)}
                 isPending={pendingPumpId === p.id}
+                isWaterAvailable={dashboardData.waterAvailable}
               />
             </div>
           ))}
