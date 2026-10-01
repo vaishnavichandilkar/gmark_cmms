@@ -4,6 +4,7 @@ import {
   Param,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Query,
@@ -92,6 +93,28 @@ export class BuildingsController {
     await this.auditLogService.create(
       user.userId,
       `Building Updated: ${result.name} (ID: ${result.id})`,
+      'BUILDINGS',
+      ip,
+    );
+    return result;
+  }
+
+  @Patch(':id/move')
+  @Put(':id/move')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN, UserRole.BUILDING_ADMIN)
+  @ApiOperation({ summary: 'Move building to another society or main facility' })
+  @ApiParam({ name: 'id', description: 'Building ID' })
+  @ApiResponse({ status: 200, description: 'Building moved successfully.' })
+  async moveBuilding(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { targetType: 'society' | 'mainFacility'; targetId: number },
+    @CurrentUser() user: any,
+    @Ip() ip: string,
+  ) {
+    const result = await this.buildingsService.moveBuilding(id, body);
+    await this.auditLogService.create(
+      user.userId,
+      `Building Moved: ${result.name} (ID: ${result.id}) to ${body.targetType} ${body.targetId}`,
       'BUILDINGS',
       ip,
     );

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   Activity,
@@ -14,6 +15,7 @@ import {
   RegisterAlertModal,
   type RegisterAlertConfigData,
 } from '../../../components/scada/alerts/RegisterAlertModal';
+import { DeviceHistoryConfigCard } from '../../../components/scada/history/DeviceHistoryConfigCard';
 import { getDeviceDashboardRoute } from '../../../utils/deviceRoutes';
 import { audioBuzzer } from '../../../utils/audioBuzzer';
 
@@ -587,6 +589,11 @@ export function DeviceLiveMonitor() {
         </div>
       </div>
 
+      {/* Historical Data & Logging Configuration */}
+      <div className="mb-6">
+        <DeviceHistoryConfigCard deviceId={deviceId || ''} />
+      </div>
+
       {/* Container 1 (Slave ID 1 - Block 1) */}
       <div className="mb-8">
         <div className="bg-white p-4 rounded-t-2xl flex justify-between items-center border border-gray-200 border-b-0">
@@ -634,18 +641,20 @@ export function DeviceLiveMonitor() {
       </div>
 
       {/* Register Alert Modal */}
-      {selectedRegisterForAlert && (
-        <RegisterAlertModal
-          isOpen={Boolean(selectedRegisterForAlert)}
-          onClose={() => setSelectedRegisterForAlert(null)}
-          deviceId={deviceId || ''}
-          registerNumber={selectedRegisterForAlert.registerNumber}
-          registerName={selectedRegisterForAlert.registerName}
-          currentValue={selectedRegisterForAlert.currentValue}
-          existingConfig={selectedRegisterForAlert.existingConfig}
-          onSaved={handleAlertConfigSaved}
-        />
-      )}
+      <AnimatePresence>
+        {selectedRegisterForAlert && (
+          <RegisterAlertModal
+            isOpen={Boolean(selectedRegisterForAlert)}
+            onClose={() => setSelectedRegisterForAlert(null)}
+            deviceId={deviceId || ''}
+            registerNumber={selectedRegisterForAlert.registerNumber}
+            registerName={selectedRegisterForAlert.registerName}
+            currentValue={selectedRegisterForAlert.currentValue}
+            existingConfig={selectedRegisterForAlert.existingConfig}
+            onSaved={handleAlertConfigSaved}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

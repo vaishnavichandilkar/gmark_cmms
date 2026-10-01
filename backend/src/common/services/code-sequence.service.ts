@@ -5,19 +5,48 @@ import { PrismaService } from '../prisma/prisma.service';
 export class CodeSequenceService {
   constructor(private prisma: PrismaService) {}
 
-  async previewNextCode(sequenceId: 'EMPLOYEE' | 'MAIN_FACILITY' | 'FACILITY'): Promise<string> {
+  async previewNextCode(sequenceId: 'EMPLOYEE' | 'MAIN_FACILITY' | 'FACILITY' | 'ASSET' | 'MACHINE'): Promise<string> {
     try {
       let sequence = await this.prisma.codeSequence.findUnique({
         where: { id: sequenceId },
       });
       
       if (!sequence) {
+        let initialMax = 0;
+        if (sequenceId === 'ASSET') {
+          const astMachines = await this.prisma.machine.findMany({
+            where: { assetCode: { startsWith: 'AST' } },
+            select: { assetCode: true },
+          });
+          for (const m of astMachines) {
+            if (m.assetCode) {
+              const num = parseInt(m.assetCode.replace(/^\D+/, ''), 10);
+              if (!isNaN(num) && num > initialMax) {
+                initialMax = num;
+              }
+            }
+          }
+        } else if (sequenceId === 'MACHINE') {
+          const mchMachines = await this.prisma.machine.findMany({
+            where: { machineCode: { startsWith: 'MCH' } },
+            select: { machineCode: true },
+          });
+          for (const m of mchMachines) {
+            if (m.machineCode) {
+              const num = parseInt(m.machineCode.replace(/^\D+/, ''), 10);
+              if (!isNaN(num) && num > initialMax) {
+                initialMax = num;
+              }
+            }
+          }
+        }
+
         // Auto-create sequence if it doesn't exist
         sequence = await this.prisma.codeSequence.create({
           data: {
             id: sequenceId,
-            prefix: sequenceId === 'EMPLOYEE' ? 'EMP' : sequenceId === 'MAIN_FACILITY' ? 'MF' : 'FL',
-            lastValue: 0,
+            prefix: sequenceId === 'EMPLOYEE' ? 'EMP' : sequenceId === 'MAIN_FACILITY' ? 'MF' : sequenceId === 'FACILITY' ? 'FL' : sequenceId === 'MACHINE' ? 'MCH' : 'AST',
+            lastValue: initialMax,
             padding: 3
           }
         });
@@ -32,18 +61,47 @@ export class CodeSequenceService {
     }
   }
 
-  async generateNextCode(sequenceId: 'EMPLOYEE' | 'MAIN_FACILITY' | 'FACILITY'): Promise<string> {
+  async generateNextCode(sequenceId: 'EMPLOYEE' | 'MAIN_FACILITY' | 'FACILITY' | 'ASSET' | 'MACHINE'): Promise<string> {
     try {
       let sequence = await this.prisma.codeSequence.findUnique({
         where: { id: sequenceId }
       });
 
       if (!sequence) {
+        let initialMax = 0;
+        if (sequenceId === 'ASSET') {
+          const astMachines = await this.prisma.machine.findMany({
+            where: { assetCode: { startsWith: 'AST' } },
+            select: { assetCode: true },
+          });
+          for (const m of astMachines) {
+            if (m.assetCode) {
+              const num = parseInt(m.assetCode.replace(/^\D+/, ''), 10);
+              if (!isNaN(num) && num > initialMax) {
+                initialMax = num;
+              }
+            }
+          }
+        } else if (sequenceId === 'MACHINE') {
+          const mchMachines = await this.prisma.machine.findMany({
+            where: { machineCode: { startsWith: 'MCH' } },
+            select: { machineCode: true },
+          });
+          for (const m of mchMachines) {
+            if (m.machineCode) {
+              const num = parseInt(m.machineCode.replace(/^\D+/, ''), 10);
+              if (!isNaN(num) && num > initialMax) {
+                initialMax = num;
+              }
+            }
+          }
+        }
+
         sequence = await this.prisma.codeSequence.create({
           data: {
             id: sequenceId,
-            prefix: sequenceId === 'EMPLOYEE' ? 'EMP' : sequenceId === 'MAIN_FACILITY' ? 'MF' : 'FL',
-            lastValue: 0,
+            prefix: sequenceId === 'EMPLOYEE' ? 'EMP' : sequenceId === 'MAIN_FACILITY' ? 'MF' : sequenceId === 'FACILITY' ? 'FL' : sequenceId === 'MACHINE' ? 'MCH' : 'AST',
+            lastValue: initialMax,
             padding: 3
           }
         });

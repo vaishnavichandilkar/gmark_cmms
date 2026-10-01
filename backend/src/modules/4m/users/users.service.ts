@@ -41,6 +41,8 @@ export class UsersService {
         },
         employee: true,
         mainFacility: true,
+        facility: true,
+        society: true,
       },
       orderBy: { id: 'asc' },
     });
@@ -57,6 +59,8 @@ export class UsersService {
         },
         employee: true,
         mainFacility: true,
+        facility: true,
+        society: true,
       },
     });
     if (!user) {
@@ -85,6 +89,9 @@ export class UsersService {
     societyId?: number;
     employeeId?: number;
     mainFacilityId?: number;
+    facilityId?: number;
+    deviceId?: string;
+    deviceName?: string;
     buildingIds?: number[];
   }) {
     // Validate email uniqueness
@@ -138,6 +145,9 @@ export class UsersService {
         societyId: data.societyId,
         employeeId: data.employeeId,
         mainFacilityId: data.mainFacilityId,
+        facilityId: data.facilityId,
+        deviceId: data.deviceId || null,
+        deviceName: data.deviceName || null,
       },
     });
 
@@ -187,6 +197,9 @@ export class UsersService {
       societyId?: number;
       employeeId?: number;
       mainFacilityId?: number;
+      facilityId?: number;
+      deviceId?: string;
+      deviceName?: string;
     },
   ) {
     const existingUser = await this.findOne(id);

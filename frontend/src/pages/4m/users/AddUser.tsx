@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, User, Mail, Phone, Building2, Shield, Briefcase, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, User, Mail, Phone, Building2, Shield, Briefcase, CheckCircle2, Cpu } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { FacilityHierarchyPicker } from '../../../components/4m/FacilityHierarchyPicker';
 import { CustomSelect } from '../../../components/shared/CustomSelect';
@@ -13,6 +13,12 @@ export function AddUser() {
 
   const [formData, setFormData] = useState({
     mainFacilityId: '',
+    facilityId: '',
+    facilityName: '',
+    deviceId: '',
+    deviceName: '',
+    buildingId: '',
+    societyId: '',
     mainFacilityHead: '',
     category: '',
     employeeId: '',
@@ -30,6 +36,7 @@ export function AddUser() {
   const [globalError, setGlobalError] = useState('');
 
   const [facilities, setFacilities] = useState<any[]>([]);
+  const [subFacilities, setSubFacilities] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [existingUserId, setExistingUserId] = useState<number | null>(null);
@@ -43,13 +50,15 @@ export function AddUser() {
       setInitialLoading(true);
       
       // Fetch dependencies in parallel
-      const [facilitiesRes, employeesRes, usersRes] = await Promise.all([
+      const [facilitiesRes, subFacilitiesRes, employeesRes, usersRes] = await Promise.all([
         api.get('/main-facilities'),
+        api.get('/facilities'),
         api.get('/employees'),
         api.get('/users')
       ]);
       
       setFacilities(facilitiesRes.data);
+      setSubFacilities(subFacilitiesRes.data);
       setEmployees(employeesRes.data);
       setUsers(usersRes.data);
 
@@ -59,8 +68,14 @@ export function AddUser() {
         
         setFormData({
           mainFacilityId: user.mainFacilityId ? user.mainFacilityId.toString() : '',
-          mainFacilityHead: user.mainFacility?.mainFacilityHead || '',
-          category: user.mainFacility?.category || '',
+          facilityId: user.facilityId ? user.facilityId.toString() : '',
+          deviceId: user.deviceId || '',
+          deviceName: user.deviceName || '',
+          societyId: user.societyId ? user.societyId.toString() : '',
+          buildingId: user.buildings && user.buildings.length > 0 ? user.buildings[0].buildingId.toString() : '',
+          facilityName: user.facility?.facilityName || user.mainFacility?.mainFacilityName || user.society?.name || (user.buildings && user.buildings.length > 0 ? user.buildings[0].building?.name : ''),
+          mainFacilityHead: user.facility?.facilityHeadName || user.mainFacility?.mainFacilityHead || '-',
+          category: user.facility?.category || user.mainFacility?.category || (user.societyId ? 'Society' : (user.buildings && user.buildings.length > 0 ? 'Building' : '')),
           employeeId: user.employeeId ? user.employeeId.toString() : '',
           employeeContactNumber: user.employee?.mobileNumber || '',
           username: user.username || '',
@@ -89,16 +104,102 @@ export function AddUser() {
         [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
       };
 
-      // Auto-fill Facility details
+      // Auto-fill Facility / Device details
       if (name === 'mainFacilityId') {
-        const facility = facilities.find(f => f.id.toString() === value);
-        if (facility) {
-          newData.mainFacilityHead = facility.mainFacilityHead || '';
-          newData.category = facility.category || '';
-          newData.isActive = facility.status === 'Active';
+        const dataset = (e.target as any).dataset;
+        const selectedType = dataset?.type;
+
+        if (selectedType === 'device') {
+          const deviceId = dataset?.deviceId || value;
+          const deviceName = dataset?.name || '';
+          const facId = dataset?.facilityId;
+          const mainFacId = dataset?.mainFacilityId;
+          const bldgId = dataset?.buildingId;
+
+          newData.deviceId = deviceId;
+          newData.deviceName = deviceName;
+
+          if (facId) {
+            const subFac = subFacilities.find((f: any) => f.id.toString() === facId);
+            newData.facilityId = facId;
+            newData.mainFacilityId = mainFacId || (subFac?.mainFacilityId ? subFac.mainFacilityId.toString() : '');
+            newData.facilityName = subFac?.facilityName || '';
+            newData.mainFacilityHead = subFac?.facilityHeadName || '';
+            newData.category = subFac?.category || '';
+            newData.buildingId = '';
+          } else if (mainFacId) {
+            const mainFac = facilities.find((f: any) => f.id.toString() === mainFacId);
+            newData.facilityId = '';
+            newData.mainFacilityId = mainFacId;
+            newData.facilityName = mainFac?.mainFacilityName || '';
+            newData.mainFacilityHead = mainFac?.mainFacilityHead || '';
+            newData.category = mainFac?.category || '';
+            newData.buildingId = '';
+          } else if (bldgId) {
+            newData.buildingId = bldgId;
+            newData.facilityId = '';
+            newData.mainFacilityId = '';
+            newData.facilityName = '';
+            newData.mainFacilityHead = '';
+            newData.category = '';
+          }
+          newData.isActive = true;
+        } else if (selectedType === 'facility') {
+          const subFac = subFacilities.find((f: any) => f.id.toString() === value);
+          newData.deviceId = '';
+          newData.deviceName = '';
+          newData.buildingId = '';
+          newData.facilityId = value;
+          newData.mainFacilityId = subFac?.mainFacilityId ? subFac.mainFacilityId.toString() : '';
+          newData.facilityName = subFac?.facilityName || '';
+          newData.mainFacilityHead = subFac?.facilityHeadName || '';
+          newData.category = subFac?.category || '';
+          newData.isActive = true;
+        } else if (selectedType === 'society') {
+          const socName = dataset?.name || '';
+          newData.deviceId = '';
+          newData.deviceName = '';
+          newData.buildingId = '';
+          newData.facilityId = '';
+          newData.mainFacilityId = '';
+          newData.societyId = value;
+          newData.facilityName = socName;
+          newData.mainFacilityHead = '-';
+          newData.category = 'Society';
+          newData.isActive = true;
+        } else if (selectedType === 'building') {
+          const bldgName = dataset?.name || '';
+          const socId = dataset?.societyId || '';
+          newData.deviceId = '';
+          newData.deviceName = '';
+          newData.buildingId = value;
+          newData.societyId = socId;
+          newData.facilityId = '';
+          newData.mainFacilityId = '';
+          newData.facilityName = bldgName;
+          newData.mainFacilityHead = '-';
+          newData.category = 'Building';
+          newData.isActive = true;
         } else {
-          newData.mainFacilityHead = '';
-          newData.category = '';
+          const facility = facilities.find((f: any) => f.id.toString() === value);
+          newData.deviceId = '';
+          newData.deviceName = '';
+          newData.buildingId = '';
+          newData.societyId = '';
+          if (facility) {
+            newData.facilityId = '';
+            newData.mainFacilityId = value;
+            newData.facilityName = facility.mainFacilityName || '';
+            newData.mainFacilityHead = facility.mainFacilityHead || '';
+            newData.category = facility.category || '';
+            newData.isActive = facility.status === 'Active';
+          } else {
+            newData.facilityId = '';
+            newData.mainFacilityId = '';
+            newData.facilityName = '';
+            newData.mainFacilityHead = '';
+            newData.category = '';
+          }
         }
       }
 
@@ -157,6 +258,9 @@ export function AddUser() {
       
       const mapRole = (designation: string) => {
         const roleStr = (designation || '').toUpperCase();
+        if (roleStr.includes('SUPER')) return 'SUPER_ADMIN';
+        if (roleStr.includes('BUILDING')) return 'BUILDING_ADMIN';
+        if (roleStr.includes('SOCIETY')) return 'SOCIETY_ADMIN';
         if (roleStr.includes('ADMIN')) return 'SOCIETY_ADMIN';
         if (roleStr.includes('OPERATOR') || roleStr.includes('SUPERVISOR')) return 'OPERATOR';
         if (roleStr.includes('MANAGER')) return 'BUILDING_ADMIN';
@@ -172,7 +276,12 @@ export function AddUser() {
         role: mapRole(formData.designation),
         isActive: formData.isActive,
         employeeId: parseInt(formData.employeeId, 10),
-        mainFacilityId: parseInt(formData.mainFacilityId, 10)
+        mainFacilityId: formData.mainFacilityId ? parseInt(formData.mainFacilityId, 10) : undefined,
+        facilityId: formData.facilityId ? parseInt(formData.facilityId, 10) : null,
+        deviceId: formData.deviceId || null,
+        deviceName: formData.deviceName || null,
+        buildingIds: formData.buildingId ? [parseInt(formData.buildingId, 10)] : undefined,
+        societyId: formData.societyId ? parseInt(formData.societyId, 10) : undefined,
       };
 
       if (id) {
@@ -319,9 +428,9 @@ export function AddUser() {
                       <Building2 size={18} className="text-emerald-600" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-500">Main Facility</p>
+                      <p className="text-sm font-medium text-gray-500">Facility / Device</p>
                       <p className="text-base text-gray-900 font-semibold">
-                         {facilityOptions.find(f => f.value === formData.mainFacilityId)?.label || '-'}
+                         {formData.deviceName || formData.facilityName || facilityOptions.find(f => f.value === formData.mainFacilityId)?.label || '-'}
                       </p>
                     </div>
                   </div>
@@ -357,10 +466,11 @@ export function AddUser() {
             </label>
             <FacilityHierarchyPicker 
               name="mainFacilityId"
-              value={formData.mainFacilityId}
+              value={formData.deviceId || formData.facilityId || formData.mainFacilityId || formData.buildingId || formData.societyId}
               onChange={handleChange}
               disabled={isViewMode}
-              placeholder="Select Facility"
+              showDevices={true}
+              placeholder="Select Facility / Society"
             />
           </div>
           <div>

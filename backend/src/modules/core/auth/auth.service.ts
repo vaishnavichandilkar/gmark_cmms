@@ -146,6 +146,8 @@ export class AuthService {
       include: {
         buildings: true,
         employee: true,
+        mainFacility: true,
+        facility: true,
       },
     });
 
@@ -170,6 +172,9 @@ export class AuthService {
       user.societyId,
       user.mainFacilityId,
       buildingIds,
+      user.facilityId,
+      user.deviceId,
+      user.deviceName,
     );
     await this.updateRefreshToken(user.id, tokens.refreshToken);
 
@@ -202,6 +207,7 @@ export class AuthService {
         },
         employee: true,
         mainFacility: true,
+        facility: true,
       },
     });
 
@@ -220,6 +226,23 @@ export class AuthService {
   }
 
   async resolveUserPermissions(user: any): Promise<any[]> {
+    const machineTabModules = [
+      'machine_tab_general',
+      'machine_tab_specification',
+      'machine_tab_spares',
+      'machine_tab_amc',
+      'machine_tab_purchase',
+      'machine_tab_documents',
+      'machine_tab_iot',
+    ];
+
+    const facilityTabModules = [
+      'facility_tab_general',
+      'facility_tab_document',
+    ];
+
+    const allTabModules = [...machineTabModules, ...facilityTabModules];
+
     const modules = [
       'dashboard',
       'assets',
@@ -229,6 +252,8 @@ export class AuthService {
       'user_management',
       'facility_management',
       'machine_management',
+      ...machineTabModules,
+      ...facilityTabModules,
     ];
 
     // 1. Role-based baseline
@@ -246,42 +271,42 @@ export class AuthService {
           canCreate: true,
           canEdit: true,
           canDelete: isSuperAdmin || moduleId !== 'manage_access',
-          canImport: !['manage_access', 'user_management', 'facility_management', 'machine_management', 'dashboard', 'assets'].includes(moduleId),
-          canExport: true,
-          canPrint: true,
+          canImport: !['manage_access', 'user_management', 'facility_management', 'machine_management', 'dashboard', 'assets', ...allTabModules].includes(moduleId),
+          canExport: !allTabModules.includes(moduleId),
+          canPrint: !allTabModules.includes(moduleId),
         };
       }
 
       if (isBuildingAdmin) {
-        const allowed = ['dashboard', 'assets', 'facility_management', 'machine_management'].includes(moduleId);
+        const allowed = ['dashboard', 'assets', 'facility_management', 'machine_management', ...allTabModules].includes(moduleId);
         return {
           moduleId,
           canView: allowed,
-          canCreate: ['facility_management', 'machine_management'].includes(moduleId),
-          canEdit: ['facility_management', 'machine_management'].includes(moduleId),
+          canCreate: ['facility_management', 'machine_management', ...allTabModules].includes(moduleId),
+          canEdit: ['facility_management', 'machine_management', ...allTabModules].includes(moduleId),
           canDelete: false,
           canImport: false,
-          canExport: allowed,
-          canPrint: allowed,
+          canExport: allowed && !allTabModules.includes(moduleId),
+          canPrint: allowed && !allTabModules.includes(moduleId),
         };
       }
 
       if (isOperator) {
-        const allowed = ['dashboard', 'assets', 'machine_management'].includes(moduleId);
+        const allowed = ['dashboard', 'assets', 'facility_management', 'machine_management', ...allTabModules].includes(moduleId);
         return {
           moduleId,
           canView: allowed,
           canCreate: false,
-          canEdit: moduleId === 'machine_management',
+          canEdit: moduleId === 'machine_management' || moduleId === 'facility_management' || allTabModules.includes(moduleId),
           canDelete: false,
           canImport: false,
-          canExport: allowed,
-          canPrint: allowed,
+          canExport: allowed && !allTabModules.includes(moduleId),
+          canPrint: allowed && !allTabModules.includes(moduleId),
         };
       }
 
       // Default VIEWER
-      const allowed = ['dashboard', 'assets', 'facility_management', 'machine_management'].includes(moduleId);
+      const allowed = ['dashboard', 'assets', 'facility_management', 'machine_management', ...allTabModules].includes(moduleId);
       return {
         moduleId,
         canView: allowed,
@@ -289,8 +314,8 @@ export class AuthService {
         canEdit: false,
         canDelete: false,
         canImport: false,
-        canExport: allowed,
-        canPrint: allowed,
+        canExport: allowed && !allTabModules.includes(moduleId),
+        canPrint: allowed && !allTabModules.includes(moduleId),
       };
     });
 
@@ -331,6 +356,46 @@ export class AuthService {
             });
           }
         });
+
+        // Inherit machine_management permission to tabs if not explicitly set in designation
+        const mmPerm = designation.permissions.find((p) => p.moduleId === 'machine_management');
+        if (mmPerm) {
+          machineTabModules.forEach((tabMod) => {
+            const hasExplicit = designation.permissions.some((p) => p.moduleId === tabMod);
+            if (!hasExplicit) {
+              const tIdx = mergedPermissions.findIndex((p) => p.moduleId === tabMod);
+              if (tIdx >= 0) {
+                mergedPermissions[tIdx] = {
+                  ...mergedPermissions[tIdx],
+                  canView: mmPerm.canView,
+                  canCreate: mmPerm.canCreate,
+                  canEdit: mmPerm.canEdit,
+                  canDelete: mmPerm.canDelete,
+                };
+              }
+            }
+          });
+        }
+
+        // Inherit facility_management permission to tabs if not explicitly set in designation
+        const fmPerm = designation.permissions.find((p) => p.moduleId === 'facility_management');
+        if (fmPerm) {
+          facilityTabModules.forEach((tabMod) => {
+            const hasExplicit = designation.permissions.some((p) => p.moduleId === tabMod);
+            if (!hasExplicit) {
+              const tIdx = mergedPermissions.findIndex((p) => p.moduleId === tabMod);
+              if (tIdx >= 0) {
+                mergedPermissions[tIdx] = {
+                  ...mergedPermissions[tIdx],
+                  canView: fmPerm.canView,
+                  canCreate: fmPerm.canCreate,
+                  canEdit: fmPerm.canEdit,
+                  canDelete: fmPerm.canDelete,
+                };
+              }
+            }
+          });
+        }
       }
     }
 
@@ -366,6 +431,44 @@ export class AuthService {
       }
     });
 
+    const mmUp = userPermissions.find((p) => p.moduleId === 'machine_management');
+    if (mmUp) {
+      machineTabModules.forEach((tabMod) => {
+        const hasExplicit = userPermissions.some((p) => p.moduleId === tabMod);
+        if (!hasExplicit) {
+          const tIdx = mergedPermissions.findIndex((p) => p.moduleId === tabMod);
+          if (tIdx >= 0) {
+            mergedPermissions[tIdx] = {
+              ...mergedPermissions[tIdx],
+              canView: mmUp.canView,
+              canCreate: mmUp.canCreate,
+              canEdit: mmUp.canEdit,
+              canDelete: mmUp.canDelete,
+            };
+          }
+        }
+      });
+    }
+
+    const fmUp = userPermissions.find((p) => p.moduleId === 'facility_management');
+    if (fmUp) {
+      facilityTabModules.forEach((tabMod) => {
+        const hasExplicit = userPermissions.some((p) => p.moduleId === tabMod);
+        if (!hasExplicit) {
+          const tIdx = mergedPermissions.findIndex((p) => p.moduleId === tabMod);
+          if (tIdx >= 0) {
+            mergedPermissions[tIdx] = {
+              ...mergedPermissions[tIdx],
+              canView: fmUp.canView,
+              canCreate: fmUp.canCreate,
+              canEdit: fmUp.canEdit,
+              canDelete: fmUp.canDelete,
+            };
+          }
+        }
+      });
+    }
+
     return mergedPermissions;
   }
 
@@ -400,6 +503,9 @@ export class AuthService {
         user.societyId,
         user.mainFacilityId,
         buildingIds,
+        user.facilityId,
+        user.deviceId,
+        user.deviceName,
       );
       await this.updateRefreshToken(user.id, tokens.refreshToken);
 
@@ -527,6 +633,9 @@ export class AuthService {
     societyId: number | null,
     mainFacilityId: number | null,
     buildingIds: number[],
+    facilityId: number | null = null,
+    deviceId: string | null = null,
+    deviceName: string | null = null,
   ) {
     const payload = {
       userId,
@@ -534,6 +643,9 @@ export class AuthService {
       role,
       societyId,
       mainFacilityId,
+      facilityId,
+      deviceId,
+      deviceName,
       buildingIds,
     };
 

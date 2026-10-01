@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { io } from 'socket.io-client';
-import { Maximize, Minimize, AlertTriangle, Database, ShieldAlert } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { Maximize, Minimize, AlertTriangle, Database } from 'lucide-react';
 import { VoltageCard } from './components/VoltageCard';
 import { InputPowerCard } from './components/InputPowerCard';
 import { PressureCard } from './components/PressureCard';
@@ -12,7 +11,6 @@ import { DelaySettingsCard } from './components/DelaySettingsCard';
 import { FaultResetCard } from './components/FaultResetCard';
 import { PressureTrendCard } from './components/PressureTrendCard';
 import { ProcessFlowContainer } from './components/ProcessFlow/PipeNetwork';
-import { PasswordModal } from '../../../../components/shared/PasswordModal';
 
 import { api } from '../../../../lib/api';
 import type { RootState } from '../../../../store';
@@ -99,141 +97,6 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
 
   const [activeAlerts, setActiveAlerts] = useState<any[]>([]);
 
-  // Remote Control & Safety Interlock States
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [pendingPumpId, setPendingPumpId] = useState<string | null>(null);
-  const [pendingCommand, setPendingCommand] = useState<{ pumpId: string; action: 'TOGGLE' | 'MODE'; mode?: 'AUTO' | 'MANUAL' | 'OFF' } | null>(null);
-  const [safetyPrompt, setSafetyPrompt] = useState<{ message: string; title?: string; onConfirm?: () => void; isBlocked?: boolean } | null>(null);
-  const commandLocksRef = useRef<Record<string, { status: string; expiresAt: number }>>({});
-
-  const handleToggleClick = (pumpId: string) => {
-    const pump = pumps.find(p => p.id === pumpId);
-    if (!pump) return;
-    const willStart = pump.status !== 'RUNNING';
-
-    // Operational Safety Interlocks: Dry Run Protection
-    if (willStart && !dashboardData.waterAvailable) {
-      toast.error(
-        'Safety Interlock Active: Cannot start pump when suction water level is low (dry-run protection).',
-        { duration: 5000 }
-      );
-      setSafetyPrompt({
-        title: 'Safety Interlock: Pump Start Disabled',
-        message: `Low Water Alert: Underground suction water level is currently low. In industrial pump controllers, dry-run protection locks out pump starting to prevent motor burnout and impeller destruction. Water supply must be restored before pumps can be started.`,
-        isBlocked: true,
-      });
-      return;
-    }
-
-    if (!willStart && dashboardData.pressureBar > 0 && dashboardData.pressureBar < 1.5) {
-      setSafetyPrompt({
-        message: `Low Pressure Warning: Line pressure is currently ${dashboardData.pressureBar.toFixed(1)} bar. Stopping ${pump.name} may drop line pressure below minimum operating levels. Proceed?`,
-        onConfirm: () => {
-          setSafetyPrompt(null);
-          setPendingCommand({ pumpId, action: 'TOGGLE' });
-          setIsModalOpen(true);
-        }
-      });
-      return;
-    }
-
-    setPendingCommand({ pumpId, action: 'TOGGLE' });
-    setIsModalOpen(true);
-  };
-
-  const handleModeChange = (pumpId: string, mode: 'AUTO' | 'MANUAL' | 'OFF') => {
-    setPendingCommand({ pumpId, action: 'MODE', mode });
-    setIsModalOpen(true);
-  };
-
-  const executeCommand = async (password: string) => {
-    if (!pendingCommand) return;
-    const { pumpId, action, mode: newMode } = pendingCommand;
-    const pumpIndex = pumps.findIndex(p => p.id === pumpId);
-    if (pumpIndex === -1) return;
-
-    const pumpNum = Number(pumpId); // 1, 2, 3, 4
-    const currentPump = pumps[pumpIndex];
-    const nextRunning = action === 'TOGGLE' ? currentPump.status !== 'RUNNING' : currentPump.status === 'RUNNING';
-
-    // Register Mapping for Booster Pumps:
-    // Physical Modbus register address: 1 (Motor 1), 2 (Motor 2), 3 (Motor 3), 4 (Motor 4)
-    // Mode status register address: 38 (Pump 1), 39 (Pump 2), etc.
-    const targetRegister = action === 'MODE' ? 37 + pumpNum : pumpNum;
-    let targetValue = 0;
-    if (action === 'TOGGLE') {
-      targetValue = nextRunning ? 1 : 0;
-    } else if (action === 'MODE') {
-      targetValue = newMode === 'AUTO' ? 1 : newMode === 'MANUAL' ? 22 : 2;
-    }
-
-    setPendingPumpId(pumpId);
-
-    const payload = {
-      command: {
-        topic: `SE-${panelId}/MODBUS/REQ/96/9600/8/0/1`,
-        slaveAddress: "1",
-        register: targetRegister.toString(),
-        value: targetValue.toString()
-      },
-      password
-    };
-
-    try {
-      await api.post(`/devices/${panelId}/command`, payload);
-
-      // Lock the pump state for 20s to prevent stale incoming telemetry from immediately turning it off
-      if (action === 'TOGGLE') {
-        commandLocksRef.current[pumpId] = {
-          status: nextRunning ? 'RUNNING' : 'OFF',
-          expiresAt: Date.now() + 20000,
-        };
-      }
-
-      // Optimistic UI state update
-      setPumps(prev => {
-        const updated = [...prev];
-        if (action === 'TOGGLE') {
-          updated[pumpIndex] = {
-            ...updated[pumpIndex],
-            status: nextRunning ? 'RUNNING' : 'OFF',
-            currentR: nextRunning ? 12.4 : 0,
-            currentY: nextRunning ? 12.1 : 0,
-            currentB: nextRunning ? 12.5 : 0,
-          };
-        } else if (action === 'MODE' && newMode) {
-          updated[pumpIndex] = {
-            ...updated[pumpIndex],
-            mode: newMode
-          };
-        }
-        return updated;
-      });
-
-      if (action === 'TOGGLE' && nextRunning) {
-        setDashboardData(prev => ({
-          ...prev,
-          pressureBar: Math.max(prev.pressureBar, 4.2),
-        }));
-      }
-
-      toast.success(
-        action === 'TOGGLE'
-          ? `${currentPump.name} command sent: ${nextRunning ? 'START' : 'STOP'}`
-          : `${currentPump.name} mode switched to ${newMode}`,
-        { duration: 4000 }
-      );
-
-      setIsModalOpen(false);
-      setPendingCommand(null);
-    } catch (err: any) {
-      console.error('Failed to dispatch pump command:', err);
-      toast.error(err.response?.data?.message || 'Authorization failed or device unreachable.');
-    } finally {
-      setPendingPumpId(null);
-    }
-  };
-
   const processPayload = (data: any, isInitial: boolean) => {
     setPumps(prev => {
       const newPumps = [...prev];
@@ -273,21 +136,16 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
           }
         }
 
-        const lock = commandLocksRef.current[p.id];
-        const isLocked = lock && Date.now() < lock.expiresAt;
+        const modeKey = `pump${n}Status`;
+        if (data[modeKey] !== undefined) {
+          const mVal = Number(data[modeKey]);
+          if (mVal === 2) p.mode = 'OFF';
+          else if (mVal === 20 || mVal === 22) p.mode = 'MANUAL';
+          else if (mVal === 1 || mVal === 10 || mVal === 11) p.mode = 'AUTO';
+        }
 
         if (p.faults > 0) {
           p.status = 'FAULT';
-        } else if (isLocked) {
-          p.status = lock.status as any;
-          if (lock.status === 'RUNNING') {
-            p.currentR = Number(data[rCurrKey]) || p.currentR || 12.4;
-            p.currentY = Number(data[yCurrKey]) || p.currentY || 12.1;
-            p.currentB = Number(data[bCurrKey]) || p.currentB || 12.5;
-          }
-          if (data[statusKey] !== undefined && getBool(data[statusKey]) === (lock.status === 'RUNNING')) {
-            delete commandLocksRef.current[p.id];
-          }
         } else if (data[statusKey] !== undefined) {
           p.status = getBool(data[statusKey]) ? 'RUNNING' : 'OFF';
         } else if (isInitial) {
@@ -495,9 +353,6 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
             inletTankTitle={inletTankTitle}
             outletTitle={outletTitle}
             outletType={outletType}
-            onTogglePump={handleToggleClick}
-            onModeChange={handleModeChange}
-            pendingPumpId={pendingPumpId}
           />
         </div>
 
@@ -514,61 +369,6 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
           <FaultResetCard hasFault={totalFaults > 0 || dashboardData.inputPowerFaultType > 0} />
         </div>
       </div>
-
-      {/* Operator Security Authorization Modal */}
-      <PasswordModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setPendingCommand(null);
-        }}
-        onSubmit={executeCommand}
-        title="Operator PIN Authorization (8250)"
-      />
-
-      {/* Operational Safety Interlock Dialog */}
-      {safetyPrompt && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
-          <div className={`bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border ${safetyPrompt.isBlocked ? 'border-red-300' : 'border-amber-200'} animate-in fade-in zoom-in-95 duration-200`}>
-            <div className="flex items-start gap-4 mb-4">
-              <div className={`p-3 ${safetyPrompt.isBlocked ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'} rounded-xl shrink-0`}>
-                <ShieldAlert size={26} />
-              </div>
-              <div>
-                <h3 className={`text-lg font-bold ${safetyPrompt.isBlocked ? 'text-red-950' : 'text-gray-900'}`}>
-                  {safetyPrompt.title || 'Safety Interlock Warning'}
-                </h3>
-                <p className="text-sm text-gray-600 mt-1 leading-relaxed">{safetyPrompt.message}</p>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              {safetyPrompt.isBlocked ? (
-                <button
-                  onClick={() => setSafetyPrompt(null)}
-                  className="px-5 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-md transition-all cursor-pointer"
-                >
-                  Understood (Interlock Active)
-                </button>
-              ) : (
-                <>
-                  <button
-                    onClick={() => setSafetyPrompt(null)}
-                    className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={safetyPrompt.onConfirm}
-                    className="px-4 py-2 text-sm font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-md transition-all cursor-pointer"
-                  >
-                    Acknowledge & Proceed
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

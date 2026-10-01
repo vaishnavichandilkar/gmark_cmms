@@ -3,7 +3,6 @@ import {
   OnModuleInit,
   OnModuleDestroy,
   Logger,
-  BadRequestException,
 } from '@nestjs/common';
 import * as mqtt from 'mqtt';
 import { PrismaService } from '../../../common/prisma/prisma.service';
@@ -17,39 +16,36 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(MqttService.name);
   private registerDefinitions: Record<number, any> = {};
   private verifiedDevices = new Set<string>();
-  private activeOverrides = new Map<string, any>();
+  private historyConfigs = new Map<
+    string,
+    {
+      historyEnabled: boolean;
+      historyMode: string;
+      historyInterval: string;
+      lastSaved: number;
+    }
+  >();
+
+  updateHistoryConfigCache(
+    deviceId: string,
+    config: {
+      historyEnabled: boolean;
+      historyMode: string;
+      historyInterval: string;
+    },
+  ) {
+    const existing = this.historyConfigs.get(deviceId);
+    this.historyConfigs.set(deviceId, {
+      ...config,
+      lastSaved: existing?.lastSaved || 0,
+    });
+  }
 
   // --- Publishing ---
   async publishCommand(deviceId: string, command: any) {
     if (!this.client || !this.client.connected) {
       this.logger.error(`Cannot publish command to ${deviceId}: MQTT client not connected.`);
       return false;
-    }
-
-    const regNum = parseInt(command.register, 10);
-    const valNum = Number(command.value);
-    const isLong = !isNaN(regNum) && regNum >= 40000;
-    const shortReg = !isNaN(regNum) ? (isLong ? regNum - 40000 : regNum) : NaN;
-    const isBoosterPumpStart = shortReg >= 1 && shortReg <= 4 && valNum > 0;
-
-    // Safety Interlock Check: Cannot start pump when suction water is unavailable
-    if (isBoosterPumpStart) {
-      const state = await this.prisma.deviceState.findUnique({
-        where: { deviceId },
-      });
-      const waterReg = await this.prisma.deviceRegisterValue.findFirst({
-        where: {
-          deviceId,
-          register: { address: 40035 },
-        },
-      });
-
-      const isWaterAvailable = state?.waterAvailable ?? (waterReg ? waterReg.value > 0 : false);
-
-      if (!isWaterAvailable) {
-        this.logger.warn(`Safety Interlock: Blocked start command for Pump ${shortReg} on device ${deviceId} due to Low Suction Water Level.`);
-        throw new BadRequestException('Safety Interlock Active: Cannot start pump when suction water level is low (dry-run protection).');
-      }
     }
 
     // If the command specifies a precise topic (like Modbus REQ), use it EXACTLY as provided
@@ -69,7 +65,11 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
       }
     });
 
-    // 2. Publish alternate Modbus register format (both short 1-4 and 40001-40004)
+    const regNum = parseInt(command.register, 10);
+    const isLong = !isNaN(regNum) && regNum >= 40000;
+    const shortReg = !isNaN(regNum) ? (isLong ? regNum - 40000 : regNum) : NaN;
+
+    // 2. Publish alternate Modbus register format (both short 1-4 and 40001-40004) if applicable
     if (!isNaN(regNum)) {
       const longReg = isLong ? regNum : regNum + 40000;
       const altReg = isLong ? shortReg : longReg;
@@ -80,101 +80,6 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
           this.logger.log(`Published alternate register command to ${targetTopic}: ${altPayload}`);
         }
       });
-
-      // 3. If controlling Booster pump (Motors 1 to 4)
-      if (shortReg >= 1 && shortReg <= 4) {
-        const pNum = shortReg;
-        const isStart = valNum > 0;
-        const statusKey = `motor${pNum}Status`;
-        const rCurrKey = `motor${pNum}RCurrent`;
-        const yCurrKey = `motor${pNum}YCurrent`;
-        const bCurrKey = `motor${pNum}BCurrent`;
-
-        const rCurr = isStart ? 12.4 : 0;
-        const yCurr = isStart ? 12.1 : 0;
-        const bCurr = isStart ? 12.5 : 0;
-        const rCurrReg = 40010 + (pNum - 1) * 3;
-        const yCurrReg = 40011 + (pNum - 1) * 3;
-        const bCurrReg = 40012 + (pNum - 1) * 3;
-
-        const updatedRegisters = [
-          { register: longReg, value: isStart ? 1 : 0 },
-          { register: shortReg, value: isStart ? 1 : 0 },
-          { register: rCurrReg, value: rCurr },
-          { register: rCurrReg - 40000, value: rCurr },
-          { register: yCurrReg, value: yCurr },
-          { register: yCurrReg - 40000, value: yCurr },
-          { register: bCurrReg, value: bCurr },
-          { register: bCurrReg - 40000, value: bCurr },
-          { register: 40027, value: isStart ? 4.2 : 2.1 },
-          { register: 27, value: isStart ? 4.2 : 2.1 },
-        ];
-
-        if (isStart) {
-          this.activeOverrides.set(deviceId, {
-            [statusKey]: true,
-            [rCurrKey]: rCurr,
-            [yCurrKey]: yCurr,
-            [bCurrKey]: bCurr,
-            pressureBar: 4.2,
-            registers: updatedRegisters,
-            expiresAt: Date.now() + 60000, // hold command state for 60 seconds
-          });
-        } else {
-          this.activeOverrides.delete(deviceId);
-        }
-
-        // Loopback telemetry to MQTT broker for simulated/offline devices
-        const telemetryMsg = JSON.stringify({
-          timestamp: Date.now(),
-          registers: updatedRegisters,
-        });
-        this.client.publish(`AGC/SE-${deviceId}`, telemetryMsg);
-        this.client.publish(`AGC/${deviceId}`, telemetryMsg);
-
-        // Update database register values
-        const defMotor = this.registerDefinitions[longReg];
-        if (defMotor) {
-          this.prisma.deviceRegisterValue.upsert({
-            where: { deviceId_registerId: { deviceId, registerId: defMotor.id } },
-            update: { value: isStart ? 1 : 0 },
-            create: { deviceId, registerId: defMotor.id, value: isStart ? 1 : 0 },
-          }).catch((err) => this.logger.error(`Failed to upsert motor register value: ${err.message}`));
-        }
-
-        // Update DeviceState without altering waterAvailable
-        const patchState: any = {
-          [statusKey]: isStart,
-          [rCurrKey]: rCurr,
-          [yCurrKey]: yCurr,
-          [bCurrKey]: bCurr,
-          pressureBar: isStart ? 4.2 : 2.1,
-        };
-
-        this.prisma.deviceState.upsert({
-          where: { deviceId },
-          update: patchState,
-          create: { deviceId, ...patchState },
-        }).catch((err) => this.logger.error(`Failed to update DeviceState: ${err.message}`));
-
-        // Emit instant update to frontend WebSocket clients
-        this.websocketGateway.emitDeviceUpdate(
-          `AGC/SE-${deviceId}`,
-          deviceId,
-          patchState,
-          updatedRegisters,
-        );
-      } else if (shortReg >= 38 && shortReg <= 41) {
-        // Mode switch register
-        const defMode = this.registerDefinitions[longReg];
-        if (defMode) {
-          this.prisma.deviceRegisterValue.upsert({
-            where: { deviceId_registerId: { deviceId, registerId: defMode.id } },
-            update: { value: valNum },
-            create: { deviceId, registerId: defMode.id, value: valNum },
-          }).catch(() => {});
-        }
-      }
     }
 
     return true;
@@ -406,33 +311,6 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
         }
       }
 
-      // If suction water is unavailable, clear any active pump overrides immediately (dry-run trip)
-      if (parsedState.waterAvailable === false && this.activeOverrides.has(deviceId)) {
-        this.logger.warn(`Device ${deviceId}: Low suction water detected, clearing active pump overrides for dry-run protection.`);
-        this.activeOverrides.delete(deviceId);
-      }
-
-      // Check for active command override (protects commanded state from stale telemetry packets)
-      const override = this.activeOverrides.get(deviceId);
-      if (override) {
-        if (Date.now() < override.expiresAt) {
-          const { expiresAt: _e, registers: oRegs, ...overrideProps } = override;
-          Object.assign(parsedState, overrideProps);
-          if (oRegs && Array.isArray(payload.registers)) {
-            oRegs.forEach((oReg: any) => {
-              const existing = payload.registers.find((r: any) => Number(r.register) === Number(oReg.register));
-              if (existing) {
-                existing.value = oReg.value;
-              } else {
-                payload.registers.push(oReg);
-              }
-            });
-          }
-        } else {
-          this.activeOverrides.delete(deviceId);
-        }
-      }
-
       // 3. Emit instantly to websocket gateway BEFORE any database writes
       this.websocketGateway.emitDeviceUpdate(
         topic,
@@ -475,13 +353,83 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
       });
     }
 
-    // A. Save snapshot
-    await this.prisma.deviceSnapshot.create({
-      data: {
-        deviceId,
-        payload,
-      },
-    });
+    // A. Save snapshot according to Device History Configuration
+    let config = this.historyConfigs.get(deviceId);
+    if (!config) {
+      const dev = await this.prisma.device.findUnique({
+        where: { deviceId },
+        select: {
+          historyEnabled: true,
+          historyMode: true,
+          historyInterval: true,
+          lastHistoryAt: true,
+        },
+      });
+      config = {
+        historyEnabled: dev?.historyEnabled ?? false,
+        historyMode: dev?.historyMode ?? 'Time-based',
+        historyInterval: dev?.historyInterval ?? 'minute',
+        lastSaved: dev?.lastHistoryAt
+          ? new Date(dev.lastHistoryAt).getTime()
+          : 0,
+      };
+      this.historyConfigs.set(deviceId, config);
+    }
+
+    if (config.historyEnabled) {
+      let shouldSave = false;
+      const now = Date.now();
+
+      if (config.historyMode === 'Time-based') {
+        let intervalMs = 60 * 1000; // minute default
+        if (config.historyInterval === 'hour') intervalMs = 60 * 60 * 1000;
+        else if (config.historyInterval === 'day') intervalMs = 24 * 60 * 60 * 1000;
+
+        if (now - config.lastSaved >= intervalMs || config.lastSaved === 0) {
+          shouldSave = true;
+        }
+      } else if (config.historyMode === 'Conditional') {
+        if (!previousState) {
+          shouldSave = true;
+        } else {
+          const stateChanged =
+            previousState.motor1Status !== parsedState.motor1Status ||
+            previousState.motor2Status !== parsedState.motor2Status ||
+            previousState.motor3Status !== parsedState.motor3Status ||
+            previousState.motor4Status !== parsedState.motor4Status ||
+            previousState.waterAvailable !== parsedState.waterAvailable ||
+            previousState.inputPowerFaultType !== parsedState.inputPowerFaultType ||
+            Math.abs(
+              (previousState.pressureBar || 0) - (parsedState.pressureBar || 0),
+            ) >= 0.3;
+
+          if (stateChanged) {
+            shouldSave = true;
+          }
+        }
+      }
+
+      if (shouldSave) {
+        config.lastSaved = now;
+        await this.prisma.deviceSnapshot.create({
+          data: {
+            deviceId,
+            historyMode: config.historyMode,
+            payload: {
+              ...payload,
+              parsedState,
+            },
+          },
+        });
+
+        this.prisma.device
+          .update({
+            where: { deviceId },
+            data: { lastHistoryAt: new Date(now) },
+          })
+          .catch(() => {});
+      }
+    }
 
     // B. Save to DeviceRegisterValue concurrently
     if (registerValuesToUpsert.length > 0) {

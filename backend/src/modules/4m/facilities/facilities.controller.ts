@@ -25,8 +25,18 @@ export class FacilitiesController {
   }
 
   @Put(':id')
+  @Patch(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() updateFacilityDto: any) {
     return this.facilitiesService.update(id, updateFacilityDto);
+  }
+
+  @Patch(':id/move')
+  @Put(':id/move')
+  moveFacility(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { targetType: 'mainFacility' | 'facility'; targetId: number }
+  ) {
+    return this.facilitiesService.moveFacility(id, body);
   }
 
   @Delete(':id')

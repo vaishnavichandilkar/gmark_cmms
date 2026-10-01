@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Search } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../../../store';
+import { hasTabPermission } from '../../../utils/permissions';
+import { ArrowLeft, Plus, Trash2, Search, RefreshCw, Sparkles } from 'lucide-react';
 import { CustomSelect } from '../../../components/shared/CustomSelect';
 import { CustomDatePicker } from '../../../components/shared/CustomDatePicker';
 import { api } from '../../../lib/api';
@@ -12,12 +15,21 @@ const tabs = ['General', 'Specification', 'Spares', 'AMC', 'Purchase', 'Document
 
 export function AddMachine() {
   const navigate = useNavigate();
+  const { user: currentUser } = useSelector((state: RootState) => state.auth);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState<any[]>([]);
 
+  const permittedTabs = tabs.filter(tab => hasTabPermission(currentUser, tab, 'view'));
+
   // Step 3 States
   const [activeTab, setActiveTab] = useState('General');
+
+  useEffect(() => {
+    if (permittedTabs.length > 0 && !permittedTabs.includes(activeTab)) {
+      setActiveTab(permittedTabs[0]);
+    }
+  }, [permittedTabs, activeTab]);
   
   const [isSpecModalOpen, setIsSpecModalOpen] = useState(false);
   const [pendingSpecifications, setPendingSpecifications] = useState<any[]>([]);
@@ -64,19 +76,55 @@ export function AddMachine() {
     latitude: '',
     longitude: '',
     assetCode: '',
-    costCenter: '',
+    costCenter: 'CC-MAINT-01',
     headOfDepartment: '',
     machineOwner: '',
     notes: '',
   });
 
+  const fetchNextMachineCode = async () => {
+    try {
+      const res = await api.get('/machines/next-machine-code');
+      if (res.data?.nextCode) {
+        setFormData(prev => ({
+          ...prev,
+          machineCode: res.data.nextCode
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to fetch next machine code:', err);
+    }
+  };
+
+  const fetchNextAssetCode = async () => {
+    try {
+      const res = await api.get('/machines/next-asset-code');
+      if (res.data?.nextCode) {
+        setFormData(prev => ({
+          ...prev,
+          assetCode: res.data.nextCode
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to fetch next asset code:', err);
+    }
+  };
+
   useEffect(() => {
     Promise.all([
       api.get('/facilities'),
       api.get('/main-facilities'),
-      api.get('/employees')
-    ]).then(([_, __, empRes]) => {
+      api.get('/employees'),
+      api.get('/machines/next-codes')
+    ]).then(([_, __, empRes, codesRes]) => {
       setEmployees(empRes.data);
+      if (codesRes?.data) {
+        setFormData(prev => ({
+          ...prev,
+          machineCode: prev.machineCode || codesRes.data.nextMachineCode || '',
+          assetCode: prev.assetCode || codesRes.data.nextAssetCode || '',
+        }));
+      }
     }).catch(console.error);
   }, []);
 
@@ -160,7 +208,7 @@ export function AddMachine() {
         latitude: formData.latitude,
         longitude: formData.longitude,
         assetCode: formData.assetCode,
-        costCenter: formData.costCenter,
+        costCenter: formData.costCenter?.trim() || 'CC-MAINT-01',
         headOfDepartment: formData.headOfDepartment,
         machineOwner: formData.machineOwner,
         notes: formData.notes,
@@ -295,11 +343,11 @@ export function AddMachine() {
           <div className="space-y-6 w-full">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Company<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Facility<span className="text-red-500">*</span></label>
                 <FacilityHierarchyPicker name="company" value={formData.company} onChange={handleChange} placeholder="Select Facility" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Facility<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Sub-Facility<span className="text-red-500">*</span></label>
                 <FacilityHierarchyPicker name="facilityId" value={formData.facilityId} onChange={handleChange} placeholder="Select Sub-Facility" filterByMainFacilityId={formData.company} disabled={!formData.company} selectableTypes={['facility', 'building']} defaultExpanded={true} />
               </div>
               <div>
@@ -317,7 +365,20 @@ export function AddMachine() {
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Name<span className="text-red-500">*</span></label><input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all" /></div>
-              <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Code<span className="text-red-500">*</span></label><input type="text" name="machineCode" value={formData.machineCode} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all" /></div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  Machine Code <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="machineCode"
+                  value={formData.machineCode}
+                  onChange={handleChange}
+                  readOnly
+                  placeholder="Enter Machine Code"
+                  className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-xl text-sm outline-none text-gray-600 font-medium cursor-not-allowed"
+                />
+              </div>
               <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Status<span className="text-red-500">*</span></label><CustomSelect name="status" value={formData.status} onChange={handleChange} placeholder="Select Status" options={[{ label: 'Online', value: 'Online' }, { label: 'Offline', value: 'Offline' }]} /></div>
               <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Serial Number<span className="text-red-500">*</span></label><input type="text" name="serialNumber" value={formData.serialNumber} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all" /></div>
               <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Make<span className="text-red-500">*</span></label><CustomSelect name="make" value={formData.make} onChange={handleChange} placeholder="Select" options={[{ label: 'Make 1', value: 'Make 1' }]} allowCustom={true} /></div>
@@ -338,7 +399,7 @@ export function AddMachine() {
         {step === 3 && (
           <div className="w-full">
             <div className="flex overflow-x-auto border-b border-gray-200">
-              {tabs.map((tab, index) => (
+              {permittedTabs.map((tab, index) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -380,8 +441,33 @@ export function AddMachine() {
                     <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Longitude<span className="text-red-500">*</span></label><input type="text" name="longitude" value={formData.longitude} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Asset Code<span className="text-red-500">*</span></label><input type="text" name="assetCode" value={formData.assetCode} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
-                    <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Cost Center<span className="text-red-500">*</span></label><input type="text" name="costCenter" value={formData.costCenter} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20" /></div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                        Asset Code <span className="text-red-500">*</span>
+                      </label>
+                      <input 
+                        type="text" 
+                        name="assetCode" 
+                        value={formData.assetCode} 
+                        onChange={handleChange} 
+                        readOnly
+                        placeholder="Enter Asset Code"
+                        className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-xl text-sm outline-none text-gray-600 font-medium cursor-not-allowed" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                        Cost Center<span className="text-red-500">*</span>
+                      </label>
+                      <input 
+                        type="text" 
+                        name="costCenter" 
+                        value={formData.costCenter || 'CC-MAINT-01'} 
+                        onChange={handleChange} 
+                        placeholder="e.g. CC-MAINT-01" 
+                        className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 font-medium text-gray-800" 
+                      />
+                    </div>
                     <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Select Head of Department<span className="text-red-500">*</span></label><CustomSelect name="headOfDepartment" value={formData.headOfDepartment} onChange={handleChange} options={employees.map(e => ({ label: `${e.designation || 'N/A'} - ${e.fullName}`, value: e.fullName }))} /></div>
                     <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Owner<span className="text-red-500">*</span></label><CustomSelect name="machineOwner" value={formData.machineOwner} onChange={handleChange} options={employees.map(e => ({ label: `${e.designation || 'N/A'} - ${e.fullName}`, value: e.fullName }))} /></div>
                     <div className="col-span-4"><label className="block text-xs font-semibold text-gray-700 mb-1.5">Notes</label><textarea name="notes" value={formData.notes} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 resize-none h-12"></textarea></div>

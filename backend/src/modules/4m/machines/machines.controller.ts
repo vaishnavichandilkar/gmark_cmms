@@ -4,6 +4,7 @@ import {
   Param,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   ParseIntPipe,
@@ -41,6 +42,34 @@ export class MachinesController {
   @ApiResponse({ status: 200, description: 'Return all machines.' })
   async getAllMachines(@CurrentUser() user: any) {
     return this.machinesService.getAllMachines(user);
+  }
+
+  @Get('next-machine-code')
+  @ApiOperation({ summary: 'Get next auto-generated machine code' })
+  @ApiResponse({ status: 200, description: 'Return the next machine code preview.' })
+  async getNextMachineCode() {
+    return this.machinesService.getNextMachineCode();
+  }
+
+  @Get('next-asset-code')
+  @ApiOperation({ summary: 'Get next auto-generated asset code' })
+  @ApiResponse({ status: 200, description: 'Return the next asset code preview.' })
+  async getNextAssetCode() {
+    return this.machinesService.getNextAssetCode();
+  }
+
+  @Get('next-codes')
+  @ApiOperation({ summary: 'Get next machine code and asset code previews' })
+  @ApiResponse({ status: 200, description: 'Return the next machine and asset code previews.' })
+  async getNextCodes() {
+    return this.machinesService.getNextCodes();
+  }
+
+  @Get('next-code')
+  @ApiOperation({ summary: 'Alias to get next auto-generated machine and asset codes' })
+  @ApiResponse({ status: 200, description: 'Return the next codes preview.' })
+  async getNextCode() {
+    return this.machinesService.getNextCodes();
   }
 
   @Get(':id')
@@ -90,6 +119,28 @@ export class MachinesController {
     await this.auditLogService.create(
       user.userId,
       `Machine Updated: ${result.name} (ID: ${result.id})`,
+      'MACHINES',
+      ip,
+    );
+    return result;
+  }
+
+  @Patch(':id/move')
+  @Put(':id/move')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN, UserRole.BUILDING_ADMIN)
+  @ApiOperation({ summary: 'Move machine to another facility, building, or parent machine' })
+  @ApiParam({ name: 'id', description: 'Machine ID' })
+  @ApiResponse({ status: 200, description: 'Machine moved successfully.' })
+  async moveMachine(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { targetType: 'facility' | 'building' | 'machine' | 'device'; targetId: number },
+    @CurrentUser() user: any,
+    @Ip() ip: string,
+  ) {
+    const result = await this.machinesService.moveMachine(id, body);
+    await this.auditLogService.create(
+      user.userId,
+      `Machine Moved: ${result.name} (ID: ${result.id}) to ${body.targetType} ${body.targetId}`,
       'MACHINES',
       ip,
     );

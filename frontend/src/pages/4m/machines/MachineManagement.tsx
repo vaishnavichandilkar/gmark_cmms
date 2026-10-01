@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Cpu } from 'lucide-react';
+import { Plus, Pencil, Eye, Trash2, Cpu } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../../lib/api';
 import { DeleteConfirmModal } from '../../../components/shared/DeleteConfirmModal';
@@ -30,6 +30,7 @@ interface Device {
 export function MachineManagement() {
   const { user } = useSelector((state: RootState) => state.auth);
   
+  const canView = hasPermission(user, 'machine_management', 'view');
   const canCreate = hasPermission(user, 'machine_management', 'create');
   const canEdit = hasPermission(user, 'machine_management', 'edit');
   const canDelete = hasPermission(user, 'machine_management', 'delete');
@@ -85,7 +86,7 @@ export function MachineManagement() {
   };
 
   const handleExport = (format: 'pdf' | 'excel') => {
-    const headers = ['Machine Name', 'Machine Code', 'MAC ID', 'Company', 'Facility', 'Make & Model', 'Category'];
+    const headers = ['Machine Name', 'Machine Code', 'MAC ID', 'Facility', 'Sub-Facility', 'Make & Model', 'Category'];
     const rows = filteredMachines.map(machine => [
       machine.name || '-',
       machine.machineCode || '-',
@@ -168,8 +169,8 @@ export function MachineManagement() {
                 <th className="px-6 py-4">Machine Name</th>
                 <th className="px-6 py-4">Machine Code</th>
                 <th className="px-6 py-4">MAC ID</th>
-                <th className="px-6 py-4">Company</th>
                 <th className="px-6 py-4">Facility</th>
+                <th className="px-6 py-4">Sub-Facility</th>
                 <th className="px-6 py-4">Make & Model</th>
                 <th className="px-6 py-4">Category</th>
                 <th className="px-6 py-4 text-right">Action</th>
@@ -182,9 +183,9 @@ export function MachineManagement() {
                 currentMachines.map((machine, index) => (
                   <tr 
                     key={machine.id || index} 
-                    className={`hover:bg-gray-50/50 transition-colors group ${canEdit ? 'cursor-pointer' : ''}`}
+                    className={`hover:bg-gray-50/50 transition-colors group ${(canEdit || canView) ? 'cursor-pointer' : ''}`}
                     onClick={() => {
-                      if (canEdit) navigate(`/machine-management/edit/${machine.id}`, { state: { tab: 'IOT' } });
+                      if (canEdit || canView) navigate(`/machine-management/edit/${machine.id}`, { state: { tab: 'IOT' } });
                     }}
                   >
                     <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
@@ -210,6 +211,17 @@ export function MachineManagement() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-1">
+                        {!canEdit && canView && (
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/machine-management/edit/${machine.id}`, { state: { tab: 'IOT' } });
+                            }}
+                            className="text-gray-400 hover:text-green-600 p-1.5 rounded-md hover:bg-green-50 transition-colors" title="View Machine"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        )}
                         {canEdit && (
                           <button 
                             onClick={(e) => {

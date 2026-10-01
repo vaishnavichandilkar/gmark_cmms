@@ -423,7 +423,7 @@ function App() {
           <Route
             path="/master/facility/new"
             element={
-              <ProtectedRoute moduleId="master_main_facility" action="create">
+              <ProtectedRoute moduleId="facility_management" action="create">
                 <DashboardLayout>
                   <AddFacility />
                 </DashboardLayout>
@@ -433,7 +433,7 @@ function App() {
           <Route
             path="/master/facility/edit/:id"
             element={
-              <ProtectedRoute moduleId="master_main_facility" action="edit">
+              <ProtectedRoute moduleId="facility_management" action="edit">
                 <DashboardLayout>
                   <AddFacility />
                 </DashboardLayout>
@@ -443,7 +443,7 @@ function App() {
           <Route
             path="/master/facility/view/:id"
             element={
-              <ProtectedRoute moduleId="master_main_facility" action="view">
+              <ProtectedRoute moduleId="facility_management" action="view">
                 <DashboardLayout>
                   <AddFacility />
                 </DashboardLayout>
@@ -573,7 +573,7 @@ function App() {
           <Route
             path="/machine-management/edit/:id"
             element={
-              <ProtectedRoute moduleId="machine_management" action="edit">
+              <ProtectedRoute moduleId="machine_management" action="view">
                 <DashboardLayout>
                   <EditMachine />
                 </DashboardLayout>

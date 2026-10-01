@@ -126,6 +126,98 @@ export class DevicesService {
     return snapshot;
   }
 
+  async getDeviceByDeviceId(deviceId: string) {
+    const [device, machine] = await Promise.all([
+      this.prisma.device.findUnique({
+        where: { deviceId },
+      }),
+      this.prisma.machine.findFirst({
+        where: { deviceId },
+      }),
+    ]);
+    return { device, machine };
+  }
+
+  async getDeviceHistoryConfig(deviceId: string) {
+    const device = await this.prisma.device.findUnique({
+      where: { deviceId },
+      select: {
+        deviceId: true,
+        name: true,
+        historyEnabled: true,
+        historyMode: true,
+        historyInterval: true,
+        lastHistoryAt: true,
+      },
+    });
+
+    if (!device) {
+      throw new NotFoundException(`Device ${deviceId} not found`);
+    }
+
+    return device;
+  }
+
+  async updateDeviceHistoryConfig(
+    deviceId: string,
+    data: {
+      historyEnabled?: boolean;
+      historyMode?: string;
+      historyInterval?: string;
+    },
+  ) {
+    const existing = await this.prisma.device.findUnique({
+      where: { deviceId },
+    });
+
+    if (!existing) {
+      throw new NotFoundException(`Device ${deviceId} not found`);
+    }
+
+    const updated = await this.prisma.device.update({
+      where: { deviceId },
+      data: {
+        historyEnabled:
+          data.historyEnabled !== undefined
+            ? data.historyEnabled
+            : existing.historyEnabled,
+        historyMode: data.historyMode || existing.historyMode,
+        historyInterval: data.historyInterval || existing.historyInterval,
+      },
+      select: {
+        deviceId: true,
+        name: true,
+        historyEnabled: true,
+        historyMode: true,
+        historyInterval: true,
+        lastHistoryAt: true,
+      },
+    });
+
+    return updated;
+  }
+
+  async getDeviceHistory(
+    deviceId: string,
+    query: { limit?: number; startDate?: string; endDate?: string },
+  ) {
+    const where: any = { deviceId };
+    if (query.startDate || query.endDate) {
+      where.createdAt = {};
+      if (query.startDate) where.createdAt.gte = new Date(query.startDate);
+      if (query.endDate) where.createdAt.lte = new Date(query.endDate);
+    }
+    const limit = Math.min(Number(query.limit) || 100, 500);
+
+    const history = await this.prisma.deviceSnapshot.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+
+    return history;
+  }
+
   async getDeviceDashboard(deviceId: string) {
     const device = await this.prisma.device.findUnique({
       where: { deviceId },

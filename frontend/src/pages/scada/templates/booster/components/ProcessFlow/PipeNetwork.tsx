@@ -107,9 +107,6 @@ export interface ProcessFlowContainerProps {
   inletTankTitle?: string;
   outletTitle?: string;
   outletType?: 'label' | 'tank';
-  onTogglePump?: (pumpId: string) => void;
-  onModeChange?: (pumpId: string, mode: 'AUTO' | 'MANUAL' | 'OFF') => void;
-  pendingPumpId?: string | null;
 }
 
 export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({ 
@@ -118,9 +115,6 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
   inletTankTitle = 'Underground Tank', 
   outletTitle = 'OUTLET', 
   outletType = 'label',
-  onTogglePump,
-  onModeChange,
-  pendingPumpId
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -332,10 +326,6 @@ export const ProcessFlowContainer: React.FC<ProcessFlowContainerProps> = ({
                 currentB={p.currentB}
                 mode={p.mode}
                 runOnTime={p.runOnTime}
-                onToggle={() => onTogglePump?.(p.id)}
-                onModeChange={(mode) => onModeChange?.(p.id, mode)}
-                isPending={pendingPumpId === p.id}
-                isWaterAvailable={dashboardData.waterAvailable}
               />
             </div>
           ))}
