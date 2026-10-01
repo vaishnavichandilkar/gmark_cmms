@@ -14,9 +14,11 @@ interface FacilityHierarchyPickerProps {
   disabled?: boolean;
   className?: string;
   showSocietiesAndBuildings?: boolean;
+  showDevices?: boolean;
   filterByMainFacilityId?: string;
   defaultExpanded?: boolean;
   selectableTypes?: string[];
+  scopeByUser?: boolean;
   onEmptyStateAdd?: () => void;
 }
 
@@ -28,9 +30,11 @@ export function FacilityHierarchyPicker({
   disabled = false,
   className = "",
   showSocietiesAndBuildings = true,
+  showDevices = false,
   filterByMainFacilityId,
   defaultExpanded = false,
   selectableTypes,
+  scopeByUser = false,
   onEmptyStateAdd
 }: FacilityHierarchyPickerProps) {
   const { user } = useSelector((state: RootState) => state.auth);
@@ -44,23 +48,61 @@ export function FacilityHierarchyPicker({
     fetchData();
   }, [filterByMainFacilityId, value]);
 
+  useEffect(() => {
+    if (isOpen) {
+      fetchData();
+    }
+  }, [isOpen]);
+
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [societiesRes, buildingsRes, mainFacRes, facRes] = await Promise.all([
+      const [societiesRes, buildingsRes, mainFacRes, facRes, devRes, machRes] = await Promise.all([
         showSocietiesAndBuildings ? api.get('/societies').catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
         showSocietiesAndBuildings ? api.get('/buildings').catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
         api.get('/main-facilities').catch(() => ({ data: [] })),
-        api.get('/facilities').catch(() => ({ data: [] }))
+        api.get('/facilities').catch(() => ({ data: [] })),
+        showDevices ? api.get('/devices').catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+        showDevices ? api.get('/machines').catch(() => ({ data: [] })) : Promise.resolve({ data: [] })
       ]);
 
       let societies = Array.isArray(societiesRes.data) ? societiesRes.data : [];
       let buildings = Array.isArray(buildingsRes.data) ? buildingsRes.data : [];
       let mainFacilities = Array.isArray(mainFacRes.data) ? mainFacRes.data : [];
       let facilities = Array.isArray(facRes.data) ? facRes.data : [];
+      let rawDevices = Array.isArray(devRes.data) ? devRes.data : [];
+      let rawMachines = Array.isArray(machRes.data) ? machRes.data : [];
 
-      if (user?.role !== 'SUPER_ADMIN') {
-        if (user?.mainFacilityId) {
+      if (scopeByUser && user?.role !== 'SUPER_ADMIN') {
+        if (user?.deviceId) {
+          rawMachines = rawMachines.filter((m: any) => m.deviceId === user.deviceId || m.id?.toString() === user.deviceId);
+          rawDevices = rawDevices.filter((d: any) => d.deviceId === user.deviceId || d.id?.toString() === user.deviceId);
+          mainFacilities = [];
+          facilities = [];
+          societies = [];
+          buildings = [];
+        } else if (user?.facilityId) {
+          const targetFacilityId = Number(user.facilityId);
+          const allowedFacilityIds = new Set<number>([targetFacilityId]);
+
+          let added = true;
+          while (added) {
+            added = false;
+            facilities.forEach((f: any) => {
+              if (f.parentFacilityId && allowedFacilityIds.has(f.parentFacilityId) && !allowedFacilityIds.has(f.id)) {
+                allowedFacilityIds.add(f.id);
+                added = true;
+              }
+            });
+          }
+
+          facilities = facilities.filter((f: any) => allowedFacilityIds.has(f.id));
+          rawMachines = rawMachines.filter((m: any) => m.facilityId && allowedFacilityIds.has(m.facilityId));
+          rawDevices = rawDevices.filter((d: any) => d.facilityId && allowedFacilityIds.has(d.facilityId));
+          mainFacilities = [];
+          societies = [];
+          buildings = [];
+        } else if (user?.mainFacilityId) {
           mainFacilities = mainFacilities.filter((mf: any) => mf.id === user.mainFacilityId);
           facilities = facilities.filter((f: any) => f.mainFacilityId === user.mainFacilityId);
           societies = [];
@@ -81,24 +123,6 @@ export function FacilityHierarchyPicker({
         buildings = [];
       }
 
-      // Find initial display value if there's a selected value
-      if (value) {
-        const selectedMf = mainFacilities.find(m => m.id.toString() === value);
-        const selectedFac = facilities.find(f => f.id.toString() === value);
-        const selectedSoc = societies.find(s => s.id.toString() === value);
-        const selectedBldg = buildings.find(b => b.id.toString() === value);
-        
-        if (selectedMf && (!selectableTypes || selectableTypes.includes('mainFacility'))) {
-          setDisplayValue(selectedMf.mainFacilityName);
-        } else if (selectedFac && (!selectableTypes || selectableTypes.includes('facility'))) {
-          setDisplayValue(selectedFac.facilityName);
-        } else if (selectedSoc && (!selectableTypes || selectableTypes.includes('society'))) {
-          setDisplayValue(selectedSoc.name);
-        } else if (selectedBldg && (!selectableTypes || selectableTypes.includes('building'))) {
-          setDisplayValue(selectedBldg.name);
-        }
-      }
-
       // Build tree
       const finalTree: TreeNodeData[] = [];
 
@@ -112,13 +136,56 @@ export function FacilityHierarchyPicker({
       }));
 
       buildings.forEach((bldg: any) => {
+        const bldgDevicesList: any[] = [];
+        if (showDevices) {
+          rawDevices.forEach((d: any) => {
+            if (d.buildingId === bldg.id) {
+              bldgDevicesList.push({
+                ...d,
+                isMachine: false,
+                facilityId: null,
+                mainFacilityId: null,
+                buildingId: bldg.id,
+                societyId: bldg.societyId,
+                deviceId: d.deviceId,
+                name: d.name
+              });
+            }
+          });
+          rawMachines.forEach((m: any) => {
+            if (m.buildingId === bldg.id) {
+              if (!bldgDevicesList.some(d => d.deviceId && d.deviceId === m.deviceId)) {
+                bldgDevicesList.push({
+                  ...m,
+                  isMachine: true,
+                  facilityId: null,
+                  mainFacilityId: null,
+                  buildingId: bldg.id,
+                  societyId: bldg.societyId,
+                  deviceId: m.deviceId,
+                  name: m.name
+                });
+              }
+            }
+          });
+        }
+
+        const deviceChildren: TreeNodeData[] = bldgDevicesList.map((devItem: any) => ({
+          id: `dev-${devItem.id}-${devItem.deviceId || ''}`,
+          name: devItem.name || devItem.deviceId || 'Device',
+          type: 'device',
+          originalData: devItem,
+          children: []
+        }));
+
         const bldgNode: TreeNodeData = {
           id: `bldg-${bldg.id}`,
           name: bldg.name,
           type: 'building',
           originalData: bldg,
-          children: []
+          children: deviceChildren
         };
+
         const socParent = societyNodes.find(s => s.originalData.id === bldg.societyId);
         if (socParent) {
           socParent.children!.push(bldgNode);
@@ -139,12 +206,54 @@ export function FacilityHierarchyPicker({
 
       const facMap: Record<number, TreeNodeData> = {};
       facilities.forEach((fac: any) => {
+        const facDevicesList: any[] = [];
+        if (showDevices) {
+          rawMachines.forEach((m: any) => {
+            if (m.facilityId === fac.id) {
+              facDevicesList.push({
+                ...m,
+                isMachine: true,
+                facilityId: fac.id,
+                mainFacilityId: fac.mainFacilityId,
+                buildingId: null,
+                societyId: null,
+                deviceId: m.deviceId,
+                name: m.name
+              });
+            }
+          });
+          rawDevices.forEach((d: any) => {
+            if (d.facilityId === fac.id) {
+              if (!facDevicesList.some(m => m.deviceId && m.deviceId === d.deviceId)) {
+                facDevicesList.push({
+                  ...d,
+                  isMachine: false,
+                  facilityId: fac.id,
+                  mainFacilityId: fac.mainFacilityId,
+                  buildingId: null,
+                  societyId: null,
+                  deviceId: d.deviceId,
+                  name: d.name
+                });
+              }
+            }
+          });
+        }
+
+        const deviceChildren: TreeNodeData[] = facDevicesList.map((devItem: any) => ({
+          id: `dev-${devItem.id}-${devItem.deviceId || ''}`,
+          name: devItem.name || devItem.deviceId || 'Device',
+          type: 'device',
+          originalData: devItem,
+          children: []
+        }));
+
         facMap[fac.id] = {
           id: `fac-${fac.id}`,
           name: fac.facilityName,
           type: 'facility',
           originalData: fac,
-          children: []
+          children: deviceChildren
         };
       });
 
@@ -152,7 +261,7 @@ export function FacilityHierarchyPicker({
         const node = facMap[fac.id];
         if (fac.parentFacilityId && facMap[fac.parentFacilityId]) {
           facMap[fac.parentFacilityId].children!.push(node);
-        } else if (fac.mainFacilityId) {
+        } else if (fac.mainFacilityId && mfNodesWithPrefix.length > 0) {
           const mainFacParent = mfNodesWithPrefix.find(mf => mf.originalData.id === fac.mainFacilityId);
           if (mainFacParent) {
             mainFacParent.children!.push(node);
@@ -165,6 +274,22 @@ export function FacilityHierarchyPicker({
       });
 
       finalTree.push(...mfNodesWithPrefix);
+
+      // Direct machines/devices if device-restricted or standalone
+      if ((scopeByUser && user?.deviceId) || (facilities.length === 0 && buildings.length === 0 && mainFacilities.length === 0 && societies.length === 0)) {
+        rawMachines.forEach((m: any) => {
+          const devNode: TreeNodeData = {
+            id: `dev-${m.id}-${m.deviceId || ''}`,
+            name: m.name || m.deviceId || 'Device',
+            type: 'device',
+            originalData: m,
+            children: []
+          };
+          if (!finalTree.some(t => t.id === devNode.id)) {
+            finalTree.push(devNode);
+          }
+        });
+      }
 
       // Sort tree alphabetically (with numeric awareness)
       const sortTree = (nodes: TreeNodeData[]) => {
@@ -181,26 +306,30 @@ export function FacilityHierarchyPicker({
 
       // Restore selected node in tree if value exists
       if (value) {
-        const initialSelectedMf = mfNodesWithPrefix.find(mf => mf.originalData.id.toString() === value);
-        const initialSelectedFac = Object.values(facMap).find(fac => fac.originalData.id.toString() === value);
-        const initialSelectedSoc = societyNodes.find(soc => soc.originalData.id.toString() === value);
-        let initialSelectedBldg: TreeNodeData | undefined;
-        societyNodes.forEach(s => {
-          const bldg = s.children?.find(b => b.originalData.id.toString() === value);
-          if (bldg) { initialSelectedBldg = bldg; }
-        });
-        if (!initialSelectedBldg) {
-          initialSelectedBldg = finalTree.find(n => n.type === 'building' && n.originalData.id.toString() === value);
-        }
+        const findNode = (nodes: TreeNodeData[]): TreeNodeData | undefined => {
+          for (const n of nodes) {
+            if (
+              n.originalData?.id?.toString() === value ||
+              n.originalData?.deviceId === value ||
+              n.id === value ||
+              n.name === value
+            ) {
+              if (!selectableTypes || selectableTypes.includes(n.type)) {
+                return n;
+              }
+            }
+            if (n.children && n.children.length > 0) {
+              const res = findNode(n.children);
+              if (res) return res;
+            }
+          }
+          return undefined;
+        };
 
-        if (initialSelectedMf && (!selectableTypes || selectableTypes.includes('mainFacility'))) {
-          setSelectedNode(initialSelectedMf);
-        } else if (initialSelectedFac && (!selectableTypes || selectableTypes.includes('facility'))) {
-          setSelectedNode(initialSelectedFac);
-        } else if (initialSelectedSoc && (!selectableTypes || selectableTypes.includes('society'))) {
-          setSelectedNode(initialSelectedSoc);
-        } else if (initialSelectedBldg && (!selectableTypes || selectableTypes.includes('building'))) {
-          setSelectedNode(initialSelectedBldg);
+        const initialSelected = findNode(finalTree);
+        if (initialSelected) {
+          setSelectedNode(initialSelected);
+          setDisplayValue(initialSelected.name);
         }
       }
 
@@ -216,9 +345,21 @@ export function FacilityHierarchyPicker({
       onChange({
         target: {
           name,
-          value: selectedNode.originalData.id.toString(),
-          dataset: { type: selectedNode.type }
-        }
+          value: selectedNode.type === 'device' && selectedNode.originalData?.deviceId
+            ? selectedNode.originalData.deviceId
+            : selectedNode.originalData?.id?.toString() || '',
+          dataset: {
+            type: selectedNode.type,
+            id: selectedNode.originalData?.id?.toString() || '',
+            deviceId: selectedNode.originalData?.deviceId || '',
+            name: selectedNode.name,
+            facilityId: selectedNode.originalData?.facilityId?.toString() || '',
+            mainFacilityId: selectedNode.originalData?.mainFacilityId?.toString() || '',
+            buildingId: selectedNode.originalData?.buildingId?.toString() || '',
+            societyId: selectedNode.originalData?.societyId?.toString() || '',
+          }
+        },
+        selectedNode
       });
       setDisplayValue(selectedNode.name);
     } else {
@@ -227,7 +368,8 @@ export function FacilityHierarchyPicker({
           name,
           value: '',
           dataset: { type: '' }
-        }
+        },
+        selectedNode: null
       });
       setDisplayValue('');
     }

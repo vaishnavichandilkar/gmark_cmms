@@ -256,6 +256,9 @@ export function AddEmployee() {
         
         const mapRole = (designation: string) => {
           const roleStr = (designation || '').toUpperCase();
+          if (roleStr.includes('SUPER')) return 'SUPER_ADMIN';
+          if (roleStr.includes('BUILDING')) return 'BUILDING_ADMIN';
+          if (roleStr.includes('SOCIETY')) return 'SOCIETY_ADMIN';
           if (roleStr.includes('ADMIN')) return 'SOCIETY_ADMIN';
           if (roleStr.includes('OPERATOR') || roleStr.includes('SUPERVISOR')) return 'OPERATOR';
           if (roleStr.includes('MANAGER')) return 'BUILDING_ADMIN';

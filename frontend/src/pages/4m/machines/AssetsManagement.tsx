@@ -5,7 +5,8 @@ import type { TreeNodeData } from '../../../components/4m/AssetTree';
 import { AssetDetails } from '../../../components/4m/AssetDetails';
 import { api } from '../../../lib/api';
 import { Skeleton } from '../../../components/shared/ui/Skeleton';
-import { X } from 'lucide-react';
+import { X, ArrowRight, FolderInput, Loader2, AlertCircle, Building2, Building, Cpu } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../store';
 import { navigateToDeviceDashboard } from '../../../utils/deviceRoutes';
@@ -18,10 +19,14 @@ export function AssetsManagement() {
   const [selectedNode, setSelectedNode] = useState<TreeNodeData | null>(null);
   const [detailsNode, setDetailsNode] = useState<TreeNodeData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pendingMove, setPendingMove] = useState<{ source: TreeNodeData; target: TreeNodeData } | null>(null);
+  const [isMoving, setIsMoving] = useState(false);
+
+  const canManageAssets = ['SUPER_ADMIN', 'SOCIETY_ADMIN', 'BUILDING_ADMIN'].includes(user?.role as string);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [user]);
 
   // Restore detailsNode from location state if we navigate back
   useEffect(() => {
@@ -65,7 +70,37 @@ export function AssetsManagement() {
       let facilities = Array.isArray(facilitiesRes.data) ? facilitiesRes.data : [];
 
       if (user?.role !== 'SUPER_ADMIN') {
-        if (user?.mainFacilityId) {
+        if (user?.deviceId) {
+          // Device operator/assigned user (e.g. Mahendra Powar): only see their assigned device/machine
+          machines = machines.filter((m: any) => m.deviceId === user.deviceId || m.id?.toString() === user.deviceId);
+          devices = devices.filter((d: any) => d.deviceId === user.deviceId || d.id?.toString() === user.deviceId);
+          mainFacilities = [];
+          facilities = [];
+          societies = [];
+          buildings = [];
+        } else if (user?.facilityId) {
+          // Facility-assigned user (e.g. Shabaj Mujawar): only see their assigned facility and anything under it
+          const targetFacilityId = Number(user.facilityId);
+          const allowedFacilityIds = new Set<number>([targetFacilityId]);
+
+          let added = true;
+          while (added) {
+            added = false;
+            facilities.forEach((f: any) => {
+              if (f.parentFacilityId && allowedFacilityIds.has(f.parentFacilityId) && !allowedFacilityIds.has(f.id)) {
+                allowedFacilityIds.add(f.id);
+                added = true;
+              }
+            });
+          }
+
+          facilities = facilities.filter((f: any) => allowedFacilityIds.has(f.id));
+          machines = machines.filter((m: any) => m.facilityId && allowedFacilityIds.has(m.facilityId));
+          devices = devices.filter((d: any) => d.facilityId && allowedFacilityIds.has(d.facilityId));
+          mainFacilities = []; // Never show parent Main Facility (Nayabharat)
+          societies = [];
+          buildings = [];
+        } else if (user?.mainFacilityId) {
           mainFacilities = mainFacilities.filter((mf: any) => mf.id === user.mainFacilityId);
           // Only show facilities that belong to this main facility
           facilities = facilities.filter((f: any) => f.mainFacilityId === user.mainFacilityId);
@@ -136,7 +171,7 @@ export function AssetsManagement() {
 
       const finalTree: TreeNodeData[] = [];
 
-      // Branch 1: Societies Hierarchy
+      // 1. Societies Nodes
       const societyNodes: TreeNodeData[] = societies.map((soc: any) => ({
         id: `soc-${soc.id}`,
         name: soc.name,
@@ -145,7 +180,16 @@ export function AssetsManagement() {
         children: []
       }));
 
-      // Attach Buildings to Societies
+      // 2. Main Facilities Nodes
+      const mainFacNodes: TreeNodeData[] = mainFacilities.map((mf: any) => ({
+        id: `mf-${mf.id}`,
+        name: mf.mainFacilityName,
+        type: 'mainFacility',
+        originalData: mf,
+        children: []
+      }));
+
+      // Attach Buildings to Societies or Main Facilities
       buildings.forEach((bldg: any) => {
         const bldgNode: TreeNodeData = {
           id: `bldg-${bldg.id}`,
@@ -169,27 +213,26 @@ export function AssetsManagement() {
           }
         });
 
-        // Attach building to society
-        const socParent = societyNodes.find(s => s.originalData.id === bldg.societyId);
-        if (socParent) {
-          socParent.children!.push(bldgNode);
+        // Attach building to Main Facility or Society
+        if (bldg.mainFacilityId && mainFacNodes.length > 0) {
+          const mainFacParent = mainFacNodes.find(mf => mf.originalData.id === bldg.mainFacilityId);
+          if (mainFacParent) {
+            mainFacParent.children!.push(bldgNode);
+          } else {
+            finalTree.push(bldgNode);
+          }
         } else {
-          // If no society found, just add at root for this branch
-          finalTree.push(bldgNode); 
+          const socParent = societyNodes.find(s => s.originalData.id === bldg.societyId);
+          if (socParent) {
+            socParent.children!.push(bldgNode);
+          } else {
+            finalTree.push(bldgNode); 
+          }
         }
       });
 
       // Add societies to tree
       finalTree.push(...societyNodes);
-
-      // Branch 2: Facilities Hierarchy
-      const mainFacNodes: TreeNodeData[] = mainFacilities.map((mf: any) => ({
-        id: `mf-${mf.id}`,
-        name: mf.mainFacilityName,
-        type: 'mainFacility',
-        originalData: mf,
-        children: []
-      }));
 
       const facMap: Record<number, TreeNodeData> = {};
       facilities.forEach((fac: any) => {
@@ -204,9 +247,17 @@ export function AssetsManagement() {
 
       facilities.forEach((fac: any) => {
         const node = facMap[fac.id];
+
+        // Attach Root Machines to Facilities
+        rootMachines.forEach((macNode) => {
+          if (macNode.originalData.facilityId === fac.id) {
+            node.children!.push(macNode);
+          }
+        });
+
         if (fac.parentFacilityId && facMap[fac.parentFacilityId]) {
           facMap[fac.parentFacilityId].children!.push(node);
-        } else if (fac.mainFacilityId) {
+        } else if (fac.mainFacilityId && mainFacNodes.length > 0) {
           const mainFacParent = mainFacNodes.find(mf => mf.originalData.id === fac.mainFacilityId);
           if (mainFacParent) {
             mainFacParent.children!.push(node);
@@ -216,17 +267,24 @@ export function AssetsManagement() {
         } else {
           finalTree.push(node);
         }
-
-        // Attach Root Machines to Facilities
-        rootMachines.forEach((macNode) => {
-          if (macNode.originalData.facilityId === fac.id) {
-            node.children!.push(macNode);
-          }
-        });
       });
 
       // Add main facilities to tree
       finalTree.push(...mainFacNodes);
+
+      // Branch 3: Direct Machines/Devices (when device-assigned or standalone)
+      if (user?.deviceId || (facilities.length === 0 && buildings.length === 0 && mainFacilities.length === 0 && societies.length === 0)) {
+        rootMachines.forEach((macNode) => {
+          if (!finalTree.some(t => t.id === macNode.id)) {
+            finalTree.push(macNode);
+          }
+        });
+        deviceNodes.forEach((devNode) => {
+          if (!finalTree.some(t => t.id === devNode.id)) {
+            finalTree.push(devNode);
+          }
+        });
+      }
 
       // Sort tree alphabetically (with numeric awareness)
       const sortTree = (nodes: TreeNodeData[]) => {
@@ -247,13 +305,90 @@ export function AssetsManagement() {
     }
   };
 
+  const handleConfirmMove = async () => {
+    if (!pendingMove) return;
+    const { source, target } = pendingMove;
+
+    try {
+      setIsMoving(true);
+
+      // 1. Moving Machine / Device
+      if (source.type === 'device') {
+        const machineId = source.originalData.id;
+        let targetType: 'facility' | 'building' | 'machine' | 'device';
+        const targetId = target.originalData.id;
+
+        if (target.type === 'facility') {
+          targetType = 'facility';
+        } else if (target.type === 'building') {
+          targetType = 'building';
+        } else if (target.type === 'device') {
+          targetType = 'machine';
+        } else {
+          toast.error('Invalid destination for machine');
+          setIsMoving(false);
+          return;
+        }
+
+        await api.patch(`/machines/${machineId}/move`, { targetType, targetId });
+        toast.success(`Successfully moved "${source.name}" to "${target.name}"`);
+      } 
+      // 2. Moving Facility
+      else if (source.type === 'facility') {
+        const facilityId = source.originalData.id;
+        let targetType: 'mainFacility' | 'facility';
+        const targetId = target.originalData.id;
+
+        if (target.type === 'mainFacility') {
+          targetType = 'mainFacility';
+        } else if (target.type === 'facility') {
+          targetType = 'facility';
+        } else {
+          toast.error('Invalid destination for facility');
+          setIsMoving(false);
+          return;
+        }
+
+        await api.patch(`/facilities/${facilityId}/move`, { targetType, targetId });
+        toast.success(`Successfully moved "${source.name}" to "${target.name}"`);
+      } 
+      // 3. Moving Building
+      else if (source.type === 'building') {
+        const buildingId = source.originalData.id;
+        const targetType = target.type === 'mainFacility' ? 'mainFacility' : 'society';
+        const targetId = target.originalData.id;
+        await api.patch(`/buildings/${buildingId}/move`, { targetType, targetId });
+        toast.success(`Successfully moved "${source.name}" to "${target.name}"`);
+      }
+
+      setPendingMove(null);
+      await fetchData();
+    } catch (error: any) {
+      console.error('Error moving asset:', error);
+      const msg = error.response?.data?.message || 'Failed to move asset. Please try again.';
+      toast.error(msg);
+    } finally {
+      setIsMoving(false);
+    }
+  };
+
   return (
     <div className="flex h-[calc(100vh-64px)] bg-gray-50 -m-4 sm:-m-6 md:-m-8 p-4 sm:p-6 md:p-8">
       {/* Tree Container */}
       <div className="w-full max-w-5xl mx-auto bg-white border border-gray-200 rounded-2xl shadow-sm flex flex-col h-full overflow-hidden">
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
-          <h2 className="text-lg font-bold text-gray-900">All Assets</h2>
-          <p className="text-sm text-gray-500">Double-click an asset to view its details</p>
+        <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white shrink-0">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">All Assets</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Drag &amp; drop any facility or machine to reassign location • Double-click to view details
+            </p>
+          </div>
+          {canManageAssets && (
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 border border-green-200 text-green-700 text-xs font-semibold rounded-full shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+              Drag &amp; Drop Reassignment Active
+            </span>
+          )}
         </div>
         <div className="flex-1 overflow-hidden p-2">
           {loading ? (
@@ -277,10 +412,147 @@ export function AssetsManagement() {
                 setDetailsNode(node);
               }}
               selectedId={selectedNode?.id || null} 
+              defaultExpanded={false}
+              enableDragAndDrop={canManageAssets}
+              onDropNode={(source, target) => {
+                if (!canManageAssets) {
+                  toast.error('You do not have permission to reassign assets.');
+                  return;
+                }
+                setPendingMove({ source, target });
+              }}
             />
           )}
         </div>
       </div>
+
+      {/* Move Confirmation Modal */}
+      {pendingMove && (
+        <div 
+          className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => !isMoving && setPendingMove(null)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col relative animate-in zoom-in-95 duration-150 border border-gray-100"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-6 pb-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-[#00a651]">
+                  <FolderInput className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Confirm Asset Reassignment</h3>
+                  <p className="text-xs text-gray-500">Move asset to a new location in the hierarchy</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => !isMoving && setPendingMove(null)}
+                disabled={isMoving}
+                className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
+              <div className="flex items-center justify-between gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200/80">
+                {/* Source Item */}
+                <div className="flex-1 min-w-0">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                    Moving {pendingMove.source.type === 'device' ? 'Machine' : pendingMove.source.type === 'facility' ? 'Facility' : 'Asset'}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded bg-white border border-gray-200 flex items-center justify-center shrink-0">
+                      {pendingMove.source.type === 'device' ? (
+                        <Cpu className="w-3.5 h-3.5 text-orange-600" />
+                      ) : (
+                        <Building className="w-3.5 h-3.5 text-[#00a651]" />
+                      )}
+                    </div>
+                    <span className="text-sm font-bold text-gray-900 truncate">
+                      {pendingMove.source.name}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Arrow */}
+                <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-white shadow-sm border border-gray-200 text-gray-500">
+                  <ArrowRight className="w-4 h-4 text-[#00a651]" />
+                </div>
+
+                {/* Target Item */}
+                <div className="flex-1 min-w-0 text-right">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                    Destination
+                  </span>
+                  <div className="flex items-center justify-end gap-2">
+                    <span className="text-sm font-bold text-gray-900 truncate">
+                      {pendingMove.target.name}
+                    </span>
+                    <div className="w-6 h-6 rounded bg-white border border-gray-200 flex items-center justify-center shrink-0">
+                      {pendingMove.target.type === 'mainFacility' ? (
+                        <Building2 className="w-3.5 h-3.5 text-blue-600" />
+                      ) : pendingMove.target.type === 'facility' ? (
+                        <Building className="w-3.5 h-3.5 text-[#00a651]" />
+                      ) : pendingMove.target.type === 'building' ? (
+                        <Building className="w-3.5 h-3.5 text-[#00a651]" />
+                      ) : (
+                        <Cpu className="w-3.5 h-3.5 text-orange-600" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Informational Callout */}
+              {pendingMove.source.type === 'facility' && (
+                <div className="flex items-start gap-2.5 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p>
+                    Moving this facility will automatically reassign all child facilities and machines contained within it to the target destination.
+                  </p>
+                </div>
+              )}
+
+              {pendingMove.source.type === 'device' && (
+                <p className="text-xs text-gray-500">
+                  This machine's facility and location relations will be updated in the database. IoT sensor bindings will remain intact.
+                </p>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 px-6 bg-gray-50/80 border-t border-gray-100 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setPendingMove(null)}
+                disabled={isMoving}
+                className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmMove}
+                disabled={isMoving}
+                className="px-5 py-2 text-sm font-semibold text-white bg-[#00a651] hover:bg-[#009040] rounded-xl transition-colors shadow-sm flex items-center gap-2 disabled:opacity-75"
+              >
+                {isMoving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Moving Asset...
+                  </>
+                ) : (
+                  'Confirm & Move'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Popup */}
       {detailsNode && (

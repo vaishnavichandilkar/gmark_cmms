@@ -93,6 +93,9 @@ export class UsersController {
       societyId?: number;
       employeeId?: number;
       mainFacilityId?: number;
+      facilityId?: number;
+      deviceId?: string;
+      deviceName?: string;
       buildingIds?: number[];
     },
     @CurrentUser() currentUser: any,
@@ -137,6 +140,9 @@ export class UsersController {
       societyId?: number;
       employeeId?: number;
       mainFacilityId?: number;
+      facilityId?: number;
+      deviceId?: string;
+      deviceName?: string;
     },
     @CurrentUser() currentUser: any,
     @Ip() ip: string,

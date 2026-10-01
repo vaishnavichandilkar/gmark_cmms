@@ -9,7 +9,9 @@ import {
   ParseIntPipe,
   UseGuards,
   Ip,
+  Query,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -151,6 +153,19 @@ export class DevicesController {
     @CurrentUser() user: any,
     @Ip() ip: string,
   ) {
+    const { device, machine } = await this.devicesService.getDeviceByDeviceId(deviceId);
+    if (
+      (device &&
+        (device.template?.toLowerCase() === 'booster' ||
+          device.template?.toLowerCase() === 'booster_pump')) ||
+      machine?.machineType?.toUpperCase() === 'HYPN' ||
+      machine?.machineCategory?.toUpperCase() === 'HYPN'
+    ) {
+      throw new BadRequestException(
+        'Remote control is disabled for HYPN / Booster systems. Telemetry monitoring only.',
+      );
+    }
+
     // Basic fixed PIN check for now. Later can be verified against user.password
     if (body.password !== '8250') {
       throw new UnauthorizedException('Invalid security code.');
@@ -178,6 +193,64 @@ export class DevicesController {
   @ApiResponse({ status: 404, description: 'Snapshot not found.' })
   async getDeviceSnapshot(@Param('deviceId') deviceId: string) {
     return this.devicesService.getDeviceSnapshot(deviceId);
+  }
+
+  @Get(':deviceId/history-config')
+  @ApiOperation({ summary: 'Get device history configuration' })
+  @ApiParam({ name: 'deviceId', description: 'Device ID string' })
+  async getDeviceHistoryConfig(@Param('deviceId') deviceId: string) {
+    return this.devicesService.getDeviceHistoryConfig(deviceId);
+  }
+
+  @Put(':deviceId/history-config')
+  @ApiOperation({ summary: 'Update device history configuration' })
+  @ApiParam({ name: 'deviceId', description: 'Device ID string' })
+  async updateDeviceHistoryConfig(
+    @Param('deviceId') deviceId: string,
+    @Body()
+    body: {
+      historyEnabled?: boolean;
+      historyMode?: string;
+      historyInterval?: string;
+    },
+    @CurrentUser() user: any,
+    @Ip() ip: string,
+  ) {
+    const result = await this.devicesService.updateDeviceHistoryConfig(
+      deviceId,
+      body,
+    );
+
+    this.mqttService.updateHistoryConfigCache(deviceId, {
+      historyEnabled: result.historyEnabled,
+      historyMode: result.historyMode,
+      historyInterval: result.historyInterval,
+    });
+
+    await this.auditLogService.create(
+      user.userId,
+      `History config updated for device ${deviceId}: mode=${result.historyMode}, interval=${result.historyInterval}, enabled=${result.historyEnabled}`,
+      'DEVICES',
+      ip,
+    );
+
+    return result;
+  }
+
+  @Get(':deviceId/history')
+  @ApiOperation({ summary: 'Get historical snapshots for a device' })
+  @ApiParam({ name: 'deviceId', description: 'Device ID string' })
+  async getDeviceHistory(
+    @Param('deviceId') deviceId: string,
+    @Query('limit') limit?: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.devicesService.getDeviceHistory(deviceId, {
+      limit,
+      startDate,
+      endDate,
+    });
   }
 
   @Get(':deviceId/dashboard')

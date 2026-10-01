@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../../../store';
+import { hasTabPermission } from '../../../utils/permissions';
 import { CustomSelect } from '../../../components/shared/CustomSelect';
 import { CustomDatePicker } from '../../../components/shared/CustomDatePicker';
-import { ArrowLeft, Search, Plus, Wifi, Activity } from 'lucide-react';
+import { ArrowLeft, Search, Plus, Wifi, Activity, ShieldAlert, RefreshCw, Sparkles } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { FacilityHierarchyPicker } from '../../../components/4m/FacilityHierarchyPicker';
 import { MachineHierarchyPicker } from '../../../components/4m/MachineHierarchyPicker';
@@ -15,6 +18,7 @@ export function EditMachine() {
   const navigate = useNavigate();
   const { id } = useParams();
   const location = useLocation();
+  const { user: currentUser } = useSelector((state: RootState) => state.auth);
   
   const [activeTab, setActiveTab] = useState(location.state?.tab || 'General');
   const [saving, setSaving] = useState(false);
@@ -77,7 +81,7 @@ export function EditMachine() {
     
     latitude: '',
     longitude: '',
-    costCenter: '',
+    costCenter: 'CC-MAINT-01',
     headOfDepartment: '',
     machineOwner: '',
     notes: '',
@@ -190,7 +194,7 @@ export function EditMachine() {
           assetCode: device.assetCode || '',
           latitude: device.latitude || '',
           longitude: device.longitude || '',
-          costCenter: device.costCenter || '',
+          costCenter: device.costCenter || 'CC-MAINT-01',
           headOfDepartment: device.headOfDepartment || '',
           machineOwner: device.machineOwner || '',
           notes: device.notes || '',
@@ -198,6 +202,22 @@ export function EditMachine() {
       }
     } catch (error) {
       console.error('Error fetching data:', error);
+    }
+  };
+
+  const fetchNextAssetCode = async () => {
+    try {
+      const res = await api.get('/machines/next-asset-code');
+      if (res.data?.nextCode) {
+        setFormData(prev => ({
+          ...prev,
+          assetCode: res.data.nextCode
+        }));
+        toast.success(`Generated Asset Code: ${res.data.nextCode}`);
+      }
+    } catch (err) {
+      console.error('Failed to fetch next asset code:', err);
+      toast.error('Failed to auto-generate asset code.');
     }
   };
 
@@ -237,7 +257,7 @@ export function EditMachine() {
         assetCode: formData.assetCode,
         latitude: formData.latitude,
         longitude: formData.longitude,
-        costCenter: formData.costCenter,
+        costCenter: formData.costCenter?.trim() || 'CC-MAINT-01',
         headOfDepartment: formData.headOfDepartment,
         machineOwner: formData.machineOwner,
         notes: formData.notes,
@@ -337,6 +357,17 @@ export function EditMachine() {
   };
 
   const tabs = ['General', 'Specification', 'Spares', 'AMC', 'Purchase', 'Documents', 'IOT'];
+  const permittedTabs = tabs.filter(tab => hasTabPermission(currentUser, tab, 'view'));
+
+  useEffect(() => {
+    if (permittedTabs.length > 0 && !permittedTabs.includes(activeTab)) {
+      setActiveTab(permittedTabs[0]);
+    }
+  }, [permittedTabs, activeTab]);
+
+  const canEditCurrentTab = hasTabPermission(currentUser, activeTab, 'edit');
+  const canCreateInTab = hasTabPermission(currentUser, activeTab, 'create');
+  const canDeleteInTab = hasTabPermission(currentUser, activeTab, 'delete');
 
   return (
     <div className="sm:px-2 md:px-4 pb-6 pt-0 w-full flex flex-col bg-white">
@@ -353,27 +384,35 @@ export function EditMachine() {
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm w-full">
         {/* Tabs */}
-        <div className="flex overflow-x-auto border-b border-gray-200">
-          {tabs.map((tab, index) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`min-w-[120px] py-3.5 px-4 text-sm font-semibold border-r border-gray-200 transition-colors ${
-                index === 0 ? 'rounded-tl-xl ' : ''
-              }${
-                activeTab === tab 
-                  ? 'bg-[#00a651] text-white' 
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+        {permittedTabs.length > 0 && (
+          <div className="flex overflow-x-auto border-b border-gray-200">
+            {permittedTabs.map((tab, index) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`min-w-[120px] py-3.5 px-4 text-sm font-semibold border-r border-gray-200 transition-colors ${
+                  index === 0 ? 'rounded-tl-xl ' : ''
+                }${
+                  activeTab === tab 
+                    ? 'bg-[#00a651] text-white' 
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Content Area */}
         <div className="px-8 pt-8 pb-6 w-full">
-          {activeTab === 'General' ? (
+          {permittedTabs.length === 0 ? (
+            <div className="p-12 text-center">
+              <ShieldAlert className="w-12 h-12 text-amber-500 mx-auto mb-3" />
+              <h3 className="text-lg font-bold text-gray-800">No Tab Access</h3>
+              <p className="text-sm text-gray-500 mt-1">You do not have permission to view any tabs for this machine.</p>
+            </div>
+          ) : activeTab === 'General' ? (
             <div className="space-y-6">
               {/* Location Section */}
               <div>
@@ -463,15 +502,16 @@ export function EditMachine() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                      Asset Code<span className="text-red-500">*</span>
+                      Asset Code <span className="text-red-500">*</span>
                     </label>
                     <input 
                       type="text" 
-                      name="assetCode"
-                      value={formData.assetCode}
-                      onChange={handleChange}
-                      placeholder="Enter"
-                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
+                      name="assetCode" 
+                      value={formData.assetCode} 
+                      onChange={handleChange} 
+                      readOnly
+                      placeholder="Enter Asset Code"
+                      className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-xl text-sm outline-none text-gray-600 font-medium cursor-not-allowed" 
                     />
                   </div>
                   <div>
@@ -481,10 +521,10 @@ export function EditMachine() {
                     <input 
                       type="text" 
                       name="costCenter"
-                      value={formData.costCenter}
+                      value={formData.costCenter || 'CC-MAINT-01'}
                       onChange={handleChange}
-                      placeholder="Enter"
-                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
+                      placeholder="e.g. CC-MAINT-01"
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 font-medium"
                     />
                   </div>
                   <div>
@@ -541,12 +581,14 @@ export function EditMachine() {
 
               <div>
                 <h3 className="text-sm font-semibold text-gray-400 mb-4">Location</h3>
-                <button 
-                  onClick={() => setIsSpecModalOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#00a651] hover:bg-[#009040] border border-transparent text-sm font-semibold text-white rounded-lg transition-colors shadow-sm mb-6">
-                  <Plus size={18} className="stroke-[3]" />
-                  Add Specification Field
-                </button>
+                {canCreateInTab && (
+                  <button 
+                    onClick={() => setIsSpecModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#00a651] hover:bg-[#009040] border border-transparent text-sm font-semibold text-white rounded-lg transition-colors shadow-sm mb-6">
+                    <Plus size={18} className="stroke-[3]" />
+                    Add Specification Field
+                  </button>
+                )}
                 
                 {/* Render Specifications List */}
                 {specifications.length > 0 && (
@@ -559,13 +601,15 @@ export function EditMachine() {
                             {spec.data} <span className="text-gray-500 text-xs font-normal">{spec.unit}</span>
                           </p>
                         </div>
-                        <button 
-                          onClick={() => setSpecToDelete(spec.id)}
-                          className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
-                          title="Delete Specification"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-                        </button>
+                        {canDeleteInTab && (
+                          <button 
+                            onClick={() => setSpecToDelete(spec.id)}
+                            className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                            title="Delete Specification"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -576,12 +620,14 @@ export function EditMachine() {
             <div className="space-y-6 w-full">
               {/* Toolbar */}
               <div className="flex justify-end items-center gap-4">
-                <button 
-                  onClick={() => setIsSparesModalOpen(true)}
-                  className="px-4 py-2 bg-[#00a651] hover:bg-[#009040] text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-colors shadow-sm"
-                >
-                  <Plus size={16} className="stroke-[3]" /> Add Spare
-                </button>
+                {canCreateInTab && (
+                  <button 
+                    onClick={() => setIsSparesModalOpen(true)}
+                    className="px-4 py-2 bg-[#00a651] hover:bg-[#009040] text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-colors shadow-sm"
+                  >
+                    <Plus size={16} className="stroke-[3]" /> Add Spare
+                  </button>
+                )}
                 <div className="relative">
                   <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input 
@@ -761,38 +807,40 @@ export function EditMachine() {
             <div className="space-y-6 w-full">
               {/* Toolbar */}
               <div className="flex justify-end items-center">
-                <div className="relative">
-                  <button 
-                    onClick={() => setIsUploadMenuOpen(!isUploadMenuOpen)}
-                    className="px-4 py-2 bg-[#00a651] hover:bg-[#009040] text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-colors shadow-sm"
-                  >
-                    <Plus size={16} className="stroke-[3]" /> Upload
-                  </button>
-                  
-                  {/* Upload Dropdown */}
-                  {isUploadMenuOpen && (
-                    <div className="absolute top-full right-0 mt-2 w-32 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-20">
-                      <button 
-                        onClick={() => { setUploadModalType('File'); setIsUploadMenuOpen(false); }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                      >
-                        File
-                      </button>
-                      <button 
-                        onClick={() => { setUploadModalType('Link'); setIsUploadMenuOpen(false); }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                      >
-                        Link
-                      </button>
-                      <button 
-                        onClick={() => { setUploadModalType('Note'); setIsUploadMenuOpen(false); }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                      >
-                        Notes
-                      </button>
-                    </div>
-                  )}
-                </div>
+                {canCreateInTab && (
+                  <div className="relative">
+                    <button 
+                      onClick={() => setIsUploadMenuOpen(!isUploadMenuOpen)}
+                      className="px-4 py-2 bg-[#00a651] hover:bg-[#009040] text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-colors shadow-sm"
+                    >
+                      <Plus size={16} className="stroke-[3]" /> Upload
+                    </button>
+                    
+                    {/* Upload Dropdown */}
+                    {isUploadMenuOpen && (
+                      <div className="absolute top-full right-0 mt-2 w-32 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-20">
+                        <button 
+                          onClick={() => { setUploadModalType('File'); setIsUploadMenuOpen(false); }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          File
+                        </button>
+                        <button 
+                          onClick={() => { setUploadModalType('Link'); setIsUploadMenuOpen(false); }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          Link
+                        </button>
+                        <button 
+                          onClick={() => { setUploadModalType('Note'); setIsUploadMenuOpen(false); }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          Notes
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Table */}
@@ -832,13 +880,15 @@ export function EditMachine() {
                             )}
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <button 
-                              onClick={() => setDocumentToDelete(doc.id)}
-                              className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
-                              title="Delete Document"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-                            </button>
+                            {canDeleteInTab && (
+                              <button 
+                                onClick={() => setDocumentToDelete(doc.id)}
+                                className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                                title="Delete Document"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))
@@ -852,6 +902,10 @@ export function EditMachine() {
               deviceId={formData.deviceId}
               deviceData={formData}
               onAddSystem={() => { 
+                if (!canEditCurrentTab) {
+                  toast.error('You do not have permission to edit IOT settings.');
+                  return;
+                }
                 setTempMacId(formData.deviceId || ''); 
                 setTempMachineType((formData as any).machineType || formData.machineCategory || 'HYPN'); 
                 setIsIotModalOpen(true); 
@@ -865,20 +919,27 @@ export function EditMachine() {
         </div>
       </div>
 
-      <div className="flex justify-end gap-4 w-full border-t border-gray-100 pt-6 px-4 sm:px-8 pb-4 sm:pb-8">
+      <div className="flex justify-end items-center gap-4 w-full border-t border-gray-100 pt-6 px-4 sm:px-8 pb-4 sm:pb-8">
+        {!canEditCurrentTab && permittedTabs.length > 0 && (
+          <div className="mr-auto text-xs font-semibold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
+            Read-only mode for {activeTab} tab
+          </div>
+        )}
         <button 
           onClick={() => navigate(-1)}
           className="px-10 py-2.5 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-semibold text-sm transition-colors shadow-sm"
         >
           Back
         </button>
-        <button 
-          onClick={handleSave}
-          disabled={saving}
-          className="px-10 py-2.5 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors shadow-sm disabled:opacity-50"
-        >
-          {saving ? 'Saving...' : 'Save'}
-        </button>
+        {canEditCurrentTab && (
+          <button 
+            onClick={handleSave}
+            disabled={saving}
+            className="px-10 py-2.5 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors shadow-sm disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        )}
       </div>
 
       {/* Locations Modal */}
@@ -1426,7 +1487,7 @@ export function EditMachine() {
                         buildingId: (formData as any).locationType === 'building' || (formData as any).locationType === 'society' ? (formData.locationId ? parseInt(formData.locationId) : undefined) : undefined,
                         latitude: formData.latitude,
                         longitude: formData.longitude,
-                        costCenter: formData.costCenter,
+                        costCenter: formData.costCenter?.trim() || 'CC-MAINT-01',
                         headOfDepartment: formData.headOfDepartment,
                         machineOwner: formData.machineOwner,
                         notes: formData.notes,

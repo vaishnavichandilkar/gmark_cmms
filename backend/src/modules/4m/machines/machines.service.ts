@@ -1,9 +1,31 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { CodeSequenceService } from '../../../common/services/code-sequence.service';
 
 @Injectable()
 export class MachinesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly codeSequenceService: CodeSequenceService,
+  ) {}
+
+  async getNextMachineCode() {
+    const nextCode = await this.codeSequenceService.previewNextCode('MACHINE');
+    return { nextCode };
+  }
+
+  async getNextAssetCode() {
+    const nextCode = await this.codeSequenceService.previewNextCode('ASSET');
+    return { nextCode };
+  }
+
+  async getNextCodes() {
+    const [nextMachineCode, nextAssetCode] = await Promise.all([
+      this.codeSequenceService.previewNextCode('MACHINE'),
+      this.codeSequenceService.previewNextCode('ASSET'),
+    ]);
+    return { nextMachineCode, nextAssetCode, nextCode: nextMachineCode };
+  }
 
   async getAllMachines(jwtUser: any) {
     // Fetch latest user data from DB to ensure we have mainFacilityId which might be missing in older JWTs
@@ -16,15 +38,28 @@ export class MachinesService {
 
     if (user.role === 'SUPER_ADMIN') {
       whereClause = {};
+    } else if (user.deviceId) {
+      whereClause = { deviceId: user.deviceId };
+    } else if (user.facilityId) {
+      const childFacilities = await this.prisma.facility.findMany({
+        where: { parentFacilityId: user.facilityId },
+        select: { id: true },
+      });
+      const facilityIds = [user.facilityId, ...childFacilities.map(f => f.id)];
+      whereClause = {
+        facilityId: { in: facilityIds },
+      };
     } else if (user.mainFacilityId) {
       // If user is assigned to a main facility, show machines in facilities under that main facility
       whereClause = {
         facility: { mainFacilityId: user.mainFacilityId },
       };
     } else if (user.role === 'SOCIETY_ADMIN') {
-      whereClause = {
-        building: { societyId: user.societyId },
-      };
+      if (user.societyId) {
+        whereClause = {
+          building: { societyId: user.societyId },
+        };
+      }
     } else {
       whereClause = { OR: [] };
       if (user.employee) {
@@ -104,10 +139,21 @@ export class MachinesService {
     let whereClause: any = { id };
 
     if (user.role !== 'SUPER_ADMIN') {
-      if (user.mainFacilityId) {
+      if (user.deviceId) {
+        whereClause.deviceId = user.deviceId;
+      } else if (user.facilityId) {
+        const childFacilities = await this.prisma.facility.findMany({
+          where: { parentFacilityId: user.facilityId },
+          select: { id: true },
+        });
+        const facilityIds = [user.facilityId, ...childFacilities.map(f => f.id)];
+        whereClause.facilityId = { in: facilityIds };
+      } else if (user.mainFacilityId) {
         whereClause.facility = { mainFacilityId: user.mainFacilityId };
       } else if (user.role === 'SOCIETY_ADMIN') {
-        whereClause.building = { societyId: user.societyId };
+        if (user.societyId) {
+          whereClause.building = { societyId: user.societyId };
+        }
       } else {
         const orConditions = [];
         if (user.employee) {
@@ -164,6 +210,44 @@ export class MachinesService {
       }
     }
 
+    // Auto-generate Machine Code if empty or advance sequence if previewed code was used
+    let realMachineCode = data.machineCode ? data.machineCode.trim() : '';
+    const nextMachinePreview = await this.codeSequenceService.previewNextCode('MACHINE');
+
+    if (!realMachineCode || realMachineCode === nextMachinePreview) {
+      realMachineCode = await this.codeSequenceService.generateNextCode('MACHINE');
+    } else if (realMachineCode.startsWith('MCH')) {
+      const num = parseInt(realMachineCode.replace(/^\D+/, ''), 10);
+      if (!isNaN(num)) {
+        const seq = await this.prisma.codeSequence.findUnique({ where: { id: 'MACHINE' } });
+        if (seq && seq.lastValue < num) {
+          await this.prisma.codeSequence.update({
+            where: { id: 'MACHINE' },
+            data: { lastValue: num },
+          });
+        }
+      }
+    }
+
+    // Auto-generate Asset Code if empty or advance sequence if previewed code was used
+    let realAssetCode = data.assetCode ? data.assetCode.trim() : '';
+    const nextAssetPreview = await this.codeSequenceService.previewNextCode('ASSET');
+
+    if (!realAssetCode || realAssetCode === nextAssetPreview) {
+      realAssetCode = await this.codeSequenceService.generateNextCode('ASSET');
+    } else if (realAssetCode.startsWith('AST')) {
+      const num = parseInt(realAssetCode.replace(/^\D+/, ''), 10);
+      if (!isNaN(num)) {
+        const seq = await this.prisma.codeSequence.findUnique({ where: { id: 'ASSET' } });
+        if (seq && seq.lastValue < num) {
+          await this.prisma.codeSequence.update({
+            where: { id: 'ASSET' },
+            data: { lastValue: num },
+          });
+        }
+      }
+    }
+
     const machine = await this.prisma.machine.create({
       data: {
         name: data.name,
@@ -173,16 +257,16 @@ export class MachinesService {
         machineType: data.machineType || data.machineCategory || null,
         company: data.company,
         maintenanceHead: data.maintenanceHead,
-        machineCode: data.machineCode,
+        machineCode: realMachineCode,
         serialNumber: data.serialNumber,
         make: data.make,
         modelNumber: data.modelNumber,
         machineCategory: data.machineCategory,
         machineSubCategory: data.machineSubCategory,
         description: data.description,
-        assetCode: data.assetCode,
+        assetCode: realAssetCode,
         isLocationPart: data.isLocationPart,
-        costCenter: data.costCenter,
+        costCenter: data.costCenter?.trim() || 'CC-MAINT-01',
         headOfDepartment: data.headOfDepartment,
         machineOwner: data.machineOwner,
         latitude: data.latitude,
@@ -238,7 +322,7 @@ export class MachinesService {
         description: data.description,
         assetCode: data.assetCode,
         isLocationPart: data.isLocationPart,
-        costCenter: data.costCenter,
+        costCenter: data.costCenter !== undefined ? (data.costCenter?.trim() || 'CC-MAINT-01') : undefined,
         headOfDepartment: data.headOfDepartment,
         machineOwner: data.machineOwner,
         latitude: data.latitude,
@@ -368,5 +452,97 @@ export class MachinesService {
 
     if (!machine) throw new NotFoundException(`Machine #${id} not found`);
     return machine.checkpoints;
+  }
+
+  async moveMachine(id: number, target: { targetType: 'facility' | 'building' | 'machine' | 'device'; targetId: number }) {
+    const machine = await this.prisma.machine.findUnique({
+      where: { id },
+    });
+    if (!machine) {
+      throw new NotFoundException(`Machine with ID ${id} not found`);
+    }
+
+    if (target.targetType === 'facility') {
+      const facility = await this.prisma.facility.findUnique({
+        where: { id: target.targetId },
+      });
+      if (!facility) {
+        throw new NotFoundException(`Facility with ID ${target.targetId} not found`);
+      }
+
+      return this.prisma.machine.update({
+        where: { id },
+        data: {
+          facilityId: target.targetId,
+          buildingId: null,
+          parentMachineId: null,
+          company: String(facility.mainFacilityId),
+          isLocationPart: false,
+        },
+      });
+    } else if (target.targetType === 'building') {
+      const building = await this.prisma.building.findUnique({
+        where: { id: target.targetId },
+      });
+      if (!building) {
+        throw new NotFoundException(`Building with ID ${target.targetId} not found`);
+      }
+
+      return this.prisma.machine.update({
+        where: { id },
+        data: {
+          buildingId: target.targetId,
+          facilityId: null,
+          parentMachineId: null,
+          isLocationPart: false,
+        },
+      });
+    } else if (target.targetType === 'machine' || target.targetType === 'device') {
+      if (id === target.targetId) {
+        throw new BadRequestException('Cannot move a machine under itself');
+      }
+
+      const targetMachine = await this.prisma.machine.findUnique({
+        where: { id: target.targetId },
+      });
+      if (!targetMachine) {
+        throw new NotFoundException(`Target machine with ID ${target.targetId} not found`);
+      }
+
+      // Check circular reference
+      const isDescendant = await this.checkIsMachineDescendant(target.targetId, id);
+      if (isDescendant) {
+        throw new BadRequestException('Cannot move a machine under one of its own sub-machines');
+      }
+
+      return this.prisma.machine.update({
+        where: { id },
+        data: {
+          parentMachineId: target.targetId,
+          facilityId: targetMachine.facilityId,
+          buildingId: targetMachine.buildingId,
+          company: targetMachine.company,
+          isLocationPart: true,
+        },
+      });
+    } else {
+      throw new BadRequestException(`Invalid targetType: ${target.targetType}`);
+    }
+  }
+
+  private async checkIsMachineDescendant(potentialChildId: number, ancestorId: number): Promise<boolean> {
+    let currentId: number | null = potentialChildId;
+    const visited = new Set<number>();
+    while (currentId !== null) {
+      if (currentId === ancestorId) return true;
+      if (visited.has(currentId)) break;
+      visited.add(currentId);
+      const curr = await this.prisma.machine.findUnique({
+        where: { id: currentId },
+        select: { parentMachineId: true },
+      });
+      currentId = curr?.parentMachineId || null;
+    }
+    return false;
   }
 }

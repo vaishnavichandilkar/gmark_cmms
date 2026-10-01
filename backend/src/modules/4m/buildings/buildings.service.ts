@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 
 @Injectable()
@@ -8,15 +8,23 @@ export class BuildingsService {
   async findAll(user: any, societyId?: number) {
     const whereClause: any = {};
 
-    if (user.role === 'SUPER_ADMIN') {
+    if (user.role === 'SUPER_ADMIN' || !user.societyId) {
       if (societyId !== undefined) {
         whereClause.societyId = societyId;
       }
     } else if (user.role === 'SOCIETY_ADMIN') {
-      whereClause.societyId = user.societyId;
+      if (societyId !== undefined) {
+        whereClause.societyId = societyId;
+      } else if (user.societyId) {
+        whereClause.societyId = user.societyId;
+      }
     } else {
-      whereClause.societyId = user.societyId;
-      whereClause.id = { in: user.buildingIds || [] };
+      if (user.societyId) {
+        whereClause.societyId = user.societyId;
+      }
+      if (user.buildingIds && user.buildingIds.length > 0) {
+        whereClause.id = { in: user.buildingIds };
+      }
     }
 
     const buildings = await this.prisma.building.findMany({
@@ -34,6 +42,7 @@ export class BuildingsService {
       name: b.name,
       info: b.info,
       societyId: b.societyId,
+      mainFacilityId: b.mainFacilityId,
       deviceCount: b._count.devices,
     }));
   }
@@ -119,12 +128,52 @@ export class BuildingsService {
 
   async update(
     id: number,
-    data: { name?: string; info?: string; societyId?: number },
+    data: { name?: string; info?: string; societyId?: number | null; mainFacilityId?: number | null },
   ) {
     await this.findOne(id);
     return this.prisma.building.update({
       where: { id },
       data,
     });
+  }
+
+  async moveBuilding(id: number, target: { targetType: 'society' | 'mainFacility'; targetId: number }) {
+    await this.findOne(id);
+
+    if (target.targetType === 'society') {
+      const society = await this.prisma.society.findUnique({ where: { id: target.targetId } });
+      if (!society) {
+        throw new NotFoundException(`Society with ID ${target.targetId} not found`);
+      }
+      return this.prisma.building.update({
+        where: { id },
+        data: {
+          societyId: target.targetId,
+          mainFacilityId: null,
+        },
+      });
+    } else if (target.targetType === 'mainFacility') {
+      const mainFacility = await this.prisma.mainFacility.findUnique({ where: { id: target.targetId } });
+      if (!mainFacility) {
+        throw new NotFoundException(`Main Facility with ID ${target.targetId} not found`);
+      }
+      const updated = await this.prisma.building.update({
+        where: { id },
+        data: {
+          mainFacilityId: target.targetId,
+          societyId: null,
+        },
+      });
+
+      // Also update machines inside this building to reflect new company
+      await this.prisma.machine.updateMany({
+        where: { buildingId: id },
+        data: { company: String(target.targetId) },
+      });
+
+      return updated;
+    } else {
+      throw new BadRequestException(`Invalid targetType: ${target.targetType}`);
+    }
   }
 }

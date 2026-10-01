@@ -49,6 +49,10 @@ model User {
   employee        Employee?        @relation(fields: [employeeId], references: [id], onDelete: SetNull)
   mainFacilityId  Int?
   mainFacility    MainFacility?    @relation(fields: [mainFacilityId], references: [id], onDelete: SetNull)
+  facilityId      Int?
+  facility        Facility?        @relation(fields: [facilityId], references: [id], onDelete: SetNull)
+  deviceId        String?
+  deviceName      String?
   registration    Registration?
   buildings       UserBuilding[]
   userPermissions UserPermission[]
@@ -98,14 +102,16 @@ model AuditLog {
 }
 
 model Building {
-  id        Int            @id @default(autoincrement())
-  name      String
-  info      String?        @default("0F - 0 flats")
-  societyId Int
-  society   Society        @relation(fields: [societyId], references: [id], onDelete: Cascade)
-  devices   Device[]
-  machines  Machine[]
-  users     UserBuilding[]
+  id             Int           @id @default(autoincrement())
+  name           String
+  info           String?       @default("0F - 0 flats")
+  societyId      Int?
+  society        Society?      @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  mainFacilityId Int?
+  mainFacility   MainFacility? @relation(fields: [mainFacilityId], references: [id], onDelete: Cascade)
+  devices        Device[]
+  machines       Machine[]
+  users          UserBuilding[]
 }
 
 model Device {
@@ -129,6 +135,12 @@ model Device {
   latestData Json?
   lastSeen   DateTime?
 
+  // Historical Logging Configuration
+  historyEnabled  Boolean   @default(false)
+  historyMode     String    @default("Time-based") // 'Time-based' | 'Conditional'
+  historyInterval String    @default("minute")     // 'minute' | 'hour' | 'day'
+  lastHistoryAt   DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -138,10 +150,14 @@ model Device {
 }
 
 model DeviceSnapshot {
-  id        Int      @id @default(autoincrement())
-  deviceId  String
-  payload   Json
-  createdAt DateTime @default(now())
+  id          Int      @id @default(autoincrement())
+  deviceId    String
+  historyMode String?  @default("Time-based")
+  payload     Json
+  createdAt   DateTime @default(now())
+
+  @@index([deviceId, createdAt])
+  @@index([createdAt])
 }
 
 model DeviceState {
@@ -323,6 +339,7 @@ model MainFacility {
   city             String?
   users            User[]
   facilities       Facility[]
+  buildings        Building[]
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 }
@@ -354,6 +371,7 @@ model Facility {
   mainFacilityId Int
   mainFacility   MainFacility @relation(fields: [mainFacilityId], references: [id], onDelete: Cascade)
   machines       Machine[]
+  users          User[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

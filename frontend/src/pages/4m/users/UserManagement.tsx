@@ -75,11 +75,11 @@ export function UserManagement() {
   };
 
   const handleExport = (format: 'pdf' | 'excel') => {
-    const headers = ['Name', 'Designation', 'Facility Name', 'Official Email', 'Department', 'Date of Joining', 'Status'];
+    const headers = ['Name', 'Role / Designation', 'Facility Name', 'Official Email', 'Department', 'Date of Joining', 'Status'];
     const rows = filteredUsers.map(user => [
       user.employee?.fullName || (user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : user.username),
-      user.employee?.role || user.role || '-',
-      user.mainFacility?.mainFacilityName || '-',
+      user.role || user.employee?.designation || '-',
+      user.deviceName || user.facility?.facilityName || user.mainFacility?.mainFacilityName || (user.buildings && user.buildings.length > 0 ? user.buildings.map((b: any) => b.building?.name || b.name).join(', ') : (user.society?.name || '-')),
       user.employee?.officialEmail || user.email || '-',
       user.employee?.department || '-',
       user.employee?.dateOfJoining ? new Date(user.employee.dateOfJoining).toLocaleDateString('en-GB').replace(/\//g, '-') : '-',
@@ -101,14 +101,16 @@ export function UserManagement() {
     
     const searchString = searchQuery.toLowerCase();
     const name = (user.employee?.fullName || (user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : user.username)).toLowerCase();
-    const role = (user.employee?.role || user.role || '').toLowerCase();
-    const facility = (user.mainFacility?.mainFacilityName || '').toLowerCase();
+    const role = (user.role || user.employee?.designation || '').toLowerCase();
+    const facility = (user.facility?.facilityName || user.mainFacility?.mainFacilityName || (user.buildings ? user.buildings.map((b: any) => b.building?.name || '').join(' ') : '')).toLowerCase();
+    const device = (user.deviceName || user.deviceId || '').toLowerCase();
     const email = (user.employee?.officialEmail || user.email || '').toLowerCase();
     const dept = (user.employee?.department || '').toLowerCase();
 
     return name.includes(searchString) || 
            role.includes(searchString) || 
            facility.includes(searchString) || 
+           device.includes(searchString) ||
            email.includes(searchString) || 
            dept.includes(searchString);
   });
@@ -180,8 +182,12 @@ export function UserManagement() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {listUser.employee?.fullName || (listUser.firstName || listUser.lastName ? `${listUser.firstName || ''} ${listUser.lastName || ''}`.trim() : listUser.username)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">{listUser.employee?.role || listUser.role}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{listUser.mainFacility?.mainFacilityName || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {listUser.employee?.designation || (listUser.role === 'BUILDING_ADMIN' ? 'Building Admin' : listUser.role === 'SOCIETY_ADMIN' ? 'Society Admin' : listUser.role === 'SUPER_ADMIN' ? 'Super Admin' : listUser.role || '-')}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {listUser.deviceName || listUser.facility?.facilityName || listUser.mainFacility?.mainFacilityName || (listUser.buildings && listUser.buildings.length > 0 ? listUser.buildings.map((b: any) => b.building?.name || b.name).join(', ') : (listUser.society?.name || '-'))}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">{listUser.employee?.officialEmail || listUser.email}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{listUser.employee?.department || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap">

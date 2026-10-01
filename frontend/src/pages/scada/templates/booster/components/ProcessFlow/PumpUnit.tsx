@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, Power, Clock, Loader2, ShieldAlert } from 'lucide-react';
+import { Zap, Power, Clock } from 'lucide-react';
 import { AnimatedPump } from './AnimatedPump';
 
 interface PumpUnitProps {
@@ -8,12 +8,8 @@ interface PumpUnitProps {
   currentR: number;
   currentY: number;
   currentB: number;
-  mode: 'AUTO' | 'MANUAL' | 'OFF';
+  mode?: 'AUTO' | 'MANUAL' | 'OFF';
   runOnTime: string;
-  onToggle?: () => void;
-  onModeChange?: (mode: 'AUTO' | 'MANUAL' | 'OFF') => void;
-  isPending?: boolean;
-  isWaterAvailable?: boolean;
 }
 
 export const PumpUnit: React.FC<PumpUnitProps> = ({
@@ -22,16 +18,11 @@ export const PumpUnit: React.FC<PumpUnitProps> = ({
   currentR,
   currentY,
   currentB,
-  mode,
+  mode = 'AUTO',
   runOnTime,
-  onToggle,
-  onModeChange,
-  isPending = false,
-  isWaterAvailable = true,
 }) => {
   const isRunning = status === 'RUNNING';
   const isFault = status === 'FAULT';
-  const isStartBlocked = !isRunning && !isWaterAvailable;
 
   const totalCurrent = (currentR + currentY + currentB).toFixed(1);
   const powerKw = ((currentR + currentY + currentB) * 0.23).toFixed(1); // placeholder calc for kW
@@ -87,27 +78,17 @@ export const PumpUnit: React.FC<PumpUnitProps> = ({
             </span>
           </div>
           
-          {/* Mode Selector - Segmented Control */}
-          <div className="flex bg-[#f8f9fa] p-1 rounded-lg gap-1 border border-gray-100 shadow-sm relative h-full items-center">
-            <button
-              onClick={() => onModeChange?.('AUTO')}
-              className={`px-2 py-1 text-[10px] font-bold rounded-md transition-all duration-300 ${mode === 'AUTO' ? 'bg-[#00a651] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`}
-            >
-              AUTO
-            </button>
-            <button
-              onClick={() => onModeChange?.('OFF')}
-              className={`px-2 py-1 text-[10px] font-bold rounded-md transition-all duration-300 ${mode === 'OFF' ? 'bg-[#00a651] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`}
-            >
-              OFF
-            </button>
-            <button
-              onClick={() => onModeChange?.('MANUAL')}
-              className={`px-2 py-1 text-[10px] font-bold rounded-md transition-all duration-300 ${mode === 'MANUAL' ? 'bg-[#00a651] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`}
-            >
-              MANUAL
-            </button>
-          </div>
+          {/* Read-Only Mode Indicator */}
+          {mode && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#f8f9fa] rounded-lg border border-gray-200 shadow-sm">
+              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Mode</span>
+              <span className={`text-[10px] font-extrabold uppercase ${
+                mode === 'AUTO' ? 'text-[#00a651]' : mode === 'MANUAL' ? 'text-amber-600' : 'text-gray-500'
+              }`}>
+                {mode}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Pump Image */}
@@ -146,7 +127,7 @@ export const PumpUnit: React.FC<PumpUnitProps> = ({
         </div>
 
         {/* Current Amps Row */}
-        <div className="w-full flex flex-col items-center relative z-10 mb-3">
+        <div className="w-full flex flex-col items-center relative z-10 mb-1">
           <span className="text-[9px] font-extrabold text-gray-700 uppercase tracking-widest mb-1.5 bg-white/80 px-2 py-0.5 rounded-full backdrop-blur-sm">Current Amps</span>
           <div className="flex justify-between w-full px-6">
             <div className="flex flex-col items-center gap-0.5 bg-white/60 px-3 py-1 rounded-lg backdrop-blur-sm">
@@ -162,46 +143,6 @@ export const PumpUnit: React.FC<PumpUnitProps> = ({
               <span className="text-black font-extrabold text-sm">{currentB}</span>
             </div>
           </div>
-        </div>
-
-        {/* Industrial Action Button */}
-        <div className="w-full flex justify-center relative z-10">
-          <button
-            onClick={onToggle}
-            disabled={isPending}
-            title={isStartBlocked ? 'Low Suction Water Level - Pumps Disabled (Dry-run protection)' : undefined}
-            className={`w-full h-9 rounded-xl font-extrabold text-xs tracking-wider transition-all duration-300 shadow-md flex items-center justify-center gap-2 ${
-              isPending
-                ? 'bg-gray-400 text-white cursor-wait opacity-90'
-                : isRunning
-                ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white shadow-red-500/20 active:scale-98 cursor-pointer'
-                : isStartBlocked
-                ? 'bg-gray-100 text-gray-400 border border-gray-300 hover:bg-gray-100 shadow-none cursor-pointer'
-                : 'bg-gradient-to-r from-[#00a651] to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-emerald-500/20 active:scale-98 cursor-pointer'
-            }`}
-          >
-            {isPending ? (
-              <>
-                <Loader2 size={15} className="animate-spin" />
-                <span>TRANSMITTING...</span>
-              </>
-            ) : isRunning ? (
-              <>
-                <Power size={14} className="stroke-[2.5]" />
-                <span>STOP PUMP</span>
-              </>
-            ) : isStartBlocked ? (
-              <>
-                <ShieldAlert size={14} className="text-amber-500 stroke-[2.5]" />
-                <span className="text-gray-500">DISABLED (LOW WATER)</span>
-              </>
-            ) : (
-              <>
-                <Power size={14} className="stroke-[2.5]" />
-                <span>START PUMP</span>
-              </>
-            )}
-          </button>
         </div>
 
       </div>

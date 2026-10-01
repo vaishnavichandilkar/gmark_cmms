@@ -42,26 +42,99 @@ export function DashboardPage() {
   const [dismissedSelection, setDismissedSelection] = useState<string | null>(null);
   const hasInitialized = React.useRef(false);
 
-  // Initialize from saved default once data is loaded
+  // Initialize from saved default or user's assigned scope once data is loaded
   useEffect(() => {
-    if (!hasInitialized.current && machines.length > 0) {
-      hasInitialized.current = true;
+    if (!hasInitialized.current && (machines.length > 0 || devices.length > 0 || facilities.length > 0)) {
       if (savedDefault) {
         // Find valid assets (either in machines or devices)
         const validAssets: string[] = [];
-        savedDefault.machineIds.forEach((id: string) => {
+        savedDefault.machineIds?.forEach((id: string) => {
           if (id.startsWith('m_') && machines.find(m => m.id === Number(id.replace('m_','')))) validAssets.push(id);
           if (id.startsWith('d_') && devices.find(d => d.id === Number(id.replace('d_','')))) validAssets.push(id);
         });
 
         if (validAssets.length > 0) {
+          hasInitialized.current = true;
           setSelectedMainFacilityId(savedDefault.mainFacilityId);
           setSelectedFacilityId(savedDefault.facilityId);
           setSelectedMachineIds(validAssets);
+          return;
         }
       }
+
+      // If user is assigned to a device (e.g. Mahendra Powar):
+      if (user?.deviceId) {
+        const targetMachine = machines.find(m => m.deviceId === user.deviceId || m.id?.toString() === user.deviceId);
+        const targetDevice = devices.find(d => d.deviceId === user.deviceId || d.id?.toString() === user.deviceId);
+        
+        const targetFacId = targetMachine?.facilityId || user.facilityId;
+        const targetFac = facilities.find(f => f.id === targetFacId);
+        const targetMfId = targetFac?.mainFacilityId || user.mainFacilityId;
+
+        if (targetMfId) setSelectedMainFacilityId(`mf_${targetMfId}`);
+        if (targetFacId) setSelectedFacilityId(`f_${targetFacId}`);
+
+        if (targetMachine) {
+          setSelectedMachineIds([`m_${targetMachine.id}`]);
+          hasInitialized.current = true;
+          return;
+        } else if (targetDevice) {
+          setSelectedMachineIds([`d_${targetDevice.id}`]);
+          hasInitialized.current = true;
+          return;
+        }
+      }
+
+      // If user is assigned to a facility (e.g. Shabaj Mujawar):
+      if (user?.facilityId) {
+        const targetFacId = Number(user.facilityId);
+        const targetFac = facilities.find(f => f.id === targetFacId);
+        const targetMfId = targetFac?.mainFacilityId || user.mainFacilityId;
+
+        if (targetMfId) setSelectedMainFacilityId(`mf_${targetMfId}`);
+        setSelectedFacilityId(`f_${targetFacId}`);
+
+        const facMachines = machines.filter(m => m.facilityId === targetFacId);
+        if (facMachines.length > 0) {
+          setSelectedMachineIds([`m_${facMachines[0].id}`]);
+        }
+        hasInitialized.current = true;
+        return;
+      }
+
+      // If user is assigned to a main facility (e.g. Vallabh Ghatge):
+      if (user?.mainFacilityId) {
+        const targetMfId = Number(user.mainFacilityId);
+        setSelectedMainFacilityId(`mf_${targetMfId}`);
+
+        const childFacs = facilities.filter(f => f.mainFacilityId === targetMfId);
+        if (childFacs.length > 0) {
+          setSelectedFacilityId(`f_${childFacs[0].id}`);
+          const facMachines = machines.filter(m => m.facilityId === childFacs[0].id);
+          if (facMachines.length > 0) {
+            setSelectedMachineIds([`m_${facMachines[0].id}`]);
+          }
+        }
+        hasInitialized.current = true;
+        return;
+      }
+
+      // Default fallback
+      if (mainFacilities.length > 0) {
+        const firstMf = mainFacilities[0];
+        setSelectedMainFacilityId(`mf_${firstMf.id}`);
+        const childFacs = facilities.filter(f => f.mainFacilityId === firstMf.id);
+        if (childFacs.length > 0) {
+          setSelectedFacilityId(`f_${childFacs[0].id}`);
+          const facMachines = machines.filter(m => m.facilityId === childFacs[0].id);
+          if (facMachines.length > 0) {
+            setSelectedMachineIds([`m_${facMachines[0].id}`]);
+          }
+        }
+        hasInitialized.current = true;
+      }
     }
-  }, [machines, devices, savedDefault]);
+  }, [machines, devices, facilities, mainFacilities, savedDefault, user]);
 
   // Prompt to save logic
   useEffect(() => {
@@ -150,53 +223,115 @@ export function DashboardPage() {
 
   useEffect(() => {
     Promise.all([
-      api.get('/main-facilities'),
-      api.get('/facilities'),
-      api.get('/societies'),
-      api.get('/buildings'),
-      api.get('/machines'),
-      api.get('/devices')
+      api.get('/main-facilities').catch(() => ({ data: [] })),
+      api.get('/facilities').catch(() => ({ data: [] })),
+      api.get('/societies').catch(() => ({ data: [] })),
+      api.get('/buildings').catch(() => ({ data: [] })),
+      api.get('/machines').catch(() => ({ data: [] })),
+      api.get('/devices').catch(() => ({ data: [] }))
     ]).then(([mfRes, fRes, sRes, bRes, mRes, dRes]) => {
-      setMainFacilities(mfRes.data);
-      setFacilities(fRes.data);
-      setSocieties(sRes.data);
-      setBuildings(bRes.data);
-      setMachines(mRes.data);
-      setDevices(dRes.data);
+      setMainFacilities(Array.isArray(mfRes.data) ? mfRes.data : []);
+      setFacilities(Array.isArray(fRes.data) ? fRes.data : []);
+      setSocieties(Array.isArray(sRes.data) ? sRes.data : []);
+      setBuildings(Array.isArray(bRes.data) ? bRes.data : []);
+      setMachines(Array.isArray(mRes.data) ? mRes.data : []);
+      setDevices(Array.isArray(dRes.data) ? dRes.data : []);
     }).catch(console.error);
-  }, []);
-
-  const isLimitedAccess = ['OPERATOR', 'VIEWER', 'BUILDING_ADMIN'].includes(user?.role);
-
-  const visibleFacilities = React.useMemo(() => {
-    if (isLimitedAccess && buildingIds && buildingIds.length > 0) {
-      return facilities.filter(f => buildingIds.includes(f.id));
-    }
-    return facilities;
-  }, [facilities, isLimitedAccess, buildingIds]);
+  }, [user]);
 
   const visibleMainFacilities = React.useMemo(() => {
-    if (isLimitedAccess && buildingIds && buildingIds.length > 0) {
-      const allowedMainFacilityIds = new Set(visibleFacilities.map(f => f.mainFacilityId));
-      return mainFacilities.filter(mf => allowedMainFacilityIds.has(mf.id));
+    if (user?.role === 'SUPER_ADMIN') {
+      return mainFacilities;
+    }
+    if (user?.deviceId) {
+      const targetMachine = machines.find(m => m.deviceId === user.deviceId || m.id?.toString() === user.deviceId);
+      const targetFacId = targetMachine?.facilityId || user.facilityId;
+      const targetFac = facilities.find(f => f.id === targetFacId);
+      const targetMfId = targetFac?.mainFacilityId || user.mainFacilityId;
+      if (targetMfId) {
+        return mainFacilities.filter(mf => mf.id === targetMfId);
+      }
+      return mainFacilities;
+    }
+    if (user?.facilityId) {
+      const targetFac = facilities.find(f => f.id === Number(user.facilityId));
+      const targetMfId = targetFac?.mainFacilityId || user.mainFacilityId;
+      if (targetMfId) {
+        return mainFacilities.filter(mf => mf.id === targetMfId);
+      }
+      return mainFacilities;
+    }
+    if (user?.mainFacilityId) {
+      return mainFacilities.filter(mf => mf.id === user.mainFacilityId);
+    }
+    if (user?.societyId || (buildingIds && buildingIds.length > 0)) {
+      return [];
     }
     return mainFacilities;
-  }, [mainFacilities, visibleFacilities, isLimitedAccess, buildingIds]);
+  }, [mainFacilities, facilities, machines, user, buildingIds]);
+
+  const visibleSocieties = React.useMemo(() => {
+    if (user?.role === 'SUPER_ADMIN') {
+      return societies;
+    }
+    if (user?.mainFacilityId || user?.facilityId || user?.deviceId) {
+      return [];
+    }
+    if (user?.societyId) {
+      return societies.filter(s => s.id === user.societyId);
+    }
+    if (buildingIds && buildingIds.length > 0) {
+      const allowedSocIds = new Set(buildings.filter(b => buildingIds.includes(b.id)).map(b => b.societyId));
+      return societies.filter(s => allowedSocIds.has(s.id));
+    }
+    return societies;
+  }, [societies, buildings, user, buildingIds]);
+
+  const visibleFacilities = React.useMemo(() => {
+    if (user?.role === 'SUPER_ADMIN') {
+      return facilities;
+    }
+    if (user?.deviceId) {
+      const targetMachine = machines.find(m => m.deviceId === user.deviceId || m.id?.toString() === user.deviceId);
+      const targetFacId = targetMachine?.facilityId || user.facilityId;
+      if (targetFacId) {
+        return facilities.filter(f => f.id === targetFacId);
+      }
+      return facilities;
+    }
+    if (user?.facilityId) {
+      const targetFacId = Number(user.facilityId);
+      const allowedFacilityIds = new Set<number>([targetFacId]);
+      let added = true;
+      while (added) {
+        added = false;
+        facilities.forEach((f: any) => {
+          if (f.parentFacilityId && allowedFacilityIds.has(f.parentFacilityId) && !allowedFacilityIds.has(f.id)) {
+            allowedFacilityIds.add(f.id);
+            added = true;
+          }
+        });
+      }
+      return facilities.filter(f => allowedFacilityIds.has(f.id));
+    }
+    if (user?.mainFacilityId) {
+      return facilities.filter(f => f.mainFacilityId === user.mainFacilityId);
+    }
+    return facilities;
+  }, [facilities, machines, user]);
 
   const visibleBuildings = React.useMemo(() => {
-    if (isLimitedAccess && buildingIds && buildingIds.length > 0) {
+    if (user?.role === 'SUPER_ADMIN') {
+      return buildings;
+    }
+    if (user?.societyId) {
+      return buildings.filter(b => b.societyId === user.societyId);
+    }
+    if (buildingIds && buildingIds.length > 0) {
       return buildings.filter(b => buildingIds.includes(b.id));
     }
     return buildings;
-  }, [buildings, isLimitedAccess, buildingIds]);
-
-  const visibleSocieties = React.useMemo(() => {
-    if (isLimitedAccess && buildingIds && buildingIds.length > 0) {
-      const allowedSocietyIds = new Set(visibleBuildings.map(b => b.societyId));
-      return societies.filter(s => allowedSocietyIds.has(s.id));
-    }
-    return societies;
-  }, [societies, visibleBuildings, isLimitedAccess, buildingIds]);
+  }, [buildings, user, buildingIds]);
 
   // Combined dropdown options
   const combinedMainOptions = React.useMemo(() => {
@@ -220,19 +355,23 @@ export function DashboardPage() {
   }, [selectedMainFacilityId, visibleFacilities, visibleBuildings]);
 
   const filteredMachines = React.useMemo(() => {
+    let result: any[] = [];
     if (!selectedFacilityId) return [];
     if (selectedFacilityId.startsWith('f_')) {
       const fId = Number(selectedFacilityId.replace('f_', ''));
-      return machines.filter(m => m.facilityId === fId).map(m => ({ ...m, uniqueId: `m_${m.id}` }));
-    }
-    if (selectedFacilityId.startsWith('b_')) {
+      result = machines.filter(m => m.facilityId === fId).map(m => ({ ...m, uniqueId: `m_${m.id}` }));
+    } else if (selectedFacilityId.startsWith('b_')) {
       const bId = Number(selectedFacilityId.replace('b_', ''));
       const bldgMachines = machines.filter(m => m.buildingId === bId).map(m => ({ ...m, uniqueId: `m_${m.id}` }));
       const bldgDevices = devices.filter(d => d.buildingId === bId).map(d => ({ ...d, uniqueId: `d_${d.id}` }));
-      return [...bldgMachines, ...bldgDevices];
+      result = [...bldgMachines, ...bldgDevices];
     }
-    return [];
-  }, [selectedFacilityId, machines, devices]);
+
+    if (user?.deviceId) {
+      result = result.filter(m => m.deviceId === user.deviceId || m.id?.toString() === user.deviceId);
+    }
+    return result;
+  }, [selectedFacilityId, machines, devices, user]);
   
   const getAssetDetails = (uniqueId: string) => {
     if (uniqueId.startsWith('m_')) {
