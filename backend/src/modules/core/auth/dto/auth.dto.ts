@@ -8,9 +8,81 @@ import {
   IsInt,
   IsArray,
   Matches,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
+
+export class CompanyDetailsDto {
+  @ApiProperty({ example: 'ABC Industries' })
+  @IsString()
+  @IsNotEmpty({ message: 'Please enter company name.' })
+  companyName: string;
+
+  @ApiProperty({ example: 'Manufacturing' })
+  @IsString()
+  @IsNotEmpty({ message: 'Please select business category.' })
+  businessCategory: string;
+
+  @ApiProperty({ example: '27ABCDE1234F1Z5' })
+  @IsString()
+  @IsNotEmpty({ message: 'Please enter a valid GST number.' })
+  @Matches(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, { message: 'Please enter a valid GST number.' })
+  gstNumber: string;
+
+  @ApiProperty({ example: '123 Business Address' })
+  @IsString()
+  @IsNotEmpty({ message: 'Please enter complete company address.' })
+  address: string;
+
+  @ApiProperty({ example: '411018' })
+  @IsString()
+  @IsNotEmpty({ message: 'Please enter a valid postal code.' })
+  postalCode: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  zipCode?: string;
+
+  @ApiProperty({ example: 'Pune' })
+  @IsString()
+  @IsNotEmpty({ message: 'Please enter city.' })
+  city: string;
+
+  @ApiProperty({ example: 'Maharashtra' })
+  @IsString()
+  @IsNotEmpty({ message: 'Please enter state.' })
+  state: string;
+
+  @ApiProperty({ example: 'India' })
+  @IsString()
+  @IsNotEmpty({ message: 'Please select country.' })
+  country: string;
+}
+
+export class PersonalDetailsDto {
+  @ApiProperty({ example: 'User Name' })
+  @IsString()
+  @IsNotEmpty({ message: 'Please enter your full name.' })
+  fullName: string;
+
+  @ApiProperty({ example: 'Director' })
+  @IsString()
+  @IsNotEmpty({ message: 'Please enter your designation.' })
+  designation: string;
+
+  @ApiProperty({ example: 'user@example.com' })
+  @IsEmail({}, { message: 'Please enter a valid email address.' })
+  @IsNotEmpty({ message: 'Please enter a valid email address.' })
+  email: string;
+
+  @ApiProperty({ example: '+919876543210' })
+  @IsString()
+  @IsNotEmpty({ message: 'Please enter a valid phone number.' })
+  phoneNumber: string;
+}
 
 export class RegisterDto {
   @ApiProperty({ example: 'johndoe' })
@@ -65,63 +137,97 @@ export class RegisterDto {
 }
 
 export class SignupDto {
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CompanyDetailsDto)
+  company?: CompanyDetailsDto;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PersonalDetailsDto)
+  personal?: PersonalDetailsDto;
+
+  @ApiProperty({ required: false })
   @IsString()
-  @IsNotEmpty()
-  fullName: string;
+  @IsOptional()
+  companyName?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  businessCategory?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  gstNumber?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  address?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  postalCode?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  zipCode?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  city?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  state?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  country?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  fullName?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  designation?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  email?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  workEmail?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  phoneNumber?: string;
 
   @ApiProperty()
-  @IsEmail()
-  @IsNotEmpty()
-  workEmail: string;
-
-  @ApiProperty()
   @IsString()
-  @IsNotEmpty()
-  @Matches(/^[0-9]{10}$/, { message: 'Phone number must be exactly 10 digits' })
-  phoneNumber: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Password is required.' })
   password: string;
 
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  companyName: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  @Matches(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, { message: 'Invalid GST format. Example: 22AAAAA0000A1Z5' })
-  gstNumber: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  city: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  state: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  country: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  @Matches(/^[0-9]{6}$/, { message: 'Zip code must be exactly 6 digits' })
-  zipCode: string;
-
-  @ApiProperty()
+  @ApiProperty({ required: false })
   @IsBoolean()
-  @IsNotEmpty()
-  termsAccepted: boolean;
+  @IsOptional()
+  termsAccepted?: boolean;
 }
 
 export class LoginDto {

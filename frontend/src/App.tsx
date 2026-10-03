@@ -39,6 +39,8 @@ import { ScheduleMaintenanceDashboard } from './pages/4m/schedules/ScheduleMaint
 import { AddSchedulePage } from './pages/4m/schedules/AddSchedulePage';
 import { SparesListPage } from './pages/4m/spares/SparesListPage';
 import { SpareDetailsPage } from './pages/4m/spares/SpareDetailsPage';
+import { SuppliersListPage } from './pages/4m/suppliers/SuppliersListPage';
+import { AddSupplierPage } from './pages/4m/suppliers/AddSupplierPage';
 
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -667,6 +669,47 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <SpareDetailsPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Suppliers Management Routes */}
+          <Route
+            path="/suppliers"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <SuppliersListPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/suppliers/new"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AddSupplierPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/suppliers/edit/:id"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AddSupplierPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/master/supplier"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <SuppliersListPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }

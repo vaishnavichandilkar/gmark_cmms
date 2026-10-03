@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChevronDown, X, Building2, Plus } from 'lucide-react';
 import { api } from '../../lib/api';
 import { AssetTree } from './AssetTree';
@@ -37,6 +38,7 @@ export function FacilityHierarchyPicker({
   scopeByUser = false,
   onEmptyStateAdd
 }: FacilityHierarchyPickerProps) {
+  const navigate = useNavigate();
   const { user } = useSelector((state: RootState) => state.auth);
   const [isOpen, setIsOpen] = useState(false);
   const [treeData, setTreeData] = useState<TreeNodeData[]>([]);
@@ -426,9 +428,13 @@ export function FacilityHierarchyPicker({
                       setIsOpen(false);
                       if (onEmptyStateAdd) {
                         onEmptyStateAdd();
+                      } else if (selectableTypes?.includes('mainFacility') || name === 'company') {
+                        navigate('/master/main-facility/new');
+                      } else {
+                        navigate('/master/facility/new');
                       }
                     }}
-                    className="px-4 py-2 bg-[#00a651] text-white text-sm font-medium rounded-lg hover:bg-[#009040] transition-colors flex items-center gap-2"
+                    className="px-4 py-2 bg-[#00a651] text-white text-sm font-medium rounded-lg hover:bg-[#009040] transition-colors flex items-center gap-2 cursor-pointer"
                   >
                     <Plus size={16} /> Add Facility
                   </button>

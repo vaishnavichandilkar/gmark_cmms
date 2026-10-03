@@ -72,67 +72,158 @@ export class AuthService {
   }
 
   async signup(dto: SignupDto) {
-    if (!validatePasswordStrength(dto.password)) {
+    // Extract company fields
+    const companyName = (dto.company?.companyName || dto.companyName || '').trim();
+    const businessCategory = (dto.company?.businessCategory || dto.businessCategory || '').trim();
+    const gstNumber = (dto.company?.gstNumber || dto.gstNumber || '').trim().toUpperCase();
+    const address = (dto.company?.address || dto.address || '').trim();
+    const postalCode = (dto.company?.postalCode || dto.postalCode || dto.company?.zipCode || dto.zipCode || '').trim();
+    const city = (dto.company?.city || dto.city || '').trim();
+    const state = (dto.company?.state || dto.state || '').trim();
+    const country = (dto.company?.country || dto.country || 'India').trim();
+
+    // Extract personal fields
+    const fullName = (dto.personal?.fullName || dto.fullName || '').trim();
+    const designation = (dto.personal?.designation || dto.designation || '').trim();
+    const email = (dto.personal?.email || dto.email || dto.workEmail || '').trim().toLowerCase();
+    const phoneNumber = (dto.personal?.phoneNumber || dto.phoneNumber || '').trim();
+
+    const password = dto.password;
+    const termsAccepted = dto.termsAccepted !== undefined ? dto.termsAccepted : true;
+
+    // 1. Mandatory Field Validations with exact error messages
+    if (!companyName) {
+      throw new BadRequestException('Please enter company name.');
+    }
+    if (!businessCategory) {
+      throw new BadRequestException('Please select business category.');
+    }
+    if (!gstNumber) {
+      throw new BadRequestException('Please enter a valid GST number.');
+    }
+
+    const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+    if (!gstRegex.test(gstNumber)) {
+      throw new BadRequestException('Please enter a valid GST number.');
+    }
+
+    if (!address) {
+      throw new BadRequestException('Please enter complete company address.');
+    }
+    if (!postalCode) {
+      throw new BadRequestException('Please enter a valid postal code.');
+    }
+
+    if (country.toLowerCase() === 'india' && !/^\d{6}$/.test(postalCode)) {
+      throw new BadRequestException('Please enter a valid postal code.');
+    }
+
+    if (!city) {
+      throw new BadRequestException('Please enter city.');
+    }
+    if (!state) {
+      throw new BadRequestException('Please enter state.');
+    }
+    if (!country) {
+      throw new BadRequestException('Please select country.');
+    }
+
+    if (!fullName) {
+      throw new BadRequestException('Please enter your full name.');
+    }
+    if (!designation) {
+      throw new BadRequestException('Please enter your designation.');
+    }
+    if (!email) {
+      throw new BadRequestException('Please enter a valid email address.');
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new BadRequestException('Please enter a valid email address.');
+    }
+
+    if (!phoneNumber) {
+      throw new BadRequestException('Please enter a valid phone number.');
+    }
+
+    if (!password) {
+      throw new BadRequestException('Password is required.');
+    }
+
+    if (!validatePasswordStrength(password)) {
       throw new BadRequestException(
         'Password must be at least 8 characters long and contain uppercase, lowercase, numbers, and special characters.',
       );
     }
 
+    if (termsAccepted === false) {
+      throw new BadRequestException('Please accept Terms & Conditions.');
+    }
+
+    // 2. Database level duplicate checks
     const existingUser = await this.prisma.user.findFirst({
       where: {
-        OR: [{ email: dto.workEmail }, { username: dto.workEmail }],
+        OR: [{ email }, { username: email }],
       },
     });
 
     if (existingUser) {
-      throw new BadRequestException('Email already exists');
+      throw new BadRequestException('This email is already registered.');
     }
 
     const existingRegistration = await this.prisma.registration.findFirst({
-      where: { gstNumber: dto.gstNumber },
+      where: { gstNumber },
     });
 
     if (existingRegistration) {
-      throw new BadRequestException('GST number already registered. Please use a different GST number.');
+      throw new BadRequestException('This GST number is already registered.');
     }
 
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    // 3. Database persistence with transaction
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const [firstName, ...lastNameParts] = fullName.split(' ');
+    const lastName = lastNameParts.join(' ') || null;
 
-    const [firstName, ...lastNameParts] = dto.fullName.split(' ');
-    const lastName = lastNameParts.join(' ');
+    const result = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          username: email,
+          email: email,
+          mobileNumber: phoneNumber,
+          password: hashedPassword,
+          role: 'SUPER_ADMIN',
+          firstName,
+          lastName,
+          fullName,
+          designation,
+          isActive: true,
+          city,
+          state,
+          country,
+          pincode: postalCode,
+        },
+      });
 
+      const registration = await tx.registration.create({
+        data: {
+          companyName,
+          businessCategory,
+          gstNumber,
+          address,
+          city,
+          state,
+          country,
+          postalCode,
+          zipCode: postalCode,
+          userId: user.id,
+        },
+      });
 
-
-    const user = await this.prisma.user.create({
-      data: {
-        username: dto.workEmail, // using workEmail as username
-        email: dto.workEmail,
-        mobileNumber: dto.phoneNumber,
-        password: hashedPassword,
-        role: 'SUPER_ADMIN',
-        firstName: firstName,
-        lastName: lastName || null,
-        isActive: true,
-        city: dto.city,
-        state: dto.state,
-        country: dto.country || 'India',
-        pincode: dto.zipCode,
-      },
+      return { user, registration };
     });
 
-    await this.prisma.registration.create({
-      data: {
-        companyName: dto.companyName || (dto.fullName + ' Organization'),
-        gstNumber: dto.gstNumber,
-        city: dto.city,
-        state: dto.state,
-        country: dto.country || 'India',
-        zipCode: dto.zipCode,
-        userId: user.id
-      }
-    });
-
-    return this.sanitizeUser(user);
+    return this.sanitizeUser(result.user);
   }
 
   async login(dto: LoginDto, ipAddress: string) {

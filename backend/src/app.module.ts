@@ -26,6 +26,7 @@ import { WorkOrdersModule } from './modules/4m/work-orders/work-orders.module';
 import { SparePartsModule } from './modules/4m/spare-parts/spare-parts.module';
 import { SchedulesModule } from './modules/4m/schedules/schedules.module';
 import { CheckpointsModule } from './modules/4m/checkpoints/checkpoints.module';
+import { SuppliersModule } from './modules/4m/suppliers/suppliers.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { CheckpointsModule } from './modules/4m/checkpoints/checkpoints.module';
     SparePartsModule,
     SchedulesModule,
     CheckpointsModule,
+    SuppliersModule,
   ],
   providers: [
     {

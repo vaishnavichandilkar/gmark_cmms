@@ -7,7 +7,8 @@ import {
   ChevronRight, ChevronLeft, LogOut, 
   LayoutDashboard, Wrench, Cpu, Droplet, 
   Flame, ArrowUpDown, MoreHorizontal, Users, 
-  ChevronDown, Boxes, ShieldCheck, Menu, X, Key, Calendar
+  ChevronDown, Boxes, ShieldCheck, Menu, X, Key, Calendar,
+  ClipboardList, Package, Briefcase
 } from 'lucide-react';
 import { logout } from '../../store/slices/authSlice';
 import { LogoutConfirmModal } from './LogoutConfirmModal';
@@ -80,6 +81,7 @@ export function FloatingNavbar() {
           icon: <Users size={16} />,
           moduleId: 'master_employee'
         },
+        /*
         {
           label: 'Facility Master',
           path: '/master/main-facility',
@@ -89,9 +91,16 @@ export function FloatingNavbar() {
         {
           label: 'Spare Master',
           path: '/spares',
-          icon: <Wrench size={16} />,
+          icon: <Package size={16} />,
           moduleId: 'master_spare'
+        },
+        {
+          label: 'Supplier Master',
+          path: '/suppliers',
+          icon: <Briefcase size={16} />,
+          moduleId: 'master_supplier'
         }
+        */
       ]
     },
     {
@@ -121,13 +130,19 @@ export function FloatingNavbar() {
     {
       label: 'Spares Management',
       path: '/spares',
-      icon: <Wrench size={20} />,
+      icon: <Package size={20} />,
       moduleId: 'spares'
+    },
+    {
+      label: 'Suppliers Management',
+      path: '/suppliers',
+      icon: <Briefcase size={20} />,
+      moduleId: 'suppliers'
     },
     {
       label: 'Work Orders',
       path: '/work-orders',
-      icon: <Wrench size={20} />,
+      icon: <ClipboardList size={20} />,
       moduleId: 'work_orders'
     },
     {

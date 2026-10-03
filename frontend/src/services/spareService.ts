@@ -91,87 +91,7 @@ export interface SparePart {
 
 const STORAGE_KEY = 'gmark_spares_master_data_v3';
 
-const INITIAL_MOCK_SPARES: SparePart[] = [
-  {
-    id: 1,
-    partCode: 'S32156',
-    partName: 'New Spare S1',
-    category: 'Spare Category',
-    subCategory: 'Spare Sub-Category',
-    stockQuantity: 20,
-    inHandQuantity: 23,
-    atSourceQuantity: 22,
-    minimumQuantity: 10,
-    totalStock: 45,
-    unitOfMeasure: 'PCS',
-    unitCost: 23.00,
-    rate: 23.00,
-    location: 'Location 1',
-    stockLocation: 'Location 1',
-    description: 'Description',
-    headOfDepartment: 'Select',
-    notes: 'Notes',
-    namePlateFile: 'Filename.pdf',
-    stockLocations: [
-      { id: '1', location: 'Location', inHandQuantity: 23, atSourceQuantity: 23, minimumQuantity: 23, totalStock: 23 },
-      { id: '2', location: 'Location', inHandQuantity: 23, atSourceQuantity: 23, minimumQuantity: 23, totalStock: 23 },
-      { id: '3', location: 'Location', inHandQuantity: 23, atSourceQuantity: 23, minimumQuantity: 23, totalStock: 23 },
-    ],
-    machinesList: [
-      { id: '1', location: 'Facility Name', name: 'Machine Name', quantityUsed: 23, rate: 1000, total: 23000 },
-      { id: '2', location: 'Facility Name', name: 'Machine Name', quantityUsed: 23, rate: 1000, total: 23000 },
-      { id: '3', location: 'Facility Name', name: 'Machine Name', quantityUsed: 23, rate: 1000, total: 23000 },
-      { id: '4', location: 'Facility Name', name: 'Machine Name', quantityUsed: 23, rate: 1000, total: 23000 },
-      { id: '5', location: 'Facility Name', name: 'Machine Name', quantityUsed: 23, rate: 1000, total: 23000 },
-      { id: '6', location: 'Facility Name', name: 'Machine Name', quantityUsed: 23, rate: 1000, total: 23000 },
-    ],
-    customSpecifications: [
-      { id: '1', label: 'Material Grade', value: 'Stainless Steel 316' }
-    ],
-    warrantiesList: [
-      { id: '1', startDate: 'dd-mm-yyyy', expiryDate: 'dd-mm-yyyy', provider: 'Manufacturer Name', usage: 'Meter Reading', certificateNumber: 'C2451s5' },
-      { id: '2', startDate: 'dd-mm-yyyy', expiryDate: 'dd-mm-yyyy', provider: 'Manufacturer Name', usage: 'Meter Reading', certificateNumber: 'C2451s5' },
-      { id: '3', startDate: 'dd-mm-yyyy', expiryDate: 'dd-mm-yyyy', provider: 'Manufacturer Name', usage: 'Meter Reading', certificateNumber: 'C2451s5' },
-      { id: '4', startDate: 'dd-mm-yyyy', expiryDate: 'dd-mm-yyyy', provider: 'Manufacturer Name', usage: 'Meter Reading', certificateNumber: 'C2451s5' },
-      { id: '5', startDate: 'dd-mm-yyyy', expiryDate: 'dd-mm-yyyy', provider: 'Manufacturer Name', usage: 'Meter Reading', certificateNumber: 'C2451s5' },
-      { id: '6', startDate: 'dd-mm-yyyy', expiryDate: 'dd-mm-yyyy', provider: 'Manufacturer Name', usage: 'Meter Reading', certificateNumber: 'C2451s5' },
-    ],
-    suppliersList: [
-      { id: '1', name: 'Global Supplier', businessCategory: 'OEM Parts', reorderDays: 7, vendorPrice: 1000 }
-    ],
-    documentsList: [
-      { id: '1', name: 'Technical_Specification.pdf', fileType: 'PDF Document', uploadDate: '2026-09-28', size: '1.2 MB' }
-    ],
-    logsList: [
-      { id: '1', machineName: 'Primary Booster Pump', date: '2026-09-28 10:00', user: 'Admin User', qtyAmount: 23, rate: 1000 },
-      { id: '2', machineName: 'Secondary Booster Pump', date: '2026-09-27 15:30', user: 'Technician User', qtyAmount: 10, rate: 1000 },
-      { id: '3', machineName: 'Flushing System Pump', date: '2026-09-25 09:15', user: 'Supervisor User', qtyAmount: 5, rate: 1000 },
-    ]
-  },
-  {
-    id: 2,
-    partCode: 'SP-BRG-001',
-    partName: 'Heavy Duty Ball Bearing 6205-2RS',
-    category: 'Mechanical',
-    subCategory: 'Bearings',
-    stockQuantity: 45,
-    inHandQuantity: 45,
-    atSourceQuantity: 10,
-    minimumQuantity: 15,
-    totalStock: 55,
-    unitOfMeasure: 'PCS',
-    unitCost: 1250.00,
-    rate: 1250.00,
-    location: 'Bin A-12',
-    stockLocation: 'Main Store - Rack 3',
-    description: 'Deep groove ball bearing for pump shaft assembly.',
-    headOfDepartment: 'Mechanical Department',
-    notes: 'Keep lubricated with high-temp grease.',
-    stockLocations: [
-      { id: '1', location: 'Main Store - Rack 3', inHandQuantity: 45, atSourceQuantity: 10, minimumQuantity: 15, totalStock: 55 }
-    ]
-  }
-];
+const INITIAL_MOCK_SPARES: SparePart[] = [];
 
 function getStoredSpares(): SparePart[] {
   try {
@@ -182,8 +102,7 @@ function getStoredSpares(): SparePart[] {
   } catch (e) {
     console.error('Failed to parse spares from localStorage', e);
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_MOCK_SPARES));
-  return INITIAL_MOCK_SPARES;
+  return [];
 }
 
 function saveStoredSpares(spares: SparePart[]): void {
@@ -200,7 +119,7 @@ export const spareService = {
       });
       if (response.ok) {
         const data = await response.json();
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           return data;
         }
       }
@@ -224,7 +143,7 @@ export const spareService = {
       console.warn('Backend getById failed', err);
     }
     const spares = getStoredSpares();
-    return spares.find(s => s.id === Number(id)) || spares[0] || null;
+    return spares.find(s => s.id === Number(id)) || null;
   },
 
   async create(data: Partial<SparePart>): Promise<SparePart> {
@@ -233,43 +152,30 @@ export const spareService = {
     const newSpare: SparePart = {
       id: newId,
       partCode: data.partCode || `S${Math.floor(10000 + Math.random() * 90000)}`,
-      partName: data.partName || 'New Spare',
-      category: data.category || 'Spare Category',
-      subCategory: data.subCategory || 'Spare Sub-Category',
-      stockQuantity: Number(data.stockQuantity ?? 20),
-      inHandQuantity: Number(data.inHandQuantity ?? 23),
-      atSourceQuantity: Number(data.atSourceQuantity ?? 22),
-      minimumQuantity: Number(data.minimumQuantity ?? 10),
-      totalStock: Number(data.totalStock ?? 45),
+      partName: data.partName || '',
+      category: data.category || '',
+      subCategory: data.subCategory || '',
+      stockQuantity: Number(data.stockQuantity ?? 0),
+      inHandQuantity: Number(data.inHandQuantity ?? 0),
+      atSourceQuantity: Number(data.atSourceQuantity ?? 0),
+      minimumQuantity: Number(data.minimumQuantity ?? 0),
+      totalStock: Number(data.totalStock ?? 0),
       unitOfMeasure: data.unitOfMeasure || 'PCS',
-      unitCost: Number(data.unitCost ?? 23.00),
-      rate: Number(data.rate ?? 23.00),
-      location: data.location || 'Location 1',
-      stockLocation: data.stockLocation || 'Location 1',
+      unitCost: Number(data.unitCost ?? 0),
+      rate: Number(data.rate ?? 0),
+      location: data.location || '',
+      stockLocation: data.stockLocation || '',
       description: data.description || '',
       headOfDepartment: data.headOfDepartment || '',
       notes: data.notes || '',
-      namePlateFile: data.namePlateFile || 'Filename.pdf',
-      stockLocations: data.stockLocations || [
-        { id: '1', location: 'Location', inHandQuantity: 23, atSourceQuantity: 23, minimumQuantity: 23, totalStock: 23 },
-        { id: '2', location: 'Location', inHandQuantity: 23, atSourceQuantity: 23, minimumQuantity: 23, totalStock: 23 },
-        { id: '3', location: 'Location', inHandQuantity: 23, atSourceQuantity: 23, minimumQuantity: 23, totalStock: 23 }
-      ],
-      machinesList: data.machinesList || [
-        { id: '1', location: 'Facility Name', name: 'Machine Name', quantityUsed: 23, rate: 1000, total: 23000 },
-        { id: '2', location: 'Facility Name', name: 'Machine Name', quantityUsed: 23, rate: 1000, total: 23000 }
-      ],
-      customSpecifications: data.customSpecifications || [
-        { id: '1', label: 'Material Grade', value: 'Stainless Steel 316' }
-      ],
-      warrantiesList: data.warrantiesList || [
-        { id: '1', startDate: 'dd-mm-yyyy', expiryDate: 'dd-mm-yyyy', provider: 'Manufacturer Name', usage: 'Meter Reading', certificateNumber: 'C2451s5' }
-      ],
+      namePlateFile: data.namePlateFile || '',
+      stockLocations: data.stockLocations || [],
+      machinesList: data.machinesList || [],
+      customSpecifications: data.customSpecifications || [],
+      warrantiesList: data.warrantiesList || [],
       suppliersList: data.suppliersList || [],
       documentsList: data.documentsList || [],
-      logsList: data.logsList || [
-        { id: '1', machineName: 'Primary Booster Pump', date: new Date().toLocaleString(), user: 'Admin User', qtyAmount: 23, rate: 1000 }
-      ]
+      logsList: data.logsList || []
     };
 
     try {

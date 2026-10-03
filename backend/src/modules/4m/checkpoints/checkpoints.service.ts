@@ -6,7 +6,7 @@ export class CheckpointsService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
 
   async onModuleInit() {
-    await this.seedInitialMasterCheckpoints();
+    // Disabled auto-seeding on init to ensure database stays clean after reset
   }
 
   async seedInitialMasterCheckpoints() {

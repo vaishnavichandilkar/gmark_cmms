@@ -50,93 +50,49 @@ export function SpareDetailsPage() {
 
   // Form State
   const [formData, setFormData] = useState<Partial<SparePart>>({
-    partCode: 'S32156',
-    partName: 'New Spare S1',
-    category: 'Spare Category',
-    subCategory: 'Spare Sub-Category',
-    stockQuantity: 20,
-    inHandQuantity: 23,
-    atSourceQuantity: 22,
-    minimumQuantity: 10,
-    totalStock: 45,
-    unitCost: 23.00,
-    rate: 23.00,
-    location: 'Location 1',
-    description: 'Description',
-    headOfDepartment: 'Select',
-    notes: 'Notes',
-    namePlateFile: 'Filename.pdf',
-    stockLocations: [
-      { id: '1', location: 'Location', inHandQuantity: 23, atSourceQuantity: 23, minimumQuantity: 23, totalStock: 23 },
-      { id: '2', location: 'Location', inHandQuantity: 23, atSourceQuantity: 23, minimumQuantity: 23, totalStock: 23 },
-      { id: '3', location: 'Location', inHandQuantity: 23, atSourceQuantity: 23, minimumQuantity: 23, totalStock: 23 },
-    ],
-    machinesList: [
-      { id: '1', location: 'Facility Name', name: 'Machine Name', quantityUsed: 23, rate: 1000, total: 23000 },
-      { id: '2', location: 'Facility Name', name: 'Machine Name', quantityUsed: 23, rate: 1000, total: 23000 },
-      { id: '3', location: 'Facility Name', name: 'Machine Name', quantityUsed: 23, rate: 1000, total: 23000 },
-      { id: '4', location: 'Facility Name', name: 'Machine Name', quantityUsed: 23, rate: 1000, total: 23000 },
-      { id: '5', location: 'Facility Name', name: 'Machine Name', quantityUsed: 23, rate: 1000, total: 23000 },
-      { id: '6', location: 'Facility Name', name: 'Machine Name', quantityUsed: 23, rate: 1000, total: 23000 },
-    ],
-    customSpecifications: [
-      { id: '1', label: 'Material Grade', value: 'Stainless Steel 316' }
-    ],
-    warrantiesList: [
-      { id: '1', startDate: 'dd-mm-yyyy', expiryDate: 'dd-mm-yyyy', provider: 'Manufacturer Name', usage: 'Meter Reading', certificateNumber: 'C2451s5' },
-      { id: '2', startDate: 'dd-mm-yyyy', expiryDate: 'dd-mm-yyyy', provider: 'Manufacturer Name', usage: 'Meter Reading', certificateNumber: 'C2451s5' },
-      { id: '3', startDate: 'dd-mm-yyyy', expiryDate: 'dd-mm-yyyy', provider: 'Manufacturer Name', usage: 'Meter Reading', certificateNumber: 'C2451s5' },
-      { id: '4', startDate: 'dd-mm-yyyy', expiryDate: 'dd-mm-yyyy', provider: 'Manufacturer Name', usage: 'Meter Reading', certificateNumber: 'C2451s5' },
-      { id: '5', startDate: 'dd-mm-yyyy', expiryDate: 'dd-mm-yyyy', provider: 'Manufacturer Name', usage: 'Meter Reading', certificateNumber: 'C2451s5' },
-      { id: '6', startDate: 'dd-mm-yyyy', expiryDate: 'dd-mm-yyyy', provider: 'Manufacturer Name', usage: 'Meter Reading', certificateNumber: 'C2451s5' },
-    ],
-    suppliersList: [
-      { id: '1', name: 'Global Supplier', businessCategory: 'OEM Parts', reorderDays: 7, vendorPrice: 1000 }
-    ],
-    documentsList: [
-      { id: '1', name: 'Technical_Specification.pdf', fileType: 'PDF Document', uploadDate: '2026-09-28', size: '1.2 MB' }
-    ],
-    logsList: [
-      { id: '1', machineName: 'Primary Booster Pump', date: '2026-09-28 10:00', user: 'Admin User', qtyAmount: 23, rate: 1000 },
-      { id: '2', machineName: 'Secondary Booster Pump', date: '2026-09-27 15:30', user: 'Technician User', qtyAmount: 10, rate: 1000 },
-      { id: '3', machineName: 'Flushing System Pump', date: '2026-09-25 09:15', user: 'Supervisor User', qtyAmount: 5, rate: 1000 },
-      { id: '4', machineName: 'STP Booster Pump', date: '2026-09-20 14:00', user: 'Operator User', qtyAmount: 8, rate: 1000 },
-      { id: '5', machineName: 'Garden System Pump', date: '2026-09-18 11:20', user: 'Maintenance Tech', qtyAmount: 12, rate: 1000 },
-      { id: '6', machineName: 'Sub Soil Pump 01', date: '2026-09-15 16:45', user: 'Admin User', qtyAmount: 4, rate: 1000 },
-      { id: '7', machineName: 'Sump Pump 02', date: '2026-09-10 08:30', user: 'System Auto', qtyAmount: 15, rate: 1000 }
-    ]
+    partCode: '',
+    partName: '',
+    category: '',
+    subCategory: '',
+    stockQuantity: 0,
+    inHandQuantity: 0,
+    atSourceQuantity: 0,
+    minimumQuantity: 0,
+    totalStock: 0,
+    unitCost: 0,
+    rate: 0,
+    location: '',
+    description: '',
+    headOfDepartment: '',
+    notes: '',
+    namePlateFile: '',
+    stockLocations: [],
+    machinesList: [],
+    customSpecifications: [],
+    warrantiesList: [],
+    suppliersList: [],
+    documentsList: [],
+    logsList: []
   });
 
   // Modal / Add Form States for Stock
   const [isAddStockModalOpen, setIsAddStockModalOpen] = useState(false);
-  const [newStockLoc, setNewStockLoc] = useState({ location: 'Location', inHandQuantity: 12, atSourceQuantity: 12, minimumQuantity: 2 });
+  const [newStockLoc, setNewStockLoc] = useState({ location: '', inHandQuantity: 0, atSourceQuantity: 0, minimumQuantity: 0 });
   const [selectedStockIds, setSelectedStockIds] = useState<string[]>([]);
   const [stockSearchQuery, setStockSearchQuery] = useState('');
 
   // Stock Locations Selector Modal State
   const [isLocationPickerModalOpen, setIsLocationPickerModalOpen] = useState(false);
   const [locationPickerSearch, setLocationPickerSearch] = useState('');
-  const [availableLocations, setAvailableLocations] = useState<LocationPickerItem[]>([
-    { id: '1', location: 'Location', facilityName: 'Facility Name', code: 'C1354' },
-    { id: '2', location: 'Location', facilityName: 'Facility Name', code: 'C1354' },
-    { id: '3', location: 'Location', facilityName: 'Facility Name', code: 'C1354' },
-  ]);
+  const [availableLocations, setAvailableLocations] = useState<LocationPickerItem[]>([]);
 
   // Stock History Modal State
   const [isStockHistoryModalOpen, setIsStockHistoryModalOpen] = useState(false);
-  const [stockHistoryRecords] = useState<StockHistoryRecord[]>([
-    { id: '1', date: 'dd-mm-yyyy', user: 'AG Corp', quantityBefore: 10, quantityAfter: 23 },
-    { id: '2', date: 'dd-mm-yyyy', user: 'AG Corp', quantityBefore: 15, quantityAfter: 20 },
-    { id: '3', date: 'dd-mm-yyyy', user: 'AG Corp', quantityBefore: 5, quantityAfter: 15 },
-    { id: '4', date: 'dd-mm-yyyy', user: 'AG Corp', quantityBefore: 0, quantityAfter: 5 },
-    { id: '5', date: 'dd-mm-yyyy', user: 'AG Corp', quantityBefore: 12, quantityAfter: 25 },
-    { id: '6', date: 'dd-mm-yyyy', user: 'AG Corp', quantityBefore: 8, quantityAfter: 12 },
-    { id: '7', date: 'dd-mm-yyyy', user: 'AG Corp', quantityBefore: 20, quantityAfter: 30 },
-  ]);
+  const [stockHistoryRecords] = useState<StockHistoryRecord[]>([]);
 
   // Machines List Tab Modals & State
   const [isAddMachineModalOpen, setIsAddMachineModalOpen] = useState(false);
-  const [newMachineForm, setNewMachineForm] = useState({ location: 'Select', name: 'Select', quantityUsed: 23, rate: 1000 });
+  const [newMachineForm, setNewMachineForm] = useState({ location: '', name: '', quantityUsed: 0, rate: 0 });
   const [selectedMachineIds, setSelectedMachineIds] = useState<string[]>([]);
   const [machineSearchQuery, setMachineSearchQuery] = useState('');
 
@@ -145,15 +101,11 @@ export function SpareDetailsPage() {
 
   const [isMachinePickerModalOpen, setIsMachinePickerModalOpen] = useState(false);
   const [machinePickerSearch, setMachinePickerSearch] = useState('');
-  const [availableMachinesList, setAvailableMachinesList] = useState<MachinePickerItem[]>([
-    { id: '1', location: 'Location', machineName: 'Machine Name', code: 'C1354' },
-    { id: '2', location: 'Location', machineName: 'Machine Name', code: 'C1354' },
-    { id: '3', location: 'Location', machineName: 'Machine Name', code: 'C1354' },
-  ]);
+  const [availableMachinesList, setAvailableMachinesList] = useState<MachinePickerItem[]>([]);
 
   // Specifications Tab Modals & State (Images 1, 2, 3, 4)
   const [isAddSpecModalOpen, setIsAddSpecModalOpen] = useState(false);
-  const [specForm, setSpecForm] = useState({ fieldTitle: '', inputType: 'Select', fieldData: '', fieldUnit: 'Select' });
+  const [specForm, setSpecForm] = useState({ fieldTitle: '', inputType: '', fieldData: '', fieldUnit: '' });
 
   const [isMeterUnitsModalOpen, setIsMeterUnitsModalOpen] = useState(false);
   const [meterUnitsList, setMeterUnitsList] = useState<MeterUnitItem[]>([
@@ -165,27 +117,23 @@ export function SpareDetailsPage() {
   ]);
 
   const [isAddMeterUnitModalOpen, setIsAddMeterUnitModalOpen] = useState(false);
-  const [newMeterUnitForm, setNewMeterUnitForm] = useState({ name: 'Hours', symbol: 'h', precision: '2' });
+  const [newMeterUnitForm, setNewMeterUnitForm] = useState({ name: '', symbol: '', precision: '2' });
 
   // Warranties Tab State
   const [isAddWarrantyModalOpen, setIsAddWarrantyModalOpen] = useState(false);
-  const [newWarranty, setNewWarranty] = useState({ documentFile: 'Filename.pdf', startDate: '', expiryDate: '', usageTerms: 'Select', provider: 'Select', certificateNumber: '' });
+  const [newWarranty, setNewWarranty] = useState({ documentFile: '', startDate: '', expiryDate: '', usageTerms: '', provider: '', certificateNumber: '' });
   const [selectedWarrantyIds, setSelectedWarrantyIds] = useState<string[]>([]);
   const [warrantySearchQuery, setWarrantySearchQuery] = useState('');
 
   // Suppliers Tab State
   const [isAddSupplierModalOpen, setIsAddSupplierModalOpen] = useState(false);
-  const [newSupplier, setNewSupplier] = useState({ name: 'Select', businessCategory: 'Select', reorderDays: 23, vendorPrice: 1000 });
+  const [newSupplier, setNewSupplier] = useState({ name: '', businessCategory: '', reorderDays: 0, vendorPrice: 0 });
   const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>([]);
   const [supplierSearchQuery, setSupplierSearchQuery] = useState('');
 
   const [isSupplierPickerModalOpen, setIsSupplierPickerModalOpen] = useState(false);
   const [supplierPickerSearch, setSupplierPickerSearch] = useState('');
-  const [availableSuppliersList, setAvailableSuppliersList] = useState([
-    { id: '1', name: 'Supplier Name', category: 'Manufacturer', code: 'C1354' },
-    { id: '2', name: 'Supplier Name', category: 'Manufacturer', code: 'C1354' },
-    { id: '3', name: 'Supplier Name', category: 'Manufacturer', code: 'C1354' },
-  ]);
+  const [availableSuppliersList, setAvailableSuppliersList] = useState<any[]>([]);
 
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
   const [selectedLogIds, setSelectedLogIds] = useState<string[]>([]);
@@ -1186,7 +1134,7 @@ export function SpareDetailsPage() {
                   </div>
 
                   <button
-                    onClick={() => setIsAddSupplierModalOpen(true)}
+                    onClick={() => navigate('/suppliers/new')}
                     className="flex items-center gap-1 px-3 py-1.5 bg-sky-100 hover:bg-sky-200 text-sky-700 font-bold rounded-lg text-xs transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5 text-sky-600" />
@@ -1231,7 +1179,7 @@ export function SpareDetailsPage() {
                       {filteredSuppliersList.length === 0 ? (
                         <tr>
                           <td colSpan={6} className="py-8 text-center text-gray-400 font-medium">
-                            No supplier entries found.
+                            No supplier entries found. Click <button type="button" onClick={() => navigate('/suppliers/new')} className="text-[#00a651] font-bold hover:underline cursor-pointer">"+ Add"</button> to create a new supplier.
                           </td>
                         </tr>
                       ) : (

@@ -7,7 +7,7 @@ export class SchedulesService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
 
   async onModuleInit() {
-    await this.seedInitialSchedules();
+    // Disabled auto-seeding on init to ensure database stays clean after reset
   }
 
   private async generateNextScheduleCode(): Promise<string> {
