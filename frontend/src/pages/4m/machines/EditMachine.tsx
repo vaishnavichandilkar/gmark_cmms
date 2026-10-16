@@ -9,6 +9,7 @@ import { ArrowLeft, Search, Plus, Wifi, Activity, ShieldAlert, RefreshCw, Sparkl
 import { api } from '../../../lib/api';
 import { FacilityHierarchyPicker } from '../../../components/4m/FacilityHierarchyPicker';
 import { MachineHierarchyPicker } from '../../../components/4m/MachineHierarchyPicker';
+import { MachineImageCard } from '../../../components/4m/MachineImageCard';
 import { spareService } from '../../../services/spareService';
 import { io, Socket } from 'socket.io-client';
 import toast from 'react-hot-toast';
@@ -119,7 +120,85 @@ export function EditMachine() {
     headOfDepartment: '',
     machineOwner: '',
     notes: '',
+    imageUrl: '',
   });
+
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string>('');
+
+  const handleImageChange = async (file: File) => {
+    setUploadingImage(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64Data = reader.result as string;
+      setLocalPreviewUrl(base64Data);
+
+      try {
+        const uploadData = new FormData();
+        uploadData.append('files', file);
+
+        const res = await api.post('/work-orders/upload-media', uploadData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+
+        const serverUrl = res.data?.success && res.data?.files?.[0]?.fileUrl ? res.data.files[0].fileUrl : base64Data;
+
+        setFormData(prev => ({
+          ...prev,
+          imageUrl: serverUrl
+        }));
+
+        if (id) {
+          try {
+            await api.post(`/machines/${id}/documents`, {
+              name: 'Machine Photo',
+              type: 'File',
+              content: serverUrl
+            });
+            fetchDocuments();
+          } catch (docErr) {
+            console.warn('Could not save photo to machine documents', docErr);
+          }
+        }
+
+        toast.success('Machine image uploaded successfully');
+        setUploadingImage(false);
+        return;
+      } catch (uploadErr) {
+        console.warn('Backend image upload fallback to local data URL', uploadErr);
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        imageUrl: base64Data
+      }));
+      if (id) {
+        try {
+          await api.post(`/machines/${id}/documents`, {
+            name: 'Machine Photo',
+            type: 'File',
+            content: base64Data
+          });
+          fetchDocuments();
+        } catch {}
+      }
+      toast.success('Machine image uploaded successfully');
+      setUploadingImage(false);
+    };
+
+    reader.onerror = () => {
+      toast.error('Failed to read image file');
+      setUploadingImage(false);
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageRemove = () => {
+    setLocalPreviewUrl('');
+    setFormData(prev => ({ ...prev, imageUrl: '' }));
+    toast.success('Image removed');
+  };
 
   useEffect(() => {
     fetchData();
@@ -196,15 +275,26 @@ export function EditMachine() {
 
   const fetchData = async () => {
     try {
-      const [deviceRes, facilitiesRes, employeesRes] = await Promise.all([
+      const [deviceRes, facilitiesRes, employeesRes, docsRes] = await Promise.all([
         api.get(`/machines/${id}`),
         api.get('/facilities'),
-        api.get('/employees')
+        api.get('/employees'),
+        api.get(`/machines/${id}/documents`).catch(() => ({ data: [] }))
       ]);
       
       const device = deviceRes.data;
       setFacilities(Array.isArray(facilitiesRes.data) ? facilitiesRes.data : []);
       setEmployees(Array.isArray(employeesRes.data) ? employeesRes.data : []);
+      const docs = Array.isArray(docsRes.data) ? docsRes.data : [];
+      setDocuments(docs);
+
+      const photoDoc = docs.find((d: any) => 
+        d.type === 'File' && (
+          d.name?.toLowerCase().includes('photo') || 
+          d.name?.toLowerCase().includes('image') || 
+          d.content?.match(/\.(jpg|jpeg|png|webp|gif)/i)
+        )
+      );
       
       if (device) {
         setFormData(prev => ({
@@ -232,7 +322,11 @@ export function EditMachine() {
           headOfDepartment: device.headOfDepartment || '',
           machineOwner: device.machineOwner || '',
           notes: device.notes || '',
+          imageUrl: photoDoc?.content || device.imageUrl || '',
         }));
+        if (photoDoc?.content) {
+          setLocalPreviewUrl(photoDoc.content);
+        }
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -431,25 +525,46 @@ export function EditMachine() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200/90 shadow-xs w-full overflow-hidden">
-        {/* Tabs */}
-        {permittedTabs.length > 0 && (
-          <div className="flex overflow-x-auto border-b border-slate-200 bg-slate-50/70 p-1.5 gap-1">
-            {permittedTabs.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === tab 
-                    ? 'bg-blue-600 text-white shadow-xs' 
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-        )}
+      <div className="flex flex-col lg:flex-row gap-5 items-start w-full">
+        {/* Left Column: Machine Image Upload Card */}
+        <MachineImageCard
+          imageUrl={formData.imageUrl}
+          localPreviewUrl={localPreviewUrl}
+          uploading={uploadingImage}
+          onImageChange={handleImageChange}
+          onImageRemove={handleImageRemove}
+          machineName={formData.name}
+          machineCategory={formData.machineCategory}
+          machineSubCategory={formData.machineSubCategory}
+          status={formData.status}
+          onStatusClick={() => {
+            setFormData(prev => ({
+              ...prev,
+              status: prev.status === 'Online' ? 'Offline' : 'Online'
+            }));
+          }}
+        />
+
+        {/* Right Column: Tabbed Form Container */}
+        <div className="flex-1 w-full bg-white rounded-xl border border-slate-200/90 shadow-xs overflow-hidden flex flex-col min-h-[550px]">
+          {/* Tabs */}
+          {permittedTabs.length > 0 && (
+            <div className="flex overflow-x-auto border-b border-slate-200 bg-slate-50/70 p-1.5 gap-1">
+              {permittedTabs.map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                    activeTab === tab 
+                      ? 'bg-emerald-600 text-white shadow-xs' 
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+          )}
 
         {/* Content Area */}
         <div className="p-6 w-full">
@@ -995,6 +1110,7 @@ export function EditMachine() {
           )}
         </div>
       </div>
+      </div>
 
       <div className="flex justify-end items-center gap-3 w-full border-t border-slate-200/90 pt-5 mt-4">
         {!canEditCurrentTab && permittedTabs.length > 0 && (
@@ -1012,7 +1128,7 @@ export function EditMachine() {
           <button 
             onClick={handleSave}
             disabled={saving}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+            className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs disabled:opacity-50 cursor-pointer"
           >
             {saving ? 'Saving...' : 'Save'}
           </button>

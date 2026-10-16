@@ -9,6 +9,7 @@ import { CustomDatePicker } from '../../../components/shared/CustomDatePicker';
 import { api } from '../../../lib/api';
 import { FacilityHierarchyPicker } from '../../../components/4m/FacilityHierarchyPicker';
 import { MachineHierarchyPicker } from '../../../components/4m/MachineHierarchyPicker';
+import { MachineImageCard } from '../../../components/4m/MachineImageCard';
 import { spareService } from '../../../services/spareService';
 import toast from 'react-hot-toast';
 
@@ -78,6 +79,7 @@ export function AddMachine() {
     name: '', 
     machineCode: '',
     status: 'Online',
+    imageUrl: savedDraft?.formData?.imageUrl || '',
     serialNumber: '',
     make: '',
     modelNumber: '',
@@ -95,6 +97,60 @@ export function AddMachine() {
     machineOwner: '',
     notes: '',
   });
+
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string>(savedDraft?.formData?.imageUrl || '');
+
+  const handleImageChange = async (file: File) => {
+    setUploadingImage(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64Data = reader.result as string;
+      setLocalPreviewUrl(base64Data);
+
+      try {
+        const uploadData = new FormData();
+        uploadData.append('files', file);
+
+        const res = await api.post('/work-orders/upload-media', uploadData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+
+        if (res.data?.success && res.data?.files?.[0]?.fileUrl) {
+          const serverUrl = res.data.files[0].fileUrl;
+          setFormData((prev: any) => ({
+            ...prev,
+            imageUrl: serverUrl
+          }));
+          toast.success('Machine image uploaded successfully');
+          setUploadingImage(false);
+          return;
+        }
+      } catch (uploadErr) {
+        console.warn('Backend image upload fallback to local data URL', uploadErr);
+      }
+
+      setFormData((prev: any) => ({
+        ...prev,
+        imageUrl: base64Data
+      }));
+      toast.success('Machine image uploaded successfully');
+      setUploadingImage(false);
+    };
+
+    reader.onerror = () => {
+      toast.error('Failed to read image file');
+      setUploadingImage(false);
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageRemove = () => {
+    setLocalPreviewUrl('');
+    setFormData((prev: any) => ({ ...prev, imageUrl: '' }));
+    toast.success('Image removed');
+  };
 
   const [makeOptions, setMakeOptions] = useState<string[]>(['Make 1']);
   const [modelOptions, setModelOptions] = useState<string[]>(['Model 1']);
@@ -438,6 +494,20 @@ export function AddMachine() {
       const machineRes = await api.post('/machines', payload);
       const newMachineId = machineRes.data.id;
 
+      // 1.1 Attach Machine Photo Document if uploaded
+      const currentPhoto = formData.imageUrl || localPreviewUrl;
+      if (currentPhoto) {
+        try {
+          await api.post(`/machines/${newMachineId}/documents`, {
+            name: 'Machine Photo',
+            type: 'File',
+            content: currentPhoto,
+          });
+        } catch (photoErr) {
+          console.warn('Failed to attach machine photo document', photoErr);
+        }
+      }
+
       // 2. Add MAC ID
       if (pendingMacId) {
         await api.put(`/machines/${newMachineId}`, {
@@ -576,8 +646,29 @@ export function AddMachine() {
         <h1 className="text-xl font-bold text-slate-900">New Machine</h1>
       </div>
 
-      <div className="bg-white rounded-lg shadow-2xs border border-slate-200/90 w-full relative">
-        <div className="flex overflow-x-auto border-b border-slate-200 bg-slate-50/70 p-1 gap-1">
+      <div className="flex flex-col lg:flex-row gap-5 items-start w-full">
+        {/* Left Column: Machine Image Upload Card */}
+        <MachineImageCard
+          imageUrl={formData.imageUrl}
+          localPreviewUrl={localPreviewUrl}
+          uploading={uploadingImage}
+          onImageChange={handleImageChange}
+          onImageRemove={handleImageRemove}
+          machineName={formData.name}
+          machineCategory={formData.machineCategory}
+          machineSubCategory={formData.machineSubCategory}
+          status={formData.status}
+          onStatusClick={() => {
+            setFormData((prev: any) => ({
+              ...prev,
+              status: prev.status === 'Online' ? 'Offline' : 'Online'
+            }));
+          }}
+        />
+
+        {/* Right Column: Tabbed Form Container */}
+        <div className="flex-1 w-full bg-white rounded-lg shadow-2xs border border-slate-200/90 relative min-h-[550px] flex flex-col">
+          <div className="flex overflow-x-auto border-b border-slate-200 bg-slate-50/70 p-1 gap-1">
           {permittedTabs.map((tab) => (
             <button
               key={tab}
@@ -1142,6 +1233,7 @@ export function AddMachine() {
             </div>
           )}
         </div>
+      </div>
       </div>
 
       {/* Save Button */}
