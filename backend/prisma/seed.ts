@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   console.log('Clearing existing data...');
-  await prisma.$executeRawUnsafe(`TRUNCATE TABLE "DeviceRegisterValue", "RegisterDefinition", "Device", "Building", "DeviceState", "DeviceSnapshot", "Society", "User", "UserBuilding", "AuditLog", "SparePartMaster", "Supplier", "WorkOrder", "WorkOrderMedia", "WorkOrderSparePart", "WorkOrderRevision", "MaintenanceSchedule", "MaintenanceScheduleTask", "MaintenanceScheduleSpare", "MaintenanceScheduleLog", "CheckpointMaster", "UserCheckpoint", "MachineCheckpoint", "MachineDocument", "MachineSpecification", "Machine", "Facility", "MainFacility" CASCADE;`);
+  await prisma.$executeRawUnsafe(`TRUNCATE TABLE "DeviceRegisterValue", "RegisterDefinition", "Device", "Building", "DeviceState", "DeviceSnapshot", "Society", "User", "UserBuilding", "AuditLog", "SparePartMaster", "Supplier", "WorkOrder", "WorkOrderMedia", "WorkOrderSparePart", "WorkOrderRevision", "MaintenanceSchedule", "MaintenanceScheduleTask", "MaintenanceScheduleSpare", "MaintenanceScheduleLog", "CheckpointMaster", "UserCheckpoint", "MachineCheckpoint", "MachineDocument", "MachineSpecification", "Machine", "Facility", "MainFacility", "Employee", "CodeSequence", "Designation", "Permission", "UserPermission", "PostalCode", "Registration", "DeviceAlert", "RegisterAlertConfig" CASCADE;`);
 
   console.log('Seeding societies...');
   await prisma.society.createMany({
@@ -369,6 +369,33 @@ async function main() {
   await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('"User"', 'id'), coalesce(max(id), 1)) FROM "User";`);
   await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('"UserBuilding"', 'id'), coalesce(max(id), 1)) FROM "UserBuilding";`);
   await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('"AuditLog"', 'id'), coalesce(max(id), 1)) FROM "AuditLog";`);
+
+  console.log('Seeding code sequences...');
+  await prisma.codeSequence.upsert({
+    where: { id: 'EMPLOYEE' },
+    update: { lastValue: 0, prefix: 'EMP' },
+    create: { id: 'EMPLOYEE', prefix: 'EMP', lastValue: 0, padding: 3 }
+  });
+  await prisma.codeSequence.upsert({
+    where: { id: 'MAIN_FACILITY' },
+    update: { lastValue: 0, prefix: 'MF' },
+    create: { id: 'MAIN_FACILITY', prefix: 'MF', lastValue: 0, padding: 3 }
+  });
+  await prisma.codeSequence.upsert({
+    where: { id: 'FACILITY' },
+    update: { lastValue: 0, prefix: 'FL' },
+    create: { id: 'FACILITY', prefix: 'FL', lastValue: 0, padding: 3 }
+  });
+  await prisma.codeSequence.upsert({
+    where: { id: 'ASSET' },
+    update: { lastValue: 0, prefix: 'AST' },
+    create: { id: 'ASSET', prefix: 'AST', lastValue: 0, padding: 3 }
+  });
+  await prisma.codeSequence.upsert({
+    where: { id: 'MACHINE' },
+    update: { lastValue: 0, prefix: 'MCH' },
+    create: { id: 'MACHINE', prefix: 'MCH', lastValue: 0, padding: 3 }
+  });
 
   console.log('Seeding completed successfully!');
 }

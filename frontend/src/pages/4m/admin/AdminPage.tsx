@@ -667,13 +667,13 @@ export function AdminPage() {
       <div className="w-full md:w-[320px] flex-shrink-0 flex flex-col bg-white border border-gray-200 shadow-sm rounded-3xl overflow-hidden h-full print:hidden">
         <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
           <div className="flex items-center gap-2">
-            <Building2 className="text-emerald-600" size={18} />
-            <span className="text-xs font-bold text-emerald-700 tracking-wider uppercase">Hierarchy</span>
+            <Building2 className="text-blue-600" size={18} />
+            <span className="text-xs font-bold text-blue-700 tracking-wider uppercase">Hierarchy</span>
           </div>
           {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'SOCIETY_ADMIN') && (
             <button
               onClick={() => setIsAddSocietyOpen(true)}
-              className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-full text-[10px] font-bold text-white transition-all shadow-sm"
+              className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-full text-[10px] font-bold text-white transition-all shadow-xs"
             >
               <Plus size={12} /> Society
             </button>
@@ -688,7 +688,7 @@ export function AdminPage() {
               <div key={soc.id} className="flex flex-col">
                 {/* Society Row */}
                 <div 
-                  className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${selectedSocietyId === soc.id ? 'bg-emerald-50 border border-emerald-100' : 'hover:bg-gray-50 border border-transparent'}`}
+                  className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${selectedSocietyId === soc.id ? 'bg-blue-50 border border-blue-100' : 'hover:bg-gray-50 border border-transparent'}`}
                   onClick={() => {
                     if (selectedSocietyId === soc.id) {
                       setSelectedSocietyId('');
@@ -704,12 +704,12 @@ export function AdminPage() {
                   }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg transition-colors ${selectedSocietyId === soc.id ? 'bg-emerald-600 text-white shadow-sm' : 'bg-gray-100 text-gray-500'}`}>
+                    <div className={`p-2 rounded-lg transition-colors ${selectedSocietyId === soc.id ? 'bg-blue-600 text-white shadow-xs' : 'bg-gray-100 text-gray-500'}`}>
                       <Building2 size={16} />
                     </div>
-                    <span className={`text-sm font-bold truncate max-w-[150px] transition-colors ${selectedSocietyId === soc.id ? 'text-emerald-900' : 'text-gray-700'}`}>{soc.name}</span>
+                    <span className={`text-sm font-bold truncate max-w-[150px] transition-colors ${selectedSocietyId === soc.id ? 'text-blue-900' : 'text-gray-700'}`}>{soc.name}</span>
                   </div>
-                  <ChevronRight size={16} className={`transition-transform ${selectedSocietyId === soc.id ? 'rotate-90 text-emerald-600' : 'text-gray-300'}`} />
+                  <ChevronRight size={16} className={`transition-transform ${selectedSocietyId === soc.id ? 'rotate-90 text-blue-600' : 'text-gray-300'}`} />
                 </div>
                 
                 {/* Towers List (Expanded if selected) */}
@@ -857,7 +857,7 @@ export function AdminPage() {
                   </div>
                   <button
                     onClick={() => setIsUserFormOpen(true)}
-                    className="ml-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-lg text-xs font-bold text-white transition-all shadow-sm flex items-center gap-2 whitespace-nowrap"
+                    className="ml-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-lg text-xs font-bold text-white transition-all shadow-xs flex items-center gap-2 whitespace-nowrap"
                   >
                     <Plus size={14} /> Add User
                   </button>
@@ -1037,7 +1037,7 @@ export function AdminPage() {
                   </div>
                   <button
                     onClick={() => setIsAddDeviceOpen(true)}
-                    className="ml-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-lg text-xs font-bold text-white transition-all shadow-sm flex items-center gap-2 whitespace-nowrap"
+                    className="ml-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-lg text-xs font-bold text-white transition-all shadow-xs flex items-center gap-2 whitespace-nowrap"
                   >
                     <Plus size={14} /> Add Device
                   </button>
@@ -1347,7 +1347,7 @@ export function AdminPage() {
               </div>
               <button
                 onClick={handleAddDevice}
-                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-xs font-bold transition-all active:scale-[0.98]"
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all active:scale-[0.98] shadow-xs"
               >
                 Create Device
               </button>

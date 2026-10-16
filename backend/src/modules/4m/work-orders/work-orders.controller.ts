@@ -86,6 +86,7 @@ export class WorkOrdersController {
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get all Work Orders with tab and search filters' })
   async getAllWorkOrders(
+    @CurrentUser() user: any,
     @Query('status') status?: string,
     @Query('tab') tab?: string,
     @Query('machineId') machineId?: number,
@@ -98,7 +99,7 @@ export class WorkOrdersController {
       machineId,
       technicianId,
       search,
-    });
+    }, user);
   }
 
   @Get('check-escalation')

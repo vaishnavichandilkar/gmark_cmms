@@ -8,14 +8,28 @@ export class SuppliersService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getNextSupplierCode(): Promise<{ code: string }> {
-    const count = await (this.prisma as any).supplier.count();
-    const nextNum = (count + 1).toString().padStart(3, '0');
+    const allSuppliers = await (this.prisma as any).supplier.findMany({
+      select: { supplierCode: true },
+    });
+    let maxNumber = 0;
+    for (const s of allSuppliers) {
+      const match = s.supplierCode?.match(/SUP-(\d+)/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxNumber) {
+          maxNumber = num;
+        }
+      }
+    }
+    const nextNum = (maxNumber + 1).toString().padStart(3, '0');
     return { code: `SUP-${nextNum}` };
   }
 
-  async findAll(query?: { search?: string }) {
+  async findAll(query?: { search?: string }, currentUser?: any) {
     const { search } = query || {};
-    const whereCondition = search
+    const effectiveAdminId = currentUser?.adminId || currentUser?.userId;
+
+    const whereCondition: any = search
       ? {
           OR: [
             { name: { contains: search, mode: 'insensitive' } },
@@ -27,6 +41,20 @@ export class SuppliersService {
           ],
         }
       : {};
+
+    if (effectiveAdminId) {
+      const adminFilter = {
+        OR: [
+          { adminId: effectiveAdminId },
+          { adminId: null },
+        ],
+      };
+      if (whereCondition.OR) {
+        whereCondition.AND = [adminFilter];
+      } else {
+        whereCondition.OR = adminFilter.OR;
+      }
+    }
 
     return (this.prisma as any).supplier.findMany({
       where: whereCondition,
@@ -46,24 +74,58 @@ export class SuppliersService {
     return supplier;
   }
 
-  async create(createSupplierDto: CreateSupplierDto) {
-    let code = createSupplierDto.supplierCode;
+  async create(createSupplierDto: CreateSupplierDto, currentUser?: any) {
+    let code = createSupplierDto.supplierCode?.trim();
+    const effectiveAdminId = currentUser?.adminId || currentUser?.userId || null;
 
     if (!code) {
       const nextObj = await this.getNextSupplierCode();
       code = nextObj.code;
+    } else {
+      const existing = await (this.prisma as any).supplier.findUnique({
+        where: { supplierCode: code },
+      });
+      if (existing) {
+        const nextObj = await this.getNextSupplierCode();
+        code = nextObj.code;
+      }
     }
 
-    return (this.prisma as any).supplier.create({
-      data: {
-        ...createSupplierDto,
-        supplierCode: code,
-      },
-    });
+    try {
+      return await (this.prisma as any).supplier.create({
+        data: {
+          ...createSupplierDto,
+          supplierCode: code,
+          adminId: effectiveAdminId,
+        },
+      });
+    } catch (err: any) {
+      if (err.code === 'P2002') {
+        const nextObj = await this.getNextSupplierCode();
+        return await (this.prisma as any).supplier.create({
+          data: {
+            ...createSupplierDto,
+            supplierCode: nextObj.code,
+            adminId: effectiveAdminId,
+          },
+        });
+      }
+      throw err;
+    }
   }
 
   async update(id: number, updateSupplierDto: UpdateSupplierDto) {
     await this.findOne(id);
+    if (updateSupplierDto.supplierCode) {
+      const existing = await (this.prisma as any).supplier.findUnique({
+        where: { supplierCode: updateSupplierDto.supplierCode },
+      });
+      if (existing && existing.id !== id) {
+        throw new BadRequestException(
+          `Supplier code "${updateSupplierDto.supplierCode}" is already in use by another supplier.`,
+        );
+      }
+    }
     return (this.prisma as any).supplier.update({
       where: { id },
       data: updateSupplierDto,
@@ -96,13 +158,14 @@ export class SuppliersService {
     };
   }
 
-  async importSuppliers(suppliersList: CreateSupplierDto[]) {
+  async importSuppliers(suppliersList: CreateSupplierDto[], currentUser?: any) {
     if (!Array.isArray(suppliersList) || suppliersList.length === 0) {
       throw new BadRequestException('No suppliers data provided in CSV import');
     }
 
     const created = [];
     const count = await (this.prisma as any).supplier.count();
+    const effectiveAdminId = currentUser?.adminId || currentUser?.userId || null;
 
     for (let i = 0; i < suppliersList.length; i++) {
       const item = suppliersList[i];
@@ -111,6 +174,7 @@ export class SuppliersService {
       const supplier = await (this.prisma as any).supplier.create({
         data: {
           supplierCode: code,
+          adminId: effectiveAdminId,
           name: item.name || 'Unnamed Supplier',
           contactPerson: item.contactPerson || null,
           email: item.email || null,

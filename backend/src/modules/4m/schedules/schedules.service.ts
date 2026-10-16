@@ -153,9 +153,11 @@ export class SchedulesService implements OnModuleInit {
     else if (freq === 'YEARLY') nextRun.setFullYear(nextRun.getFullYear() + 1);
     else nextRun.setMonth(nextRun.getMonth() + 1); // MONTHLY default
 
+    const effectiveAdminId = user?.adminId || user?.userId || null;
     const schedule = await this.prisma.maintenanceSchedule.create({
       data: {
         scheduleCode,
+        adminId: effectiveAdminId,
         scheduleType: dto.scheduleType || 'PREVENTIVE',
         frequency: dto.frequency || 'MONTHLY',
         priority: dto.priority || WorkOrderPriority.MEDIUM,
@@ -214,8 +216,13 @@ export class SchedulesService implements OnModuleInit {
     return schedule;
   }
 
-  async getSchedules(query: { type?: string; search?: string; machineId?: number }) {
+  async getSchedules(query: { type?: string; search?: string; machineId?: number }, user?: any) {
     const where: any = {};
+    const effectiveAdminId = user?.adminId || user?.userId;
+
+    if (effectiveAdminId) {
+      where.adminId = effectiveAdminId;
+    }
 
     if (query.type && query.type !== 'ALL') {
       where.scheduleType = query.type;

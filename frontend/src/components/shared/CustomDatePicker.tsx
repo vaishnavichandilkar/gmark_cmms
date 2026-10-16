@@ -61,7 +61,7 @@ export function CustomDatePicker({
         disabled={disabled}
         placeholderText={placeholder}
         dateFormat="dd/MM/yyyy"
-        className={`w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 text-gray-900 ${disabled ? 'opacity-60 cursor-not-allowed bg-gray-50' : 'cursor-pointer'}`}
+        className={`w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-gray-900 ${disabled ? 'opacity-60 cursor-not-allowed bg-gray-50' : 'cursor-pointer'}`}
         wrapperClassName="w-full"
         popperClassName="pt-2"
         calendarClassName="!border-gray-200 !shadow-lg border-0"
@@ -108,7 +108,7 @@ export function CustomDatePicker({
                     <button
                       type="button"
                       onClick={() => handleHeaderClick('month')}
-                      className="text-gray-900 font-semibold hover:text-green-600 transition-colors px-2 py-1 rounded-md hover:bg-green-50"
+                      className="text-gray-900 font-semibold hover:text-blue-600 transition-colors px-2 py-1 rounded-md hover:bg-blue-50"
                     >
                       {format(date, 'MMMM')}
                     </button>
@@ -118,7 +118,7 @@ export function CustomDatePicker({
                     <button
                       type="button"
                       onClick={() => handleHeaderClick('year')}
-                      className="text-gray-900 font-semibold hover:text-green-600 transition-colors px-2 py-1 rounded-md hover:bg-green-50"
+                      className="text-gray-900 font-semibold hover:text-blue-600 transition-colors px-2 py-1 rounded-md hover:bg-blue-50"
                     >
                       {format(date, 'yyyy')}
                     </button>
@@ -162,8 +162,8 @@ export function CustomDatePicker({
                       }}
                       className={`rounded-lg flex items-center justify-center text-sm transition-colors ${
                         date.getMonth() === i 
-                          ? 'bg-[#00a651] text-white font-bold' 
-                          : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
+                          ? 'bg-blue-600 text-white font-bold' 
+                          : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
                       }`}
                     >
                       {format(new Date(2000, i, 1), 'MMM')}
@@ -194,8 +194,8 @@ export function CustomDatePicker({
                         }}
                         className={`rounded-lg flex items-center justify-center text-sm py-2 transition-colors ${
                           isSelected 
-                            ? 'bg-[#00a651] text-white font-bold' 
-                            : 'text-gray-700 hover:bg-green-50 hover:text-green-700'
+                            ? 'bg-blue-600 text-white font-bold' 
+                            : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
                         }`}
                       >
                         {y}

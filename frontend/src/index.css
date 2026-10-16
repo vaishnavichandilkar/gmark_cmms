@@ -5,7 +5,19 @@
   --font-sans: 'Plus Jakarta Sans', sans-serif;
   --font-title: 'Geist', sans-serif;
 
-  /* 4M Brand Logo Color Overrides */
+  /* Fiix Enterprise CMMS Brand Colors */
+  --color-fiix-50: #eff6ff;
+  --color-fiix-100: #dbeafe;
+  --color-fiix-200: #bfdbfe;
+  --color-fiix-300: #93c5fd;
+  --color-fiix-400: #60a5fa;
+  --color-fiix-500: #3b82f6;
+  --color-fiix-600: #2563eb;
+  --color-fiix-700: #1d4ed8;
+  --color-fiix-800: #1e40af;
+  --color-fiix-900: #1e3a8a;
+
+  /* 4M Brand Logo Green Colors */
   --color-green-50: #edfcf4;
   --color-green-100: #d3f9e2;
   --color-green-200: #aaf0cc;
@@ -37,6 +49,7 @@
   html {
     font-size: 16px !important;
     -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
   }
 
   html, body, button, input, select, textarea, span, div, p, a, li, ul, ol, label {
@@ -48,15 +61,23 @@
   }
 
   body {
-    background-image: 
-      linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
-    background-size: 50px 50px;
-    background-position: center center;
+    background-color: #f8fafc;
+    color: #0f172a;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-weight: 600 !important;
+  }
+
+  /* Fiix Enterprise Form Input Focus States */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):focus,
+  select:focus,
+  textarea:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
   }
 }
 
@@ -349,15 +370,15 @@
   transition: all 0.2s !important;
 }
 .react-datepicker__day:hover {
-  background-color: #d3f9e2 !important;
-  color: #009a43 !important;
+  background-color: #dbeafe !important;
+  color: #2563eb !important;
 }
 .react-datepicker__day--selected, .react-datepicker__day--keyboard-selected {
-  background-color: #00a651 !important;
+  background-color: #2563eb !important;
   color: #ffffff !important;
 }
 .react-datepicker__day--selected:hover, .react-datepicker__day--keyboard-selected:hover {
-  background-color: #009040 !important;
+  background-color: #1d4ed8 !important;
 }
 .react-datepicker__day--outside-month {
   color: #d1d5db !important;

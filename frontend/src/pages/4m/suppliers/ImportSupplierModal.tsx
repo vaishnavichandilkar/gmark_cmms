@@ -171,7 +171,7 @@ export const ImportSupplierModal: React.FC<ImportSupplierModalProps> = ({
             <button
               onClick={handleUpload}
               disabled={isUploading}
-              className="bg-[#00a651] hover:bg-[#008f44] text-white px-10 py-3 rounded-2xl font-bold text-sm shadow-md hover:shadow-lg transition-all disabled:opacity-50 cursor-pointer min-w-[140px]"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-10 py-3 rounded-xl font-bold text-sm shadow-xs transition-all disabled:opacity-50 cursor-pointer min-w-[140px]"
             >
               {isUploading ? 'Uploading...' : 'Upload'}
             </button>

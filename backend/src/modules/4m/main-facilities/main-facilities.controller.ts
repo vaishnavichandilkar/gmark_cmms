@@ -1,15 +1,18 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, UseGuards } from '@nestjs/common';
 import { MainFacilitiesService } from './main-facilities.service';
 import { CreateMainFacilityDto } from './dto/create-main-facility.dto';
 import { UpdateMainFacilityDto } from './dto/update-main-facility.dto';
+import { JwtAuthGuard } from '../../core/auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../../core/auth/decorators/current-user.decorator';
 
+@UseGuards(JwtAuthGuard)
 @Controller('main-facilities')
 export class MainFacilitiesController {
   constructor(private readonly mainFacilitiesService: MainFacilitiesService) {}
 
   @Post()
-  create(@Body() createDto: CreateMainFacilityDto) {
-    return this.mainFacilitiesService.create(createDto);
+  create(@Body() createDto: CreateMainFacilityDto, @CurrentUser() currentUser: any) {
+    return this.mainFacilitiesService.create(createDto, currentUser);
   }
 
   @Get('next-code')
@@ -18,8 +21,8 @@ export class MainFacilitiesController {
   }
 
   @Get()
-  findAll() {
-    return this.mainFacilitiesService.findAll();
+  findAll(@CurrentUser() currentUser: any) {
+    return this.mainFacilitiesService.findAll(currentUser);
   }
 
   @Get(':id')

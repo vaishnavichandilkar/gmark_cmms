@@ -10,13 +10,16 @@ export class SchedulesController {
   constructor(private readonly schedulesService: SchedulesService) {}
 
   @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get maintenance schedules with multi-filter view (All, Predictive, Preventive, etc.)' })
   async getSchedules(
     @Query('type') type?: string,
     @Query('search') search?: string,
     @Query('machineId') machineId?: number,
+    @CurrentUser() user?: any,
   ) {
-    return this.schedulesService.getSchedules({ type, search, machineId });
+    return this.schedulesService.getSchedules({ type, search, machineId }, user);
   }
 
   @Post()

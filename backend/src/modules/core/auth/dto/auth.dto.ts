@@ -134,9 +134,25 @@ export class RegisterDto {
   @IsInt({ each: true })
   @IsOptional()
   buildingIds?: number[];
+
+  @ApiProperty({ example: 'BOTH', required: false })
+  @IsString()
+  @IsOptional()
+  moduleAccess?: string;
+}
+
+export class UpdateModuleAccessDto {
+  @ApiProperty({ example: 'CMMS' })
+  @IsString()
+  @IsNotEmpty()
+  moduleAccess: string;
 }
 
 export class SignupDto {
+  @ApiProperty({ example: 'BOTH', required: false })
+  @IsString()
+  @IsOptional()
+  moduleAccess?: string;
   @ApiProperty({ required: false })
   @IsOptional()
   @ValidateNested()

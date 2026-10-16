@@ -231,7 +231,7 @@ export function AddSchedulePage() {
                 onClick={() => setActiveSubTab(tab.id as any)}
                 className={`py-2 px-3.5 text-xs font-bold whitespace-nowrap rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-green-600 text-white shadow-xs'
+                    ? 'bg-blue-600 text-white shadow-xs'
                     : 'bg-gray-100 text-gray-600 hover:text-gray-900 hover:bg-gray-200'
                 }`}
               >
@@ -254,7 +254,7 @@ export function AddSchedulePage() {
                   <select
                     value={selectedMachineId}
                     onChange={e => handleMachineSelect(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-sm text-gray-900 outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500/20 transition-all cursor-pointer"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-sm text-gray-900 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-500/20 transition-all cursor-pointer"
                   >
                     <option value="">Select Machine</option>
                     {machinesList.map(m => (
@@ -272,7 +272,7 @@ export function AddSchedulePage() {
                   <select
                     value={scheduleType}
                     onChange={e => setScheduleType(e.target.value as any)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-sm text-gray-900 outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500/20 transition-all cursor-pointer"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-sm text-gray-900 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-500/20 transition-all cursor-pointer"
                   >
                     <option value="PREVENTIVE">Preventive Maintenance</option>
                     <option value="PREDICTIVE">Predictive Diagnostic</option>
@@ -288,7 +288,7 @@ export function AddSchedulePage() {
                   <select
                     value={priority}
                     onChange={e => setPriority(e.target.value as any)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-sm text-gray-900 outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500/20 transition-all cursor-pointer"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-sm text-gray-900 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-500/20 transition-all cursor-pointer"
                   >
                     <option value="LOW">Low</option>
                     <option value="MEDIUM">Medium</option>
@@ -415,7 +415,7 @@ export function AddSchedulePage() {
                 <button
                   type="button"
                   onClick={() => setShowCheckpointModal(true)}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer shrink-0"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer shrink-0"
                 >
                   <Plus size={16} /> Open Master DB Checkpoints
                 </button>
@@ -432,7 +432,7 @@ export function AddSchedulePage() {
                       value={newTaskDesc}
                       onChange={e => setNewTaskDesc(e.target.value)}
                       placeholder="e.g. Inspect motor bearing vibration & temperature..."
-                      className="w-full px-3.5 py-2 bg-white border border-gray-300 rounded-lg text-xs outline-none focus:border-green-500"
+                      className="w-full px-3.5 py-2 bg-white border border-gray-300 rounded-lg text-xs outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                     />
                   </div>
                   <div>
@@ -440,7 +440,7 @@ export function AddSchedulePage() {
                     <select
                       value={newTaskType}
                       onChange={e => setNewTaskType(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-medium text-gray-700 outline-none focus:border-green-500"
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-medium text-gray-700 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                     >
                       <option value="INSPECTION">INSPECTION</option>
                       <option value="CLEANING">CLEANING</option>
@@ -456,7 +456,7 @@ export function AddSchedulePage() {
                       value={newTaskStandard}
                       onChange={e => setNewTaskStandard(e.target.value)}
                       placeholder="e.g. Pass / < 2.5 mm/s"
-                      className="w-full px-3.5 py-2 bg-white border border-gray-300 rounded-lg text-xs outline-none focus:border-green-500"
+                      className="w-full px-3.5 py-2 bg-white border border-gray-300 rounded-lg text-xs outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                     />
                   </div>
                 </div>
@@ -465,7 +465,7 @@ export function AddSchedulePage() {
                   <button
                     type="button"
                     onClick={handleAddTask}
-                    className="px-5 py-2 bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
                   >
                     <Plus size={15} /> Add Check Point
                   </button>
@@ -609,7 +609,7 @@ export function AddSchedulePage() {
                   className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
                 />
                 <div className="flex flex-col items-center justify-center gap-3">
-                  <div className="w-14 h-14 rounded-2xl bg-white border border-gray-200 group-hover:border-green-300 text-green-600 group-hover:scale-105 transition-all flex items-center justify-center shadow-xs">
+                  <div className="w-14 h-14 rounded-2xl bg-white border border-gray-200 group-hover:border-blue-300 text-blue-600 group-hover:scale-105 transition-all flex items-center justify-center shadow-xs">
                     <Upload size={24} />
                   </div>
                   <div>
@@ -622,7 +622,7 @@ export function AddSchedulePage() {
                   </div>
                   <button
                     type="button"
-                    className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl flex items-center gap-2 shadow-xs transition-all pointer-events-none"
+                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl flex items-center gap-2 shadow-xs transition-all pointer-events-none"
                   >
                     <Paperclip size={15} /> Browse Files
                   </button>
@@ -639,7 +639,7 @@ export function AddSchedulePage() {
                     {attachedFiles.map((file, idx) => (
                       <div key={idx} className="p-3 bg-white border border-gray-200 rounded-xl flex items-center justify-between gap-3 shadow-2xs">
                         <div className="flex items-center gap-2.5 overflow-hidden">
-                          <div className="w-9 h-9 rounded-lg bg-green-50 text-green-700 flex items-center justify-center shrink-0 font-bold">
+                          <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shrink-0 font-bold">
                             <FileText size={18} />
                           </div>
                           <div className="overflow-hidden">
@@ -687,7 +687,7 @@ export function AddSchedulePage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-lg text-xs font-bold transition-all shadow-xs disabled:opacity-70 min-w-[90px] cursor-pointer"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-lg text-xs font-bold transition-all shadow-xs disabled:opacity-70 min-w-[90px] cursor-pointer"
             >
               {isSubmitting ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

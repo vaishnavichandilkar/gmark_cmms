@@ -72,13 +72,13 @@ export function ManageAccess() {
   };
 
   const handleExport = (format: 'pdf' | 'excel') => {
-    const headers = ['Designation Name', 'Total Users', 'Status'];
+    const headers = ['Software Role Name', 'Total Users', 'Status'];
     const rows = filteredRoles.map(role => [
       role.roleName || '-',
       role.totalUsers?.toString() || '0',
       role.isActive ? 'Active' : 'Inactive'
     ]);
-    exportData(headers, rows, 'Designation_List', 'Manage Access List', format);
+    exportData(headers, rows, 'Software_Role_List', 'Manage Access List', format);
   };
 
   const handlePrint = () => {
@@ -104,15 +104,15 @@ export function ManageAccess() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 print:hidden">
         <div>
           <h1 className="text-3xl font-black text-gray-900 tracking-tight">Manage Access</h1>
-          <p className="text-sm font-medium text-gray-500 mt-1">Configure designations and module permissions</p>
+          <p className="text-sm font-medium text-gray-500 mt-1">Configure software roles and module permissions</p>
         </div>
         {canCreate && (
           <button 
             onClick={() => navigate('/manage-access/new')}
-            className="flex items-center justify-center w-full sm:w-auto gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
+            className="flex items-center justify-center w-full sm:w-auto gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-lg text-sm font-semibold transition-all shadow-xs"
           >
             <Plus className="w-4 h-4" />
-            Add New Designation
+            Add Software Role
           </button>
         )}
       </div>
@@ -121,7 +121,7 @@ export function ManageAccess() {
       <TableActions
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
-        searchPlaceholder="Search designations..."
+        searchPlaceholder="Search software roles..."
         onExport={canExport ? handleExport : undefined}
         onPrint={canPrint ? handlePrint : undefined}
       />
@@ -129,14 +129,14 @@ export function ManageAccess() {
       {/* Table Section */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
-          <h2 className="text-base font-semibold text-gray-800">System Designations</h2>
+          <h2 className="text-base font-semibold text-gray-800">System Software Roles</h2>
         </div>
         
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-gray-600">
             <thead className="bg-gray-50/50 text-gray-700 font-medium text-xs border-b border-gray-200">
               <tr>
-                <th className="px-6 py-4">Designation Name</th>
+                <th className="px-6 py-4">Software Role Name</th>
                 <th className="px-6 py-4">Total Users</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4 text-right">Action</th>
@@ -208,9 +208,9 @@ export function ManageAccess() {
                       <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
                         <Shield className="w-6 h-6 text-gray-400" />
                       </div>
-                      <p className="text-base font-medium text-gray-900 mb-1">No designations found</p>
+                      <p className="text-base font-medium text-gray-900 mb-1">No software roles found</p>
                       <p className="text-sm text-gray-500 max-w-sm">
-                        Get started by creating a new designation.
+                        Get started by creating a new software role.
                       </p>
                     </div>
                   </td>
@@ -237,8 +237,8 @@ export function ManageAccess() {
 
       <DeleteConfirmModal 
         isOpen={deleteModalOpen}
-        title="Delete Designation"
-        message="Are you sure you want to delete this designation? Users assigned to this designation may lose access."
+        title="Delete Software Role"
+        message="Are you sure you want to delete this software role? Users assigned to this software role may lose access."
         onClose={() => {
           setDeleteModalOpen(false);
           setRoleToDelete(null);

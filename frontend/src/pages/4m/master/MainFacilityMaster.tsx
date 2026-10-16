@@ -175,7 +175,7 @@ export function MainFacilityMaster() {
         {canCreate && (
           <button
             onClick={() => navigate('/master/main-facility/new')}
-            className="flex items-center justify-center w-full sm:w-auto gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
+            className="flex items-center justify-center w-full sm:w-auto gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-lg text-sm font-semibold transition-all shadow-xs"
           >
             <Plus className="w-4 h-4" />
             Add Facility
@@ -205,15 +205,15 @@ export function MainFacilityMaster() {
 
         <div className="flex-1 overflow-x-auto">
           <table className="w-full text-left text-sm text-gray-600">
-            <thead className="bg-gray-50/80 text-gray-700 font-medium text-xs uppercase tracking-wider border-b border-gray-200 sticky top-0">
+            <thead className="bg-gray-50/80 text-gray-700 font-semibold text-xs uppercase tracking-wider border-b border-gray-200 sticky top-0">
               <tr>
-                <th className="px-6 py-4 whitespace-nowrap">Facility Code</th>
-                <th className="px-6 py-4 whitespace-nowrap">Facility Name</th>
-                <th className="px-6 py-4 whitespace-nowrap">Facility Head</th>
-                <th className="px-6 py-4 whitespace-nowrap">Category</th>
-                <th className="px-6 py-4 whitespace-nowrap">GST Number</th>
-                <th className="px-6 py-4 whitespace-nowrap">Status</th>
-                <th className="px-6 py-4 whitespace-nowrap w-16">Actions</th>
+                <th className="px-3.5 py-3 whitespace-nowrap text-left">Facility Code</th>
+                <th className="px-3.5 py-3 whitespace-nowrap text-left">Facility Name</th>
+                <th className="px-3.5 py-3 whitespace-nowrap text-left">Facility Head</th>
+                <th className="px-3.5 py-3 whitespace-nowrap text-left">Category</th>
+                <th className="px-3.5 py-3 whitespace-nowrap text-left">GST Number</th>
+                <th className="px-3.5 py-3 whitespace-nowrap text-left">Status</th>
+                <th className="px-3.5 py-3 whitespace-nowrap text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
@@ -224,30 +224,30 @@ export function MainFacilityMaster() {
                   <tr 
                     key={index} 
                     onClick={() => navigate(`/master/main-facility/view/${facility.id}`)}
-                    className="hover:bg-gray-50/50 transition-colors group cursor-pointer"
+                    className="hover:bg-gray-50/50 transition-colors group cursor-pointer text-xs sm:text-sm"
                   >
-                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{facility.mainFacilityCode}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{facility.mainFacilityName}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{facility.mainFacilityHead}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{facility.category}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">{facility.gstNumber}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border ${facility.status === 'Active' ? 'bg-green-50 text-green-700 border-green-100' : 'bg-red-50 text-red-700 border-red-100'}`}>
+                    <td className="px-3.5 py-3 whitespace-nowrap font-semibold text-gray-900 font-mono">{facility.mainFacilityCode}</td>
+                    <td className="px-3.5 py-3 whitespace-nowrap font-medium text-gray-800">{facility.mainFacilityName}</td>
+                    <td className="px-3.5 py-3 whitespace-nowrap text-gray-600">{facility.mainFacilityHead}</td>
+                    <td className="px-3.5 py-3 whitespace-nowrap text-gray-600">{facility.category}</td>
+                    <td className="px-3.5 py-3 whitespace-nowrap text-gray-500">{facility.gstNumber}</td>
+                    <td className="px-3.5 py-3 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${facility.status === 'Active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
                         {facility.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                    <td className="px-3.5 py-3 whitespace-nowrap text-right">
+                      <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={(e) => { e.stopPropagation(); navigate(`/master/main-facility/view/${facility.id}`); }}
-                          className="text-gray-400 hover:text-blue-600 p-1.5 rounded-md hover:bg-blue-50 transition-colors" title="View"
+                          className="text-gray-500 hover:text-blue-600 p-1.5 rounded-md hover:bg-blue-50 transition-colors" title="View"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         {canEdit && (
                           <button
                             onClick={(e) => { e.stopPropagation(); navigate(`/master/main-facility/edit/${facility.id}`); }}
-                            className="text-gray-400 hover:text-green-600 p-1.5 rounded-md hover:bg-green-50 transition-colors" title="Edit"
+                            className="text-gray-500 hover:text-green-600 p-1.5 rounded-md hover:bg-green-50 transition-colors" title="Edit"
                           >
                             <Pencil className="w-4 h-4" />
                           </button>
@@ -255,7 +255,7 @@ export function MainFacilityMaster() {
                         {canDelete && (
                           <button
                             onClick={(e) => { e.stopPropagation(); confirmDelete(facility.id); }}
-                            className="text-gray-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors" title="Delete"
+                            className="text-gray-500 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors" title="Delete"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>

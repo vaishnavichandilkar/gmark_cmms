@@ -7,12 +7,14 @@ import { UpdateDesignationDto } from './dto/update-designation.dto';
 export class DesignationsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createDesignationDto: CreateDesignationDto) {
+  async create(createDesignationDto: CreateDesignationDto, currentUser?: any) {
     const { name, isActive, permissions } = createDesignationDto;
+    const effectiveAdminId = currentUser?.adminId || currentUser?.userId || null;
     return this.prisma.designation.create({
       data: {
         name,
         isActive,
+        adminId: effectiveAdminId,
         permissions: {
           create: permissions,
         },
@@ -23,8 +25,14 @@ export class DesignationsService {
     });
   }
 
-  async findAll() {
+  async findAll(currentUser?: any) {
+    const effectiveAdminId = currentUser?.adminId || currentUser?.userId;
+    const whereClause: any = effectiveAdminId
+      ? { adminId: effectiveAdminId }
+      : {};
+
     const designations = await this.prisma.designation.findMany({
+      where: whereClause,
       include: {
         permissions: true,
       },
@@ -33,12 +41,19 @@ export class DesignationsService {
     
     const designationsWithCounts = await Promise.all(
       designations.map(async (d) => {
+        const userWhere: any = {
+          OR: [
+            { designation: d.name },
+            { employee: { designation: d.name } }
+          ]
+        };
+        if (effectiveAdminId) {
+          userWhere.AND = [
+            { OR: [{ adminId: effectiveAdminId }, { id: effectiveAdminId }] }
+          ];
+        }
         const totalUsers = await this.prisma.user.count({
-          where: {
-            employee: {
-              designation: d.name
-            }
-          }
+          where: userWhere,
         });
         return {
           ...d,
@@ -50,22 +65,33 @@ export class DesignationsService {
     return designationsWithCounts;
   }
 
-  async findOne(id: number) {
-    const designation = await this.prisma.designation.findUnique({
-      where: { id },
+  async findOne(idOrName: number | string, currentUser?: any) {
+    const isNum = !isNaN(+idOrName);
+    const effectiveAdminId = currentUser?.adminId || currentUser?.userId;
+
+    const where: any = isNum
+      ? { id: +idOrName }
+      : { name: { equals: idOrName.toString(), mode: 'insensitive' } };
+
+    if (effectiveAdminId) {
+      where.adminId = effectiveAdminId;
+    }
+
+    const designation = await this.prisma.designation.findFirst({
+      where,
       include: {
         permissions: true,
       },
     });
 
     if (!designation) {
-      throw new NotFoundException(`Designation with ID ${id} not found`);
+      throw new NotFoundException(`Designation with ID or Name "${idOrName}" not found`);
     }
 
     return designation;
   }
 
-  async update(id: number, updateDesignationDto: UpdateDesignationDto) {
+  async update(id: number, updateDesignationDto: UpdateDesignationDto, currentUser?: any) {
     const { name, isActive, permissions } = updateDesignationDto;
 
     // We will update name/isActive, and completely recreate the permissions
@@ -94,7 +120,7 @@ export class DesignationsService {
     });
   }
 
-  async remove(id: number) {
+  async remove(id: number, currentUser?: any) {
     try {
       await this.prisma.designation.delete({
         where: { id },

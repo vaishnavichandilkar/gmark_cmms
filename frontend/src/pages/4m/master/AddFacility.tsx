@@ -569,7 +569,7 @@ export function AddFacility() {
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     className={`min-w-[120px] py-3.5 px-4 text-sm font-semibold border-r border-gray-200 transition-colors ${activeTab === tab
-                        ? 'bg-[#00a651] text-white'
+                        ? 'bg-blue-600 text-white shadow-xs'
                         : 'bg-white text-gray-700 hover:bg-gray-50'
                       }`}
                   >
@@ -637,7 +637,7 @@ export function AddFacility() {
                       onChange={handleChange}
                       readOnly
                       placeholder="e.g. FL456"
-                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all ${errors.facilityCode ? 'border-red-500' : 'border-gray-300'
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all ${errors.facilityCode ? 'border-red-500' : 'border-gray-300'
                         } bg-gray-50 text-gray-500 cursor-not-allowed`}
                     />
                     {errors.facilityCode && <p className="mt-1 text-sm text-red-500">{errors.facilityCode}</p>}
@@ -654,7 +654,7 @@ export function AddFacility() {
                       onChange={handleChange}
                       disabled={isViewMode}
                       placeholder="e.g. Kolhapur"
-                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all ${errors.facilityName ? 'border-red-500' : 'border-gray-300'
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all ${errors.facilityName ? 'border-red-500' : 'border-gray-300'
                         } ${isViewMode ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
                     />
                     {errors.facilityName && <p className="mt-1 text-sm text-red-500">{errors.facilityName}</p>}
@@ -672,7 +672,7 @@ export function AddFacility() {
                       value={formData.category}
                       onChange={handleChange}
                       disabled={isViewMode}
-                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all ${errors.category ? 'border-red-500' : 'border-gray-300'
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all ${errors.category ? 'border-red-500' : 'border-gray-300'
                         } ${isViewMode ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
                     />
                     <datalist id="facility-category-options">
@@ -693,7 +693,7 @@ export function AddFacility() {
                     disabled={isViewMode}
                     placeholder="Enter facility description..."
                     rows={4}
-                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all resize-none ${errors.description ? 'border-red-500' : 'border-gray-300'
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all resize-none ${errors.description ? 'border-red-500' : 'border-gray-300'
                       } ${isViewMode ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
                   />
                 </div>
@@ -709,7 +709,7 @@ export function AddFacility() {
                   <button
                     type="button"
                     onClick={handleNext}
-                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm"
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-lg text-sm font-semibold transition-all shadow-xs"
                   >
                     Next
                   </button>
@@ -783,7 +783,7 @@ export function AddFacility() {
                       onChange={handleChange}
                       disabled={isViewMode || formData.isLocationPart === 'true'}
                       rows={3}
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all resize-none ${errors.address ? 'border-red-500' : 'border-gray-300'
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all resize-none ${errors.address ? 'border-red-500' : 'border-gray-300'
                         } ${(isViewMode || formData.isLocationPart === 'true') ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
                     />
                     {errors.address && <p className="mt-1 text-sm text-red-500">{errors.address}</p>}
@@ -799,7 +799,7 @@ export function AddFacility() {
                       value={formData.postalCode}
                       onChange={handleChange}
                       disabled={isViewMode || formData.isLocationPart === 'true'}
-                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all border-gray-300 ${(isViewMode || formData.isLocationPart === 'true') ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all border-gray-300 ${(isViewMode || formData.isLocationPart === 'true') ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
                     />
                   </div>
 
@@ -813,7 +813,7 @@ export function AddFacility() {
                       value={formData.country}
                       onChange={handleChange}
                       disabled={isViewMode || formData.isLocationPart === 'true'}
-                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all ${errors.country ? 'border-red-500' : 'border-gray-300'
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all ${errors.country ? 'border-red-500' : 'border-gray-300'
                         } ${(isViewMode || formData.isLocationPart === 'true') ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
                     />
                     {errors.country && <p className="mt-1 text-sm text-red-500">{errors.country}</p>}
@@ -829,7 +829,7 @@ export function AddFacility() {
                       value={formData.state}
                       onChange={handleChange}
                       disabled={isViewMode || formData.isLocationPart === 'true'}
-                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all ${errors.state ? 'border-red-500' : 'border-gray-300'
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all ${errors.state ? 'border-red-500' : 'border-gray-300'
                         } ${(isViewMode || formData.isLocationPart === 'true') ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
                     />
                     {errors.state && <p className="mt-1 text-sm text-red-500">{errors.state}</p>}
@@ -845,7 +845,7 @@ export function AddFacility() {
                       value={formData.city}
                       onChange={handleChange}
                       disabled={isViewMode || formData.isLocationPart === 'true'}
-                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all ${errors.city ? 'border-red-500' : 'border-gray-300'
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all ${errors.city ? 'border-red-500' : 'border-gray-300'
                         } ${(isViewMode || formData.isLocationPart === 'true') ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
                     />
                     {errors.city && <p className="mt-1 text-sm text-red-500">{errors.city}</p>}
@@ -863,7 +863,7 @@ export function AddFacility() {
                       value={formData.subCategory}
                       onChange={handleChange}
                       disabled={isViewMode || formData.isLocationPart === 'true'}
-                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all ${errors.subCategory ? 'border-red-500' : 'border-gray-300'
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all ${errors.subCategory ? 'border-red-500' : 'border-gray-300'
                         } ${(isViewMode || formData.isLocationPart === 'true') ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
                     />
                     <datalist id="facility-subcategory-options">
@@ -892,7 +892,7 @@ export function AddFacility() {
                           value={formData.latitude}
                           onChange={handleChange}
                           disabled={isViewMode || formData.isLocationPart === 'true'}
-                          className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all ${errors.latitude ? 'border-red-500' : 'border-gray-300'} ${isViewMode || formData.isLocationPart === 'true' ? 'bg-gray-50 text-gray-500' : 'bg-gray-50 text-gray-900'}`}
+                          className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all ${errors.latitude ? 'border-red-500' : 'border-gray-300'} ${isViewMode || formData.isLocationPart === 'true' ? 'bg-gray-50 text-gray-500' : 'bg-gray-50 text-gray-900'}`}
                           placeholder="Latitude"
                         />
                         <input
@@ -901,7 +901,7 @@ export function AddFacility() {
                           value={formData.longitude}
                           onChange={handleChange}
                           disabled={isViewMode || formData.isLocationPart === 'true'}
-                          className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all ${errors.longitude ? 'border-red-500' : 'border-gray-300'} ${isViewMode || formData.isLocationPart === 'true' ? 'bg-gray-50 text-gray-500' : 'bg-gray-50 text-gray-900'}`}
+                          className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all ${errors.longitude ? 'border-red-500' : 'border-gray-300'} ${isViewMode || formData.isLocationPart === 'true' ? 'bg-gray-50 text-gray-500' : 'bg-gray-50 text-gray-900'}`}
                           placeholder="Longitude"
                         />
                       </div>
@@ -935,7 +935,7 @@ export function AddFacility() {
                     disabled={isViewMode}
                     placeholder="Notes"
                     rows={4}
-                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all resize-none border-gray-300 ${isViewMode ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all resize-none border-gray-300 ${isViewMode ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
                   />
                 </div>
 
@@ -951,7 +951,7 @@ export function AddFacility() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full sm:w-auto flex justify-center px-6 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                      className="w-full sm:w-auto flex justify-center px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                     >
                       {loading ? (
                         <>
@@ -978,7 +978,7 @@ export function AddFacility() {
                         onClick={() => setIsUploadMenuOpen(!isUploadMenuOpen)}
                         className="px-4 py-2 bg-gray-200 text-gray-800 font-semibold text-sm rounded-xl flex items-center gap-2 hover:bg-gray-300 transition-colors"
                       >
-                        <Plus size={16} className="text-[#00a651] stroke-[3]" /> Upload
+                        <Plus size={16} className="text-blue-600 stroke-[3]" /> Upload
                       </button>
 
                       {/* Upload Dropdown */}
@@ -1062,7 +1062,7 @@ export function AddFacility() {
                       type="button"
                       onClick={handleSubmit}
                       disabled={loading}
-                      className="px-6 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                      className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                     >
                       {loading ? (
                         <>

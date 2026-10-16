@@ -31,6 +31,7 @@ model User {
   mobileNumber    String?
   email           String           @unique
   password        String
+  plainPassword   String?
   firstName       String?
   lastName        String?
   fullName        String?
@@ -44,6 +45,7 @@ model User {
   country         String?
   pincode         String?
   role            UserRole         @default(VIEWER)
+  moduleAccess    String           @default("BOTH")
   isActive        Boolean          @default(true)
   societyId       Int?
   society         Society?         @relation(fields: [societyId], references: [id], onDelete: Cascade)
@@ -53,6 +55,9 @@ model User {
   mainFacility    MainFacility?    @relation(fields: [mainFacilityId], references: [id], onDelete: SetNull)
   facilityId      Int?
   facility        Facility?        @relation(fields: [facilityId], references: [id], onDelete: SetNull)
+  adminId         Int?
+  admin           User?            @relation("AdminUsers", fields: [adminId], references: [id], onDelete: SetNull)
+  createdUsers    User[]           @relation("AdminUsers")
   deviceId        String?
   deviceName      String?
   registration    Registration?
@@ -309,20 +314,24 @@ model DeviceRegisterValue {
 }
 
 model Employee {
-  id            Int      @id @default(autoincrement())
-  employeeCode  String   @unique
+  id            Int       @id @default(autoincrement())
+  employeeCode  String?
   fullName      String
   mobileNumber  String
-  officialEmail String   @unique
+  officialEmail String?
   personalEmail String?
-  dateOfJoining DateTime
-  dateOfBirth   DateTime
-  department    String
+  dateOfJoining DateTime?
+  dateOfBirth   DateTime?
+  department    String?
   designation   String
   salaryPayout  Float?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  reportingTo   String?
+  adminId       Int?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
   users         User[]
+
+  @@unique([adminId, employeeCode])
 }
 
 model MainFacility {
@@ -342,6 +351,7 @@ model MainFacility {
   country          String?
   state            String?
   city             String?
+  adminId          Int?
   users            User[]
   facilities       Facility[]
   buildings        Building[]
@@ -355,6 +365,7 @@ model Facility {
   facilityName String
   category     String
   description  String?
+  adminId      Int?
 
   // Location & Hierarchy Fields
   isLocationPart   Boolean    @default(false)
@@ -384,8 +395,9 @@ model Facility {
 
 model Designation {
   id          Int          @id @default(autoincrement())
-  name        String       @unique
+  name        String
   isActive    Boolean      @default(true)
+  adminId     Int?
   permissions Permission[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -446,6 +458,7 @@ model Machine {
   id       Int     @id @default(autoincrement())
   name     String
   deviceId String? @unique // Link to Device (MAC ID) for IoT data
+  adminId  Int?
 
   machineType        String? // e.g. 'HYPN', 'FIRE', 'STP', 'WTP', 'SUMP', etc.
   company            String?
@@ -586,6 +599,7 @@ enum WorkOrderPriority {
 model WorkOrder {
   id                 Int               @id @default(autoincrement())
   woNumber           String            @unique
+  adminId            Int?
   machineId          Int
   machine            Machine           @relation(fields: [machineId], references: [id], onDelete: Cascade)
   problemDescription String
@@ -652,6 +666,7 @@ model WorkOrderMedia {
 model SparePartMaster {
   id            Int                  @id @default(autoincrement())
   partCode      String               @unique
+  adminId       Int?
   partName      String
   category      String?
   stockQuantity Int                  @default(100)
@@ -706,6 +721,7 @@ model MachineCheckpoint {
 model MaintenanceSchedule {
   id                    Int               @id @default(autoincrement())
   scheduleCode          String            @unique
+  adminId               Int?
   scheduleType          String            @default("PREVENTIVE") // 'PREVENTIVE', 'PREDICTIVE', 'CONDITION', 'BREAKDOWN'
   frequency             String            @default("MONTHLY")    // 'DAILY', 'WEEKLY', 'MONTHLY', 'BIMONTHLY', 'QUARTERLY', 'HALF_YEARLY', 'YEARLY'
   priority              WorkOrderPriority @default(MEDIUM)
@@ -779,6 +795,7 @@ model MaintenanceScheduleLog {
 model CheckpointMaster {
   id             Int                       @id @default(autoincrement())
   code           String                    @unique // e.g. 'CHK-PREV-001'
+  adminId        Int?
   checkpointType String                    @default("PREVENTIVE") // 'PREVENTIVE', 'PREDICTIVE'
   description    String
   frequency      String                    @default("MONTHLY")
@@ -814,6 +831,7 @@ model UserCheckpoint {
 model Supplier {
   id                  Int      @id @default(autoincrement())
   supplierCode        String   @unique
+  adminId             Int?
   name                String
   contactPerson       String?
   email               String?
@@ -834,7 +852,17 @@ model Supplier {
   businessCategory    String?
   businessDescription String?
   status              String   @default("ACTIVE")
+  logoUrl             String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }
 
+model MachineOption {
+  id        Int      @id @default(autoincrement())
+  adminId   Int?
+  type      String   // 'make', 'modelNumber', 'machineCategory', 'machineSubCategory'
+  value     String
+  createdAt DateTime @default(now())
+
+  @@unique([adminId, type, value])
+}

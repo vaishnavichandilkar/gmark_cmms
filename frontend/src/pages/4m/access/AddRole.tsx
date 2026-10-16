@@ -3,6 +3,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ChevronLeft, Shield, CheckCircle2, XCircle, ChevronDown, ChevronRight, Layers } from 'lucide-react';
 import { api } from '../../../lib/api';
 import toast from 'react-hot-toast';
+import { MultiSelect } from '../../../components/shared/MultiSelect';
 
 export interface SubModuleItem {
   id: string;
@@ -43,6 +44,10 @@ export const availableModules: ModuleItem[] = [
       { id: 'machine_tab_iot', name: 'IOT' },
     ]
   },
+  { id: 'spares', name: 'Spares Management' },
+  { id: 'suppliers', name: 'Suppliers Management' },
+  { id: 'work_orders', name: 'Work Orders' },
+  { id: 'schedules', name: 'Schedule Maintenance' },
 ];
 
 const allModuleIds = availableModules.flatMap(m => [m.id, ...(m.subModules?.map(s => s.id) || [])]);
@@ -76,6 +81,8 @@ export function AddRole() {
   const isViewMode = window.location.pathname.includes('/view/');
   const returnUrl = location.state?.returnUrl;
 
+  const [loading, setLoading] = useState(false);
+
   const [formData, setFormData] = useState({
     roleName: '',
     isActive: true,
@@ -94,7 +101,58 @@ export function AddRole() {
     }, {} as Record<string, Record<string, boolean>>)
   );
   
-  const [loading, setLoading] = useState(false);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchEmployeesAndUsers = async () => {
+      try {
+        const [empRes, userRes] = await Promise.allSettled([
+          api.get('/employees'),
+          api.get('/users'),
+        ]);
+        const fetchedEmployees = empRes.status === 'fulfilled' ? empRes.value.data : [];
+        if (empRes.status === 'fulfilled') setEmployees(fetchedEmployees);
+        if (userRes.status === 'fulfilled') setUsers(userRes.value.data);
+
+        // Restore draft only if returning from AddEmployee in creation/edit mode
+        const draft = sessionStorage.getItem('addRoleDraft');
+        const newlyAddedEmployeeName = sessionStorage.getItem('newlyAddedEmployeeName');
+
+        if (draft && !isViewMode && !id) {
+          try {
+            const parsed = JSON.parse(draft);
+            if (parsed.formData) setFormData(parsed.formData);
+            if (parsed.permissions) setPermissions(parsed.permissions);
+
+            let restoredEmployeeIds = parsed.selectedEmployeeIds || [];
+            if (newlyAddedEmployeeName) {
+              const matchedEmp = fetchedEmployees.find((e: any) => 
+                e.fullName?.toLowerCase().trim() === newlyAddedEmployeeName.toLowerCase().trim()
+              );
+              if (matchedEmp) {
+                const matchedIdStr = matchedEmp.id.toString();
+                if (!restoredEmployeeIds.includes(matchedIdStr)) {
+                  restoredEmployeeIds = [...restoredEmployeeIds, matchedIdStr];
+                }
+                toast.success(`Employee "${matchedEmp.fullName}" added and selected!`);
+              }
+            }
+            setSelectedEmployeeIds(restoredEmployeeIds);
+          } catch (e) {
+            console.error('Failed to restore draft in AddRole:', e);
+          } finally {
+            sessionStorage.removeItem('addRoleDraft');
+            sessionStorage.removeItem('newlyAddedEmployeeName');
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch employees and users:', err);
+      }
+    };
+    fetchEmployeesAndUsers();
+  }, []);
 
   useEffect(() => {
     const fetchDesignation = async () => {
@@ -113,20 +171,18 @@ export function AddRole() {
           setPermissions(prev => {
             const next = { ...prev };
             data.permissions.forEach((p: any) => {
-              if (next[p.moduleId]) {
-                next[p.moduleId] = {
-                  view: p.canView || false,
-                  create: p.canCreate || false,
-                  edit: p.canEdit || false,
-                  delete: p.canDelete || false,
-                  import: p.canImport || false,
-                  export: p.canExport || false,
-                  print: p.canPrint || false
-                };
-              }
+              next[p.moduleId] = {
+                view: !!p.canView,
+                create: !!p.canCreate,
+                edit: !!p.canEdit,
+                delete: !!p.canDelete,
+                import: !!p.canImport,
+                export: !!p.canExport,
+                print: !!p.canPrint
+              };
             });
 
-            // Backwards compatibility: inherit tabs from parent machine_management if not explicitly stored
+            // Backwards compatibility: inherit tabs from parent machine_management
             const mmPerm = data.permissions.find((p: any) => p.moduleId === 'machine_management');
             if (mmPerm) {
               const machineTabs = [
@@ -139,13 +195,13 @@ export function AddRole() {
                 'machine_tab_iot',
               ];
               machineTabs.forEach(tabId => {
-                const hasExplicit = data.permissions.some((p: any) => p.moduleId === tabId);
-                if (!hasExplicit && next[tabId]) {
+                const tabItem = data.permissions.find((p: any) => p.moduleId === tabId);
+                if (next[tabId]) {
                   next[tabId] = {
-                    view: mmPerm.canView || false,
-                    create: isActionAllowed(tabId, 'create') ? (mmPerm.canCreate || false) : false,
-                    edit: mmPerm.canEdit || false,
-                    delete: isActionAllowed(tabId, 'delete') ? (mmPerm.canDelete || false) : false,
+                    view: tabItem ? !!tabItem.canView : (mmPerm.canView || false),
+                    create: isActionAllowed(tabId, 'create') ? (tabItem && tabItem.canCreate ? !!tabItem.canCreate : (mmPerm.canCreate || false)) : false,
+                    edit: tabItem ? !!tabItem.canEdit : (mmPerm.canEdit || false),
+                    delete: isActionAllowed(tabId, 'delete') ? (tabItem && tabItem.canDelete ? !!tabItem.canDelete : (mmPerm.canDelete || false)) : false,
                     import: false,
                     export: false,
                     print: false,
@@ -154,7 +210,7 @@ export function AddRole() {
               });
             }
 
-            // Backwards compatibility: inherit tabs from parent facility_management if not explicitly stored
+            // Backwards compatibility: inherit tabs from parent facility_management
             const fmPerm = data.permissions.find((p: any) => p.moduleId === 'facility_management');
             if (fmPerm) {
               const facilityTabs = [
@@ -162,13 +218,13 @@ export function AddRole() {
                 'facility_tab_document',
               ];
               facilityTabs.forEach(tabId => {
-                const hasExplicit = data.permissions.some((p: any) => p.moduleId === tabId);
-                if (!hasExplicit && next[tabId]) {
+                const tabItem = data.permissions.find((p: any) => p.moduleId === tabId);
+                if (next[tabId]) {
                   next[tabId] = {
-                    view: fmPerm.canView || false,
-                    create: isActionAllowed(tabId, 'create') ? (fmPerm.canCreate || false) : false,
-                    edit: fmPerm.canEdit || false,
-                    delete: isActionAllowed(tabId, 'delete') ? (fmPerm.canDelete || false) : false,
+                    view: tabItem ? !!tabItem.canView : (fmPerm.canView || false),
+                    create: isActionAllowed(tabId, 'create') ? (tabItem && tabItem.canCreate ? !!tabItem.canCreate : (fmPerm.canCreate || false)) : false,
+                    edit: tabItem ? !!tabItem.canEdit : (fmPerm.canEdit || false),
+                    delete: isActionAllowed(tabId, 'delete') ? (tabItem && tabItem.canDelete ? !!tabItem.canDelete : (fmPerm.canDelete || false)) : false,
                     import: false,
                     export: false,
                     print: false,
@@ -284,6 +340,34 @@ export function AddRole() {
       .every(action => permissions[moduleId][action]);
   };
 
+  const areAllPermissionsSelected = () => {
+    return allModuleIds.every(modId => {
+      return ['view', 'create', 'edit', 'delete', 'import', 'export', 'print']
+        .filter(action => isActionAllowed(modId, action))
+        .every(action => permissions[modId]?.[action]);
+    });
+  };
+
+  const handleSelectAllGlobal = (checked: boolean) => {
+    if (isViewMode) return;
+    setPermissions(prev => {
+      const next = { ...prev };
+      allModuleIds.forEach(modId => {
+        if (!next[modId]) {
+          next[modId] = { view: false, create: false, edit: false, delete: false, import: false, export: false, print: false };
+        }
+        const newPerms = { ...next[modId] };
+        ['view', 'create', 'edit', 'delete', 'import', 'export', 'print'].forEach(action => {
+          if (isActionAllowed(modId, action)) {
+            newPerms[action] = checked;
+          }
+        });
+        next[modId] = newPerms;
+      });
+      return next;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -312,13 +396,85 @@ export function AddRole() {
           sessionStorage.setItem('newlyAddedDesignation', formData.roleName);
         }
       }
-      toast.success('Designation saved successfully!');
+
+      // If user selected employee(s), assign designation & create/update user accounts
+      if (selectedEmployeeIds.length > 0) {
+        const mapRole = (desigName: string) => {
+          const roleStr = (desigName || '').toUpperCase();
+          if (roleStr.includes('SUPER')) return 'SUPER_ADMIN';
+          if (roleStr.includes('BUILDING')) return 'BUILDING_ADMIN';
+          if (roleStr.includes('SOCIETY')) return 'SOCIETY_ADMIN';
+          if (roleStr.includes('ADMIN')) return 'SOCIETY_ADMIN';
+          if (roleStr.includes('OPERATOR') || roleStr.includes('SUPERVISOR')) return 'OPERATOR';
+          if (roleStr.includes('MANAGER')) return 'BUILDING_ADMIN';
+          return 'VIEWER';
+        };
+
+        for (const empIdStr of selectedEmployeeIds) {
+          const emp = employees.find(e => e.id.toString() === empIdStr);
+          if (!emp) continue;
+
+          const empEmail = emp.officialEmail || `${emp.employeeCode || emp.id}@example.com`;
+          const empUsername = emp.fullName ? emp.fullName.toLowerCase().trim().replace(/\s+/g, '') : empEmail;
+          const existingUser = users.find(u => u.employeeId?.toString() === empIdStr);
+
+          const userPayload: any = {
+            username: empUsername,
+            email: empEmail,
+            firstName: emp.fullName ? emp.fullName.split(' ')[0] : undefined,
+            lastName: emp.fullName ? emp.fullName.split(' ').slice(1).join(' ') : undefined,
+            mobileNumber: emp.mobileNumber || '',
+            role: mapRole(formData.roleName),
+            designation: formData.roleName,
+            isActive: formData.isActive,
+            employeeId: parseInt(empIdStr, 10),
+          };
+
+          if (existingUser) {
+            await api.put(`/users/${existingUser.id}`, userPayload).catch(() => {});
+          } else {
+            userPayload.password = 'Welcome@123';
+            await api.post('/users', userPayload).catch(() => {});
+          }
+        }
+      }
+
+      toast.success(selectedEmployeeIds.length > 0 ? 'Software Role and User(s) saved successfully!' : 'Software Role saved successfully!');
       navigate(returnUrl || '/manage-access');
     } catch (err) {
-      console.error('Failed to save designation', err);
-      toast.error('Failed to save designation.');
+      console.error('Failed to save software role', err);
+      toast.error('Failed to save software role.');
     }
   };
+
+  const handleAddNewEmployeeRedirect = () => {
+    const draft = {
+      formData,
+      permissions,
+      selectedEmployeeIds,
+    };
+    sessionStorage.setItem('addRoleDraft', JSON.stringify(draft));
+    sessionStorage.setItem('addEmployeeOriginalReturnUrl', window.location.pathname);
+
+    toast('Redirecting to Employee Master to add a new employee...', { icon: '✨' });
+    navigate('/master/employee/new', { state: { returnUrl: window.location.pathname } });
+  };
+
+  // Filter out employees who already have a user account (unless already selected)
+  const existingUserEmpIds = new Set(
+    users
+      .filter((u: any) => u.employeeId)
+      .map((u: any) => u.employeeId.toString())
+  );
+
+  const availableEmployees = employees.filter(
+    (emp: any) => !existingUserEmpIds.has(emp.id.toString()) || selectedEmployeeIds.includes(emp.id.toString())
+  );
+
+  const employeeOptions = availableEmployees.map((emp: any) => ({
+    label: `${emp.fullName} (${emp.department || 'N/A'} - ${emp.designation || 'N/A'})`,
+    value: emp.id.toString()
+  }));
 
   return (
     <div className="w-full sm:p-6 pb-10 min-h-screen">
@@ -331,12 +487,17 @@ export function AddRole() {
           <ChevronLeft className="w-6 h-6 text-gray-600" />
         </button>
         <h1 className="text-2xl font-bold text-gray-900">
-          {isViewMode ? 'View Designation' : id ? 'Edit Designation' : 'New Designation'}
+          {isViewMode ? 'View Software Role' : id ? 'Edit Software Role' : 'New Software Role'}
         </h1>
       </div>
 
       <div className={isViewMode ? "" : "bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden w-full"}>
-        {isViewMode ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center p-16 bg-white rounded-2xl border border-gray-100 shadow-sm">
+            <div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-gray-500 font-medium text-sm">Loading software role details...</p>
+          </div>
+        ) : isViewMode ? (
           <div className="space-y-8">
             {/* Header Card */}
             <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-6 sm:p-8 text-white shadow-lg flex flex-col sm:flex-row items-center gap-6">
@@ -344,11 +505,11 @@ export function AddRole() {
                 <Shield size={48} className="text-white" />
               </div>
               <div className="text-center sm:text-left">
-                <h2 className="text-3xl font-bold mb-2">{formData.roleName || 'Unknown Designation'}</h2>
+                <h2 className="text-3xl font-bold mb-2">{formData.roleName || 'Unknown Software Role'}</h2>
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-emerald-50 font-medium">
                   <div className="flex items-center gap-1.5">
                     {formData.isActive ? <CheckCircle2 size={18} className="text-green-300" /> : <CheckCircle2 size={18} className="text-gray-300" />}
-                    <span>{formData.isActive ? 'Active Designation' : 'Inactive Designation'}</span>
+                    <span>{formData.isActive ? 'Active Software Role' : 'Inactive Software Role'}</span>
                   </div>
                 </div>
               </div>
@@ -461,12 +622,12 @@ export function AddRole() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-4 sm:p-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6">Designation Details</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-6">Software Role Details</h3>
           
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-6 mb-8">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Designation Name <span className="text-red-500">*</span>
+                  Software Role Name <span className="text-red-500">*</span>
                 </label>
                 <input 
                   type="text" 
@@ -478,8 +639,24 @@ export function AddRole() {
                   required
                 />
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Employee Name
+                </label>
+                <MultiSelect 
+                  name="selectedEmployeeIds"
+                  values={selectedEmployeeIds}
+                  onChange={setSelectedEmployeeIds}
+                  options={employeeOptions}
+                  disabled={isViewMode}
+                  placeholder="Select Employee(s)"
+                  onAddNew={handleAddNewEmployeeRedirect}
+                  addNewLabel="Add Employee"
+                />
+              </div>
               
-              <div className="flex items-center gap-3 mt-6 md:mt-8">
+              <div className="flex items-center gap-3 mt-6 md:mt-7">
                 <label className="text-sm font-medium text-gray-700">Status:</label>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input 
@@ -489,7 +666,7 @@ export function AddRole() {
                     onChange={(e) => setFormData({...formData, isActive: e.target.checked})}
                     disabled={isViewMode}
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                   <span className="ml-3 text-sm font-medium text-gray-700">
                     {formData.isActive ? 'Active' : 'Inactive'}
                   </span>
@@ -499,31 +676,60 @@ export function AddRole() {
 
             <div className="border-t border-gray-200 my-8"></div>
             
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-semibold text-gray-900">Module & Tab Permissions</h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Module & Tab Permissions</h3>
+                <p className="text-sm text-gray-500 mt-1">Select the actions this software role can perform across modules and individual machine management tabs.</p>
+              </div>
+              {!isViewMode && (
+                <button
+                  type="button"
+                  onClick={() => handleSelectAllGlobal(!areAllPermissionsSelected())}
+                  className={`px-4 py-2 text-sm font-semibold rounded-xl border transition-all flex items-center justify-center gap-2 shadow-xs whitespace-nowrap active:scale-95 ${
+                    areAllPermissionsSelected()
+                      ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                      : 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                  }`}
+                >
+                  <CheckCircle2 size={16} />
+                  {areAllPermissionsSelected() ? 'Deselect All' : 'Select All'}
+                </button>
+              )}
             </div>
-            <p className="text-sm text-gray-500 mb-6">Select the actions this designation can perform across modules and individual machine management tabs.</p>
 
             <div className="overflow-x-auto rounded-lg border border-gray-200">
-              <table className="w-full text-left whitespace-nowrap">
+              <table className="w-full text-left">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-4 text-sm font-bold text-gray-700">Module / Tab</th>
-                    <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center">View</th>
-                    <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center">Create</th>
-                    <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center">Edit</th>
-                    <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center">Delete</th>
-                    <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center">Import</th>
-                    <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center">Export</th>
-                    <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center">Print</th>
-                    <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center border-l border-gray-200">Select All</th>
+                    <th className="px-4 py-3 text-xs font-bold text-gray-700 uppercase tracking-wider">Module / Tab</th>
+                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">View</th>
+                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Create</th>
+                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Edit</th>
+                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Delete</th>
+                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Import</th>
+                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Export</th>
+                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Print</th>
+                    <th className="px-3 py-3 text-xs font-bold text-gray-700 text-center border-l border-gray-200 bg-gray-100/70 uppercase tracking-wider w-28">
+                      <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
+                        <span>Select All</span>
+                        {!isViewMode && (
+                          <input 
+                            type="checkbox"
+                            checked={areAllPermissionsSelected()}
+                            onChange={(e) => handleSelectAllGlobal(e.target.checked)}
+                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            title="Select / Deselect all permissions across all modules"
+                          />
+                        )}
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {availableModules.map((mod) => (
                     <React.Fragment key={mod.id}>
                       <tr className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">
                           {mod.subModules ? (
                             <div className="flex items-center gap-2">
                               <button
@@ -533,13 +739,13 @@ export function AddRole() {
                                 title={expandedModules[mod.id] ? "Collapse tabs" : "Expand tabs"}
                               >
                                 {expandedModules[mod.id] ? (
-                                  <ChevronDown className="w-4 h-4 text-emerald-600" />
+                                  <ChevronDown className="w-4 h-4 text-blue-600" />
                                 ) : (
                                   <ChevronRight className="w-4 h-4 text-gray-400" />
                                 )}
                               </button>
                               <span className="font-bold text-gray-900">{mod.name}</span>
-                              <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full">
+                              <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full">
                                 {mod.subModules.length} Tabs
                               </span>
                             </div>
@@ -549,14 +755,14 @@ export function AddRole() {
                         </td>
                         
                         {['view', 'create', 'edit', 'delete', 'import', 'export', 'print'].map(action => (
-                          <td key={action} className="px-6 py-4 text-center">
+                          <td key={action} className="px-2 py-3 text-center">
                             {isActionAllowed(mod.id, action) ? (
                               <input 
                                 type="checkbox"
                                 checked={permissions[mod.id]?.[action] || false}
                                 onChange={(e) => handlePermissionChange(mod.id, action, e.target.checked)}
                                 disabled={isViewMode}
-                                className="w-6 h-6 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                               />
                             ) : (
                               <span className="text-gray-300">-</span>
@@ -564,24 +770,24 @@ export function AddRole() {
                           </td>
                         ))}
 
-                        <td className="px-6 py-4 text-center border-l border-gray-200 bg-gray-50/30">
+                        <td className="px-3 py-3 text-center border-l border-gray-200 bg-gray-50/30">
                           <input 
                             type="checkbox"
                             checked={isRowAllSelected(mod.id)}
                             onChange={(e) => handleSelectAllRow(mod.id, e.target.checked)}
                             disabled={isViewMode}
-                            className="w-6 h-6 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                         </td>
                       </tr>
 
                       {/* Render Sub-module Tab Rows */}
                       {mod.subModules && expandedModules[mod.id] && mod.subModules.map((sub) => (
-                        <tr key={sub.id} className="bg-emerald-50/20 hover:bg-emerald-50/40 transition-colors">
-                          <td className="px-6 py-3.5 text-sm pl-12">
+                        <tr key={sub.id} className="bg-blue-50/20 hover:bg-blue-50/40 transition-colors">
+                          <td className="px-4 py-2.5 text-sm pl-8">
                             <div className="flex items-center gap-2">
-                              <span className="text-emerald-400 font-mono text-base">↳</span>
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-200">
+                              <span className="text-blue-400 font-mono text-base">↳</span>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded border border-blue-200">
                                 Tab
                               </span>
                               <span className="text-sm font-semibold text-gray-800">{sub.name}</span>
@@ -589,14 +795,14 @@ export function AddRole() {
                           </td>
 
                           {['view', 'create', 'edit', 'delete', 'import', 'export', 'print'].map(action => (
-                            <td key={action} className="px-6 py-3.5 text-center">
+                            <td key={action} className="px-2 py-2.5 text-center">
                               {isActionAllowed(sub.id, action) ? (
                                 <input 
                                   type="checkbox"
                                   checked={permissions[sub.id]?.[action] || false}
                                   onChange={(e) => handlePermissionChange(sub.id, action, e.target.checked)}
                                   disabled={isViewMode}
-                                  className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="w-4.5 h-4.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                 />
                               ) : (
                                 <span className="text-gray-300">-</span>
@@ -604,13 +810,13 @@ export function AddRole() {
                             </td>
                           ))}
 
-                          <td className="px-6 py-3.5 text-center border-l border-gray-200 bg-emerald-50/30">
+                          <td className="px-3 py-2.5 text-center border-l border-gray-200 bg-blue-50/30">
                             <input 
                               type="checkbox"
                               checked={isRowAllSelected(sub.id)}
                               onChange={(e) => handleSelectAllRow(sub.id, e.target.checked)}
                               disabled={isViewMode}
-                              className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="w-4.5 h-4.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                           </td>
                         </tr>
@@ -632,7 +838,7 @@ export function AddRole() {
               {!isViewMode && (
                 <button
                   type="submit"
-                  className="w-full sm:w-auto flex justify-center px-6 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors items-center gap-2 active:scale-95"
+                  className="w-full sm:w-auto flex justify-center px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors items-center gap-2 active:scale-95 shadow-xs"
                 >
                   Save
                 </button>

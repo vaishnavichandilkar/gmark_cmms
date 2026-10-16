@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   UseGuards,
   Req,
@@ -22,6 +23,7 @@ import {
   ResetPasswordDto,
   RefreshTokenDto,
   SignupDto,
+  UpdateModuleAccessDto,
 } from './dto/auth.dto';
 
 @ApiTags('auth')
@@ -58,14 +60,14 @@ export class AuthController {
     description: 'Invalid input or user already exists.',
   })
   async signup(@Body() dto: SignupDto, @Ip() ip: string) {
-    const user = await this.authService.signup(dto);
+    const result = await this.authService.signup(dto);
     await this.auditLogService.create(
-      user.id,
-      `Admin signed up: ${user.email}`,
+      result.user.id,
+      `Admin signed up: ${result.user.email}`,
       'AUTH',
       ip,
     );
-    return user;
+    return result;
   }
 
   @Post('login')
@@ -115,6 +117,26 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Current user profile with permissions.' })
   async getMe(@CurrentUser() user: any) {
     return this.authService.getMe(user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('module-access')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update module access subscription (CMMS, IOT, BOTH)' })
+  @ApiResponse({ status: 200, description: 'Module access updated successfully.' })
+  async updateModuleAccess(
+    @CurrentUser() user: any,
+    @Body() dto: UpdateModuleAccessDto,
+    @Ip() ip: string,
+  ) {
+    const result = await this.authService.updateModuleAccess(user.userId, dto.moduleAccess);
+    await this.auditLogService.create(
+      user.userId,
+      `User updated module access to ${dto.moduleAccess}`,
+      'AUTH',
+      ip,
+    );
+    return result;
   }
 
   @UseGuards(JwtAuthGuard)

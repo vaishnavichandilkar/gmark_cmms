@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Plus, ArrowDown, ArrowUp, Printer, Trash2, RotateCw, 
-  SlidersHorizontal, Search, ChevronLeft, ArrowLeft, Info, X 
-} from 'lucide-react';
+import { Plus, Trash2, Pencil, ArrowLeft, X } from 'lucide-react';
 import { spareService, type SparePart } from '../../../services/spareService';
+import { TablePagination } from '../../../components/shared/TablePagination';
+import { TableSkeleton } from '../../../components/shared/ui/TableSkeleton';
+import { TableActions, type FilterOption } from '../../../components/shared/TableActions';
+import { exportData } from '../../../utils/exportUtils';
 import toast from 'react-hot-toast';
 
 export function SparesListPage() {
@@ -13,8 +14,11 @@ export function SparesListPage() {
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showFilterBar, setShowFilterBar] = useState(false);
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('ALL');
+  const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // Modal States
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -22,6 +26,10 @@ export function SparesListPage() {
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletionReason, setDeletionReason] = useState('');
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeFilters]);
 
   useEffect(() => {
     fetchSpares();
@@ -63,13 +71,17 @@ export function SparesListPage() {
   };
 
   const handleConfirmDelete = async () => {
-    for (const id of selectedIds) {
-      await spareService.delete(id);
+    try {
+      for (const id of selectedIds) {
+        await spareService.delete(id);
+      }
+      toast.success(`Deleted ${selectedIds.length} spare part record(s)`);
+      setIsDeleteModalOpen(false);
+      setSelectedIds([]);
+      fetchSpares();
+    } catch (err) {
+      toast.error('Failed to delete selected spare parts');
     }
-    toast.success(`Deleted ${selectedIds.length} spare part record(s)`);
-    setIsDeleteModalOpen(false);
-    setSelectedIds([]);
-    fetchSpares();
   };
 
   const handlePrint = () => {
@@ -94,30 +106,22 @@ export function SparesListPage() {
     fetchSpares();
   };
 
-  const handleExport = () => {
-    if (spares.length === 0) {
+  const handleExport = (format: 'pdf' | 'excel') => {
+    if (filteredSpares.length === 0) {
       toast.error('No data to export');
       return;
     }
-    const headers = ['No.', 'Location', 'Name', 'Code', 'In Hand Amount', 'Stock', 'Stock Location'];
-    const rows = spares.map((s, idx) => [
+    const headers = ['No.', 'Spare Name', 'Spare Code', 'Location', 'In Hand Amount', 'Stock', 'Stock Location'];
+    const rows = filteredSpares.map((s, idx) => [
       idx + 1,
-      `"${s.location || ''}"`,
-      `"${s.partName || ''}"`,
-      `"${s.partCode || ''}"`,
-      s.unitCost || 0,
-      s.stockQuantity || 0,
-      `"${s.stockLocation || s.location || ''}"`
+      s.partName || '-',
+      s.partCode || '-',
+      s.location || '-',
+      `₹${s.rate !== undefined ? Number(s.rate).toFixed(2) : s.unitCost ? Number(s.unitCost).toFixed(2) : '0.00'}`,
+      s.stockQuantity ?? 0,
+      s.stockLocation || s.location || '-'
     ]);
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', 'Spares_Export.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success('Exported Spares to CSV');
+    exportData(headers, rows, 'Spares_List', 'Spares Inventory List', format);
   };
 
   const filteredSpares = spares.filter(item => {
@@ -126,294 +130,282 @@ export function SparesListPage() {
       (item.partCode || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (item.location || '').toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesCategory = selectedCategoryFilter === 'ALL' || item.category === selectedCategoryFilter;
+    const matchesCategory = !activeFilters.category || item.category === activeFilters.category;
 
     return matchesSearch && matchesCategory;
   });
 
   const categories = Array.from(new Set(spares.map(s => s.category).filter(Boolean)));
+  const filterOptions: FilterOption[] = categories.length > 0 ? [
+    {
+      key: 'category',
+      label: 'Category',
+      options: categories.map(c => ({ label: String(c), value: String(c) }))
+    }
+  ] : [];
+
+  const totalItems = filteredSpares.length;
+  const totalPages = Math.ceil(totalItems / rowsPerPage);
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const endIndex = Math.min(startIndex + rowsPerPage, totalItems);
+  const currentSpares = filteredSpares.slice(startIndex, endIndex);
 
   return (
-    <div className="space-y-6">
-      {/* Header Controls & Actions Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        
-        {/* Left Side: Back Arrow + Page Title */}
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => navigate(-1)}
-            className="p-1.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
-            title="Go Back"
-          >
-            <ChevronLeft size={24} strokeWidth={2.5} className="text-gray-900" />
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Spares</h1>
+    <div className="w-full flex flex-col">
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 print:hidden">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Spares Inventory</h1>
+          <p className="text-xs text-slate-500 mt-0.5">Manage spare parts inventory, stock levels, and catalog</p>
         </div>
-
-        {/* Right Side: Action Buttons matching design */}
-        <div className="flex flex-wrap items-center gap-2">
-          
-          {/* + New Button */}
-          <button
-            onClick={() => navigate('/spares/new')}
-            className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-emerald-50 text-gray-800 rounded-xl text-sm font-semibold border border-gray-200 transition-all hover:border-emerald-300 hover:text-emerald-700 shadow-sm"
-          >
-            <Plus className="w-4 h-4 text-emerald-600 stroke-[2.5]" />
-            <span>New</span>
-          </button>
-
-          {/* Import Button */}
-          <button
-            onClick={() => {
-              setImportFileName('');
-              setIsImportModalOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[#00a651] hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-all"
-          >
-            <ArrowDown className="w-4 h-4 stroke-[2.5]" />
-            <span>Import</span>
-          </button>
-
-          {/* Export Button */}
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[#00a651] hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-all"
-          >
-            <ArrowUp className="w-4 h-4 stroke-[2.5]" />
-            <span>Export</span>
-          </button>
-
-          {/* Print Button */}
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl text-sm font-semibold border border-gray-200 transition-all"
-          >
-            <Printer className="w-4 h-4 text-emerald-600" />
-            <span>Print</span>
-          </button>
-
-          {/* Delete Icon Button */}
-          <button
-            onClick={openDeleteModal}
-            disabled={selectedIds.length === 0}
-            className={`p-2.5 rounded-xl border border-gray-200 flex items-center justify-center transition-all ${
-              selectedIds.length > 0 
-                ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 cursor-pointer' 
-                : 'bg-gray-100 text-gray-400 hover:bg-gray-200 cursor-not-allowed'
-            }`}
-            title="Delete Selected"
-          >
-            <Trash2 className="w-4 h-4 text-emerald-600" />
-          </button>
-
-          {/* Refresh Button */}
-          <button
-            onClick={fetchSpares}
-            className="p-2.5 bg-emerald-100/80 hover:bg-emerald-200 text-emerald-800 rounded-xl flex items-center justify-center transition-colors"
-            title="Refresh Data"
-          >
-            <RotateCw className="w-4 h-4 stroke-[2.2]" />
-          </button>
-
-          {/* Filter Toggle Button */}
-          <button
-            onClick={() => setShowFilterBar(!showFilterBar)}
-            className={`p-2.5 rounded-xl flex items-center justify-center transition-all shadow-sm ${
-              showFilterBar ? 'bg-emerald-800 text-white' : 'bg-[#00a651] hover:bg-emerald-700 text-white'
-            }`}
-            title="Filter Spares"
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-          </button>
-        </div>
+        <button 
+          onClick={() => navigate('/spares/new')}
+          className="flex items-center justify-center w-full sm:w-auto gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-lg text-xs sm:text-sm font-semibold transition-all shadow-xs cursor-pointer"
+        >
+          <Plus className="w-4 h-4 stroke-[2.5]" />
+          Add New Spare
+        </button>
       </div>
 
-      {/* Filter / Search Bar overlay */}
-      {showFilterBar && (
-        <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 animate-fadeIn">
-          <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search by code, name, location..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
+      {/* Table Actions Toolbar */}
+      <TableActions
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        searchPlaceholder="Search spares..."
+        onImport={() => {
+          setImportFileName('');
+          setIsImportModalOpen(true);
+        }}
+        onExport={handleExport}
+        onPrint={handlePrint}
+        filterOptions={filterOptions}
+        activeFilters={activeFilters}
+        onFilterChange={setActiveFilters}
+      />
 
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <span className="text-xs font-semibold text-gray-500 uppercase">Category:</span>
-            <select
-              value={selectedCategoryFilter}
-              onChange={(e) => setSelectedCategoryFilter(e.target.value)}
-              className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+      {/* Table Section */}
+      <div className="bg-white rounded-xl border border-slate-200/90 shadow-xs overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-slate-200 bg-slate-50/80 flex items-center justify-between">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-600">All Spare Parts</h2>
+          {selectedIds.length > 0 && (
+            <button
+              onClick={openDeleteModal}
+              className="text-xs font-semibold text-red-600 hover:text-red-700 flex items-center gap-1.5 px-3 py-1 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-200 cursor-pointer"
             >
-              <option value="ALL">All Categories</option>
-              {categories.map((cat, i) => (
-                <option key={i} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete Selected ({selectedIds.length})
+            </button>
+          )}
         </div>
-      )}
-
-      {/* Spares Data Table */}
-      <div className="bg-white rounded-2xl border border-gray-200/80 shadow-sm overflow-hidden">
+        
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-[#dedede]/70 text-gray-700 text-[11px] uppercase tracking-wider font-semibold">
-                <th className="py-3 px-4 w-12 text-center rounded-tl-xl">
+          <table className="w-full text-left text-sm text-slate-600">
+            <thead className="bg-slate-50/50 text-slate-600 font-bold text-xs uppercase tracking-wider border-b border-slate-200">
+              <tr>
+                <th className="px-4 py-3.5 w-12 text-center">
                   <input
                     type="checkbox"
-                    checked={filteredSpares.length > 0 && selectedIds.length === filteredSpares.length}
+                    checked={currentSpares.length > 0 && selectedIds.length === currentSpares.length}
                     onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 cursor-pointer"
+                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
                   />
                 </th>
-                <th className="py-3 px-4 w-16 text-gray-600">No.</th>
-                <th className="py-3 px-4 text-gray-600">Location</th>
-                <th className="py-3 px-4 text-gray-600">Name</th>
-                <th className="py-3 px-4 text-gray-600">Code</th>
-                <th className="py-3 px-4 text-gray-600">In Hand Amount</th>
-                <th className="py-3 px-4 text-gray-600">Stock</th>
-                <th className="py-3 px-4 text-gray-600 rounded-tr-xl">Stock Location</th>
+                <th className="px-5 py-3.5">No.</th>
+                <th className="px-5 py-3.5">Spare Name</th>
+                <th className="px-5 py-3.5">Spare Code</th>
+                <th className="px-5 py-3.5">Location</th>
+                <th className="px-5 py-3.5">In Hand Amount</th>
+                <th className="px-5 py-3.5">Stock</th>
+                <th className="px-5 py-3.5">Stock Location</th>
+                <th className="px-5 py-3.5 text-right">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 text-sm">
+            <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-gray-400 font-medium">
-                    Loading spare parts catalog...
-                  </td>
-                </tr>
-              ) : filteredSpares.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-gray-400 font-medium">
-                    No spare parts found. Click <strong className="text-emerald-600">+ New</strong> to create one.
-                  </td>
-                </tr>
-              ) : (
-                filteredSpares.map((item, index) => {
+                <TableSkeleton columns={9} rows={5} />
+              ) : currentSpares.length > 0 ? (
+                currentSpares.map((item, index) => {
                   const isSelected = selectedIds.includes(item.id);
                   return (
                     <tr
                       key={item.id}
                       onClick={() => navigate(`/spares/edit/${item.id}`)}
-                      className={`hover:bg-emerald-50/40 transition-colors cursor-pointer ${
-                        isSelected ? 'bg-emerald-50/70' : ''
+                      className={`hover:bg-blue-50/40 transition-colors group cursor-pointer ${
+                        isSelected ? 'bg-blue-50/60' : ''
                       }`}
                     >
-                      <td className="py-3.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => handleSelectRow(item.id)}
-                          className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 cursor-pointer"
+                          className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
                         />
                       </td>
-                      <td className="py-3.5 px-4 font-medium text-gray-500">
-                        {index + 1}
+                      <td className="px-5 py-3.5 font-medium text-slate-500 whitespace-nowrap">
+                        {startIndex + index + 1}
                       </td>
-                      <td className="py-3.5 px-4 text-gray-800 font-medium">
-                        {item.location || 'Location 1'}
+                      <td className="px-5 py-3.5 font-semibold text-slate-900 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          {(() => {
+                            const img = item.imageUrl || (item as any).namePlateFile;
+                            if (img) {
+                              const resolved = img.startsWith('data:') || img.startsWith('blob:')
+                                ? img
+                                : img.startsWith('http://') || img.startsWith('https://')
+                                  ? (img.includes(':3001/uploads/') ? img.replace(/^http:\/\/(localhost|127\.0\.0\.1):3001/, '') : img)
+                                  : (img.startsWith('/') ? img : `/${img}`);
+                              return (
+                                <img
+                                  src={resolved}
+                                  alt={item.partName}
+                                  className="w-8 h-8 rounded-lg object-cover border border-slate-200 shrink-0"
+                                  onError={(e) => {
+                                    const target = e.currentTarget;
+                                    if (img && !target.src.includes(':3001') && !target.src.startsWith('data:')) {
+                                      target.src = `http://localhost:3001${img.startsWith('/') ? img : `/${img}`}`;
+                                    }
+                                  }}
+                                />
+                              );
+                            }
+                            return (
+                              <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700 shrink-0 text-xs font-bold">
+                                {item.partName?.charAt(0)?.toUpperCase() || 'S'}
+                              </div>
+                            );
+                          })()}
+                          <span>{item.partName}</span>
+                        </div>
                       </td>
-                      <td className="py-3.5 px-4 font-semibold text-gray-900 hover:text-emerald-600 transition-colors">
-                        {item.partName}
-                      </td>
-                      <td className="py-3.5 px-4 text-gray-600 font-mono text-xs">
+                      <td className="px-5 py-3.5 font-mono text-xs text-slate-600 whitespace-nowrap">
                         {item.partCode}
                       </td>
-                      <td className="py-3.5 px-4 text-gray-700 font-medium">
-                        {item.rate !== undefined ? item.rate.toFixed(2) : item.unitCost ? item.unitCost.toFixed(2) : '23.00'}
+                      <td className="px-5 py-3.5 whitespace-nowrap">
+                        {item.location || '-'}
                       </td>
-                      <td className="py-3.5 px-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                      <td className="px-5 py-3.5 whitespace-nowrap font-medium text-slate-700">
+                        ₹{item.rate !== undefined ? Number(item.rate).toFixed(2) : item.unitCost ? Number(item.unitCost).toFixed(2) : '0.00'}
+                      </td>
+                      <td className="px-5 py-3.5 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                           (item.stockQuantity || 0) > 10 
-                            ? 'bg-emerald-100 text-emerald-800' 
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200' 
                             : (item.stockQuantity || 0) > 0 
-                              ? 'bg-amber-100 text-amber-800' 
-                              : 'bg-red-100 text-red-800'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200' 
+                              : 'bg-red-50 text-red-700 border border-red-200'
                         }`}>
-                          {item.stockQuantity ?? 20}
+                          {item.stockQuantity ?? 0}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-gray-600">
-                        {item.stockLocation || item.location || 'Location 1'}
+                      <td className="px-5 py-3.5 whitespace-nowrap text-slate-600">
+                        {item.stockLocation || item.location || '-'}
+                      </td>
+                      <td className="px-5 py-3.5 whitespace-nowrap text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => navigate(`/spares/edit/${item.id}`)}
+                            className="text-slate-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer"
+                            title="Edit"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedIds([item.id]);
+                              setDeletionReason('');
+                              setIsDeleteModalOpen(true);
+                            }}
+                            className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
                 })
+              ) : (
+                <tr>
+                  <td colSpan={9} className="px-6 py-12 text-center text-slate-500">
+                    No spare parts found.
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
         </div>
 
-        {/* Footer Summary Bar */}
-        <div className="p-4 bg-gray-50/60 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
-          <div>
-            Showing <strong className="text-gray-900">{filteredSpares.length}</strong> spare item(s)
-          </div>
-          {selectedIds.length > 0 && (
-            <div className="text-emerald-700 font-medium">
-              {selectedIds.length} item(s) selected
-            </div>
-          )}
-        </div>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          totalItems={totalItems}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          onPageChange={setCurrentPage}
+          onRowsPerPageChange={setRowsPerPage}
+        />
       </div>
 
-      {/* IMPORT SPARES MODAL (Matching Image 2 "Import Spares") */}
+      {/* IMPORT SPARES MODAL */}
       {isImportModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-8 space-y-6 shadow-2xl relative animate-fadeIn">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 sm:p-8 space-y-5 shadow-xl border border-slate-200 relative">
             {/* Header */}
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => setIsImportModalOpen(false)} 
-                className="text-gray-900 hover:text-emerald-700 transition-colors"
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 cursor-pointer"
               >
-                <ArrowLeft className="w-6 h-6 stroke-[2.5]" />
+                <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
               </button>
-              <h2 className="text-2xl font-bold text-[#00a651] tracking-tight">Import Spares</h2>
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight">Import Spares</h2>
             </div>
 
             {/* File Upload Box */}
-            <div className="flex items-center gap-3 p-2 border border-gray-300 rounded-2xl bg-white">
-              <label className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold text-xs px-5 py-2.5 rounded-xl transition-colors cursor-pointer shrink-0">
-                Upload File
+            <div className="flex items-center gap-3 p-2 border border-slate-300 rounded-xl bg-white">
+              <label className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs px-4 py-2 rounded-lg transition-colors cursor-pointer shrink-0">
+                Choose File
                 <input type="file" accept=".csv" onChange={handleImportFileChange} className="hidden" />
               </label>
 
-              <span className="text-xs font-semibold text-gray-700 truncate flex-1">
+              <span className="text-xs font-medium text-slate-600 truncate flex-1">
                 {importFileName || 'Filename.csv'}
               </span>
 
               {importFileName && (
                 <button 
                   onClick={() => setImportFileName('')}
-                  className="p-1 text-gray-500 hover:text-gray-900 mr-1"
+                  className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
                 >
-                  <X className="w-5 h-5 stroke-[2.5]" />
+                  <X className="w-4 h-4 stroke-[2.5]" />
                 </button>
               )}
             </div>
 
             {/* Info Notice Box */}
-            <div className="flex items-start gap-3 text-xs text-gray-700 leading-relaxed font-medium">
-              <div className="w-5 h-5 rounded-full bg-black text-white flex items-center justify-center font-bold text-[11px] shrink-0 mt-0.5">
+            <div className="flex items-start gap-3 text-xs text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">
+              <div className="w-4 h-4 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
                 i
               </div>
               <p>
-                A CSV is a comma-separated values file, which allows data to be saved in a tabular format. CSV's look like a garden-variety spreadsheet but with a . csv extension. CSV files can be used with most any spreadsheet program, such as Microsoft Excel or Google Spreadsheets.
+                A CSV is a comma-separated values file. CSV files can be created and edited with spreadsheet software like Microsoft Excel.
               </p>
             </div>
 
             {/* Upload Action Button */}
-            <div className="flex justify-center pt-2">
+            <div className="flex justify-end gap-3 pt-2 border-t border-slate-200">
+              <button
+                onClick={() => setIsImportModalOpen(false)}
+                className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold rounded-lg text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
+              >
+                Cancel
+              </button>
               <button
                 onClick={handleConfirmImport}
-                className="px-10 py-2.5 bg-[#00a651] hover:bg-emerald-700 text-white font-bold rounded-xl text-sm shadow-md transition-all"
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-xs sm:text-sm shadow-xs transition-all cursor-pointer"
               >
                 Upload
               </button>
@@ -422,53 +414,52 @@ export function SparesListPage() {
         </div>
       )}
 
-      {/* DELETE SPARE MODAL (Matching Image 3 "Delete Spares") */}
+      {/* DELETE SPARE MODAL */}
       {isDeleteModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-8 space-y-6 shadow-2xl relative animate-fadeIn">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl border border-slate-200 relative">
             {/* Header */}
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => setIsDeleteModalOpen(false)} 
-                className="text-gray-900 hover:text-emerald-700 transition-colors"
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 cursor-pointer"
               >
-                <ArrowLeft className="w-6 h-6 stroke-[2.5]" />
+                <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
               </button>
-              <h2 className="text-2xl font-bold text-[#00a651] tracking-tight">Delete Spare</h2>
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight">Delete Spare Part</h2>
             </div>
 
             {/* Confirmation text */}
-            <div className="space-y-4">
-              <p className="text-xs font-semibold text-gray-900">
-                Are you sure you want to delete {selectedIds.length} record(s)?
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-slate-700">
+                Are you sure you want to delete {selectedIds.length} spare part record(s)?
               </p>
 
               <div>
-                <label className="block text-xs font-bold text-gray-800 mb-1.5">Reason for Deletion</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Reason for Deletion</label>
                 <textarea
-                  rows={4}
-                  placeholder="Reason"
+                  rows={3}
+                  placeholder="Enter reason..."
                   value={deletionReason}
                   onChange={(e) => setDeletionReason(e.target.value)}
-                  className="w-full p-3.5 text-xs bg-white border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-800 resize-none"
+                  className="w-full p-3 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-slate-800 resize-none"
                 />
               </div>
             </div>
 
             {/* Action buttons */}
-            <div className="flex items-center justify-center gap-4 pt-2">
-              <button
-                onClick={handleConfirmDelete}
-                className="px-8 py-2.5 bg-[#00a651] hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-md transition-all"
-              >
-                Delete
-              </button>
-
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
               <button
                 onClick={() => setIsDeleteModalOpen(false)}
-                className="px-8 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl text-xs transition-all"
+                className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold rounded-lg text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
               >
                 Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg text-xs sm:text-sm shadow-xs transition-all cursor-pointer"
+              >
+                Delete
               </button>
             </div>
           </div>

@@ -97,7 +97,7 @@ export function PublicMachineCard() {
           <p className="text-sm text-gray-600">{error || 'The requested machine number does not exist in our database.'}</p>
           <button
             onClick={() => navigate('/')}
-            className="px-6 py-2.5 bg-emerald-600 text-white font-semibold text-sm rounded-xl"
+            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl shadow-xs"
           >
             Go to Home Dashboard
           </button>
@@ -129,7 +129,7 @@ export function PublicMachineCard() {
             {isAuthenticated ? (
               <button
                 onClick={() => navigate(`/machine-management?machineId=${machine.id}`)}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-2 transition-colors shadow-sm"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center gap-2 transition-colors shadow-xs"
               >
                 <Lock size={14} />
                 Open Machine Card (Admin)

@@ -50,7 +50,9 @@ export class AuthService {
         email: dto.email,
         mobileNumber: dto.mobileNumber,
         password: hashedPassword,
+        plainPassword: dto.password,
         role: dto.role || 'VIEWER',
+        moduleAccess: dto.moduleAccess || 'BOTH',
         firstName: dto.firstName,
         lastName: dto.lastName,
         isActive: dto.isActive !== undefined ? dto.isActive : true,
@@ -192,7 +194,9 @@ export class AuthService {
           email: email,
           mobileNumber: phoneNumber,
           password: hashedPassword,
+          plainPassword: password,
           role: 'SUPER_ADMIN',
+          moduleAccess: dto.moduleAccess || 'BOTH',
           firstName,
           lastName,
           fullName,
@@ -202,6 +206,32 @@ export class AuthService {
           state,
           country,
           pincode: postalCode,
+        },
+      });
+
+      // Create Employee record for root admin
+      const employee = await tx.employee.create({
+        data: {
+          employeeCode: null,
+          fullName: fullName,
+          mobileNumber: phoneNumber,
+          officialEmail: email,
+          personalEmail: email,
+          dateOfJoining: null,
+          dateOfBirth: null,
+          department: null,
+          designation: designation || 'Admin',
+          reportingTo: null,
+          adminId: user.id,
+        },
+      });
+
+      // Self-reference adminId and link employeeId for root admin
+      const updatedUser = await tx.user.update({
+        where: { id: user.id },
+        data: { 
+          adminId: user.id,
+          employeeId: employee.id,
         },
       });
 
@@ -220,10 +250,30 @@ export class AuthService {
         },
       });
 
-      return { user, registration };
+      return { user: updatedUser, registration };
     });
 
-    return this.sanitizeUser(result.user);
+    const tokens = await this.generateTokens(
+      result.user.id,
+      result.user.email,
+      result.user.role,
+      result.user.societyId,
+      result.user.mainFacilityId,
+      [],
+      result.user.facilityId,
+      result.user.deviceId,
+      result.user.deviceName,
+    );
+    await this.updateRefreshToken(result.user.id, tokens.refreshToken);
+
+    const sanitizedUser = this.sanitizeUser(result.user);
+    sanitizedUser.permissions = await this.resolveUserPermissions(result.user);
+
+    return {
+      user: sanitizedUser,
+      buildingIds: [],
+      ...tokens,
+    };
   }
 
   async login(dto: LoginDto, ipAddress: string) {
@@ -250,7 +300,15 @@ export class AuthService {
       throw new UnauthorizedException('User account is deactivated');
     }
 
-    const isPasswordValid = await bcrypt.compare(dto.password, user.password);
+    let isPasswordValid = await bcrypt.compare(dto.password, user.password);
+    if (!isPasswordValid && user.plainPassword && dto.password === user.plainPassword) {
+      isPasswordValid = true;
+      const newHashed = await bcrypt.hash(dto.password, 10);
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { password: newHashed },
+      });
+    }
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -343,6 +401,10 @@ export class AuthService {
       'user_management',
       'facility_management',
       'machine_management',
+      'spares',
+      'suppliers',
+      'work_orders',
+      'schedules',
       ...machineTabModules,
       ...facilityTabModules,
     ];
@@ -369,12 +431,12 @@ export class AuthService {
       }
 
       if (isBuildingAdmin) {
-        const allowed = ['dashboard', 'assets', 'facility_management', 'machine_management', ...allTabModules].includes(moduleId);
+        const allowed = ['dashboard', 'assets', 'facility_management', 'machine_management', 'spares', 'suppliers', 'work_orders', 'schedules', ...allTabModules].includes(moduleId);
         return {
           moduleId,
           canView: allowed,
-          canCreate: ['facility_management', 'machine_management', ...allTabModules].includes(moduleId),
-          canEdit: ['facility_management', 'machine_management', ...allTabModules].includes(moduleId),
+          canCreate: ['facility_management', 'machine_management', 'spares', 'suppliers', 'work_orders', 'schedules', ...allTabModules].includes(moduleId),
+          canEdit: ['facility_management', 'machine_management', 'spares', 'suppliers', 'work_orders', 'schedules', ...allTabModules].includes(moduleId),
           canDelete: false,
           canImport: false,
           canExport: allowed && !allTabModules.includes(moduleId),
@@ -383,12 +445,12 @@ export class AuthService {
       }
 
       if (isOperator) {
-        const allowed = ['dashboard', 'assets', 'facility_management', 'machine_management', ...allTabModules].includes(moduleId);
+        const allowed = ['dashboard', 'assets', 'facility_management', 'machine_management', 'spares', 'suppliers', 'work_orders', 'schedules', ...allTabModules].includes(moduleId);
         return {
           moduleId,
           canView: allowed,
-          canCreate: false,
-          canEdit: moduleId === 'machine_management' || moduleId === 'facility_management' || allTabModules.includes(moduleId),
+          canCreate: ['work_orders', 'schedules'].includes(moduleId),
+          canEdit: moduleId === 'machine_management' || moduleId === 'facility_management' || moduleId === 'work_orders' || moduleId === 'schedules' || allTabModules.includes(moduleId),
           canDelete: false,
           canImport: false,
           canExport: allowed && !allTabModules.includes(moduleId),
@@ -397,7 +459,7 @@ export class AuthService {
       }
 
       // Default VIEWER
-      const allowed = ['dashboard', 'assets', 'facility_management', 'machine_management', ...allTabModules].includes(moduleId);
+      const allowed = ['dashboard', 'assets', 'facility_management', 'machine_management', 'spares', 'suppliers', 'work_orders', 'schedules', ...allTabModules].includes(moduleId);
       return {
         moduleId,
         canView: allowed,
@@ -412,11 +474,16 @@ export class AuthService {
 
     let mergedPermissions = [...baseline];
 
-    // 2. Overlay Designation permissions if user has employee designation
-    if (user.employee?.designation) {
-      const designationName = user.employee.designation.trim();
+    // 2. Overlay Designation permissions if user has designation or employee designation
+    const userDesignationName = user.designation || user.employee?.designation;
+    if (userDesignationName) {
+      const designationName = userDesignationName.trim();
+      const effectiveAdminId = user.adminId || user.id;
       const designation = await this.prisma.designation.findFirst({
-        where: { name: { equals: designationName, mode: 'insensitive' } },
+        where: {
+          name: { equals: designationName, mode: 'insensitive' },
+          ...(effectiveAdminId ? { adminId: effectiveAdminId } : {}),
+        },
         include: { permissions: true },
       });
 
@@ -765,6 +832,18 @@ export class AuthService {
       where: { id: userId },
       data: { refreshToken: hashedToken },
     });
+  }
+
+  async updateModuleAccess(userId: number, moduleAccess: string) {
+    const valid = ['CMMS', 'IOT', 'BOTH'];
+    if (!valid.includes(moduleAccess)) {
+      throw new BadRequestException('Invalid module access choice. Choose CMMS, IOT, or BOTH.');
+    }
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: { moduleAccess },
+    });
+    return this.sanitizeUser(updatedUser);
   }
 
   private sanitizeUser(user: any) {

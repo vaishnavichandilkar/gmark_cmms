@@ -23,18 +23,17 @@ export function AddEmployee() {
     department: '',
     designation: '',
     salaryPayout: '',
+    reportingTo: '',
     username: '',
     password: '',
     createCredentials: true
   });
 
-  const [currentStep, setCurrentStep] = useState(1);
-  const [showPassword, setShowPassword] = useState(false);
-
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(false);
   const [error, setError] = useState('');
   const [designationsList, setDesignationsList] = useState<string[]>([]);
+  const [reportingOptions, setReportingOptions] = useState<string[]>(['Super Admin']);
   
   const salaryInputRef = useRef<HTMLInputElement>(null);
   const [shouldFocusSalary, setShouldFocusSalary] = useState(false);
@@ -48,6 +47,7 @@ export function AddEmployee() {
 
   useEffect(() => {
     fetchDesignations();
+    fetchReportingEmployees();
     
     if (id) {
       fetchEmployee();
@@ -64,63 +64,38 @@ export function AddEmployee() {
             sessionStorage.removeItem('newlyAddedDesignation');
             setShouldFocusSalary(true);
           }
-          setFormData(parsed);
+          setFormData({
+            ...parsed,
+            reportingTo: parsed.reportingTo || ''
+          });
           sessionStorage.removeItem('addEmployeeDraft');
           restoredDraft = true;
-          if (!parsed.employeeCode) {
-            fetchNextEmployeeCode();
-          }
         } catch (e) {
           console.error('Failed to parse draft', e);
         }
       }
       
       if (!restoredDraft) {
-        fetchNextEmployeeCode();
+        setFormData(prev => ({ ...prev, employeeCode: '' }));
       }
     }
   }, [id]);
 
-  const generatePassword = () => {
-    const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const lowercase = "abcdefghijklmnopqrstuvwxyz";
-    const numbers = "0123456789";
-    const special = "!@#$%^&*";
-    const all = uppercase + lowercase + numbers + special;
-    let pass = "";
-    pass += uppercase.charAt(Math.floor(Math.random() * uppercase.length));
-    pass += lowercase.charAt(Math.floor(Math.random() * lowercase.length));
-    pass += numbers.charAt(Math.floor(Math.random() * numbers.length));
-    pass += special.charAt(Math.floor(Math.random() * special.length));
-    for(let i=0; i<8; i++){
-      pass += all.charAt(Math.floor(Math.random() * all.length));
+  const fetchReportingEmployees = async () => {
+    try {
+      const response = await api.get('/employees');
+      const allEmployees = response.data || [];
+      const availableEmployees = allEmployees.filter((emp: any) => !id || emp.id.toString() !== id.toString());
+      
+      const options = [
+        'Super Admin',
+        ...availableEmployees.map((emp: any) => emp.employeeCode ? `${emp.fullName} (${emp.employeeCode})` : emp.fullName)
+      ];
+      setReportingOptions(options);
+    } catch (err) {
+      console.error('Failed to fetch reporting employees:', err);
     }
-    return pass.split('').sort(() => 0.5 - Math.random()).join('');
   };
-
-  const handleNext = () => {
-    if (!formData.employeeCode || !formData.fullName || !formData.mobileNumber || !formData.officialEmail || !formData.dateOfJoining || !formData.dateOfBirth || !formData.department || !formData.designation) {
-      setError('Please fill in all required fields.');
-      return;
-    }
-    if (formData.mobileNumber.length !== 10) {
-      setError('Mobile Number must be exactly 10 digits.');
-      return;
-    }
-    setError('');
-    
-    // Auto-generate username and password if creating new
-    if (!id && !formData.username) {
-      setFormData(prev => ({
-        ...prev,
-        username: formData.fullName.toLowerCase().trim().replace(/\s+/g, '.'),
-        password: generatePassword(),
-        createCredentials: true
-      }));
-    }
-    setCurrentStep(2);
-  };
-
 
   const fetchDesignations = async () => {
     try {
@@ -173,6 +148,7 @@ export function AddEmployee() {
         department: data.department || '',
         designation: data.designation || '',
         salaryPayout: data.salaryPayout ? data.salaryPayout.toString() : '',
+        reportingTo: data.reportingTo || '',
         username: '',
         password: '',
         createCredentials: false
@@ -195,6 +171,12 @@ export function AddEmployee() {
         ...prev,
         [name]: onlyDigits
       }));
+    } else if (name === 'salaryPayout') {
+      if (value.startsWith('-') || Number(value) < 0) return;
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
     } else {
       setFormData(prev => ({
         ...prev,
@@ -208,13 +190,18 @@ export function AddEmployee() {
 
   const handleSave = async () => {
     // Basic validation
-    if (!formData.employeeCode || !formData.fullName || !formData.mobileNumber || !formData.officialEmail || !formData.dateOfJoining || !formData.dateOfBirth || !formData.department || !formData.designation) {
+    if (!formData.employeeCode || !formData.fullName || !formData.mobileNumber || !formData.dateOfJoining || !formData.dateOfBirth || !formData.department || !formData.designation) {
       setError('Please fill in all required fields.');
       return;
     }
 
     if (formData.mobileNumber.length !== 10) {
       setError('Mobile Number must be exactly 10 digits.');
+      return;
+    }
+
+    if (formData.salaryPayout && Number(formData.salaryPayout) < 0) {
+      setError('Salary Payout cannot be negative.');
       return;
     }
 
@@ -225,77 +212,19 @@ export function AddEmployee() {
       const { username, password, createCredentials, ...employeeData } = formData;
       const payload: any = {
         ...employeeData,
-        salaryPayout: formData.salaryPayout ? Number(formData.salaryPayout) : null
+        salaryPayout: formData.salaryPayout ? Number(formData.salaryPayout) : null,
+        officialEmail: formData.officialEmail || null,
+        personalEmail: formData.personalEmail || null,
+        reportingTo: formData.reportingTo || null,
       };
-      if (!payload.personalEmail) {
-        payload.personalEmail = null;
-      }
 
-      let employeeId: string | number | undefined = id;
       if (id) {
         await api.patch(`/employees/${id}`, payload);
       } else {
-        const empRes = await api.post('/employees', payload);
-        employeeId = empRes.data.id;
+        await api.post('/employees', payload);
         const returnUrl = location.state?.returnUrl || sessionStorage.getItem('addEmployeeOriginalReturnUrl');
         if (returnUrl) {
           sessionStorage.setItem('newlyAddedEmployeeName', formData.fullName);
-        }
-      }
-
-      // Handle User Creation if credentials are provided
-      if (formData.createCredentials && formData.username) {
-        if (formData.password) {
-          const p = formData.password;
-          if (p.length < 8 || !/[A-Z]/.test(p) || !/[a-z]/.test(p) || !/[0-9]/.test(p) || !/[^A-Za-z0-9]/.test(p)) {
-            setError('User created without credentials! Password must be at least 8 characters long and contain uppercase, lowercase, numbers, and special characters.');
-            setLoading(false);
-            return;
-          }
-        }
-        
-        const mapRole = (designation: string) => {
-          const roleStr = (designation || '').toUpperCase();
-          if (roleStr.includes('SUPER')) return 'SUPER_ADMIN';
-          if (roleStr.includes('BUILDING')) return 'BUILDING_ADMIN';
-          if (roleStr.includes('SOCIETY')) return 'SOCIETY_ADMIN';
-          if (roleStr.includes('ADMIN')) return 'SOCIETY_ADMIN';
-          if (roleStr.includes('OPERATOR') || roleStr.includes('SUPERVISOR')) return 'OPERATOR';
-          if (roleStr.includes('MANAGER')) return 'BUILDING_ADMIN';
-          return 'VIEWER';
-        };
-
-        const userPayload: Record<string, any> = {
-          username: formData.username,
-          email: formData.officialEmail,
-          firstName: formData.fullName.split(' ')[0],
-          lastName: formData.fullName.split(' ').slice(1).join(' '),
-          mobileNumber: formData.mobileNumber,
-          role: mapRole(formData.designation),
-          isActive: true,
-          employeeId: employeeId ? parseInt(employeeId as string, 10) : undefined,
-        };
-        if (formData.password) {
-          userPayload.password = formData.password;
-        }
-
-        try {
-          if (!id) {
-            await api.post('/users', userPayload);
-          } else {
-            // Check if user exists for this employee
-            const existingUsers = await api.get('/users');
-            const existingUser = existingUsers.data.find((u: any) => u.employeeId?.toString() === id?.toString());
-            if (existingUser) {
-              await api.put(`/users/${existingUser.id}`, userPayload);
-            } else {
-              await api.post('/users', userPayload);
-            }
-          }
-        } catch (userErr: any) {
-          console.error('Failed to save user credentials:', userErr);
-          const errorMsg = userErr.response?.data?.message || userErr.response?.data?.error || 'Failed to save user credentials.';
-          toast.error(`Employee saved, but: ${errorMsg}`);
         }
       }
       
@@ -447,20 +376,29 @@ export function AddEmployee() {
                     <div>
                       <p className="text-sm font-medium text-gray-500">Salary Payout</p>
                       <p className="text-base text-gray-900 font-semibold">
-                        {formData.salaryPayout ? `₹ ${Number(formData.salaryPayout).toLocaleString()}` : '-'}
+                        {formData.salaryPayout && Number(formData.salaryPayout) >= 0 ? `₹ ${Number(formData.salaryPayout).toLocaleString()}` : '-'}
                       </p>
-                      {formData.salaryPayout && (
+                      {formData.salaryPayout && Number(formData.salaryPayout) >= 0 && (
                         <p className="text-xs font-medium text-emerald-600 mt-0.5">
                           ₹ {(Number(formData.salaryPayout) * 12).toLocaleString()} / year
                         </p>
                       )}
                     </div>
                   </div>
+                  <div className="flex items-start gap-4">
+                    <div className="bg-emerald-50 p-2.5 rounded-lg">
+                      <User size={18} className="text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Reporting To</p>
+                      <p className="text-base text-gray-900 font-semibold">{formData.reportingTo || '-'}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        ) : currentStep === 1 ? (
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
             {/* Row 1 */}
             <div>
@@ -473,8 +411,7 @@ export function AddEmployee() {
                 placeholder="Enter Employee Code"
                 value={formData.employeeCode}
                 onChange={handleChange}
-                readOnly
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-gray-100 text-gray-600 cursor-not-allowed"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all"
               />
             </div>
             <div>
@@ -487,7 +424,7 @@ export function AddEmployee() {
                 placeholder="Enter Full Name"
                 value={formData.fullName}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all"
               />
             </div>
             <div>
@@ -500,14 +437,14 @@ export function AddEmployee() {
                 placeholder="Enter Mobile Number"
                 value={formData.mobileNumber}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all"
               />
             </div>
 
             {/* Row 2 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Official Email <span className="text-red-500">*</span>
+                Official Email
               </label>
               <input 
                 type="email" 
@@ -515,7 +452,7 @@ export function AddEmployee() {
                 placeholder="Enter Official Email"
                 value={formData.officialEmail}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all"
               />
             </div>
             <div>
@@ -528,7 +465,7 @@ export function AddEmployee() {
                 placeholder="Enter Personal Email"
                 value={formData.personalEmail}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all"
               />
             </div>
             <div>
@@ -569,25 +506,13 @@ export function AddEmployee() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Designation <span className="text-red-500">*</span>
               </label>
-              <CustomSelect 
+              <input 
+                type="text" 
                 name="designation"
+                placeholder="Enter Designation"
                 value={formData.designation}
-                options={[
-                  ...designationsList,
-                  { label: '+ Add new Designation', value: 'ADD_NEW_DESIGNATION', isAction: true }
-                ]}
-                onChange={(e) => {
-                  if (e.target.value === 'ADD_NEW_DESIGNATION') {
-                    sessionStorage.setItem('addEmployeeDraft', JSON.stringify(formData));
-                    if (location.state?.returnUrl) {
-                      sessionStorage.setItem('addEmployeeOriginalReturnUrl', location.state.returnUrl);
-                    }
-                    navigate('/manage-access/new', { state: { returnUrl: location.pathname } });
-                  } else {
-                    handleChange(e);
-                  }
-                }}
-                placeholder="Select Designation"
+                onChange={handleChange}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all"
               />
             </div>
 
@@ -600,93 +525,36 @@ export function AddEmployee() {
                 ref={salaryInputRef}
                 type="number" 
                 name="salaryPayout"
+                min="0"
                 placeholder="Enter Salary Amount"
                 value={formData.salaryPayout}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+                onKeyDown={(e) => {
+                  if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+                    e.preventDefault();
+                  }
+                }}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all"
               />
-              {formData.salaryPayout && (
+              {formData.salaryPayout && Number(formData.salaryPayout) >= 0 && (
                 <p className="text-xs font-medium text-emerald-600 mt-1.5 ml-1">
                   ₹ {(Number(formData.salaryPayout) * 12).toLocaleString()} / year
                 </p>
               )}
             </div>
-          </div>
-        ) : null}
 
-        {currentStep === 2 && !isViewMode && (
-          <div className="max-w-xl mx-auto mt-4 mb-4">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-lg p-6 sm:p-10">
-              <div className="text-center mb-8">
-                <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-100">
-                  <Key size={32} className="text-emerald-600" />
-                </div>
-                <h2 className="text-2xl font-bold text-gray-800">User Credentials</h2>
-                <p className="text-gray-500 mt-2 text-sm">Review the username and set a password for this user account.</p>
-              </div>
-
-              <div className="space-y-6">
-                <label className="flex items-center gap-3 cursor-pointer p-4 border border-emerald-100 rounded-xl bg-emerald-50/50 hover:bg-emerald-50 transition-colors">
-                  <input
-                    type="checkbox"
-                    className="w-5 h-5 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 bg-white"
-                    checked={formData.createCredentials}
-                    onChange={(e) => setFormData(prev => ({ ...prev, createCredentials: e.target.checked }))}
-                  />
-                  <span className="font-semibold text-gray-700">Create a login account for this employee</span>
-                </label>
-
-                {formData.createCredentials && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Username <span className="text-red-500">*</span>
-                      </label>
-                      <input 
-                        type="text" 
-                        name="username"
-                        placeholder="user.name"
-                        value={formData.username}
-                        onChange={handleChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all bg-gray-50/50"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Password { !id && <span className="text-red-500">*</span> }
-                      </label>
-                      <div className="relative">
-                        <input 
-                          type={showPassword ? "text" : "password"} 
-                          name="password"
-                          value={formData.password}
-                          onChange={handleChange}
-                          placeholder={id ? "Leave blank to keep unchanged" : "Password"}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none pr-24 transition-all"
-                        />
-                        <div className="absolute inset-y-0 right-0 flex items-center pr-2 gap-2">
-                          <button 
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="p-1.5 text-gray-400 hover:text-gray-600 focus:outline-none transition-colors"
-                            title={showPassword ? "Hide Password" : "Show Password"}
-                          >
-                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                          </button>
-                          <button 
-                            type="button"
-                            onClick={() => setFormData(prev => ({ ...prev, password: generatePassword() }))}
-                            className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg transition-colors focus:outline-none border border-emerald-200"
-                          >
-                            Generate
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Reporting To
+              </label>
+              <CustomSelect 
+                name="reportingTo"
+                value={formData.reportingTo}
+                options={reportingOptions}
+                onChange={handleChange}
+                placeholder="Select Reporting To"
+                allowCustom={true}
+              />
             </div>
           </div>
         )}
@@ -701,7 +569,7 @@ export function AddEmployee() {
             >
               Back
             </button>
-          ) : currentStep === 1 ? (
+          ) : (
             <>
               <button 
                 type="button" 
@@ -713,27 +581,9 @@ export function AddEmployee() {
               </button>
               <button 
                 type="button" 
-                onClick={handleNext}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm min-w-[100px]"
-              >
-                Next
-              </button>
-            </>
-          ) : (
-            <>
-              <button 
-                type="button" 
-                onClick={() => setCurrentStep(1)}
-                disabled={loading}
-                className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
-              >
-                Back
-              </button>
-              <button 
-                type="button" 
                 onClick={handleSave}
                 disabled={loading}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm disabled:opacity-70 min-w-[100px]"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-lg text-sm font-semibold transition-all shadow-xs disabled:opacity-70 min-w-[100px]"
               >
                 {loading ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

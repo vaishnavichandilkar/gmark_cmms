@@ -72,6 +72,23 @@ export class MachinesController {
     return this.machinesService.getNextCodes();
   }
 
+  @Get('dropdown-options')
+  @ApiOperation({ summary: 'Get dropdown options for make, model, category, subcategory' })
+  @ApiResponse({ status: 200, description: 'Return dropdown options' })
+  async getDropdownOptions(@CurrentUser() user: any) {
+    return this.machinesService.getDropdownOptions(user);
+  }
+
+  @Post('options')
+  @ApiOperation({ summary: 'Add a new dropdown option' })
+  @ApiResponse({ status: 201, description: 'Option added successfully' })
+  async addDropdownOption(
+    @Body() body: { type: string; value: string },
+    @CurrentUser() user: any,
+  ) {
+    return this.machinesService.addDropdownOption(body, user);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a specific machine by ID' })
   @ApiParam({ name: 'id', description: 'Machine ID' })
@@ -93,7 +110,7 @@ export class MachinesController {
     @CurrentUser() user: any,
     @Ip() ip: string,
   ) {
-    const result = await this.machinesService.create(body);
+    const result = await this.machinesService.create(body, user);
     await this.auditLogService.create(
       user.userId,
       `Machine Created: ${result.name} (ID: ${result.id})`,

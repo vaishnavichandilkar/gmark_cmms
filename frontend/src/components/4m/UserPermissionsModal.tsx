@@ -45,6 +45,10 @@ const availableModules: ModuleItem[] = [
       { id: 'machine_tab_iot', name: 'IOT' },
     ]
   },
+  { id: 'spares', name: 'Spares Management' },
+  { id: 'suppliers', name: 'Suppliers Management' },
+  { id: 'work_orders', name: 'Work Orders' },
+  { id: 'schedules', name: 'Schedule Maintenance' },
 ];
 
 const allModuleIds = availableModules.flatMap(m => [m.id, ...(m.subModules?.map(s => s.id) || [])]);
@@ -107,30 +111,37 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
         const userOverrides = Array.isArray(raw) ? raw : (raw?.userOverrides || []);
         let basePermissions: any[] = Array.isArray(raw?.basePermissions) ? raw.basePermissions : [];
 
-        // If basePermissions was empty, try fetching designation base permissions if designation exists
-        if (basePermissions.length === 0 && raw?.designation) {
-          try {
-            const desigRes = await api.get('/designations');
-            const desig = desigRes.data.find((d: any) => d.name?.trim().toLowerCase() === raw.designation.trim().toLowerCase());
-            if (desig?.id) {
-              const desigDetail = await api.get(`/designations/${desig.id}`);
-              basePermissions = desigDetail.data.permissions || [];
-            }
-          } catch (e) {
-            console.error('Failed to load fallback designation permissions', e);
-          }
+        // If basePermissions is still empty, construct default baseline for all available modules
+        if (basePermissions.length === 0) {
+          basePermissions = allModuleIds.map(modId => ({
+            moduleId: modId,
+            canView: true,
+            canCreate: ['master_employee', 'master_main_facility', 'user_management', 'facility_management', 'machine_management', 'facility_tab_document', 'machine_tab_spares', 'machine_tab_documents', 'machine_tab_specification'].includes(modId),
+            canEdit: ['master_employee', 'master_main_facility', 'user_management', 'facility_management', 'machine_management', 'facility_tab_general', 'facility_tab_document', 'machine_tab_general', 'machine_tab_specification', 'machine_tab_spares', 'machine_tab_amc', 'machine_tab_purchase', 'machine_tab_documents', 'machine_tab_iot'].includes(modId),
+            canDelete: ['master_employee', 'master_main_facility', 'user_management', 'facility_management', 'machine_management'].includes(modId),
+            canImport: ['master_employee', 'master_main_facility'].includes(modId),
+            canExport: !modId.includes('_tab_'),
+            canPrint: !modId.includes('_tab_'),
+          }));
         }
 
-        // Merge them: Start with base, then overwrite with overrides
+        // Check if userOverrides actually has any active/truthy permissions
+        const hasActiveOverrides = userOverrides.some((up: any) => 
+          up.canView || up.canCreate || up.canEdit || up.canDelete || up.canImport || up.canExport || up.canPrint
+        );
+
+        // Merge them: Start with base, then overwrite with overrides if active overrides exist
         let merged: any[] = [...basePermissions];
-        userOverrides.forEach((up: any) => {
-          const index = merged.findIndex(p => p.moduleId === up.moduleId);
-          if (index >= 0) {
-            merged[index] = { ...merged[index], ...up };
-          } else {
-            merged.push(up);
-          }
-        });
+        if (hasActiveOverrides) {
+          userOverrides.forEach((up: any) => {
+            const index = merged.findIndex(p => p.moduleId === up.moduleId);
+            if (index >= 0) {
+              merged[index] = { ...merged[index], ...up };
+            } else {
+              merged.push(up);
+            }
+          });
+        }
 
         // Set state
         setPermissions(prev => {
@@ -149,7 +160,7 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
             }
           });
 
-          // Inherit machine tabs if parent machine_management is configured and tabs are unset
+          // Inherit machine tabs if parent machine_management is configured
           const mmPerm = merged.find((p: any) => p.moduleId === 'machine_management');
           if (mmPerm) {
             const machineTabs = [
@@ -162,13 +173,14 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
               'machine_tab_iot',
             ];
             machineTabs.forEach(tabId => {
-              const hasExplicit = merged.some((p: any) => p.moduleId === tabId);
-              if (!hasExplicit && next[tabId]) {
+              const hasOverride = userOverrides.some((p: any) => p.moduleId === tabId);
+              if (!hasOverride && next[tabId]) {
+                const tabItem = merged.find((p: any) => p.moduleId === tabId);
                 next[tabId] = {
-                  view: mmPerm.canView || false,
-                  create: isActionAllowed(tabId, 'create') ? (mmPerm.canCreate || false) : false,
-                  edit: mmPerm.canEdit || false,
-                  delete: isActionAllowed(tabId, 'delete') ? (mmPerm.canDelete || false) : false,
+                  view: tabItem ? !!tabItem.canView : (mmPerm.canView || false),
+                  create: isActionAllowed(tabId, 'create') ? (tabItem && tabItem.canCreate ? !!tabItem.canCreate : (mmPerm.canCreate || false)) : false,
+                  edit: tabItem ? !!tabItem.canEdit : (mmPerm.canEdit || false),
+                  delete: isActionAllowed(tabId, 'delete') ? (tabItem && tabItem.canDelete ? !!tabItem.canDelete : (mmPerm.canDelete || false)) : false,
                   import: false,
                   export: false,
                   print: false,
@@ -177,7 +189,7 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
             });
           }
 
-          // Inherit facility tabs if parent facility_management is configured and tabs are unset
+          // Inherit facility tabs if parent facility_management is configured
           const fmPerm = merged.find((p: any) => p.moduleId === 'facility_management');
           if (fmPerm) {
             const facilityTabs = [
@@ -185,13 +197,14 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
               'facility_tab_document',
             ];
             facilityTabs.forEach(tabId => {
-              const hasExplicit = merged.some((p: any) => p.moduleId === tabId);
-              if (!hasExplicit && next[tabId]) {
+              const hasOverride = userOverrides.some((p: any) => p.moduleId === tabId);
+              if (!hasOverride && next[tabId]) {
+                const tabItem = merged.find((p: any) => p.moduleId === tabId);
                 next[tabId] = {
-                  view: fmPerm.canView || false,
-                  create: isActionAllowed(tabId, 'create') ? (fmPerm.canCreate || false) : false,
-                  edit: fmPerm.canEdit || false,
-                  delete: isActionAllowed(tabId, 'delete') ? (fmPerm.canDelete || false) : false,
+                  view: tabItem ? !!tabItem.canView : (fmPerm.canView || false),
+                  create: isActionAllowed(tabId, 'create') ? (tabItem && tabItem.canCreate ? !!tabItem.canCreate : (fmPerm.canCreate || false)) : false,
+                  edit: tabItem ? !!tabItem.canEdit : (fmPerm.canEdit || false),
+                  delete: isActionAllowed(tabId, 'delete') ? (tabItem && tabItem.canDelete ? !!tabItem.canDelete : (fmPerm.canDelete || false)) : false,
                   import: false,
                   export: false,
                   print: false,
@@ -381,25 +394,25 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
             </div>
           ) : (
             <div className="overflow-x-auto rounded-lg border border-gray-200">
-              <table className="w-full text-left whitespace-nowrap">
+              <table className="w-full text-left">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-4 text-sm font-bold text-gray-700">Module / Tab</th>
-                    <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center">View</th>
-                    <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center">Create</th>
-                    <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center">Edit</th>
-                    <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center">Delete</th>
-                    <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center">Import</th>
-                    <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center">Export</th>
-                    <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center">Print</th>
-                    <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center border-l border-gray-200">Select All</th>
+                    <th className="px-4 py-3 text-xs font-bold text-gray-700 uppercase tracking-wider">Module / Tab</th>
+                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">View</th>
+                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Create</th>
+                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Edit</th>
+                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Delete</th>
+                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Import</th>
+                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Export</th>
+                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Print</th>
+                    <th className="px-3 py-3 text-xs font-bold text-gray-700 text-center border-l border-gray-200 uppercase tracking-wider w-28">Select All</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {availableModules.map((mod) => (
                     <React.Fragment key={mod.id}>
                       <tr className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">
                           {mod.subModules ? (
                             <div className="flex items-center gap-2">
                               <button
@@ -425,7 +438,7 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
                         </td>
                         
                         {['view', 'create', 'edit', 'delete', 'import', 'export', 'print'].map(action => (
-                          <td key={action} className="px-6 py-4 text-center">
+                          <td key={action} className="px-2 py-3 text-center">
                             {isActionAllowed(mod.id, action) ? (
                               <input 
                                 type="checkbox"
@@ -439,7 +452,7 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
                           </td>
                         ))}
 
-                        <td className="px-6 py-4 text-center border-l border-gray-200 bg-gray-50/30">
+                        <td className="px-3 py-3 text-center border-l border-gray-200 bg-gray-50/30">
                           <input 
                             type="checkbox"
                             checked={isRowAllSelected(mod.id)}
@@ -452,7 +465,7 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
                       {/* Render Sub-module Tab Rows */}
                       {mod.subModules && expandedModules[mod.id] && mod.subModules.map((sub) => (
                         <tr key={sub.id} className="bg-purple-50/20 hover:bg-purple-50/40 transition-colors">
-                          <td className="px-6 py-3.5 text-sm pl-12">
+                          <td className="px-4 py-2.5 text-sm pl-8">
                             <div className="flex items-center gap-2">
                               <span className="text-purple-400 font-mono text-base">↳</span>
                               <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 bg-purple-100/80 px-2 py-0.5 rounded border border-purple-200">
@@ -463,13 +476,13 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
                           </td>
 
                           {['view', 'create', 'edit', 'delete', 'import', 'export', 'print'].map(action => (
-                            <td key={action} className="px-6 py-3.5 text-center">
+                            <td key={action} className="px-2 py-2.5 text-center">
                               {isActionAllowed(sub.id, action) ? (
                                 <input 
                                   type="checkbox"
                                   checked={permissions[sub.id]?.[action] || false}
                                   onChange={(e) => handlePermissionChange(sub.id, action, e.target.checked)}
-                                  className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                                  className="w-4.5 h-4.5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
                                 />
                               ) : (
                                 <span className="text-gray-300">-</span>
@@ -477,12 +490,12 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
                             </td>
                           ))}
 
-                          <td className="px-6 py-3.5 text-center border-l border-gray-200 bg-purple-50/30">
+                          <td className="px-3 py-2.5 text-center border-l border-gray-200 bg-purple-50/30">
                             <input 
                               type="checkbox"
                               checked={isRowAllSelected(sub.id)}
                               onChange={(e) => handleSelectAllRow(sub.id, e.target.checked)}
-                              className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                              className="w-4.5 h-4.5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
                             />
                           </td>
                         </tr>

@@ -71,7 +71,8 @@ export class CheckpointsService implements OnModuleInit {
     }
   }
 
-  async getMasterCheckpoints(search?: string, type?: string) {
+  async getMasterCheckpoints(search?: string, type?: string, currentUser?: any) {
+    const effectiveAdminId = currentUser?.adminId || currentUser?.userId;
     const where: any = {};
     if (type) {
       where.checkpointType = type;
@@ -84,6 +85,11 @@ export class CheckpointsService implements OnModuleInit {
         { category: { contains: s, mode: 'insensitive' } },
       ];
     }
+
+    if (effectiveAdminId) {
+      where.adminId = effectiveAdminId;
+    }
+
     return this.prisma.checkpointMaster.findMany({
       where,
       orderBy: { code: 'asc' },
@@ -104,21 +110,22 @@ export class CheckpointsService implements OnModuleInit {
     maxValue?: number;
     unit?: string;
     category?: string;
-  }) {
+  }, currentUser?: any) {
     const cleanDesc = dto.description.trim();
+    const effectiveAdminId = currentUser?.adminId || currentUser?.userId || null;
 
     // Check if checkpoint already exists in Master Database
     let master = await this.prisma.checkpointMaster.findFirst({
       where: {
         description: { equals: cleanDesc, mode: 'insensitive' },
         checkpointType: dto.checkpointType,
+        ...(effectiveAdminId ? { adminId: effectiveAdminId } : {}),
       },
     });
 
     let isNewMasterCreated = false;
 
     if (!master) {
-      // Create new entry in Checkpoint Master DB
       const year = new Date().getFullYear();
       const count = await this.prisma.checkpointMaster.count();
       const nextCode = `CHK-${dto.checkpointType.substring(0, 4)}-${(count + 1).toString().padStart(3, '0')}`;
@@ -126,6 +133,7 @@ export class CheckpointsService implements OnModuleInit {
       master = await this.prisma.checkpointMaster.create({
         data: {
           code: nextCode,
+          adminId: effectiveAdminId,
           checkpointType: dto.checkpointType || 'PREVENTIVE',
           description: cleanDesc,
           frequency: dto.frequency || 'MONTHLY',

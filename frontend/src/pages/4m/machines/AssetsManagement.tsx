@@ -439,7 +439,7 @@ export function AssetsManagement() {
             {/* Modal Header */}
             <div className="p-6 pb-4 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-[#00a651]">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
                   <FolderInput className="w-5 h-5" />
                 </div>
                 <div>
@@ -469,7 +469,7 @@ export function AssetsManagement() {
                       {pendingMove.source.type === 'device' ? (
                         <Cpu className="w-3.5 h-3.5 text-orange-600" />
                       ) : (
-                        <Building className="w-3.5 h-3.5 text-[#00a651]" />
+                        <Building className="w-3.5 h-3.5 text-blue-600" />
                       )}
                     </div>
                     <span className="text-sm font-bold text-gray-900 truncate">
@@ -480,7 +480,7 @@ export function AssetsManagement() {
 
                 {/* Arrow */}
                 <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-white shadow-sm border border-gray-200 text-gray-500">
-                  <ArrowRight className="w-4 h-4 text-[#00a651]" />
+                  <ArrowRight className="w-4 h-4 text-blue-600" />
                 </div>
 
                 {/* Target Item */}
@@ -496,9 +496,9 @@ export function AssetsManagement() {
                       {pendingMove.target.type === 'mainFacility' ? (
                         <Building2 className="w-3.5 h-3.5 text-blue-600" />
                       ) : pendingMove.target.type === 'facility' ? (
-                        <Building className="w-3.5 h-3.5 text-[#00a651]" />
+                        <Building className="w-3.5 h-3.5 text-blue-600" />
                       ) : pendingMove.target.type === 'building' ? (
-                        <Building className="w-3.5 h-3.5 text-[#00a651]" />
+                        <Building className="w-3.5 h-3.5 text-blue-600" />
                       ) : (
                         <Cpu className="w-3.5 h-3.5 text-orange-600" />
                       )}
@@ -538,7 +538,7 @@ export function AssetsManagement() {
                 type="button"
                 onClick={handleConfirmMove}
                 disabled={isMoving}
-                className="px-5 py-2 text-sm font-semibold text-white bg-[#00a651] hover:bg-[#009040] rounded-xl transition-colors shadow-sm flex items-center gap-2 disabled:opacity-75"
+                className="px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors shadow-sm flex items-center gap-2 disabled:opacity-75"
               >
                 {isMoving ? (
                   <>

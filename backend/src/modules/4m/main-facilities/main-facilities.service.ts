@@ -10,7 +10,7 @@ export class MainFacilitiesService {
     private readonly codeSequenceService: CodeSequenceService
   ) {}
 
-  async create(createDto: CreateMainFacilityDto) {
+  async create(createDto: CreateMainFacilityDto, currentUser?: any) {
     const existingFacility = await this.prisma.mainFacility.findFirst({
       where: {
         OR: [
@@ -29,17 +29,23 @@ export class MainFacilitiesService {
 
     // Generate the real unique code at insertion time
     const realFacilityCode = await this.codeSequenceService.generateNextCode('MAIN_FACILITY');
+    const effectiveAdminId = currentUser?.adminId || currentUser?.userId || null;
 
     return this.prisma.mainFacility.create({
       data: {
         ...createDto,
         mainFacilityCode: realFacilityCode,
+        adminId: effectiveAdminId,
       },
     });
   }
 
-  async findAll() {
+  async findAll(currentUser?: any) {
+    const effectiveAdminId = currentUser?.adminId || currentUser?.userId;
+    const whereClause: any = effectiveAdminId ? { adminId: effectiveAdminId } : {};
+
     return this.prisma.mainFacility.findMany({
+      where: whereClause,
       orderBy: { createdAt: 'desc' }
     });
   }

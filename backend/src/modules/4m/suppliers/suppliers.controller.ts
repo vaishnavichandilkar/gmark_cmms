@@ -6,6 +6,7 @@ import { SuppliersService } from './suppliers.service';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
 import { JwtAuthGuard } from '../../core/auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../../core/auth/decorators/current-user.decorator';
 
 @ApiTags('suppliers')
 @ApiBearerAuth('JWT-auth')
@@ -16,8 +17,8 @@ export class SuppliersController {
 
   @Get()
   @ApiOperation({ summary: 'Get all suppliers with optional search' })
-  findAll(@Query('search') search?: string) {
-    return this.suppliersService.findAll({ search });
+  findAll(@Query('search') search?: string, @CurrentUser() currentUser?: any) {
+    return this.suppliersService.findAll({ search }, currentUser);
   }
 
   @Get('next-code')
@@ -34,8 +35,8 @@ export class SuppliersController {
 
   @Post()
   @ApiOperation({ summary: 'Create new supplier' })
-  create(@Body() createSupplierDto: CreateSupplierDto) {
-    return this.suppliersService.create(createSupplierDto);
+  create(@Body() createSupplierDto: CreateSupplierDto, @CurrentUser() currentUser?: any) {
+    return this.suppliersService.create(createSupplierDto, currentUser);
   }
 
   @Put(':id')
@@ -61,7 +62,7 @@ export class SuppliersController {
 
   @Post('import')
   @ApiOperation({ summary: 'Import suppliers from array (CSV data)' })
-  importSuppliers(@Body() suppliersList: CreateSupplierDto[]) {
-    return this.suppliersService.importSuppliers(suppliersList);
+  importSuppliers(@Body() suppliersList: CreateSupplierDto[], @CurrentUser() currentUser?: any) {
+    return this.suppliersService.importSuppliers(suppliersList, currentUser);
   }
 }

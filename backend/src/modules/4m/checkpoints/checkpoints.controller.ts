@@ -10,12 +10,15 @@ export class CheckpointsController {
   constructor(private readonly checkpointsService: CheckpointsService) {}
 
   @Get('master')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get all Master Checkpoints from catalog' })
   async getMasterCheckpoints(
     @Query('search') search?: string,
     @Query('type') type?: string,
+    @CurrentUser() user?: any,
   ) {
-    return this.checkpointsService.getMasterCheckpoints(search, type);
+    return this.checkpointsService.getMasterCheckpoints(search, type, user);
   }
 
   @Post()
@@ -26,7 +29,7 @@ export class CheckpointsController {
     return this.checkpointsService.createCheckpointWithDualDatabase({
       ...body,
       userId: user?.userId,
-    });
+    }, user);
   }
 
   @Get('machine/:machineId')

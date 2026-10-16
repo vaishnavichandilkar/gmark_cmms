@@ -1,4 +1,4 @@
-import { IsString, IsEmail, IsNotEmpty, IsOptional, IsNumber, IsDateString } from 'class-validator';
+import { IsString, IsEmail, IsNotEmpty, IsOptional, IsNumber, IsDateString, Min } from 'class-validator';
 
 export class CreateEmployeeDto {
   @IsString()
@@ -14,8 +14,8 @@ export class CreateEmployeeDto {
   mobileNumber: string;
 
   @IsEmail()
-  @IsNotEmpty()
-  officialEmail: string;
+  @IsOptional()
+  officialEmail?: string;
 
   @IsEmail()
   @IsOptional()
@@ -38,7 +38,12 @@ export class CreateEmployeeDto {
   designation: string;
 
   @IsNumber()
+  @Min(0, { message: 'Salary payout cannot be negative' })
   @IsOptional()
   salaryPayout?: number;
+
+  @IsString()
+  @IsOptional()
+  reportingTo?: string;
 
 }

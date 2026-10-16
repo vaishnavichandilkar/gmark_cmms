@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Search, Plus } from 'lucide-react';
+import { spareService } from '../../services/spareService';
 
-interface SpareItem {
+export interface SpareItem {
   id: number;
   location: string;
   spareName: string;
@@ -22,8 +23,24 @@ export const SelectSparePickerModal: React.FC<SelectSparePickerModalProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [sparesList, setSparesList] = useState<SpareItem[]>([]);
 
-  const sparesList: SpareItem[] = [];
+  useEffect(() => {
+    if (isOpen) {
+      spareService.getAll()
+        .then(data => {
+          const arr = Array.isArray(data) ? data : [];
+          const mapped: SpareItem[] = arr.map((s: any, idx: number) => ({
+            id: Number(s.id) || idx + 1,
+            location: s.location || 'Main Store',
+            spareName: s.partName || s.name || 'Unnamed Spare',
+            code: s.partCode || s.code || `SPR${s.id}`,
+          }));
+          setSparesList(mapped);
+        })
+        .catch(err => console.error('Failed to load spares for picker:', err));
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -94,36 +111,44 @@ export const SelectSparePickerModal: React.FC<SelectSparePickerModalProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-gray-600">
-                {filtered.map((item, index) => {
-                  const isSelected = selectedId === item.id;
-                  return (
-                    <tr
-                      key={item.id}
-                      onClick={() => {
-                        setSelectedId(item.id);
-                        onSelectSpare(item);
-                        onClose();
-                      }}
-                      className={`hover:bg-emerald-50/50 transition-colors cursor-pointer ${
-                        isSelected ? 'bg-emerald-50 font-semibold' : ''
-                      }`}
-                    >
-                      <td className="p-3 text-center">
-                        <div
-                          className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                            isSelected ? 'border-sky-500 bg-sky-500' : 'border-gray-300'
-                          }`}
-                        >
-                          {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                        </div>
-                      </td>
-                      <td className="p-3 text-center font-medium">{index + 1}</td>
-                      <td className="p-3 text-gray-700">{item.location}</td>
-                      <td className="p-3 font-semibold text-gray-800">{item.spareName}</td>
-                      <td className="p-3 font-mono text-gray-500">{item.code}</td>
-                    </tr>
-                  );
-                })}
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-gray-400 font-medium">
+                      No spares found.
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((item, index) => {
+                    const isSelected = selectedId === item.id;
+                    return (
+                      <tr
+                        key={item.id}
+                        onClick={() => {
+                          setSelectedId(item.id);
+                          onSelectSpare(item);
+                          onClose();
+                        }}
+                        className={`hover:bg-emerald-50/50 transition-colors cursor-pointer ${
+                          isSelected ? 'bg-emerald-50 font-semibold' : ''
+                        }`}
+                      >
+                        <td className="p-3 text-center">
+                          <div
+                            className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                              isSelected ? 'border-sky-500 bg-sky-500' : 'border-gray-300'
+                            }`}
+                          >
+                            {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </div>
+                        </td>
+                        <td className="p-3 text-center font-medium">{index + 1}</td>
+                        <td className="p-3 text-gray-700">{item.location}</td>
+                        <td className="p-3 font-semibold text-gray-800">{item.spareName}</td>
+                        <td className="p-3 font-mono text-gray-500">{item.code}</td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>

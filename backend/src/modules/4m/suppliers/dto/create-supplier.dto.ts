@@ -1,4 +1,4 @@
-import { IsString, IsOptional, Matches } from 'class-validator';
+import { IsString, IsOptional, Matches, ValidateIf } from 'class-validator';
 
 export class CreateSupplierDto {
   @IsOptional()
@@ -21,9 +21,13 @@ export class CreateSupplierDto {
   secondaryEmail?: string;
 
   @IsOptional()
-  @IsString()
+  @ValidateIf((o) => !!o.phone)
   @Matches(/^[0-9]{10}$/, { message: 'Phone number must be exactly 10 digits' })
   phone?: string;
+
+  @IsOptional()
+  @IsString()
+  logoUrl?: string;
 
   @IsOptional()
   @IsString()

@@ -79,8 +79,14 @@ export class SparePartsService implements OnModuleInit {
     }
   }
 
-  async getAllSpareParts() {
+  async getAllSpareParts(currentUser?: any) {
+    const effectiveAdminId = currentUser?.adminId || currentUser?.userId;
+    const where: any = effectiveAdminId
+      ? { adminId: effectiveAdminId }
+      : {};
+
     return this.prisma.sparePartMaster.findMany({
+      where,
       orderBy: { partName: 'asc' },
     });
   }
@@ -89,8 +95,14 @@ export class SparePartsService implements OnModuleInit {
     return this.prisma.sparePartMaster.findUnique({ where: { id } });
   }
 
-  async createSparePart(data: any) {
-    return this.prisma.sparePartMaster.create({ data });
+  async createSparePart(data: any, currentUser?: any) {
+    const effectiveAdminId = currentUser?.adminId || currentUser?.userId || null;
+    return this.prisma.sparePartMaster.create({
+      data: {
+        ...data,
+        adminId: effectiveAdminId,
+      },
+    });
   }
 
   async updateSparePart(id: number, data: any) {

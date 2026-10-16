@@ -9,7 +9,7 @@ export function SearchBar(props: InputHTMLAttributes<HTMLInputElement>) {
       </div>
       <input
         type="text"
-        className="block w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-full text-sm placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00a651]/20 focus:border-[#00a651] transition-all shadow-sm"
+        className="block w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-full text-sm placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all shadow-sm"
         placeholder="Search by Building, System, or Device..."
         {...props}
       />

@@ -1,19 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { 
   ArrowLeft, Printer, RefreshCw, Filter, MapPin, ChevronDown, Check, Upload, 
-  Image as ImageIcon, QrCode, Plus, Trash2, FileText, Search, ExternalLink 
+  Image as ImageIcon, QrCode, Plus, Trash2, FileText, Search, ExternalLink,
+  Eye, Pencil, Maximize2, Loader2, X, ZoomIn, ZoomOut, RotateCw
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supplierService, type Supplier } from '../../../services/supplierService';
+import { spareService, type SparePart } from '../../../services/spareService';
 import { SelectLocationPickerModal } from '../../../components/4m/SelectLocationPickerModal';
 import { SelectSparePickerModal } from '../../../components/4m/SelectSparePickerModal';
 import { INDIAN_STATES } from '../../../constants/states';
 
 type TabType = 'General' | 'Location' | 'Spares' | 'Documents' | 'Log';
 
+const SUPPLIER_TABS: TabType[] = ['General', 'Location', 'Spares', 'Documents', 'Log'];
+
 export const AddSupplierPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
   const isEditMode = Boolean(id);
 
@@ -21,6 +26,9 @@ export const AddSupplierPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('General');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const supplierTabs = SUPPLIER_TABS;
+
 
   // Form State matching all screenshots
   const [formData, setFormData] = useState<Partial<Supplier> & {
@@ -67,16 +75,53 @@ export const AddSupplierPage: React.FC = () => {
   const [newSpareForm, setNewSpareForm] = useState({
     name: '',
     location: '',
-    inHandQuantity: 0,
-    atSourceQuantity: 0,
-    minimumQuantity: 0,
+    inHandQuantity: '' as any,
+    atSourceQuantity: '' as any,
+    minimumQuantity: '' as any,
     totalStock: 0,
   });
 
   const filteredSparesList = supplierSpares.filter((item) =>
-    (item.name || '').toLowerCase().includes(spareSearchQuery.toLowerCase()) ||
-    (item.location || '').toLowerCase().includes(spareSearchQuery.toLowerCase())
+    (item.name || item.partName || '').toLowerCase().includes(spareSearchQuery.toLowerCase()) ||
+    (item.location || item.stockLocation || '').toLowerCase().includes(spareSearchQuery.toLowerCase()) ||
+    (item.code || item.partCode || '').toLowerCase().includes(spareSearchQuery.toLowerCase())
   );
+
+  const saveDraft = (overrideData?: any) => {
+    const dataToSave = {
+      formData: overrideData || formData,
+      step,
+      activeTab,
+      localPreviewUrl,
+    };
+    sessionStorage.setItem('supplier_page_draft', JSON.stringify(dataToSave));
+  };
+
+  const loadSpares = async (extraSpare?: any) => {
+    try {
+      const all = await spareService.getAll();
+      const currentName = (formData.name || '').trim().toLowerCase();
+
+      // Find spares where suppliersList has this supplier name
+      const linked = all.filter((s) =>
+        s.suppliersList?.some((sup) => sup.name?.trim().toLowerCase() === currentName)
+      );
+
+      // Prioritize spares specifically linked to this supplier; if none, show all catalog spares
+      let list = linked.length > 0 ? linked : all;
+
+      if (extraSpare) {
+        const exists = list.some((s) => s.id === extraSpare.id || s.partCode === extraSpare.partCode);
+        if (!exists) {
+          list = [extraSpare, ...list];
+        }
+      }
+
+      setSupplierSpares(list);
+    } catch (err) {
+      console.warn('Failed to load spares', err);
+    }
+  };
 
   const handleAddSpareRecord = () => {
     if (!newSpareForm.name.trim()) {
@@ -86,7 +131,8 @@ export const AddSupplierPage: React.FC = () => {
     const newRecord = {
       id: Date.now(),
       name: newSpareForm.name,
-      location: newSpareForm.location || '',
+      partName: newSpareForm.name,
+      location: newSpareForm.location || 'Main Store',
       inHandQuantity: newSpareForm.inHandQuantity || 0,
       atSourceQuantity: newSpareForm.atSourceQuantity || 0,
       minimumQuantity: newSpareForm.minimumQuantity || 0,
@@ -94,7 +140,7 @@ export const AddSupplierPage: React.FC = () => {
     };
     setSupplierSpares([...supplierSpares, newRecord]);
     setIsAddSpareModalOpen(false);
-    setNewSpareForm({ name: '', location: '', inHandQuantity: 0, atSourceQuantity: 0, minimumQuantity: 0, totalStock: 0 });
+    setNewSpareForm({ name: '', location: '', inHandQuantity: '' as any, atSourceQuantity: '' as any, minimumQuantity: '' as any, totalStock: 0 });
     toast.success('Spare part added to supplier catalog');
   };
 
@@ -123,6 +169,55 @@ export const AddSupplierPage: React.FC = () => {
     setSelectedDocIds([]);
     toast.success('Deleted selected documents');
   };
+
+  useEffect(() => {
+    // If not in edit mode, restore any saved draft from sessionStorage
+    if (!isEditMode) {
+      const saved = sessionStorage.getItem('supplier_page_draft');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed.formData) {
+            setFormData((prev) => ({ ...prev, ...parsed.formData }));
+          }
+          if (parsed.step) {
+            setStep(parsed.step);
+          }
+          if (parsed.activeTab) {
+            setActiveTab(parsed.activeTab);
+          }
+          if (parsed.localPreviewUrl) {
+            setLocalPreviewUrl(parsed.localPreviewUrl);
+          }
+        } catch (e) {
+          console.warn('Failed to restore draft', e);
+        }
+      }
+    }
+
+    const stateObj = location.state as any;
+    if (stateObj?.tab) {
+      setStep(2);
+      setActiveTab(stateObj.tab as TabType);
+    }
+
+    if (stateObj?.newSpare) {
+      setSupplierSpares((prev) => {
+        const exists = prev.some((s) => s.id === stateObj.newSpare.id || s.partCode === stateObj.newSpare.partCode);
+        if (exists) return prev;
+        return [stateObj.newSpare, ...prev];
+      });
+      loadSpares(stateObj.newSpare);
+    } else {
+      loadSpares();
+    }
+  }, [location.state]);
+
+  useEffect(() => {
+    if (activeTab === 'Spares') {
+      loadSpares();
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (isEditMode && id) {
@@ -179,23 +274,298 @@ export const AddSupplierPage: React.FC = () => {
     });
   };
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string>('');
+  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
+  const [imageRotation, setImageRotation] = useState(0);
+  const [imageZoom, setImageZoom] = useState(1);
+
+  const openImageViewer = () => {
+    setImageRotation(0);
+    setImageZoom(1);
+    setIsImageViewerOpen(true);
+  };
+
+  const handleRemoveImage = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setLocalPreviewUrl('');
+    setFormData((prev) => ({ ...prev, logoUrl: '' }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    toast.success('Image removed');
+  };
+
+  const processImageFile = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file (PNG, JPG, WEBP, etc.)');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image size must be less than 10MB');
+      return;
+    }
+
+    setUploadingImage(true);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64Data = reader.result as string;
+      setLocalPreviewUrl(base64Data);
+      setFormData((prev) => ({ ...prev, logoUrl: base64Data }));
+      setUploadingImage(false);
+      toast.success('Image uploaded successfully');
+    };
+    reader.onerror = () => {
+      setUploadingImage(false);
+      toast.error('Failed to read image file');
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData((prev) => ({ ...prev, logoUrl: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+      processImageFile(file);
     }
   };
 
-  const handleNextStep = () => {
+  const renderProfileCard = (isStep1: boolean = false) => {
+    const currentImage = localPreviewUrl || formData.logoUrl;
+
+    return (
+      <div className="w-full bg-white rounded-3xl border border-gray-200/80 shadow-md p-6 space-y-4 flex flex-col text-left">
+        {/* Upload Dropzone matching Spare Management Screenshot */}
+        <div className="space-y-3">
+          <div
+            onClick={() => {
+              if (uploadingImage) return;
+              if (currentImage) {
+                openImageViewer();
+              } else {
+                fileInputRef.current?.click();
+              }
+            }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const file = e.dataTransfer.files?.[0];
+              if (file) processImageFile(file);
+            }}
+            className={`w-full aspect-square bg-gray-50/50 rounded-2xl border-2 border-dashed ${
+              currentImage
+                ? 'border-gray-200 hover:border-emerald-500'
+                : 'border-emerald-400 hover:border-emerald-500 hover:bg-emerald-50/20'
+            } flex flex-col items-center justify-center relative overflow-hidden group transition-all shadow-inner cursor-pointer`}
+            title={currentImage ? 'Click to view full image' : 'Click to upload image'}
+          >
+            {uploadingImage ? (
+              <div className="flex flex-col items-center justify-center p-4 gap-2 text-center">
+                <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
+                <span className="text-xs text-gray-600 font-bold">Uploading image...</span>
+              </div>
+            ) : currentImage ? (
+              <>
+                <img
+                  src={currentImage}
+                  alt={formData.name || 'Supplier Logo'}
+                  className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
+                />
+                {/* Hover Overlay with View / Edit / Remove actions */}
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-3 z-10 backdrop-blur-[2px]">
+                  <span className="text-[11px] font-bold text-white/90 flex items-center gap-1 mb-1">
+                    <Maximize2 className="w-3.5 h-3.5" /> Click to view
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openImageViewer();
+                      }}
+                      className="px-2.5 py-1 bg-white hover:bg-gray-100 text-gray-900 text-xs font-bold rounded-lg flex items-center gap-1 transition-colors shadow-sm cursor-pointer"
+                      title="View full image"
+                    >
+                      <Eye className="w-3 h-3 text-emerald-600" />
+                      <span>View</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        fileInputRef.current?.click();
+                      }}
+                      className="px-2.5 py-1 bg-white hover:bg-gray-100 text-gray-900 text-xs font-bold rounded-lg flex items-center gap-1 transition-colors shadow-sm cursor-pointer"
+                      title="Edit / Replace image"
+                    >
+                      <Pencil className="w-3 h-3 text-sky-600" />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-sm cursor-pointer"
+                      title="Remove image"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center p-4 text-center select-none">
+                <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2.5 border border-emerald-100 group-hover:bg-emerald-100 group-hover:scale-110 transition-all duration-200 shadow-sm">
+                  <Upload className="w-7 h-7 stroke-[2.2]" />
+                </div>
+                <span className="text-xs font-bold text-gray-800 group-hover:text-emerald-700 transition-colors">
+                  Click to upload image
+                </span>
+                <span className="text-[10px] text-gray-400 mt-1">
+                  PNG, JPG, WEBP up to 10MB
+                </span>
+              </div>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
+          </div>
+
+          {/* Explicit View & Edit Action Buttons under the image */}
+          {currentImage && (
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={openImageViewer}
+                className="flex-1 py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-xl text-xs flex items-center justify-center gap-1 border border-emerald-200 transition-colors shadow-xs cursor-pointer"
+                title="View image full size"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span>View</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex-1 py-1.5 px-2 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold rounded-xl text-xs flex items-center justify-center gap-1 border border-sky-200 transition-colors shadow-xs cursor-pointer"
+                title="Edit / Replace image"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                <span>Edit</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleRemoveImage}
+                className="py-1.5 px-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs flex items-center justify-center border border-red-200 transition-colors shadow-xs cursor-pointer"
+                title="Delete image"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Active Pill Badge matching Screenshot */}
+        <div className={`w-full py-2.5 px-4 rounded-xl font-bold text-center text-sm shadow-sm transition-colors ${
+          formData.status === 'ACTIVE'
+            ? 'bg-emerald-600 text-white'
+            : 'bg-slate-400 text-white'
+        }`}>
+          {formData.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+        </div>
+
+        {/* Key Summary Labels matching Screenshot */}
+        <div className="space-y-3 pt-3 text-sm border-t border-gray-100 w-full text-left">
+          <div>
+            <div className="text-xs text-gray-400 font-semibold">Supplier Name</div>
+            <div className="font-bold text-gray-900">{formData.name || 'New Supplier S1'}</div>
+          </div>
+
+          <div>
+            <div className="text-xs text-gray-400 font-semibold">Business Category</div>
+            <div className="font-bold text-gray-900">
+              {formData.categoriesList?.join(', ') || formData.businessCategory || 'Supplier'}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs text-gray-400 font-semibold">Vendor Code</div>
+            <div className="font-bold text-gray-900">{formData.supplierCode || 'SUP-001'}</div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const buildPayload = (): Partial<Supplier> => {
+    return {
+      supplierCode: formData.supplierCode || undefined,
+      name: formData.name?.trim() || '',
+      status: formData.status || 'ACTIVE',
+      businessCategory: formData.categoriesList?.join(', ') || formData.businessCategory || undefined,
+      businessDescription: formData.businessDescription || undefined,
+      contactPerson: formData.contactPerson || undefined,
+      phone: formData.phone?.trim() ? formData.phone.trim() : undefined,
+      fax: formData.fax || undefined,
+      website: formData.website || undefined,
+      primaryCurrency: formData.primaryCurrency || 'INR',
+      email: formData.email || undefined,
+      secondaryEmail: formData.secondaryEmail || undefined,
+      gstNumber: formData.gstNumber || undefined,
+      address: formData.address || undefined,
+      city: formData.city || undefined,
+      state: formData.state || undefined,
+      country: formData.country || 'India',
+      postalCode: formData.postalCode || undefined,
+      latitude: formData.latitude || undefined,
+      longitude: formData.longitude || undefined,
+      notes: formData.notes || undefined,
+      logoUrl: localPreviewUrl || formData.logoUrl || undefined,
+    };
+  };
+
+  const handleNextStep = async () => {
     if (!formData.name?.trim()) {
       toast.error('Supplier Name is required');
       return;
     }
+
+    saveDraft();
+
+    if (isEditMode && id) {
+      try {
+        const payload = buildPayload();
+        await supplierService.updateSupplier(Number(id), payload);
+        toast.success('Supplier details saved');
+      } catch (err) {
+        console.warn('Failed to update supplier on server', err);
+      }
+    } else {
+      toast.success('Step 1 complete, proceed with tabs or Save');
+    }
+
     setStep(2);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+
+  const handleStep2Back = () => {
+    saveDraft();
+    const curIdx = supplierTabs.indexOf(activeTab);
+    if (curIdx > 0) {
+      setActiveTab(supplierTabs[curIdx - 1]);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      setStep(1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -213,29 +583,7 @@ export const AddSupplierPage: React.FC = () => {
 
     setSubmitting(true);
     try {
-      const payload: Partial<Supplier> = {
-        supplierCode: formData.supplierCode,
-        name: formData.name,
-        status: formData.status || 'ACTIVE',
-        businessCategory: formData.categoriesList?.join(', ') || formData.businessCategory,
-        businessDescription: formData.businessDescription,
-        contactPerson: formData.contactPerson,
-        phone: formData.phone,
-        fax: formData.fax,
-        website: formData.website,
-        primaryCurrency: formData.primaryCurrency || 'INR',
-        email: formData.email,
-        secondaryEmail: formData.secondaryEmail,
-        gstNumber: formData.gstNumber,
-        address: formData.address,
-        city: formData.city,
-        state: formData.state,
-        country: formData.country || 'India',
-        postalCode: formData.postalCode,
-        latitude: formData.latitude,
-        longitude: formData.longitude,
-        notes: formData.notes,
-      };
+      const payload = buildPayload();
 
       if (isEditMode && id) {
         await supplierService.updateSupplier(Number(id), payload);
@@ -244,6 +592,7 @@ export const AddSupplierPage: React.FC = () => {
         await supplierService.createSupplier(payload);
         toast.success('Supplier created successfully');
       }
+      sessionStorage.removeItem('supplier_page_draft');
       navigate('/suppliers');
     } catch (err: any) {
       console.error('Failed to save supplier:', err);
@@ -347,7 +696,7 @@ export const AddSupplierPage: React.FC = () => {
 
           {/* Filter Button */}
           <button
-            className="p-2.5 rounded-xl bg-[#00a651] text-white hover:bg-[#008f44] transition-all cursor-pointer shadow-xs"
+            className="p-2.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all cursor-pointer shadow-xs"
             title="Filter Options"
           >
             <Filter size={18} />
@@ -359,41 +708,9 @@ export const AddSupplierPage: React.FC = () => {
         /* STEP 1 (S1) - Basic Info & Logo Entry */
         <div className="bg-white rounded-3xl border border-gray-200/80 shadow-md p-6 md:p-10">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-            {/* Left Image / Logo Card & Status Pill */}
-            <div className="md:col-span-4 flex flex-col items-center justify-center pt-2">
-              <label className="relative group cursor-pointer w-48 h-56 rounded-2xl border-2 border-gray-300 border-dashed hover:border-emerald-500 bg-gray-50 flex flex-col items-center justify-center overflow-hidden transition-all shadow-xs">
-                {formData.logoUrl ? (
-                  <img
-                    src={formData.logoUrl}
-                    alt="Supplier Logo"
-                    className="w-full h-full object-contain p-2"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center gap-2 text-gray-400 group-hover:text-emerald-600 transition-colors p-4 text-center">
-                    <ImageIcon size={40} strokeWidth={1.5} />
-                    <span className="text-xs font-semibold">Upload Logo / Photo</span>
-                  </div>
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-              </label>
-
-              {/* Status Green Badge */}
-              <div className="mt-6 w-48 text-center">
-                <span
-                  className={`inline-block w-full text-center py-2 px-8 rounded-2xl font-bold text-sm text-white shadow-md transition-all ${
-                    formData.status === 'ACTIVE'
-                      ? 'bg-[#00e600] text-white shadow-green-200'
-                      : 'bg-gray-400 text-white'
-                  }`}
-                >
-                  {formData.status === 'ACTIVE' ? 'Active' : 'Inactive'}
-                </span>
-              </div>
+            {/* Left Profile Card matching Spare Management Screenshot */}
+            <div className="md:col-span-4">
+              {renderProfileCard(true)}
             </div>
 
             {/* Right Fields Form */}
@@ -523,15 +840,34 @@ export const AddSupplierPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Next Button */}
-              <div className="pt-6 flex justify-center">
+              {/* Bottom Action Bar matching Spare Management */}
+              <div className="pt-8 flex justify-between items-center border-t border-gray-100 mt-6">
                 <button
                   type="button"
-                  onClick={handleNextStep}
-                  className="bg-[#00a651] hover:bg-[#008f44] text-white px-12 py-3 rounded-2xl font-bold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer min-w-[140px]"
+                  onClick={() => navigate('/suppliers')}
+                  className="px-8 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold text-sm transition-colors shadow-sm cursor-pointer"
                 >
-                  Next
+                  Back
                 </button>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleSubmit()}
+                    disabled={submitting}
+                    className="px-8 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg font-semibold text-sm transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+                  >
+                    {submitting ? 'Saving...' : 'Save Supplier'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleNextStep}
+                    className="px-10 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors shadow-sm flex items-center gap-2 cursor-pointer"
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -539,60 +875,9 @@ export const AddSupplierPage: React.FC = () => {
       ) : (
         /* STEP 2 (S2) - TABBED VIEW MATCHING SCREENSHOT 3 */
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left Sidebar Summary Card matching Screenshot 3 */}
-          <div className="lg:col-span-4 bg-white rounded-3xl border border-gray-200/80 shadow-md p-6 flex flex-col items-center text-center">
-            {/* Logo placeholder */}
-            <div className="w-40 h-48 rounded-2xl border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden mb-4 shadow-xs">
-              {formData.logoUrl ? (
-                <img src={formData.logoUrl} alt="Supplier Logo" className="w-full h-full object-contain p-2" />
-              ) : (
-                <ImageIcon size={48} className="text-gray-300" />
-              )}
-            </div>
-
-            {/* Active Pill Badge */}
-            <span className="w-40 text-center py-1.5 px-6 rounded-2xl font-bold text-sm bg-[#00e600] text-white shadow-sm mb-6">
-              {formData.status === 'ACTIVE' ? 'Active' : 'Inactive'}
-            </span>
-
-            {/* Labels & Values matching Screenshot 3 */}
-            <div className="w-full text-left space-y-4 text-xs font-semibold px-2 mb-8">
-              <div>
-                <p className="text-gray-400 font-medium mb-0.5">Supplier Name</p>
-                <p className="text-gray-900 font-bold text-sm">{formData.name || 'New Supplier S1'}</p>
-              </div>
-
-              <div>
-                <p className="text-gray-400 font-medium mb-0.5">Business Category</p>
-                <p className="text-gray-900 font-bold text-sm">
-                  {formData.categoriesList?.join(', ') || formData.businessCategory || 'Business Category'}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-gray-400 font-medium mb-0.5">Vendor Code</p>
-                <p className="text-gray-900 font-bold text-sm">{formData.supplierCode || 'Vendor Code'}</p>
-              </div>
-            </div>
-
-            {/* Left Action Buttons: Save & Back matching Screenshot 3 */}
-            <div className="w-full flex flex-col items-center gap-3">
-              <button
-                type="button"
-                onClick={() => handleSubmit()}
-                disabled={submitting}
-                className="w-44 bg-[#00a651] hover:bg-[#008f44] text-white py-2.5 px-8 rounded-2xl font-bold text-sm shadow-md transition-all cursor-pointer disabled:opacity-50"
-              >
-                {submitting ? 'Saving...' : 'Save'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="w-44 bg-gray-300 hover:bg-gray-400 text-gray-800 py-2.5 px-8 rounded-2xl font-bold text-sm transition-all cursor-pointer"
-              >
-                Back
-              </button>
-            </div>
+          {/* Left Sidebar Summary Card matching Spare Management Screenshot */}
+          <div className="lg:col-span-4">
+            {renderProfileCard(false)}
           </div>
 
           {/* Right Main Tabbed Container matching Screenshot 3 */}
@@ -608,7 +893,7 @@ export const AddSupplierPage: React.FC = () => {
                     onClick={() => setActiveTab(tab)}
                     className={`px-8 py-3.5 text-sm font-bold transition-all cursor-pointer border-r border-gray-200/80 shrink-0 ${
                       isActive
-                        ? 'bg-[#00a651] text-white shadow-xs'
+                        ? 'bg-blue-600 text-white shadow-xs'
                         : 'bg-gray-100 hover:bg-gray-200/70 text-gray-700'
                     }`}
                   >
@@ -867,7 +1152,19 @@ export const AddSupplierPage: React.FC = () => {
                     {/* + Add Button */}
                     <button
                       type="button"
-                      onClick={() => navigate('/spares/new')}
+                      onClick={() => {
+                        saveDraft();
+                        navigate('/spares/new', {
+                          state: {
+                            returnUrl: isEditMode && id ? `/suppliers/edit/${id}` : '/suppliers/new',
+                            returnTab: 'Spares',
+                            supplierId: id || (formData as any).id,
+                            supplierName: formData.name,
+                            supplierCategory: formData.categoriesList?.[0] || formData.businessCategory || 'Supplier',
+                            vendorCode: formData.supplierCode
+                          }
+                        });
+                      }}
                       className="flex items-center gap-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-4 py-2 rounded-2xl text-xs transition-all cursor-pointer shadow-2xs"
                       title="Go to Spare Management"
                     >
@@ -920,7 +1217,27 @@ export const AddSupplierPage: React.FC = () => {
                         {filteredSparesList.length === 0 ? (
                           <tr>
                             <td colSpan={8} className="text-center py-10 text-gray-400 font-medium">
-                              No spare parts found. Click <button type="button" onClick={() => navigate('/spares/new')} className="text-emerald-600 font-bold hover:underline cursor-pointer">"+ Add"</button> to open Spare Management.
+                              No spare parts found. Click{' '}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  saveDraft();
+                                  navigate('/spares/new', {
+                                    state: {
+                                      returnUrl: isEditMode && id ? `/suppliers/edit/${id}` : '/suppliers/new',
+                                      returnTab: 'Spares',
+                                      supplierId: id || (formData as any).id,
+                                      supplierName: formData.name,
+                                      supplierCategory: formData.categoriesList?.[0] || formData.businessCategory || 'Supplier',
+                                      vendorCode: formData.supplierCode
+                                    }
+                                  });
+                                }}
+                                className="text-emerald-600 font-bold hover:underline cursor-pointer"
+                              >
+                                "+ Add"
+                              </button>{' '}
+                              to open Spare Management.
                             </td>
                           </tr>
                         ) : (
@@ -941,12 +1258,12 @@ export const AddSupplierPage: React.FC = () => {
                                   />
                                 </td>
                                 <td className="p-3 text-center font-medium">{index + 1}</td>
-                                <td className="p-3 font-medium text-gray-700">{item.location || 'Location'}</td>
-                                <td className="p-3 font-semibold text-gray-800">{item.name || 'Spare Name'}</td>
-                                <td className="p-3 text-center font-bold text-gray-700">{item.inHandQuantity ?? 23}</td>
-                                <td className="p-3 text-center font-bold text-gray-700">{item.atSourceQuantity ?? 23}</td>
-                                <td className="p-3 text-center font-bold text-gray-700">{item.minimumQuantity ?? 23}</td>
-                                <td className="p-3 text-center font-bold text-gray-900">{item.totalStock ?? 23}</td>
+                                <td className="p-3 font-medium text-gray-700">{item.location || item.stockLocation || 'Main Store'}</td>
+                                <td className="p-3 font-semibold text-gray-800">{item.partName || item.name || 'Spare Name'}</td>
+                                <td className="p-3 text-center font-bold text-gray-700">{item.inHandQuantity ?? 0}</td>
+                                <td className="p-3 text-center font-bold text-gray-700">{item.atSourceQuantity ?? 0}</td>
+                                <td className="p-3 text-center font-bold text-gray-700">{item.minimumQuantity ?? 0}</td>
+                                <td className="p-3 text-center font-bold text-emerald-600">{item.totalStock ?? item.stockQuantity ?? 0}</td>
                               </tr>
                             );
                           })
@@ -1029,9 +1346,16 @@ export const AddSupplierPage: React.FC = () => {
                             </label>
                             <input
                               type="number"
-                              value={newSpareForm.minimumQuantity}
-                              onChange={(e) => setNewSpareForm({ ...newSpareForm, minimumQuantity: Number(e.target.value) })}
-                              placeholder="23"
+                              min="0"
+                              placeholder="0"
+                              onFocus={(e) => {
+                                if (e.target.value === '0') e.target.select();
+                              }}
+                              onClick={(e) => {
+                                if (e.currentTarget.value === '0') e.currentTarget.select();
+                              }}
+                              value={newSpareForm.minimumQuantity !== undefined && newSpareForm.minimumQuantity !== null ? newSpareForm.minimumQuantity : ''}
+                              onChange={(e) => setNewSpareForm({ ...newSpareForm, minimumQuantity: e.target.value === '' ? '' : Math.max(0, Number(e.target.value)) as any })}
                               className="w-full border border-gray-400 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-gray-400"
                             />
                           </div>
@@ -1045,9 +1369,16 @@ export const AddSupplierPage: React.FC = () => {
                             </label>
                             <input
                               type="number"
-                              value={newSpareForm.inHandQuantity}
-                              onChange={(e) => setNewSpareForm({ ...newSpareForm, inHandQuantity: Number(e.target.value) })}
-                              placeholder="23"
+                              min="0"
+                              placeholder="0"
+                              onFocus={(e) => {
+                                if (e.target.value === '0') e.target.select();
+                              }}
+                              onClick={(e) => {
+                                if (e.currentTarget.value === '0') e.currentTarget.select();
+                              }}
+                              value={newSpareForm.inHandQuantity !== undefined && newSpareForm.inHandQuantity !== null ? newSpareForm.inHandQuantity : ''}
+                              onChange={(e) => setNewSpareForm({ ...newSpareForm, inHandQuantity: e.target.value === '' ? '' : Math.max(0, Number(e.target.value)) as any })}
                               className="w-full border border-gray-400 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-gray-400"
                             />
                           </div>
@@ -1058,9 +1389,16 @@ export const AddSupplierPage: React.FC = () => {
                             </label>
                             <input
                               type="number"
-                              value={newSpareForm.atSourceQuantity}
-                              onChange={(e) => setNewSpareForm({ ...newSpareForm, atSourceQuantity: Number(e.target.value) })}
-                              placeholder="22"
+                              min="0"
+                              placeholder="0"
+                              onFocus={(e) => {
+                                if (e.target.value === '0') e.target.select();
+                              }}
+                              onClick={(e) => {
+                                if (e.currentTarget.value === '0') e.currentTarget.select();
+                              }}
+                              value={newSpareForm.atSourceQuantity !== undefined && newSpareForm.atSourceQuantity !== null ? newSpareForm.atSourceQuantity : ''}
+                              onChange={(e) => setNewSpareForm({ ...newSpareForm, atSourceQuantity: e.target.value === '' ? '' : Math.max(0, Number(e.target.value)) as any })}
                               className="w-full border border-gray-400 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-gray-400"
                             />
                           </div>
@@ -1071,7 +1409,7 @@ export const AddSupplierPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={handleAddSpareRecord}
-                            className="bg-[#00a651] hover:bg-[#008f44] text-white px-10 py-2.5 rounded-2xl font-bold text-sm shadow-md transition-all cursor-pointer min-w-[130px]"
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-10 py-2.5 rounded-2xl font-bold text-sm shadow-md transition-all cursor-pointer min-w-[130px]"
                           >
                             Save
                           </button>
@@ -1244,7 +1582,7 @@ export const AddSupplierPage: React.FC = () => {
                               setIsAddDocModalOpen(false);
                               toast.success('Added document');
                             }}
-                            className="bg-[#00a651] text-white px-6 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-[#008f44]"
+                            className="bg-blue-600 text-white px-6 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700"
                           >
                             Upload
                           </button>
@@ -1288,6 +1626,28 @@ export const AddSupplierPage: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* BOTTOM NAVIGATION / ACTION BAR (Same as Spare Management) */}
+            <div className="flex justify-between items-center w-full px-6 py-4 border-t border-gray-200 bg-gray-50/60 mt-auto">
+              <button
+                type="button"
+                onClick={handleStep2Back}
+                className="px-8 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold text-sm transition-colors shadow-sm cursor-pointer"
+              >
+                Back
+              </button>
+
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => handleSubmit()}
+                  disabled={submitting}
+                  className="px-10 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+                >
+                  {submitting ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1308,6 +1668,139 @@ export const AddSupplierPage: React.FC = () => {
           setNewSpareForm((prev) => ({ ...prev, name: spr.spareName, location: spr.location || prev.location }));
         }}
       />
+
+      {/* IMAGE VIEWER / EDIT MODAL matching Spare Management */}
+      {isImageViewerOpen && (localPreviewUrl || formData.logoUrl) && (() => {
+        const modalImg = localPreviewUrl || formData.logoUrl;
+
+        return (
+          <div 
+            className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn"
+            onClick={() => setIsImageViewerOpen(false)}
+          >
+            <div 
+              className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] shadow-2xl flex flex-col overflow-hidden relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/80">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                    <ImageIcon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 text-base">
+                      {formData.name ? `${formData.name} - Logo Preview` : 'Supplier Logo Preview'}
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      High-resolution preview & orientation controls
+                    </p>
+                  </div>
+                </div>
+
+                {/* Close Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsImageViewerOpen(false)}
+                  className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-xl transition-colors cursor-pointer"
+                  title="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Image Area */}
+              <div className="flex-1 bg-gray-950 p-6 flex items-center justify-center overflow-hidden min-h-[360px] relative select-none">
+                <div 
+                  className="transition-transform duration-200 flex items-center justify-center"
+                  style={{
+                    transform: `scale(${imageZoom}) rotate(${imageRotation}deg)`,
+                  }}
+                >
+                  <img
+                    src={modalImg}
+                    alt={formData.name || 'Supplier Logo'}
+                    className="max-h-[55vh] max-w-full object-contain rounded-lg shadow-2xl"
+                  />
+                </div>
+
+                {/* Floating Zoom / Rotation Indicator */}
+                {(imageRotation !== 0 || imageZoom !== 1) && (
+                  <div className="absolute top-4 left-4 bg-black/60 text-white text-xs px-3 py-1.5 rounded-full font-mono backdrop-blur-xs flex items-center gap-2">
+                    <span>Zoom: {Math.round(imageZoom * 100)}%</span>
+                    <span>•</span>
+                    <span>Rotate: {imageRotation}°</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer / Toolbars */}
+              <div className="px-6 py-4 bg-white border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">
+                {/* Zoom & Rotation controls */}
+                <div className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setImageZoom(prev => Math.min(prev + 0.25, 3))}
+                    className="p-1.5 hover:bg-white text-gray-700 hover:text-gray-900 rounded-lg transition-colors text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                    title="Zoom In"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImageZoom(prev => Math.max(prev - 0.25, 0.5))}
+                    className="p-1.5 hover:bg-white text-gray-700 hover:text-gray-900 rounded-lg transition-colors text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImageRotation(prev => (prev + 90) % 360)}
+                    className="p-1.5 hover:bg-white text-gray-700 hover:text-gray-900 rounded-lg transition-colors text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                    title="Rotate 90° Clockwise"
+                  >
+                    <RotateCw className="w-4 h-4" />
+                    <span className="text-xs">Rotate</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImageRotation(0);
+                      setImageZoom(1);
+                    }}
+                    className="p-1.5 hover:bg-white text-gray-700 hover:text-gray-900 rounded-lg transition-colors text-xs font-semibold cursor-pointer"
+                    title="Reset view"
+                  >
+                    Reset
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsImageViewerOpen(false);
+                      fileInputRef.current?.click();
+                    }}
+                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Pencil className="w-3.5 h-3.5 text-sky-600" />
+                    <span>Replace Image</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsImageViewerOpen(false)}
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer shadow-sm"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

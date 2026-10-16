@@ -27,6 +27,97 @@ export class MachinesService {
     return { nextMachineCode, nextAssetCode, nextCode: nextMachineCode };
   }
 
+  async getDropdownOptions(jwtUser: any) {
+    const user = await this.prisma.user.findUnique({ 
+      where: { id: jwtUser.userId },
+      include: { employee: true }
+    }) || jwtUser;
+    const effectiveAdminId = jwtUser?.adminId || user?.adminId || user?.id || null;
+
+    // 1. Fetch options from MachineOption table
+    const storedOptions = await (this.prisma as any).machineOption.findMany({
+      where: effectiveAdminId ? {
+        OR: [{ adminId: effectiveAdminId }, { adminId: null }]
+      } : {},
+    });
+
+    // 2. Fetch distinct values from existing Machine table
+    const machines = await this.prisma.machine.findMany({
+      where: effectiveAdminId ? {
+        OR: [{ adminId: effectiveAdminId }, { adminId: null }]
+      } : {},
+      select: {
+        make: true,
+        modelNumber: true,
+        machineCategory: true,
+        machineSubCategory: true,
+      }
+    });
+
+    const makes = new Set<string>(['Make 1']);
+    const modelNumbers = new Set<string>(['Model 1']);
+    const machineCategories = new Set<string>(['Category 1', 'HYPN', 'FIRE', 'STP', 'WTP', 'SUMP']);
+    const machineSubCategories = new Set<string>(['Sub-Category 1']);
+
+    // Add from MachineOption
+    for (const opt of storedOptions) {
+      if (!opt.value) continue;
+      const val = opt.value.trim();
+      if (!val) continue;
+      if (opt.type === 'make') makes.add(val);
+      else if (opt.type === 'modelNumber') modelNumbers.add(val);
+      else if (opt.type === 'machineCategory') machineCategories.add(val);
+      else if (opt.type === 'machineSubCategory') machineSubCategories.add(val);
+    }
+
+    // Add from existing Machines
+    for (const m of machines) {
+      if (m.make?.trim()) makes.add(m.make.trim());
+      if (m.modelNumber?.trim()) modelNumbers.add(m.modelNumber.trim());
+      if (m.machineCategory?.trim()) machineCategories.add(m.machineCategory.trim());
+      if (m.machineSubCategory?.trim()) machineSubCategories.add(m.machineSubCategory.trim());
+    }
+
+    return {
+      makes: Array.from(makes),
+      modelNumbers: Array.from(modelNumbers),
+      machineCategories: Array.from(machineCategories),
+      machineSubCategories: Array.from(machineSubCategories),
+    };
+  }
+
+  async addDropdownOption(body: { type: string; value: string }, jwtUser: any) {
+    if (!body.type || !body.value?.trim()) {
+      return { success: false };
+    }
+    const user = await this.prisma.user.findUnique({ 
+      where: { id: jwtUser.userId },
+      include: { employee: true }
+    }) || jwtUser;
+    const effectiveAdminId = jwtUser?.adminId || user?.adminId || user?.id || null;
+
+    try {
+      await (this.prisma as any).machineOption.upsert({
+        where: {
+          adminId_type_value: {
+            adminId: effectiveAdminId,
+            type: body.type,
+            value: body.value.trim(),
+          }
+        },
+        create: {
+          adminId: effectiveAdminId,
+          type: body.type,
+          value: body.value.trim(),
+        },
+        update: {}
+      });
+      return { success: true, value: body.value.trim() };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
   async getAllMachines(jwtUser: any) {
     // Fetch latest user data from DB to ensure we have mainFacilityId which might be missing in older JWTs
     const user = await this.prisma.user.findUnique({ 
@@ -34,43 +125,39 @@ export class MachinesService {
       include: { employee: true }
     }) || jwtUser;
 
+    const effectiveAdminId = jwtUser?.adminId || user?.adminId || user?.id;
     let whereClause: any = {};
 
-    if (user.role === 'SUPER_ADMIN') {
-      whereClause = {};
-    } else if (user.deviceId) {
-      whereClause = { deviceId: user.deviceId };
+    if (effectiveAdminId) {
+      whereClause.adminId = effectiveAdminId;
+    }
+
+    if (user.deviceId) {
+      whereClause.deviceId = user.deviceId;
     } else if (user.facilityId) {
       const childFacilities = await this.prisma.facility.findMany({
         where: { parentFacilityId: user.facilityId },
         select: { id: true },
       });
       const facilityIds = [user.facilityId, ...childFacilities.map(f => f.id)];
-      whereClause = {
-        facilityId: { in: facilityIds },
-      };
+      whereClause.facilityId = { in: facilityIds };
     } else if (user.mainFacilityId) {
-      // If user is assigned to a main facility, show machines in facilities under that main facility
-      whereClause = {
-        facility: { mainFacilityId: user.mainFacilityId },
-      };
+      whereClause.facility = { mainFacilityId: user.mainFacilityId };
     } else if (user.role === 'SOCIETY_ADMIN') {
       if (user.societyId) {
-        whereClause = {
-          building: { societyId: user.societyId },
-        };
+        whereClause.building = { societyId: user.societyId };
       }
-    } else {
-      whereClause = { OR: [] };
+    } else if (user.role !== 'SUPER_ADMIN') {
+      const orConditions: any[] = [];
       if (user.employee) {
-        whereClause.OR.push({ machineOwner: user.employee.fullName });
-        whereClause.OR.push({ maintenanceHead: user.employee.fullName });
+        orConditions.push({ machineOwner: user.employee.fullName });
+        orConditions.push({ maintenanceHead: user.employee.fullName });
       }
       if (jwtUser.buildingIds && jwtUser.buildingIds.length > 0) {
-        whereClause.OR.push({ buildingId: { in: jwtUser.buildingIds } });
+        orConditions.push({ buildingId: { in: jwtUser.buildingIds } });
       }
-      if (whereClause.OR.length === 0) {
-        whereClause = { id: -1 }; // Return nothing
+      if (orConditions.length > 0) {
+        whereClause.OR = orConditions;
       }
     }
 
@@ -200,7 +287,7 @@ export class MachinesService {
     };
   }
 
-  async create(data: any) {
+  async create(data: any, jwtUser?: any) {
     if (data.deviceId) {
       const existing = await this.prisma.machine.findUnique({
         where: { deviceId: data.deviceId },
@@ -248,9 +335,12 @@ export class MachinesService {
       }
     }
 
+    const effectiveAdminId = jwtUser?.adminId || jwtUser?.userId || null;
+
     const machine = await this.prisma.machine.create({
       data: {
         name: data.name,
+        adminId: effectiveAdminId,
         deviceId: data.deviceId || null,
         buildingId: data.buildingId,
         facilityId: data.facilityId,
@@ -281,6 +371,33 @@ export class MachinesService {
         where: { deviceId: data.deviceId },
         data: { application: data.machineType || data.machineCategory },
       }).catch(() => {});
+    }
+
+    // Persist options for dropdowns
+    const optionsToSave = [
+      { type: 'make', value: data.make },
+      { type: 'modelNumber', value: data.modelNumber },
+      { type: 'machineCategory', value: data.machineCategory },
+      { type: 'machineSubCategory', value: data.machineSubCategory },
+    ];
+    for (const opt of optionsToSave) {
+      if (opt.value && typeof opt.value === 'string' && opt.value.trim()) {
+        await (this.prisma as any).machineOption.upsert({
+          where: {
+            adminId_type_value: {
+              adminId: effectiveAdminId,
+              type: opt.type,
+              value: opt.value.trim(),
+            }
+          },
+          create: {
+            adminId: effectiveAdminId,
+            type: opt.type,
+            value: opt.value.trim(),
+          },
+          update: {}
+        }).catch(() => {});
+      }
     }
 
     return machine;
@@ -337,6 +454,34 @@ export class MachinesService {
         where: { deviceId: data.deviceId },
         data: { application: data.machineType || data.machineCategory },
       }).catch(() => {});
+    }
+
+    // Persist options for dropdowns
+    const effectiveAdminId = machine.adminId;
+    const optionsToSave = [
+      { type: 'make', value: data.make },
+      { type: 'modelNumber', value: data.modelNumber },
+      { type: 'machineCategory', value: data.machineCategory },
+      { type: 'machineSubCategory', value: data.machineSubCategory },
+    ];
+    for (const opt of optionsToSave) {
+      if (opt.value && typeof opt.value === 'string' && opt.value.trim()) {
+        await (this.prisma as any).machineOption.upsert({
+          where: {
+            adminId_type_value: {
+              adminId: effectiveAdminId,
+              type: opt.type,
+              value: opt.value.trim(),
+            }
+          },
+          create: {
+            adminId: effectiveAdminId,
+            type: opt.type,
+            value: opt.value.trim(),
+          },
+          update: {}
+        }).catch(() => {});
+      }
     }
 
     return updated;

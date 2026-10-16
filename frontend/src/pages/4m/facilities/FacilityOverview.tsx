@@ -155,7 +155,7 @@ export function FacilityOverview() {
         <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
           {(['all', 'healthy', 'warning', 'critical'] as const).map(f => {
             const colors = {
-              all: 'bg-[#00a651] text-white border-[#00a651]',
+              all: 'bg-blue-600 text-white border-blue-600',
               healthy: 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-gray-700',
               warning: 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-gray-700',
               critical: 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-gray-700'

@@ -5,10 +5,11 @@ import type { RootState } from '../../../store';
 import { hasTabPermission } from '../../../utils/permissions';
 import { CustomSelect } from '../../../components/shared/CustomSelect';
 import { CustomDatePicker } from '../../../components/shared/CustomDatePicker';
-import { ArrowLeft, Search, Plus, Wifi, Activity, ShieldAlert, RefreshCw, Sparkles } from 'lucide-react';
+import { ArrowLeft, Search, Plus, Wifi, Activity, ShieldAlert, RefreshCw, Sparkles, Trash2 } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { FacilityHierarchyPicker } from '../../../components/4m/FacilityHierarchyPicker';
 import { MachineHierarchyPicker } from '../../../components/4m/MachineHierarchyPicker';
+import { spareService } from '../../../services/spareService';
 import { io, Socket } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import { navigateToDeviceDashboard } from '../../../utils/deviceRoutes';
@@ -23,6 +24,39 @@ export function EditMachine() {
   const [activeTab, setActiveTab] = useState(location.state?.tab || 'General');
   const [saving, setSaving] = useState(false);
   
+  const [machineSpares, setMachineSpares] = useState<any[]>([]);
+  const [spareSearchQuery, setSpareSearchQuery] = useState('');
+
+  // Handle return from Spares Management with newly created spare
+  useEffect(() => {
+    if (location.state?.tab) {
+      setActiveTab(location.state.tab);
+    }
+    const syncSpare = async () => {
+      if (location.state?.newSpare) {
+        const spare = location.state.newSpare;
+        setMachineSpares(prev => {
+          if (prev.some(s => s.id === spare.id)) return prev;
+          return [...prev, spare];
+        });
+      } else if (location.state?.newSpareId) {
+        const spareId = Number(location.state.newSpareId);
+        try {
+          const fetchedSpare = await spareService.getById(spareId);
+          if (fetchedSpare) {
+            setMachineSpares(prev => {
+              if (prev.some(s => s.id === fetchedSpare.id)) return prev;
+              return [...prev, fetchedSpare];
+            });
+          }
+        } catch (e) {
+          console.error('Failed to load returned spare', e);
+        }
+      }
+    };
+    syncSpare();
+  }, [location.state]);
+
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [isSpecModalOpen, setIsSpecModalOpen] = useState(false);
   const [isSparesModalOpen, setIsSparesModalOpen] = useState(false);
@@ -370,32 +404,45 @@ export function EditMachine() {
   const canDeleteInTab = hasTabPermission(currentUser, activeTab, 'delete');
 
   return (
-    <div className="sm:px-2 md:px-4 pb-6 pt-0 w-full flex flex-col bg-white">
+    <div className="sm:px-2 md:px-4 pb-6 pt-0 w-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center mb-6">
-        <button
-          onClick={() => navigate(-1)}
-          className="text-gray-800 hover:text-black mr-3 focus:outline-none flex items-center"
-        >
-          <ArrowLeft size={24} className="stroke-[2.5]" />
-        </button>
-        <h1 className="text-2xl font-bold text-gray-900">Machine</h1>
+      <div className="flex items-center justify-between gap-4 mb-5">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+            title="Go Back"
+          >
+            <ArrowLeft size={18} className="stroke-[2.5]" />
+          </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                {formData.name || 'Edit Machine'}
+              </h1>
+              {formData.machineCode && (
+                <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                  {formData.machineCode}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500">Update asset profile, specifications, spares, and IoT telemetry</p>
+          </div>
+        </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm w-full">
+      <div className="bg-white rounded-xl border border-slate-200/90 shadow-xs w-full overflow-hidden">
         {/* Tabs */}
         {permittedTabs.length > 0 && (
-          <div className="flex overflow-x-auto border-b border-gray-200">
-            {permittedTabs.map((tab, index) => (
+          <div className="flex overflow-x-auto border-b border-slate-200 bg-slate-50/70 p-1.5 gap-1">
+            {permittedTabs.map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`min-w-[120px] py-3.5 px-4 text-sm font-semibold border-r border-gray-200 transition-colors ${
-                  index === 0 ? 'rounded-tl-xl ' : ''
-                }${
+                className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
                   activeTab === tab 
-                    ? 'bg-[#00a651] text-white' 
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                    ? 'bg-blue-600 text-white shadow-xs' 
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                 }`}
               >
                 {tab}
@@ -405,23 +452,23 @@ export function EditMachine() {
         )}
 
         {/* Content Area */}
-        <div className="px-8 pt-8 pb-6 w-full">
+        <div className="p-6 w-full">
           {permittedTabs.length === 0 ? (
             <div className="p-12 text-center">
               <ShieldAlert className="w-12 h-12 text-amber-500 mx-auto mb-3" />
-              <h3 className="text-lg font-bold text-gray-800">No Tab Access</h3>
-              <p className="text-sm text-gray-500 mt-1">You do not have permission to view any tabs for this machine.</p>
+              <h3 className="text-lg font-bold text-slate-800">No Tab Access</h3>
+              <p className="text-sm text-slate-500 mt-1">You do not have permission to view any tabs for this machine.</p>
             </div>
           ) : activeTab === 'General' ? (
             <div className="space-y-6">
               {/* Location Section */}
               <div>
-                <h3 className="text-sm font-semibold text-gray-400 mb-4">Location</h3>
-                <div className="bg-gray-50 p-4 sm:p-6 rounded-xl border border-gray-200 space-y-5">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Location Hierarchy</h3>
+                <div className="bg-slate-50/80 p-4 sm:p-5 rounded-xl border border-slate-200 space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                     <label className="flex items-center gap-3 min-w-[220px] cursor-pointer">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${formData.isLocationPart ? 'border-[#00a651]' : 'border-gray-300'}`}>
-                        {formData.isLocationPart && <div className="w-2.5 h-2.5 bg-[#00a651] rounded-full"></div>}
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${formData.isLocationPart ? 'border-blue-600' : 'border-slate-300'}`}>
+                        {formData.isLocationPart && <div className="w-2.5 h-2.5 bg-blue-600 rounded-full"></div>}
                       </div>
                       <input 
                         type="radio" 
@@ -429,7 +476,7 @@ export function EditMachine() {
                         checked={formData.isLocationPart}
                         onChange={() => setFormData(prev => ({ ...prev, isLocationPart: true }))}
                       />
-                      <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">This Machine is a part of</span>
+                      <span className="text-xs sm:text-sm font-semibold text-slate-700 whitespace-nowrap">This Machine is a part of</span>
                     </label>
                     <div className="flex-1 max-w-md">
                       <MachineHierarchyPicker
@@ -445,8 +492,8 @@ export function EditMachine() {
                   </div>
 
                   <label className="flex items-center gap-3 cursor-pointer">
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${!formData.isLocationPart ? 'border-[#00a651]' : 'border-gray-300'}`}>
-                      {!formData.isLocationPart && <div className="w-2.5 h-2.5 bg-[#00a651] rounded-full"></div>}
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${!formData.isLocationPart ? 'border-blue-600' : 'border-slate-300'}`}>
+                      {!formData.isLocationPart && <div className="w-2.5 h-2.5 bg-blue-600 rounded-full"></div>}
                     </div>
                     <input 
                       type="radio" 
@@ -454,14 +501,14 @@ export function EditMachine() {
                       checked={!formData.isLocationPart}
                       onChange={() => setFormData(prev => ({ ...prev, isLocationPart: false }))}
                     />
-                    <span className="text-sm font-semibold text-gray-700">This Machine is not a part of another location, is located at</span>
+                    <span className="text-xs sm:text-sm font-semibold text-slate-700">This Machine is not a part of another location, is located at</span>
                   </label>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                       Location<span className="text-red-500">*</span>
                     </label>
                     <FacilityHierarchyPicker
@@ -472,7 +519,7 @@ export function EditMachine() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                       Latitude<span className="text-red-500">*</span>
                     </label>
                     <input 
@@ -481,11 +528,11 @@ export function EditMachine() {
                       value={formData.latitude}
                       onChange={handleChange}
                       placeholder="Enter Latitude"
-                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
+                      className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                       Longitude<span className="text-red-500">*</span>
                     </label>
                     <input 
@@ -494,14 +541,14 @@ export function EditMachine() {
                       value={formData.longitude}
                       onChange={handleChange}
                       placeholder="Enter Longitude"
-                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
+                      className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900"
                     />
                   </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                       Asset Code <span className="text-red-500">*</span>
                     </label>
                     <input 
@@ -511,11 +558,11 @@ export function EditMachine() {
                       onChange={handleChange} 
                       readOnly
                       placeholder="Enter Asset Code"
-                      className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-xl text-sm outline-none text-gray-600 font-medium cursor-not-allowed" 
+                      className="w-full h-[38px] px-3.5 py-2 bg-slate-100 border border-slate-300 rounded-lg text-sm outline-none text-slate-600 font-medium cursor-not-allowed" 
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                       Cost Center<span className="text-red-500">*</span>
                     </label>
                     <input 
@@ -524,11 +571,11 @@ export function EditMachine() {
                       value={formData.costCenter || 'CC-MAINT-01'}
                       onChange={handleChange}
                       placeholder="e.g. CC-MAINT-01"
-                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 font-medium"
+                      className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 font-medium"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                       Select Head of Department<span className="text-red-500">*</span>
                     </label>
                     <CustomSelect
@@ -540,7 +587,7 @@ export function EditMachine() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                       Machine Owner<span className="text-red-500">*</span>
                     </label>
                     <CustomSelect
@@ -551,60 +598,62 @@ export function EditMachine() {
                       options={employees.map(e => ({ label: `${e.designation || 'N/A'} - ${e.fullName}`, value: e.fullName }))}
                     />
                   </div>
-                  <div className="col-span-4">
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  <div className="col-span-1 md:col-span-4">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                       Notes
                     </label>
                     <textarea 
                       name="notes"
                       value={formData.notes}
                       onChange={handleChange}
-                      placeholder="notes"
-                      rows={1}
-                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 resize-none h-12"
+                      placeholder="Enter notes..."
+                      rows={2}
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 resize-none"
                     ></textarea>
                   </div>
               </div>
 
             </div>
           ) : activeTab === 'Specification' ? (
-            <div className="space-y-8">
+            <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">Upload Name Plate</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Upload Name Plate</label>
                 <div className="w-full max-w-md">
                   <input 
                     type="file"
-                    className="block w-full text-sm text-gray-600 border border-gray-500 rounded-lg p-1 cursor-pointer focus:outline-none file:mr-4 file:py-1.5 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-200 file:text-gray-700 hover:file:bg-gray-300 transition-colors"
+                    className="block w-full text-xs text-slate-600 border border-slate-300 rounded-lg p-1.5 cursor-pointer focus:outline-none file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 transition-colors"
                   />
                 </div>
               </div>
 
               <div>
-                <h3 className="text-sm font-semibold text-gray-400 mb-4">Location</h3>
-                {canCreateInTab && (
-                  <button 
-                    onClick={() => setIsSpecModalOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#00a651] hover:bg-[#009040] border border-transparent text-sm font-semibold text-white rounded-lg transition-colors shadow-sm mb-6">
-                    <Plus size={18} className="stroke-[3]" />
-                    Add Specification Field
-                  </button>
-                )}
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Specifications</h3>
+                  {canCreateInTab && (
+                    <button 
+                      onClick={() => setIsSpecModalOpen(true)}
+                      className="flex items-center gap-2 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm font-semibold text-white rounded-lg transition-all shadow-xs cursor-pointer">
+                      <Plus size={16} className="stroke-[2.5]" />
+                      Add Specification Field
+                    </button>
+                  )}
+                </div>
                 
                 {/* Render Specifications List */}
                 {specifications.length > 0 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
                     {specifications.map((spec) => (
-                      <div key={spec.id} className="flex justify-between items-center bg-gray-50 border border-gray-200 p-4 rounded-xl">
+                      <div key={spec.id} className="flex justify-between items-center bg-slate-50 border border-slate-200/90 p-4 rounded-xl">
                         <div>
-                          <p className="text-xs text-gray-500 font-semibold mb-1">{spec.title}</p>
-                          <p className="text-sm font-bold text-gray-900">
-                            {spec.data} <span className="text-gray-500 text-xs font-normal">{spec.unit}</span>
+                          <p className="text-xs text-slate-500 font-semibold mb-1">{spec.title}</p>
+                          <p className="text-sm font-bold text-slate-900">
+                            {spec.data} <span className="text-slate-500 text-xs font-normal">{spec.unit}</span>
                           </p>
                         </div>
                         {canDeleteInTab && (
                           <button 
                             onClick={() => setSpecToDelete(spec.id)}
-                            className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                            className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
                             title="Delete Specification"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
@@ -617,223 +666,251 @@ export function EditMachine() {
               </div>
             </div>
           ) : activeTab === 'Spares' ? (
-            <div className="space-y-6 w-full">
+            <div className="space-y-5 w-full">
               {/* Toolbar */}
-              <div className="flex justify-end items-center gap-4">
-                {canCreateInTab && (
-                  <button 
-                    onClick={() => setIsSparesModalOpen(true)}
-                    className="px-4 py-2 bg-[#00a651] hover:bg-[#009040] text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-colors shadow-sm"
-                  >
-                    <Plus size={16} className="stroke-[3]" /> Add Spare
-                  </button>
-                )}
+              <div className="flex justify-between items-center gap-4">
                 <div className="relative">
-                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input 
                     type="text" 
-                    placeholder="Search" 
-                    className="pl-9 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 w-64"
+                    placeholder="Search spares..." 
+                    value={spareSearchQuery}
+                    onChange={(e) => setSpareSearchQuery(e.target.value)}
+                    className="h-[38px] pl-9 pr-3.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 w-64"
                   />
                 </div>
+                {canCreateInTab && (
+                  <button 
+                    onClick={() => navigate('/spares/new', { state: { returnUrl: `/machine-management/edit/${id}`, tab: 'Spares' } })}
+                    className="h-[38px] px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm rounded-lg flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                  >
+                    <Plus size={16} className="stroke-[2.5]" /> Add Spare
+                  </button>
+                )}
               </div>
 
               {/* Table */}
-              <div className="overflow-x-auto w-full">
+              <div className="overflow-x-auto w-full border border-slate-200/90 rounded-xl">
                 <table className="w-full text-left whitespace-nowrap">
-                  <thead className="bg-gray-100 rounded-lg">
+                  <thead className="bg-slate-50/80 border-b border-slate-200">
                     <tr>
-                      <th className="px-4 py-3 rounded-l-lg w-12"><input type="checkbox" className="rounded border-gray-300" disabled /></th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">No.</th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Name</th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Make</th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Model Number</th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-center">Quantity Used</th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-right">Rate</th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-right">Total</th>
-                      <th className="px-4 py-3 rounded-r-lg text-xs font-bold text-gray-500 uppercase text-center">Action</th>
+                      <th className="px-4 py-3 w-12"><input type="checkbox" className="rounded border-slate-300 text-blue-600" disabled /></th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">No.</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Name</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Make</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Model Number</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider text-center">Quantity Used</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider text-right">Rate</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider text-right">Total</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider text-center">Action</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {[]?.length === 0 ? (
+                  <tbody className="divide-y divide-slate-100">
+                    {machineSpares.filter(s => 
+                      (s.partName || '').toLowerCase().includes(spareSearchQuery.toLowerCase()) ||
+                      (s.partCode || '').toLowerCase().includes(spareSearchQuery.toLowerCase()) ||
+                      (s.category || '').toLowerCase().includes(spareSearchQuery.toLowerCase())
+                    ).length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="px-4 py-8 text-center text-sm font-medium text-gray-500 bg-white">
-                          No spares added yet.
+                        <td colSpan={9} className="px-4 py-8 text-center text-sm font-medium text-slate-500 bg-white">
+                          No spares added yet. Click "+ Add Spare" to create and link spare parts.
                         </td>
                       </tr>
                     ) : (
-                      // Map actual spares here
-                      null
+                      machineSpares.filter(s => 
+                        (s.partName || '').toLowerCase().includes(spareSearchQuery.toLowerCase()) ||
+                        (s.partCode || '').toLowerCase().includes(spareSearchQuery.toLowerCase()) ||
+                        (s.category || '').toLowerCase().includes(spareSearchQuery.toLowerCase())
+                      ).map((spare, index) => {
+                        const qty = spare.stockQuantity || spare.inHandQuantity || 1;
+                        const rate = spare.rate !== undefined ? Number(spare.rate) : spare.unitCost ? Number(spare.unitCost) : 0;
+                        const total = qty * rate;
+                        return (
+                          <tr key={spare.id || index} className="hover:bg-blue-50/40 transition-colors">
+                            <td className="px-4 py-3"><input type="checkbox" className="rounded border-slate-300 text-blue-600" /></td>
+                            <td className="px-4 py-3 text-sm text-slate-500">{index + 1}</td>
+                            <td className="px-4 py-3 text-sm font-semibold text-slate-900">{spare.partName}</td>
+                            <td className="px-4 py-3 text-sm text-slate-600">{spare.category || '-'}</td>
+                            <td className="px-4 py-3 text-sm font-mono text-slate-600">{spare.partCode || '-'}</td>
+                            <td className="px-4 py-3 text-sm text-center font-medium text-slate-800">{qty}</td>
+                            <td className="px-4 py-3 text-sm text-right font-medium text-slate-800">₹{rate.toFixed(2)}</td>
+                            <td className="px-4 py-3 text-sm text-right font-bold text-slate-900">₹{total.toFixed(2)}</td>
+                            <td className="px-4 py-3 text-center">
+                              <button
+                                onClick={() => setMachineSpares(prev => prev.filter(s => s.id !== spare.id))}
+                                className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
+                                title="Remove Spare"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
               </div>
             </div>
           ) : activeTab === 'AMC' ? (
-            <div className="space-y-6 w-full">
+            <div className="space-y-5 w-full">
               {/* Toolbar */}
               <div className="flex justify-between items-center">
                 {/* Toggle Group */}
-                <div className="flex border border-gray-200 rounded-lg overflow-hidden bg-white">
+                <div className="flex border border-slate-200 rounded-lg overflow-hidden bg-white shadow-2xs">
                   <button 
                     onClick={() => setAmcSubTab('AMC')}
-                    className={`px-6 py-2 text-sm font-semibold transition-colors ${amcSubTab === 'AMC' ? 'bg-[#00a651] text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+                    className={`px-4 py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer ${amcSubTab === 'AMC' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
                   >
                     AMC
                   </button>
                   <button 
                     onClick={() => setAmcSubTab('Warranties')}
-                    className={`px-6 py-2 text-sm font-semibold transition-colors border-l border-gray-200 ${amcSubTab === 'Warranties' ? 'bg-[#00a651] text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+                    className={`px-4 py-2 text-xs sm:text-sm font-semibold transition-colors border-l border-slate-200 cursor-pointer ${amcSubTab === 'Warranties' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
                   >
                     Warranties
                   </button>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <button 
-                    onClick={() => setIsAmcModalOpen(true)}
-                    className="px-4 py-2 bg-[#00a651] hover:bg-[#009040] text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-colors shadow-sm"
-                  >
-                    <Plus size={16} className="stroke-[3]" /> Add {amcSubTab}
-                  </button>
+                <div className="flex items-center gap-3">
                   <div className="relative">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input 
                       type="text" 
-                      placeholder="Search" 
-                      className="pl-9 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 w-64"
+                      placeholder="Search..." 
+                      className="h-[38px] pl-9 pr-3.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 w-56"
                     />
                   </div>
+                  <button 
+                    onClick={() => setIsAmcModalOpen(true)}
+                    className="h-[38px] px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm rounded-lg flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                  >
+                    <Plus size={16} className="stroke-[2.5]" /> Add {amcSubTab}
+                  </button>
                 </div>
               </div>
 
               {/* Table */}
-              <div className="overflow-x-auto w-full">
+              <div className="overflow-x-auto w-full border border-slate-200/90 rounded-xl">
                 <table className="w-full text-left whitespace-nowrap">
-                  <thead className="bg-gray-100 rounded-lg">
+                  <thead className="bg-slate-50/80 border-b border-slate-200">
                     <tr>
-                      <th className="px-4 py-3 rounded-l-lg w-12"><input type="checkbox" className="rounded border-gray-300" disabled /></th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">No.</th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Provider Name</th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Start Date</th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">End Date</th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">{amcSubTab === 'AMC' ? 'AMC Usage' : 'Warranties Usage'}</th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Certificate Number</th>
-                      <th className="px-4 py-3 rounded-r-lg text-xs font-bold text-gray-500 uppercase text-center">Action</th>
+                      <th className="px-4 py-3 w-12"><input type="checkbox" className="rounded border-slate-300 text-blue-600" disabled /></th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">No.</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Provider Name</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Start Date</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">End Date</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">{amcSubTab === 'AMC' ? 'AMC Usage' : 'Warranties Usage'}</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Certificate Number</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {[]?.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-4 py-8 text-center text-sm font-medium text-gray-500 bg-white">
+                        <td colSpan={8} className="px-4 py-8 text-center text-sm font-medium text-slate-500 bg-white">
                           No {amcSubTab} added yet.
                         </td>
                       </tr>
-                    ) : (
-                      // Map actual AMC data here
-                      null
-                    )}
+                    ) : null}
                   </tbody>
                 </table>
               </div>
             </div>
           ) : activeTab === 'Purchase' ? (
-            <div className="space-y-6 w-full">
+            <div className="space-y-5 w-full">
               {/* Toolbar */}
               <div className="flex justify-between items-center">
                 {/* Toggle Group */}
-                <div className="flex border border-gray-200 rounded-lg overflow-hidden bg-white">
+                <div className="flex border border-slate-200 rounded-lg overflow-hidden bg-white shadow-2xs">
                   <button 
                     onClick={() => setPurchaseSubTab('Machine Purchase')}
-                    className={`px-6 py-2 text-sm font-semibold transition-colors ${purchaseSubTab === 'Machine Purchase' ? 'bg-[#00a651] text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+                    className={`px-4 py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer ${purchaseSubTab === 'Machine Purchase' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
                   >
                     Machine Purchase
                   </button>
                   <button 
                     onClick={() => setPurchaseSubTab('Spare/Service Purchase')}
-                    className={`px-6 py-2 text-sm font-semibold transition-colors border-l border-gray-200 ${purchaseSubTab === 'Spare/Service Purchase' ? 'bg-[#00a651] text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+                    className={`px-4 py-2 text-xs sm:text-sm font-semibold transition-colors border-l border-slate-200 cursor-pointer ${purchaseSubTab === 'Spare/Service Purchase' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
                   >
                     Spare/Service Purchase
                   </button>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <button 
-                    onClick={() => setIsPurchaseModalOpen(true)}
-                    className="px-4 py-2 bg-[#00a651] hover:bg-[#009040] text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-colors shadow-sm"
-                  >
-                    <Plus size={16} className="stroke-[3]" /> Add Purchase
-                  </button>
+                <div className="flex items-center gap-3">
                   <div className="relative">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input 
                       type="text" 
-                      placeholder="Search" 
-                      className="pl-9 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 w-64"
+                      placeholder="Search..." 
+                      className="h-[38px] pl-9 pr-3.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 w-56"
                     />
                   </div>
+                  <button 
+                    onClick={() => setIsPurchaseModalOpen(true)}
+                    className="h-[38px] px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm rounded-lg flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                  >
+                    <Plus size={16} className="stroke-[2.5]" /> Add Purchase
+                  </button>
                 </div>
               </div>
 
               {/* Table */}
-              <div className="overflow-x-auto w-full">
+              <div className="overflow-x-auto w-full border border-slate-200/90 rounded-xl">
                 <table className="w-full text-left whitespace-nowrap">
-                  <thead className="bg-gray-100 rounded-lg">
+                  <thead className="bg-slate-50/80 border-b border-slate-200">
                     <tr>
-                      <th className="px-4 py-3 rounded-l-lg w-12"><input type="checkbox" className="rounded border-gray-300" disabled /></th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">No.</th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Name</th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Email</th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Contact Number</th>
-                      <th className="px-4 py-3 rounded-r-lg text-xs font-bold text-gray-500 uppercase text-center">Action</th>
+                      <th className="px-4 py-3 w-12"><input type="checkbox" className="rounded border-slate-300 text-blue-600" disabled /></th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">No.</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Name</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Email</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Contact Number</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {[]?.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-4 py-8 text-center text-sm font-medium text-gray-500 bg-white">
+                        <td colSpan={6} className="px-4 py-8 text-center text-sm font-medium text-slate-500 bg-white">
                           No {purchaseSubTab} added yet.
                         </td>
                       </tr>
-                    ) : (
-                      // Map actual purchase data here
-                      null
-                    )}
+                    ) : null}
                   </tbody>
                 </table>
               </div>
             </div>
           ) : activeTab === 'Documents' ? (
-            <div className="space-y-6 w-full">
+            <div className="space-y-5 w-full">
               {/* Toolbar */}
               <div className="flex justify-end items-center">
                 {canCreateInTab && (
                   <div className="relative">
                     <button 
                       onClick={() => setIsUploadMenuOpen(!isUploadMenuOpen)}
-                      className="px-4 py-2 bg-[#00a651] hover:bg-[#009040] text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-colors shadow-sm"
+                      className="h-[38px] px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm rounded-lg flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
                     >
-                      <Plus size={16} className="stroke-[3]" /> Upload
+                      <Plus size={16} className="stroke-[2.5]" /> Upload
                     </button>
                     
                     {/* Upload Dropdown */}
                     {isUploadMenuOpen && (
-                      <div className="absolute top-full right-0 mt-2 w-32 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-20">
+                      <div className="absolute top-full right-0 mt-2 w-36 bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 z-20">
                         <button 
                           onClick={() => { setUploadModalType('File'); setIsUploadMenuOpen(false); }}
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          className="w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
                         >
                           File
                         </button>
                         <button 
                           onClick={() => { setUploadModalType('Link'); setIsUploadMenuOpen(false); }}
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          className="w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
                         >
                           Link
                         </button>
                         <button 
                           onClick={() => { setUploadModalType('Note'); setIsUploadMenuOpen(false); }}
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          className="w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
                         >
                           Notes
                         </button>
@@ -844,37 +921,37 @@ export function EditMachine() {
               </div>
 
               {/* Table */}
-              <div className="overflow-x-auto w-full">
+              <div className="overflow-x-auto w-full border border-slate-200/90 rounded-xl">
                 <table className="w-full text-left whitespace-nowrap">
-                  <thead className="bg-gray-100 rounded-lg">
+                  <thead className="bg-slate-50/80 border-b border-slate-200">
                     <tr>
-                      <th className="px-4 py-3 rounded-l-lg w-12"><input type="checkbox" className="rounded border-gray-300" disabled /></th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">No.</th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Name</th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Document Type</th>
-                      <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Document Details</th>
-                      <th className="px-4 py-3 rounded-r-lg text-xs font-bold text-gray-500 uppercase text-center">Action</th>
+                      <th className="px-4 py-3 w-12"><input type="checkbox" className="rounded border-slate-300 text-blue-600" disabled /></th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">No.</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Name</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Document Type</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Document Details</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider text-center">Action</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-100">
                     {documents?.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-4 py-8 text-center text-sm font-medium text-gray-500 bg-white">
+                        <td colSpan={6} className="px-4 py-8 text-center text-sm font-medium text-slate-500 bg-white">
                           No documents added yet.
                         </td>
                       </tr>
                     ) : (
                       documents.map((doc, index) => (
-                        <tr key={doc.id} className="border-t border-gray-100 hover:bg-gray-50">
-                          <td className="px-4 py-3"><input type="checkbox" className="rounded border-gray-300" /></td>
-                          <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{doc.name}</td>
-                          <td className="px-4 py-3 text-sm text-gray-500">{doc.type}</td>
-                          <td className="px-4 py-3 text-sm text-gray-500">
+                        <tr key={doc.id} className="hover:bg-blue-50/40 transition-colors">
+                          <td className="px-4 py-3"><input type="checkbox" className="rounded border-slate-300 text-blue-600" /></td>
+                          <td className="px-4 py-3 text-sm text-slate-500">{index + 1}</td>
+                          <td className="px-4 py-3 text-sm font-semibold text-slate-900">{doc.name}</td>
+                          <td className="px-4 py-3 text-sm text-slate-600">{doc.type}</td>
+                          <td className="px-4 py-3 text-sm text-slate-600">
                             {doc.type === 'File' ? (
-                              <a href={`http://localhost:3001${doc.content}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">View File</a>
+                              <a href={`http://localhost:3001${doc.content}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">View File</a>
                             ) : doc.type === 'Link' ? (
-                              <a href={doc.content} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{doc.content}</a>
+                              <a href={doc.content} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">{doc.content}</a>
                             ) : (
                               <span className="truncate max-w-[200px] block">{doc.content}</span>
                             )}
@@ -883,7 +960,7 @@ export function EditMachine() {
                             {canDeleteInTab && (
                               <button 
                                 onClick={() => setDocumentToDelete(doc.id)}
-                                className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                                className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
                                 title="Delete Document"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
@@ -912,14 +989,14 @@ export function EditMachine() {
               }}
             />
           ) : (
-            <div className="flex items-center justify-center h-64 text-gray-400">
+            <div className="flex items-center justify-center h-64 text-slate-400">
               <p>This tab is currently under construction.</p>
             </div>
           )}
         </div>
       </div>
 
-      <div className="flex justify-end items-center gap-4 w-full border-t border-gray-100 pt-6 px-4 sm:px-8 pb-4 sm:pb-8">
+      <div className="flex justify-end items-center gap-3 w-full border-t border-slate-200/90 pt-5 mt-4">
         {!canEditCurrentTab && permittedTabs.length > 0 && (
           <div className="mr-auto text-xs font-semibold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
             Read-only mode for {activeTab} tab
@@ -927,7 +1004,7 @@ export function EditMachine() {
         )}
         <button 
           onClick={() => navigate(-1)}
-          className="px-10 py-2.5 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-semibold text-sm transition-colors shadow-sm"
+          className="px-5 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
         >
           Back
         </button>
@@ -935,7 +1012,7 @@ export function EditMachine() {
           <button 
             onClick={handleSave}
             disabled={saving}
-            className="px-10 py-2.5 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors shadow-sm disabled:opacity-50"
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs disabled:opacity-50 cursor-pointer"
           >
             {saving ? 'Saving...' : 'Save'}
           </button>
@@ -944,49 +1021,49 @@ export function EditMachine() {
 
       {/* Locations Modal */}
       {isLocationModalOpen && (
-        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-xl overflow-hidden flex flex-col max-h-[80vh]">
-            <div className="p-6 border-b border-gray-100 flex items-center gap-4">
-              <button onClick={() => setIsLocationModalOpen(false)} className="text-gray-600 hover:text-gray-900">
-                <ArrowLeft size={20} className="stroke-[2.5]" />
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl overflow-hidden flex flex-col max-h-[80vh] border border-slate-200">
+            <div className="p-5 border-b border-slate-200 flex items-center gap-3">
+              <button onClick={() => setIsLocationModalOpen(false)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 cursor-pointer">
+                <ArrowLeft size={18} className="stroke-[2.5]" />
               </button>
-              <h2 className="text-xl font-bold text-gray-900 mr-auto">Locations</h2>
+              <h2 className="text-lg font-bold text-slate-900 mr-auto">Locations</h2>
               
               <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input 
                   type="text" 
-                  placeholder="Search" 
+                  placeholder="Search..." 
                   value={locationSearch}
                   onChange={(e) => setLocationSearch(e.target.value)}
-                  className="pl-9 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 w-48"
+                  className="h-[38px] pl-9 pr-3.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 w-48"
                 />
               </div>
               
-              <button className="px-4 py-2 bg-[#00a651] hover:bg-[#009040] text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-colors shadow-sm">
+              <button className="h-[38px] px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm rounded-lg flex items-center gap-1.5 transition-all shadow-xs cursor-pointer">
                 <Plus size={16} /> Add
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto">
+            <div className="p-5 overflow-y-auto">
               <table className="w-full text-left">
-                <thead className="bg-gray-100 rounded-lg">
+                <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-3 rounded-l-lg w-12"><input type="checkbox" className="rounded border-gray-300" disabled /></th>
-                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">No.</th>
-                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Location</th>
-                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Facility Name</th>
-                    <th className="px-4 py-3 rounded-r-lg text-xs font-bold text-gray-500 uppercase">Code</th>
+                    <th className="px-4 py-3 w-12"><input type="checkbox" className="rounded border-slate-300 text-blue-600" disabled /></th>
+                    <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">No.</th>
+                    <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Location</th>
+                    <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Facility Name</th>
+                    <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Code</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-100">
                   {filteredFacilities.map((facility, idx) => (
-                    <tr key={facility.id} className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors" onClick={() => selectLocation(facility)}>
-                      <td className="px-4 py-4"><input type="checkbox" className="rounded border-gray-300 text-green-500 focus:ring-green-500" checked={formData.locationId === facility.id.toString()} readOnly /></td>
-                      <td className="px-4 py-4 text-sm text-gray-500">{idx + 1}</td>
-                      <td className="px-4 py-4 text-sm font-medium text-gray-700">Location</td>
-                      <td className="px-4 py-4 text-sm text-gray-700">{facility.facilityName}</td>
-                      <td className="px-4 py-4 text-sm text-gray-700">{facility.facilityCode}</td>
+                    <tr key={facility.id} className="hover:bg-blue-50/40 cursor-pointer transition-colors" onClick={() => selectLocation(facility)}>
+                      <td className="px-4 py-3.5"><input type="checkbox" className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" checked={formData.locationId === facility.id.toString()} readOnly /></td>
+                      <td className="px-4 py-3.5 text-sm text-slate-500">{idx + 1}</td>
+                      <td className="px-4 py-3.5 text-sm font-medium text-slate-700">Location</td>
+                      <td className="px-4 py-3.5 text-sm text-slate-700">{facility.facilityName}</td>
+                      <td className="px-4 py-3.5 text-sm font-mono text-slate-700">{facility.facilityCode}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -998,32 +1075,32 @@ export function EditMachine() {
 
       {/* Specification Field Modal */}
       {isSpecModalOpen && (
-        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-[480px] p-6 shadow-xl relative">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-[480px] p-6 shadow-xl border border-slate-200 relative">
             <div className="flex items-center gap-3 mb-1">
-              <button onClick={() => setIsSpecModalOpen(false)} className="text-gray-800 hover:text-black">
-                <ArrowLeft size={24} className="stroke-[2.5]" />
+              <button onClick={() => setIsSpecModalOpen(false)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 cursor-pointer">
+                <ArrowLeft size={20} className="stroke-[2.5]" />
               </button>
-              <h2 className="text-xl font-bold text-gray-900">Add Specification Field</h2>
+              <h2 className="text-lg font-bold text-slate-900">Add Specification Field</h2>
             </div>
-            <div className="pl-9 mb-6">
-              <p className="text-xs font-semibold text-gray-400">Asset : {formData.name || 'Machine Name F1'}</p>
+            <div className="pl-8 mb-5">
+              <p className="text-xs font-semibold text-slate-400">Asset: {formData.name || 'Machine'}</p>
             </div>
             
-            <div className="space-y-4 px-1">
+            <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Field Title</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Field Title</label>
                 <input 
                   type="text" 
                   value={specTitle}
                   onChange={(e) => setSpecTitle(e.target.value)}
                   placeholder="Enter Title"
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                  className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Field Input Type</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Field Input Type</label>
                 <CustomSelect
                   name="fieldInputType"
                   value={specInputType}
@@ -1038,17 +1115,17 @@ export function EditMachine() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Field Data</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Field Data</label>
                   <input 
                     type={specInputType === 'number' ? 'number' : 'text'}
                     value={specData}
                     onChange={(e) => setSpecData(e.target.value)}
-                    placeholder="eg. 120"
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                    placeholder="e.g. 120"
+                    className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Field Unit</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Field Unit</label>
                   <CustomSelect
                     name="fieldUnit"
                     value={specUnit}
@@ -1062,11 +1139,17 @@ export function EditMachine() {
                 </div>
               </div>
 
-              <div className="flex justify-center mt-6 pt-2">
+              <div className="flex justify-end gap-3 mt-6 pt-3 border-t border-slate-200">
+                <button 
+                  onClick={() => setIsSpecModalOpen(false)}
+                  className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
                 <button 
                   onClick={handleSaveSpecification}
                   disabled={savingSpec}
-                  className="px-10 py-2.5 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors shadow-sm disabled:opacity-50"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs disabled:opacity-50 cursor-pointer"
                 >
                   {savingSpec ? 'Saving...' : 'Save'}
                 </button>
@@ -1078,18 +1161,18 @@ export function EditMachine() {
 
       {/* Add Spares Modal */}
       {isSparesModalOpen && (
-        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-[480px] p-6 shadow-xl relative">
-            <div className="flex items-center gap-3 mb-6">
-              <button onClick={() => setIsSparesModalOpen(false)} className="text-gray-800 hover:text-black">
-                <ArrowLeft size={24} className="stroke-[2.5]" />
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-[480px] p-6 shadow-xl border border-slate-200 relative">
+            <div className="flex items-center gap-3 mb-5">
+              <button onClick={() => setIsSparesModalOpen(false)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 cursor-pointer">
+                <ArrowLeft size={20} className="stroke-[2.5]" />
               </button>
-              <h2 className="text-xl font-bold text-gray-900">Add Spares</h2>
+              <h2 className="text-lg font-bold text-slate-900">Add Spares</h2>
             </div>
             
-            <div className="space-y-4 px-1">
+            <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Spare Name</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Spare Name</label>
                 <CustomSelect
                   name="spareName"
                   value=""
@@ -1101,52 +1184,58 @@ export function EditMachine() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Model Number</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Model Number</label>
                   <input 
                     type="text" 
-                    placeholder="eg. 120"
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                    placeholder="e.g. 120"
+                    className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Make</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Make</label>
                   <input 
                     type="text" 
                     placeholder="Enter Make"
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                    className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Part Number</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Part Number</label>
                   <input 
                     type="text" 
-                    placeholder="eg. 120"
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                    placeholder="e.g. 120"
+                    className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Quantity Used</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Quantity Used</label>
                   <input 
                     type="text" 
                     placeholder="Enter Quantity Used"
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                    className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Rate (INR)</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Rate (INR)</label>
                 <input 
                   type="text" 
                   placeholder="Enter Rate"
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                  className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400"
                 />
               </div>
 
-              <div className="flex justify-center mt-6 pt-2">
+              <div className="flex justify-end gap-3 mt-6 pt-3 border-t border-slate-200">
                 <button 
                   onClick={() => setIsSparesModalOpen(false)}
-                  className="px-10 py-2.5 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors shadow-sm"
+                  className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => setIsSparesModalOpen(false)}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
                 >
                   Save
                 </button>
@@ -1158,18 +1247,18 @@ export function EditMachine() {
 
       {/* Add AMC / Warranties Modal */}
       {isAmcModalOpen && (
-        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-2xl p-8 shadow-xl relative">
-            <div className="flex items-center gap-3 mb-8">
-              <button onClick={() => setIsAmcModalOpen(false)} className="text-gray-800 hover:text-black">
-                <ArrowLeft size={24} className="stroke-[2.5]" />
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl p-6 sm:p-8 shadow-xl border border-slate-200 relative">
+            <div className="flex items-center gap-3 mb-6">
+              <button onClick={() => setIsAmcModalOpen(false)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 cursor-pointer">
+                <ArrowLeft size={20} className="stroke-[2.5]" />
               </button>
-              <h2 className="text-2xl font-bold text-gray-900">Add {amcSubTab}</h2>
+              <h2 className="text-xl font-bold text-slate-900">Add {amcSubTab}</h2>
             </div>
             
-            <div className="grid grid-cols-2 gap-6 px-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">{amcSubTab} Type<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">{amcSubTab} Type<span className="text-red-500">*</span></label>
                 <CustomSelect
                   name="amcType"
                   value=""
@@ -1180,15 +1269,15 @@ export function EditMachine() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Upload {amcSubTab} Contract</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Upload {amcSubTab} Contract</label>
                 <input 
                   type="file"
-                  className="block w-full text-sm text-gray-600 border border-gray-500 rounded-lg p-1 cursor-pointer focus:outline-none file:mr-4 file:py-1.5 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-200 file:text-gray-700 hover:file:bg-gray-300 transition-colors"
+                  className="block w-full text-xs text-slate-600 border border-slate-300 rounded-lg p-1.5 cursor-pointer focus:outline-none file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 transition-colors"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Start Date<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Start Date<span className="text-red-500">*</span></label>
                 <CustomDatePicker 
                   name="startDate"
                   value={null}
@@ -1197,7 +1286,7 @@ export function EditMachine() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">End Date<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">End Date<span className="text-red-500">*</span></label>
                 <CustomDatePicker 
                   name="endDate"
                   value={null}
@@ -1205,8 +1294,8 @@ export function EditMachine() {
                 />
               </div>
 
-              <div className="col-span-2">
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">{amcSubTab} Usage Terms<span className="text-red-500">*</span></label>
+              <div className="col-span-1 md:col-span-2">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">{amcSubTab} Usage Terms<span className="text-red-500">*</span></label>
                 <CustomSelect
                   name="usageTerms"
                   value=""
@@ -1217,7 +1306,7 @@ export function EditMachine() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">{amcSubTab} Provider<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">{amcSubTab} Provider<span className="text-red-500">*</span></label>
                 <CustomSelect
                   name={`${amcSubTab.toLowerCase()}Provider`}
                   value=""
@@ -1228,18 +1317,24 @@ export function EditMachine() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">{amcSubTab} Contact Number<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">{amcSubTab} Contact Number<span className="text-red-500">*</span></label>
                 <input 
                   type="text" 
                   placeholder="Enter Number"
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                  className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400"
                 />
               </div>
 
-              <div className="col-span-2 flex justify-center mt-6">
+              <div className="col-span-1 md:col-span-2 flex justify-end gap-3 mt-4 pt-3 border-t border-slate-200">
                 <button 
                   onClick={() => setIsAmcModalOpen(false)}
-                  className="px-10 py-2.5 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors shadow-sm"
+                  className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => setIsAmcModalOpen(false)}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
                 >
                   Save
                 </button>
@@ -1251,18 +1346,18 @@ export function EditMachine() {
 
       {/* Add Purchase Modal */}
       {isPurchaseModalOpen && (
-        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-2xl p-8 shadow-xl relative">
-            <div className="flex items-center gap-3 mb-8">
-              <button onClick={() => setIsPurchaseModalOpen(false)} className="text-gray-800 hover:text-black">
-                <ArrowLeft size={24} className="stroke-[2.5]" />
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl p-6 sm:p-8 shadow-xl border border-slate-200 relative">
+            <div className="flex items-center gap-3 mb-6">
+              <button onClick={() => setIsPurchaseModalOpen(false)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 cursor-pointer">
+                <ArrowLeft size={20} className="stroke-[2.5]" />
               </button>
-              <h2 className="text-2xl font-bold text-gray-900">Add {purchaseSubTab}</h2>
+              <h2 className="text-xl font-bold text-slate-900">Add {purchaseSubTab}</h2>
             </div>
             
-            <div className="grid grid-cols-2 gap-6 px-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Supplier Name<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Supplier Name<span className="text-red-500">*</span></label>
                 <CustomSelect
                   name="supplierName"
                   value=""
@@ -1273,44 +1368,50 @@ export function EditMachine() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Contact Number<span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Contact Number<span className="text-red-500">*</span></label>
                 <input 
                   type="text" 
                   placeholder="Enter Number"
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                  className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400"
                 />
               </div>
 
-              <div className="col-span-2">
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Email<span className="text-red-500">*</span></label>
+              <div className="col-span-1 md:col-span-2">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Email<span className="text-red-500">*</span></label>
                 <input 
                   type="email" 
-                  placeholder="email@gmail.com"
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                  placeholder="email@example.com"
+                  className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Address</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Address</label>
                 <textarea 
                   placeholder="Address"
                   rows={2}
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400 resize-y min-h-[64px]"
+                  className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400 resize-none h-[64px]"
                 ></textarea>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Upload Purchase / Invoice</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Upload Purchase / Invoice</label>
                 <input 
                   type="file"
-                  className="block w-full h-[64px] text-sm text-gray-600 border border-gray-500 rounded-lg p-3 cursor-pointer focus:outline-none file:mr-4 file:py-1.5 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-200 file:text-gray-700 hover:file:bg-gray-300 transition-colors"
+                  className="block w-full h-[64px] text-xs text-slate-600 border border-slate-300 rounded-lg p-2 cursor-pointer focus:outline-none file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 transition-colors"
                 />
               </div>
 
-              <div className="col-span-2 flex justify-center mt-4">
+              <div className="col-span-1 md:col-span-2 flex justify-end gap-3 mt-4 pt-3 border-t border-slate-200">
                 <button 
                   onClick={() => setIsPurchaseModalOpen(false)}
-                  className="px-10 py-2.5 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors shadow-sm"
+                  className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => setIsPurchaseModalOpen(false)}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
                 >
                   Save
                 </button>
@@ -1322,22 +1423,22 @@ export function EditMachine() {
 
       {/* Document Upload Modals */}
       {uploadModalType && (
-        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-xl p-8 shadow-xl relative">
-            <div className="flex items-center gap-3 mb-8">
-              <button onClick={() => setUploadModalType(null)} className="text-gray-800 hover:text-black">
-                <ArrowLeft size={24} className="stroke-[2.5]" />
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-xl p-6 sm:p-8 shadow-xl border border-slate-200 relative">
+            <div className="flex items-center gap-3 mb-6">
+              <button onClick={() => setUploadModalType(null)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 cursor-pointer">
+                <ArrowLeft size={20} className="stroke-[2.5]" />
               </button>
-              <h2 className="text-2xl font-bold text-gray-900">
+              <h2 className="text-xl font-bold text-slate-900">
                 {uploadModalType === 'File' && 'Upload Files'}
                 {uploadModalType === 'Link' && 'Upload Link'}
                 {uploadModalType === 'Note' && 'Upload Note'}
               </h2>
             </div>
             
-            <div className="space-y-6 px-1">
+            <div className="space-y-5">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   {uploadModalType === 'File' && 'File Name'}
                   {uploadModalType === 'Link' && 'Name'}
                   {uploadModalType === 'Note' && 'Name'}
@@ -1348,13 +1449,13 @@ export function EditMachine() {
                   value={docName}
                   onChange={(e) => setDocName(e.target.value)}
                   placeholder="Enter Name"
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                  className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400"
                 />
               </div>
 
               {uploadModalType === 'File' && (
                 <div>
-                  <div className="border border-gray-300 rounded-xl p-2 flex items-center mb-2">
+                  <div className="border border-slate-300 rounded-lg p-2 flex items-center mb-1.5">
                     <input 
                       type="file"
                       onChange={(e) => {
@@ -1362,44 +1463,50 @@ export function EditMachine() {
                           setDocFile(e.target.files[0]);
                         }
                       }}
-                      className="block w-full text-sm text-gray-600 cursor-pointer focus:outline-none file:mr-4 file:py-2.5 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-gray-200 file:text-gray-700 hover:file:bg-gray-300 transition-colors"
+                      className="block w-full text-xs text-slate-600 cursor-pointer focus:outline-none file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 transition-colors"
                     />
                   </div>
-                  <p className="text-sm text-gray-600">Note : File Should be Manuals, Warranties, etc (Multiple files can be uploaded)</p>
+                  <p className="text-xs text-slate-500">Note: Manuals, Warranties, Specifications (PDF, images, docs)</p>
                 </div>
               )}
 
               {uploadModalType === 'Link' && (
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">URL<span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">URL<span className="text-red-500">*</span></label>
                   <input 
                     type="url" 
                     value={docContent}
                     onChange={(e) => setDocContent(e.target.value)}
-                    placeholder="Enter URL"
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                    placeholder="https://..."
+                    className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400"
                   />
                 </div>
               )}
 
               {uploadModalType === 'Note' && (
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Notes<span className="text-red-500">*</span></label>
-                  <input 
-                    type="text" 
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Notes<span className="text-red-500">*</span></label>
+                  <textarea 
                     value={docContent}
                     onChange={(e) => setDocContent(e.target.value)}
-                    placeholder="Enter Notes"
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400"
+                    placeholder="Enter notes..."
+                    rows={3}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400 resize-none"
                   />
                 </div>
               )}
 
-              <div className="flex justify-center mt-8">
+              <div className="flex justify-end gap-3 mt-6 pt-3 border-t border-slate-200">
+                <button 
+                  onClick={() => setUploadModalType(null)}
+                  className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
                 <button 
                   onClick={handleUploadDocument}
                   disabled={uploadingDoc}
-                  className="px-10 py-2.5 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors shadow-sm disabled:opacity-50"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs disabled:opacity-50 cursor-pointer"
                 >
                   {uploadingDoc ? 'Uploading...' : uploadModalType === 'Note' ? 'Save' : 'Upload'}
                 </button>
@@ -1411,18 +1518,18 @@ export function EditMachine() {
 
       {/* Add MAC ID Modal */}
       {isIotModalOpen && (
-        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-lg p-8 shadow-xl relative">
-            <div className="flex items-center gap-3 mb-8">
-              <button onClick={() => setIsIotModalOpen(false)} className="text-gray-800 hover:text-black">
-                <ArrowLeft size={24} className="stroke-[2.5]" />
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg p-6 sm:p-8 shadow-xl border border-slate-200 relative">
+            <div className="flex items-center gap-3 mb-6">
+              <button onClick={() => setIsIotModalOpen(false)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 cursor-pointer">
+                <ArrowLeft size={20} className="stroke-[2.5]" />
               </button>
-              <h2 className="text-2xl font-bold text-gray-900">Add MAC ID</h2>
+              <h2 className="text-xl font-bold text-slate-900">Add MAC ID</h2>
             </div>
             
-            <div className="space-y-5 px-1">
+            <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   MAC ID<span className="text-red-500">*</span>
                 </label>
                 <input 
@@ -1430,12 +1537,12 @@ export function EditMachine() {
                   value={tempMacId}
                   onChange={(e) => setTempMacId(e.target.value)}
                   placeholder="Enter MAC ID (e.g. 20260508012)"
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900 placeholder-gray-400 font-mono"
+                  className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400 font-mono"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Machine / System Type<span className="text-red-500">*</span>
                 </label>
                 <CustomSelect
@@ -1452,15 +1559,19 @@ export function EditMachine() {
                     { label: 'OTHER (General Industrial Machine)', value: 'OTHER' },
                   ]}
                   placeholder="Select Machine / System Type"
-                  rounded="xl"
-                  inputClassName="px-4 py-3"
                 />
-                <p className="text-[11px] text-gray-400 mt-1.5">
+                <p className="text-[11px] text-slate-500 mt-1">
                   Select the machine type to link with this IoT device (e.g. Fire Panel, HYPN Booster).
                 </p>
               </div>
 
-              <div className="flex justify-center mt-8">
+              <div className="flex justify-end gap-3 mt-6 pt-3 border-t border-slate-200">
+                <button 
+                  onClick={() => setIsIotModalOpen(false)}
+                  className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
                 <button 
                   onClick={async () => {
                     if (!tempMacId.trim()) {
@@ -1508,7 +1619,7 @@ export function EditMachine() {
                     }
                   }}
                   disabled={saving}
-                  className="px-10 py-2.5 bg-[#00a651] hover:bg-[#009040] text-white rounded-lg font-semibold text-sm transition-colors shadow-sm disabled:opacity-50"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs disabled:opacity-50 cursor-pointer"
                 >
                   {saving ? 'Saving...' : 'Save'}
                 </button>
@@ -1520,23 +1631,23 @@ export function EditMachine() {
 
       {/* Delete Document Confirmation Modal */}
       {documentToDelete && (
-        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-sm p-8 shadow-xl text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl border border-slate-200 text-center">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Document?</h3>
-            <p className="text-sm text-gray-500 mb-8">This action cannot be undone.</p>
-            <div className="flex gap-4">
+            <h3 className="text-lg font-bold text-slate-900 mb-1">Delete Document?</h3>
+            <p className="text-xs text-slate-500 mb-6">This action cannot be undone.</p>
+            <div className="flex gap-3">
               <button
                 onClick={() => setDocumentToDelete(null)}
-                className="flex-1 px-6 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+                className="flex-1 px-4 py-2 bg-white border border-slate-300 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 text-xs sm:text-sm transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={executeDeleteDocument}
-                className="flex-1 px-6 py-2.5 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-colors shadow-sm shadow-red-200"
+                className="flex-1 px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 text-xs sm:text-sm transition-colors shadow-xs cursor-pointer"
               >
                 Delete
               </button>
@@ -1547,23 +1658,23 @@ export function EditMachine() {
 
       {/* Delete Specification Confirmation Modal */}
       {specToDelete && (
-        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-sm p-8 shadow-xl text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl border border-slate-200 text-center">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Specification?</h3>
-            <p className="text-sm text-gray-500 mb-8">This action cannot be undone.</p>
-            <div className="flex gap-4">
+            <h3 className="text-lg font-bold text-slate-900 mb-1">Delete Specification?</h3>
+            <p className="text-xs text-slate-500 mb-6">This action cannot be undone.</p>
+            <div className="flex gap-3">
               <button
                 onClick={() => setSpecToDelete(null)}
-                className="flex-1 px-6 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+                className="flex-1 px-4 py-2 bg-white border border-slate-300 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 text-xs sm:text-sm transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={executeDeleteSpecification}
-                className="flex-1 px-6 py-2.5 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-colors shadow-sm shadow-red-200"
+                className="flex-1 px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 text-xs sm:text-sm transition-colors shadow-xs cursor-pointer"
               >
                 Delete
               </button>
@@ -1591,36 +1702,36 @@ function IOTTabContent({
     <div className="w-full">
       <div className="flex-1 flex flex-col w-full">
         {/* Header */}
-        <div className="flex justify-between items-center w-full mb-8">
+        <div className="flex justify-between items-center w-full mb-6">
           <div>
             {deviceId && (
-              <div className="flex items-center gap-3 bg-gray-50 px-5 py-2.5 rounded-xl border border-gray-200 shadow-sm">
-                <span className="text-sm font-semibold text-gray-500">System MAC ID:</span>
-                <span className="text-base font-black text-gray-900 tracking-wider font-mono">{deviceId}</span>
+              <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-lg border border-slate-200 shadow-2xs">
+                <span className="text-xs font-semibold text-slate-500">System MAC ID:</span>
+                <span className="text-sm font-bold text-slate-900 tracking-wider font-mono">{deviceId}</span>
               </div>
             )}
           </div>
           <button 
             onClick={onAddSystem}
-            className="flex items-center gap-2 px-4 py-2 bg-[#00a651] hover:bg-[#009040] text-white font-bold text-sm rounded-lg transition-colors shadow-sm"
+            className="flex items-center gap-2 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm rounded-lg transition-all shadow-xs cursor-pointer"
           >
-            <Plus size={18} className="stroke-[3]" /> {deviceId ? 'Update System' : 'Add System'}
+            <Plus size={16} className="stroke-[2.5]" /> {deviceId ? 'Update System' : 'Add System'}
           </button>
         </div>
 
         {!deviceId ? (
           /* Empty State */
-          <div className="flex flex-col items-center justify-center py-16 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50 mt-4">
-            <div className="w-16 h-16 bg-white border border-gray-100 rounded-full flex items-center justify-center mb-4 text-[#00a651] shadow-sm">
-              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="flex flex-col items-center justify-center py-16 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 mt-2">
+            <div className="w-14 h-14 bg-white border border-slate-200 rounded-full flex items-center justify-center mb-3 text-blue-600 shadow-2xs">
+              <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
               </svg>
             </div>
-            <h3 className="text-lg font-bold text-gray-700 mb-2">No IoT System Configured</h3>
-            <p className="text-sm text-gray-500 text-center max-w-sm">Connect an IoT edge device to start monitoring live machine telemetry and status updates.</p>
+            <h3 className="text-base font-bold text-slate-800 mb-1">No IoT System Configured</h3>
+            <p className="text-xs text-slate-500 text-center max-w-sm">Connect an IoT edge device to start monitoring live machine telemetry and status updates.</p>
           </div>
         ) : (
-          <div className="w-full h-[600px] overflow-y-auto mt-4 rounded-xl border border-gray-200">
+          <div className="w-full h-[600px] overflow-y-auto mt-2 rounded-xl border border-slate-200">
             <BoosterDashboard 
               title={deviceData.name || 'Machine Dashboard'}
               panelId={deviceId}

@@ -20,15 +20,17 @@ export class UsersService {
 
   async findAll(currentUser: any, societyId?: number) {
     let whereClause: any = {};
+    const effectiveAdminId = currentUser?.adminId || currentUser?.userId;
 
-    if (currentUser.role === UserRole.SUPER_ADMIN) {
-      if (societyId !== undefined) {
-        whereClause.societyId = societyId;
-      }
-    } else if (currentUser.role === UserRole.SOCIETY_ADMIN) {
-      whereClause.societyId = currentUser.societyId;
-    } else {
-      throw new ForbiddenException('Access denied');
+    if (effectiveAdminId) {
+      whereClause.OR = [
+        { adminId: effectiveAdminId },
+        { id: effectiveAdminId }
+      ];
+    }
+
+    if (societyId !== undefined) {
+      whereClause.societyId = societyId;
     }
 
     return this.prisma.user.findMany({
@@ -85,6 +87,7 @@ export class UsersService {
     country?: string;
     pincode?: string;
     role?: UserRole;
+    designation?: string;
     isActive?: boolean;
     societyId?: number;
     employeeId?: number;
@@ -93,7 +96,7 @@ export class UsersService {
     deviceId?: string;
     deviceName?: string;
     buildingIds?: number[];
-  }) {
+  }, currentUser?: any) {
     // Validate email uniqueness
     const existingEmail = await this.prisma.user.findUnique({
       where: { email: data.email },
@@ -123,6 +126,7 @@ export class UsersService {
     }
 
     const hashedPassword = await this.hashPassword(rawPassword);
+    const effectiveAdminId = currentUser?.adminId || currentUser?.userId || null;
 
     const user = await this.prisma.user.create({
       data: {
@@ -130,6 +134,7 @@ export class UsersService {
         mobileNumber: data.mobileNumber,
         email: data.email,
         password: hashedPassword,
+        plainPassword: rawPassword,
         firstName: data.firstName || null,
         lastName: data.lastName || null,
         profileTitle: data.profileTitle || null,
@@ -141,6 +146,7 @@ export class UsersService {
         country: data.country || null,
         pincode: data.pincode || null,
         role: data.role || UserRole.VIEWER,
+        designation: data.designation || null,
         isActive: data.isActive !== undefined ? data.isActive : true,
         societyId: data.societyId,
         employeeId: data.employeeId,
@@ -148,6 +154,7 @@ export class UsersService {
         facilityId: data.facilityId,
         deviceId: data.deviceId || null,
         deviceName: data.deviceName || null,
+        adminId: effectiveAdminId,
       },
     });
 
@@ -192,6 +199,7 @@ export class UsersService {
       country?: string;
       pincode?: string;
       role?: UserRole;
+      designation?: string;
       isActive?: boolean;
       buildingIds?: number[];
       societyId?: number;
@@ -242,6 +250,7 @@ export class UsersService {
         );
       }
       updateData.password = await this.hashPassword(data.password);
+      updateData.plainPassword = data.password;
     }
 
     await this.prisma.user.update({
@@ -289,20 +298,140 @@ export class UsersService {
       where: { userId: id },
     });
 
-    let basePermissions: any[] = [];
-    if (user.employee?.designation) {
+    const machineTabModules = [
+      'machine_tab_general',
+      'machine_tab_specification',
+      'machine_tab_spares',
+      'machine_tab_amc',
+      'machine_tab_purchase',
+      'machine_tab_documents',
+      'machine_tab_iot',
+    ];
+
+    const facilityTabModules = [
+      'facility_tab_general',
+      'facility_tab_document',
+    ];
+
+    const allTabModules = [...machineTabModules, ...facilityTabModules];
+
+    const modules = [
+      'dashboard',
+      'assets',
+      'master_employee',
+      'master_main_facility',
+      'manage_access',
+      'user_management',
+      'facility_management',
+      'machine_management',
+      ...machineTabModules,
+      ...facilityTabModules,
+    ];
+
+    // 1. Role-based baseline
+    const role = user.role || 'VIEWER';
+    const isSuperAdmin = role === 'SUPER_ADMIN';
+    const isSocietyAdmin = role === 'SOCIETY_ADMIN';
+    const isBuildingAdmin = role === 'BUILDING_ADMIN';
+    const isOperator = role === 'OPERATOR';
+
+    const basePermissions = modules.map((moduleId) => {
+      if (isSuperAdmin || isSocietyAdmin) {
+        return {
+          moduleId,
+          canView: true,
+          canCreate: true,
+          canEdit: true,
+          canDelete: isSuperAdmin || moduleId !== 'manage_access',
+          canImport: !['manage_access', 'user_management', 'facility_management', 'machine_management', 'dashboard', 'assets', ...allTabModules].includes(moduleId),
+          canExport: !allTabModules.includes(moduleId),
+          canPrint: !allTabModules.includes(moduleId),
+        };
+      }
+
+      if (isBuildingAdmin) {
+        const allowed = ['dashboard', 'assets', 'facility_management', 'machine_management', ...allTabModules].includes(moduleId);
+        return {
+          moduleId,
+          canView: allowed,
+          canCreate: ['facility_management', 'machine_management', ...allTabModules].includes(moduleId),
+          canEdit: ['facility_management', 'machine_management', ...allTabModules].includes(moduleId),
+          canDelete: false,
+          canImport: false,
+          canExport: allowed && !allTabModules.includes(moduleId),
+          canPrint: allowed && !allTabModules.includes(moduleId),
+        };
+      }
+
+      if (isOperator) {
+        const allowed = ['dashboard', 'assets', 'facility_management', 'machine_management', ...allTabModules].includes(moduleId);
+        return {
+          moduleId,
+          canView: allowed,
+          canCreate: false,
+          canEdit: moduleId === 'machine_management' || moduleId === 'facility_management' || allTabModules.includes(moduleId),
+          canDelete: false,
+          canImport: false,
+          canExport: allowed && !allTabModules.includes(moduleId),
+          canPrint: allowed && !allTabModules.includes(moduleId),
+        };
+      }
+
+      // Default VIEWER
+      const allowed = ['dashboard', 'assets', 'facility_management', 'machine_management', ...allTabModules].includes(moduleId);
+      return {
+        moduleId,
+        canView: allowed,
+        canCreate: false,
+        canEdit: false,
+        canDelete: false,
+        canImport: false,
+        canExport: allowed && !allTabModules.includes(moduleId),
+        canPrint: allowed && !allTabModules.includes(moduleId),
+      };
+    });
+
+    // 2. Overlay Designation permissions if user has designation
+    const designationName = user.employee?.designation?.trim() || user.designation?.trim();
+    if (designationName) {
       const designation = await this.prisma.designation.findFirst({
-        where: { name: { equals: user.employee.designation.trim(), mode: 'insensitive' } },
+        where: { name: { equals: designationName, mode: 'insensitive' } },
         include: { permissions: true },
       });
-      if (designation && designation.permissions) {
-        basePermissions = designation.permissions;
+
+      if (designation && designation.permissions && designation.permissions.length > 0) {
+        designation.permissions.forEach((dp) => {
+          const index = basePermissions.findIndex((p) => p.moduleId === dp.moduleId);
+          if (index >= 0) {
+            basePermissions[index] = {
+              ...basePermissions[index],
+              canView: dp.canView,
+              canCreate: dp.canCreate,
+              canEdit: dp.canEdit,
+              canDelete: dp.canDelete,
+              canImport: dp.canImport ?? false,
+              canExport: dp.canExport ?? false,
+              canPrint: dp.canPrint ?? false,
+            };
+          } else {
+            basePermissions.push({
+              moduleId: dp.moduleId,
+              canView: dp.canView,
+              canCreate: dp.canCreate,
+              canEdit: dp.canEdit,
+              canDelete: dp.canDelete,
+              canImport: dp.canImport ?? false,
+              canExport: dp.canExport ?? false,
+              canPrint: dp.canPrint ?? false,
+            });
+          }
+        });
       }
     }
 
     return {
       userId: id,
-      designation: user.employee?.designation || null,
+      designation: designationName || null,
       role: user.role,
       userOverrides,
       basePermissions,

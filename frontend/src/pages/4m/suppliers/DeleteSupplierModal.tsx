@@ -96,7 +96,7 @@ export const DeleteSupplierModal: React.FC<DeleteSupplierModalProps> = ({
             <button
               onClick={handleDelete}
               disabled={isDeleting}
-              className="bg-[#00a651] hover:bg-[#008f44] text-white px-8 py-2.5 rounded-xl font-semibold text-sm shadow-md hover:shadow-lg transition-all disabled:opacity-50 cursor-pointer min-w-[110px]"
+              className="bg-rose-600 hover:bg-rose-700 text-white px-8 py-2.5 rounded-xl font-semibold text-sm shadow-xs transition-all disabled:opacity-50 cursor-pointer min-w-[110px]"
             >
               {isDeleting ? 'Deleting...' : 'Delete'}
             </button>

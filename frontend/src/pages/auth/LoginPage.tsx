@@ -49,22 +49,22 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 relative overflow-hidden font-sans">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 relative overflow-hidden font-sans p-4">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-[440px] px-6 z-10"
+        transition={{ duration: 0.4 }}
+        className="w-full max-w-[420px] px-2 sm:px-4 z-10"
       >
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <img src={Logo4M} alt="4M Logo" className="h-24 object-contain" />
+        <div className="text-center mb-4">
+          <div className="flex justify-center mb-2">
+            <img src={Logo4M} alt="4M Logo" className="h-14 sm:h-16 object-contain" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Welcome back</h1>
-          <p className="text-sm text-gray-500 mt-1.5">Sign in to control & monitor your systems</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">Welcome back</h1>
+          <p className="text-xs text-gray-500 mt-1 font-medium">Sign in to control & monitor your systems</p>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-xl">
+        <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-7 shadow-xl">
           {error && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}

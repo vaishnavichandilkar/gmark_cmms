@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, X, Check } from 'lucide-react';
+import { ChevronDown, X, Check, Plus } from 'lucide-react';
 
 interface MultiSelectOption {
   label: string;
@@ -15,6 +15,8 @@ interface MultiSelectProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  onAddNew?: () => void;
+  addNewLabel?: string;
 }
 
 export function MultiSelect({ 
@@ -25,7 +27,9 @@ export function MultiSelect({
   onToggle,
   placeholder = 'Select...', 
   className = '', 
-  disabled = false 
+  disabled = false,
+  onAddNew,
+  addNewLabel = '+ Add New'
 }: MultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -151,7 +155,7 @@ export function MultiSelect({
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 min-w-full w-max mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+        <div className="absolute z-50 w-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
           {filteredOptions.length > 0 ? (
             <div className="py-1">
               {filteredOptions.map((option, idx) => {
@@ -177,9 +181,34 @@ export function MultiSelect({
                 );
               })}
             </div>
+          ) : onAddNew ? (
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsOpen(false);
+                onAddNew();
+              }}
+              className="w-full py-3.5 px-4 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 cursor-pointer font-semibold text-sm transition-colors flex items-center justify-center gap-2 select-none"
+            >
+              <Plus size={16} />
+              <span>{addNewLabel}</span>
+            </div>
           ) : (
             <div className="px-4 py-3 text-sm text-gray-500 text-center">
               No options found
+            </div>
+          )}
+          {onAddNew && filteredOptions.length > 0 && (
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsOpen(false);
+                onAddNew();
+              }}
+              className="border-t border-gray-100 py-2.5 px-4 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 cursor-pointer font-semibold text-sm transition-colors flex items-center justify-center gap-2 sticky bottom-0 bg-white select-none"
+            >
+              <Plus size={16} />
+              <span>{addNewLabel}</span>
             </div>
           )}
         </div>

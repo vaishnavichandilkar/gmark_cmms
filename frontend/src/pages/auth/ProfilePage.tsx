@@ -2,7 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { motion } from 'framer-motion';
 import { Mail, Shield, Building2, Key, LogOut, ArrowLeft } from 'lucide-react';
-import { logout } from '../../store/slices/authSlice';
+import { logout, setUser } from '../../store/slices/authSlice';
+import { api } from '../../lib/api';
 import type { RootState } from '../../store';
 
 export function ProfilePage() {
@@ -57,7 +58,7 @@ export function ProfilePage() {
               {/* User Name & Role */}
               <h2 className="text-white font-black text-xl tracking-wide leading-tight">{user.name}</h2>
               <span className="inline-block mt-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-purple-500/10 border border-purple-500/20 text-purple-300">
-                {user.role.replace('_', ' ')}
+                {user.role === 'SUPER_ADMIN' ? 'Admin' : (user.designation || user.employee?.designation || '')}
               </span>
 
               {/* Detail fields list */}
@@ -100,6 +101,40 @@ export function ProfilePage() {
                     </div>
                   </div>
                 )}
+                {/* System Module Access Package Selection */}
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">
+                    Active System Package Access
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: 'CMMS', label: 'CMMS Only' },
+                      { id: 'IOT', label: 'IoT SCADA' },
+                      { id: 'BOTH', label: 'Both (Full)' }
+                    ].map((pkg) => (
+                      <button
+                        key={pkg.id}
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const updatedUser = { ...user, moduleAccess: pkg.id };
+                            dispatch(setUser(updatedUser));
+                            await api.patch('/auth/module-access', { moduleAccess: pkg.id });
+                          } catch (err) {
+                            console.error('Failed to update module access:', err);
+                          }
+                        }}
+                        className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer border ${
+                          (user.moduleAccess || 'BOTH') === pkg.id
+                            ? 'bg-emerald-500 text-white border-emerald-400 shadow-md shadow-emerald-500/20 ring-2 ring-emerald-500/30'
+                            : 'bg-black/40 text-zinc-400 border-white/10 hover:border-white/20 hover:text-white'
+                        }`}
+                      >
+                        {pkg.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               {/* Action Buttons */}

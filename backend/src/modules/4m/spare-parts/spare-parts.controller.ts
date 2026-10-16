@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe, UseGuard
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { SparePartsService } from './spare-parts.service';
 import { JwtAuthGuard } from '../../core/auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../../core/auth/decorators/current-user.decorator';
 
 @ApiTags('spare-parts')
 @ApiBearerAuth('JWT-auth')
@@ -12,8 +13,8 @@ export class SparePartsController {
 
   @Get()
   @ApiOperation({ summary: 'Get all spare parts in catalog' })
-  async getAllSpareParts() {
-    return this.sparePartsService.getAllSpareParts();
+  async getAllSpareParts(@CurrentUser() currentUser?: any) {
+    return this.sparePartsService.getAllSpareParts(currentUser);
   }
 
   @Get(':id')
@@ -24,8 +25,8 @@ export class SparePartsController {
 
   @Post()
   @ApiOperation({ summary: 'Create new spare part in catalog' })
-  async createSparePart(@Body() body: any) {
-    return this.sparePartsService.createSparePart(body);
+  async createSparePart(@Body() body: any, @CurrentUser() currentUser?: any) {
+    return this.sparePartsService.createSparePart(body, currentUser);
   }
 
   @Put(':id')

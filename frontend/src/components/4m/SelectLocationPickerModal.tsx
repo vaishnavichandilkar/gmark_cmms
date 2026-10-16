@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Search, Plus } from 'lucide-react';
+import { api } from '../../lib/api';
 
-interface LocationItem {
+export interface LocationItem {
   id: number;
   location: string;
   facilityName: string;
@@ -22,8 +23,24 @@ export const SelectLocationPickerModal: React.FC<SelectLocationPickerModalProps>
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [locationsList, setLocationsList] = useState<LocationItem[]>([]);
 
-  const locationsList: LocationItem[] = [];
+  useEffect(() => {
+    if (isOpen) {
+      api.get('/facilities')
+        .then(res => {
+          const data = Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
+          const mapped: LocationItem[] = data.map((f: any, idx: number) => ({
+            id: Number(f.id) || idx + 1,
+            location: f.facilityName || 'Location',
+            facilityName: f.mainFacility?.mainFacilityName || f.facilityName || 'Facility',
+            code: f.facilityCode || `FAC${f.id}`,
+          }));
+          setLocationsList(mapped);
+        })
+        .catch(err => console.error('Failed to load facilities in picker:', err));
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -94,7 +111,14 @@ export const SelectLocationPickerModal: React.FC<SelectLocationPickerModalProps>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-gray-600">
-                {filtered.map((item, index) => {
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-gray-400 font-medium">
+                      No locations found.
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((item, index) => {
                   const isSelected = selectedId === item.id;
                   return (
                     <tr
@@ -123,7 +147,8 @@ export const SelectLocationPickerModal: React.FC<SelectLocationPickerModalProps>
                       <td className="p-3 font-mono text-gray-500">{item.code}</td>
                     </tr>
                   );
-                })}
+                })
+              )}
               </tbody>
             </table>
           </div>

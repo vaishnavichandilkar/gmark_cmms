@@ -77,11 +77,27 @@ export const AddEditSupplierModal: React.FC<AddEditSupplierModalProps> = ({
 
     setIsSubmitting(true);
     try {
+      const payload: Partial<Supplier> = {
+        supplierCode: formData.supplierCode || undefined,
+        name: formData.name?.trim() || '',
+        contactPerson: formData.contactPerson || undefined,
+        email: formData.email || undefined,
+        phone: formData.phone?.trim() ? formData.phone.trim() : undefined,
+        gstNumber: formData.gstNumber || undefined,
+        address: formData.address || undefined,
+        city: formData.city || undefined,
+        state: formData.state || undefined,
+        country: formData.country || 'India',
+        postalCode: formData.postalCode || undefined,
+        businessCategory: formData.businessCategory || undefined,
+        status: formData.status || 'ACTIVE',
+      };
+
       if (supplierToEdit) {
-        await supplierService.updateSupplier(supplierToEdit.id, formData);
+        await supplierService.updateSupplier(supplierToEdit.id, payload);
         toast.success('Supplier updated successfully');
       } else {
-        await supplierService.createSupplier(formData);
+        await supplierService.createSupplier(payload);
         toast.success('Supplier created successfully');
       }
       onSuccess();
@@ -320,7 +336,7 @@ export const AddEditSupplierModal: React.FC<AddEditSupplierModalProps> = ({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-[#00a651] hover:bg-[#008f44] text-white px-8 py-2.5 rounded-xl text-sm font-semibold shadow-md transition-all disabled:opacity-50"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-xl text-sm font-semibold shadow-xs transition-all disabled:opacity-50 cursor-pointer"
               >
                 {isSubmitting ? 'Saving...' : supplierToEdit ? 'Update Supplier' : 'Save Supplier'}
               </button>

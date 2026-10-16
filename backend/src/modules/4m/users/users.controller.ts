@@ -38,7 +38,7 @@ export class UsersController {
   ) {}
 
   @Get()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN, UserRole.BUILDING_ADMIN, UserRole.OPERATOR, UserRole.VIEWER)
   @ApiOperation({ summary: 'Get all users' })
   @ApiResponse({ status: 200, description: 'Return all users.' })
   async findAll(
@@ -50,6 +50,7 @@ export class UsersController {
   }
 
   @Get(':id')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN, UserRole.BUILDING_ADMIN, UserRole.OPERATOR, UserRole.VIEWER)
   @ApiOperation({ summary: 'Get user by ID' })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiResponse({ status: 200, description: 'Return user details.' })
@@ -57,18 +58,11 @@ export class UsersController {
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() currentUser: any,
   ) {
-    if (
-      currentUser.role !== UserRole.SUPER_ADMIN &&
-      currentUser.role !== UserRole.SOCIETY_ADMIN &&
-      currentUser.userId !== id
-    ) {
-      throw new ForbiddenException('Access denied');
-    }
     return this.usersService.findOne(id);
   }
 
   @Post()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN, UserRole.BUILDING_ADMIN, UserRole.OPERATOR, UserRole.VIEWER)
   @ApiOperation({ summary: 'Create a new user' })
   @ApiResponse({ status: 201, description: 'User created successfully.' })
   async create(
@@ -89,6 +83,7 @@ export class UsersController {
       country?: string;
       pincode?: string;
       role?: UserRole;
+      designation?: string;
       isActive?: boolean;
       societyId?: number;
       employeeId?: number;
@@ -101,7 +96,7 @@ export class UsersController {
     @CurrentUser() currentUser: any,
     @Ip() ip: string,
   ) {
-    const result = await this.usersService.create(body);
+    const result = await this.usersService.create(body, currentUser);
     await this.auditLogService.create(
       currentUser.userId,
       `User Created: ${result.username} (${result.email})`,
@@ -112,7 +107,7 @@ export class UsersController {
   }
 
   @Put(':id')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN, UserRole.BUILDING_ADMIN, UserRole.OPERATOR, UserRole.VIEWER)
   @ApiOperation({ summary: 'Update an existing user' })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiResponse({ status: 200, description: 'User updated successfully.' })
@@ -135,6 +130,7 @@ export class UsersController {
       country?: string;
       pincode?: string;
       role?: UserRole;
+      designation?: string;
       isActive?: boolean;
       buildingIds?: number[];
       societyId?: number;
@@ -158,7 +154,7 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN, UserRole.BUILDING_ADMIN, UserRole.OPERATOR, UserRole.VIEWER)
   @ApiOperation({ summary: 'Delete a user' })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiResponse({ status: 200, description: 'User deleted successfully.' })
@@ -178,7 +174,7 @@ export class UsersController {
   }
 
   @Get(':id/permissions')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN, UserRole.BUILDING_ADMIN, UserRole.OPERATOR, UserRole.VIEWER)
   @ApiOperation({ summary: 'Get specific permissions for a user' })
   @ApiParam({ name: 'id', description: 'User ID' })
   async getUserPermissions(
@@ -188,7 +184,7 @@ export class UsersController {
   }
 
   @Put(':id/permissions')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN, UserRole.BUILDING_ADMIN, UserRole.OPERATOR, UserRole.VIEWER)
   @ApiOperation({ summary: 'Update specific permissions for a user' })
   @ApiParam({ name: 'id', description: 'User ID' })
   async updateUserPermissions(

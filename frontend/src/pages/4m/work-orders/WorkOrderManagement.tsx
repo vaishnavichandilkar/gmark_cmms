@@ -272,70 +272,66 @@ export function WorkOrderManagement() {
   };
 
   return (
-    <div className="sm:p-2 md:p-4 bg-white min-h-screen space-y-6">
+    <div className="w-full flex flex-col">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 print:hidden">
         <div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Work Order Management</h1>
-          <p className="text-sm font-medium text-gray-500 mt-1">Manage all work orders in the system</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Work Orders</h1>
+          <p className="text-xs text-slate-500 mt-0.5">Create, track, approve, and resolve maintenance work orders</p>
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
           <button
             onClick={handleOpenScanner}
-            className="flex-1 sm:flex-none px-4 py-2.5 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer"
+            className="flex-1 sm:flex-none px-3.5 py-2 bg-slate-800 hover:bg-slate-900 active:scale-95 text-white font-semibold rounded-lg text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer"
           >
-            <QrCode size={16} className="text-emerald-400" />
+            <QrCode size={16} className="text-blue-400" />
             Scan Machine QR
           </button>
           {canCreate && (
             <button
               onClick={() => navigate('/work-orders/new')}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm cursor-pointer"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-lg text-xs sm:text-sm font-semibold transition-all shadow-xs cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4 stroke-[2.5]" />
               Add New Work Order
             </button>
           )}
         </div>
       </div>
 
-
-
       {/* Table Actions Toolbar */}
-      <div className="print:hidden">
-        <TableActions
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          searchPlaceholder="Search work orders..."
-          onExport={canExport ? handleExport : undefined}
-          onPrint={canPrint ? handlePrint : undefined}
-          filterOptions={filterOptions}
-          activeFilters={activeFilters}
-          onFilterChange={setActiveFilters}
-        />
-      </div>
+      <TableActions
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        searchPlaceholder="Search work orders..."
+        onExport={canExport ? handleExport : undefined}
+        onPrint={canPrint ? handlePrint : undefined}
+        filterOptions={filterOptions}
+        activeFilters={activeFilters}
+        onFilterChange={setActiveFilters}
+      />
 
       {/* Master Table Section */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-          <h2 className="text-base font-semibold text-gray-800">Work Orders List</h2>
+      <div className="bg-white rounded-xl border border-slate-200/90 shadow-xs overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-slate-200 bg-slate-50/80">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-600">All Registered Work Orders</h2>
         </div>
 
-        <div className="flex-1 overflow-x-auto">
-          <table className="w-full text-left text-sm text-gray-600">
-            <thead className="bg-gray-50/80 text-gray-700 font-medium text-xs uppercase tracking-wider border-b border-gray-200 sticky top-0">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm text-slate-600">
+            <thead className="bg-slate-50/50 text-slate-600 font-bold text-xs uppercase tracking-wider border-b border-slate-200">
               <tr>
-                <th className="px-6 py-4 whitespace-nowrap">WO Code</th>
-                <th className="px-6 py-4 whitespace-nowrap">Machine Details</th>
-                <th className="px-6 py-4 whitespace-nowrap">Problem Description</th>
-                <th className="px-6 py-4 whitespace-nowrap">Priority</th>
-                <th className="px-6 py-4 whitespace-nowrap">Status</th>
-                <th className="px-6 py-4 whitespace-nowrap">Assigned Tech</th>
-                <th className="px-6 py-4 whitespace-nowrap text-right">Actions</th>
+                <th className="px-5 py-3.5 whitespace-nowrap">WO Code</th>
+                <th className="px-5 py-3.5 whitespace-nowrap">Machine Details</th>
+                <th className="px-5 py-3.5 whitespace-nowrap">Problem Description</th>
+                <th className="px-5 py-3.5 whitespace-nowrap">Priority</th>
+                <th className="px-5 py-3.5 whitespace-nowrap">Status</th>
+                <th className="px-5 py-3.5 whitespace-nowrap">Assigned Tech</th>
+                <th className="px-5 py-3.5 whitespace-nowrap text-right">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 bg-white">
+            <tbody className="divide-y divide-slate-100 bg-white">
               {loading ? (
                 <TableSkeleton columns={7} rows={5} />
               ) : currentWorkOrders.length > 0 ? (
@@ -346,36 +342,36 @@ export function WorkOrderManagement() {
                       if (wo.status === 'PENDING_APPROVAL') handleOpenReview(wo);
                       else handleOpenTechnician(wo);
                     }}
-                    className="hover:bg-gray-50/50 transition-colors group cursor-pointer"
+                    className="hover:bg-blue-50/40 transition-colors group cursor-pointer"
                   >
                     {/* WO Code & Date */}
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-5 py-3.5 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded border border-gray-200 text-xs">
+                        <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-xs">
                           {wo.woNumber}
                         </span>
                         {wo.isEscalated && (
-                          <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-bold rounded">
+                          <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold rounded">
                             ESCALATED
                           </span>
                         )}
                       </div>
-                      <span className="text-xs text-gray-400 block mt-1">
+                      <span className="text-xs text-slate-400 block mt-1">
                         {new Date(wo.createdAt).toLocaleDateString()}
                       </span>
                     </td>
 
                     {/* Machine Details */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="font-semibold text-gray-900 block">{wo.machine?.name || 'Machine'}</span>
-                      <span className="text-xs text-gray-500">
+                    <td className="px-5 py-3.5 whitespace-nowrap">
+                      <span className="font-semibold text-slate-900 block">{wo.machine?.name || 'Machine'}</span>
+                      <span className="text-xs text-slate-500">
                         {wo.machine?.machineCode || `MCH-${wo.machineId}`} • {wo.machine?.building?.name || 'Main Plant'}
                       </span>
                     </td>
 
                     {/* Problem Description */}
-                    <td className="px-6 py-4 max-w-xs">
-                      <p className="line-clamp-2 text-gray-700 text-xs">{wo.problemDescription}</p>
+                    <td className="px-5 py-3.5 max-w-xs">
+                      <p className="line-clamp-2 text-slate-700 text-xs">{wo.problemDescription}</p>
                       {wo.status === 'REJECTED' && wo.rejectionReason && (
                         <p className="text-[10px] text-red-600 font-semibold mt-1">
                           Reason: {wo.rejectionReason}
@@ -384,16 +380,16 @@ export function WorkOrderManagement() {
                     </td>
 
                     {/* Priority */}
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-5 py-3.5 whitespace-nowrap">
                       <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase ${
                           wo.priority === 'CRITICAL'
                             ? 'bg-red-50 text-red-700 border border-red-200'
                             : wo.priority === 'HIGH'
                             ? 'bg-orange-50 text-orange-700 border border-orange-200'
                             : wo.priority === 'MEDIUM'
-                            ? 'bg-green-50 text-green-700 border border-green-200'
-                            : 'bg-blue-50 text-blue-700 border border-blue-200'
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                            : 'bg-slate-100 text-slate-700 border border-slate-200'
                         }`}
                       >
                         {wo.priority}
@@ -401,17 +397,17 @@ export function WorkOrderManagement() {
                     </td>
 
                     {/* Status */}
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-5 py-3.5 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold ${
                           wo.status === 'PENDING_APPROVAL'
                             ? 'bg-amber-50 text-amber-700 border border-amber-200'
                             : wo.status === 'APPROVED' || wo.status === 'IN_PROGRESS'
-                            ? 'bg-green-50 text-green-700 border border-green-200'
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
                             : wo.status === 'REVISION_REQUESTED'
                             ? 'bg-purple-50 text-purple-700 border border-purple-200'
                             : wo.status === 'COMPLETED' || wo.status === 'CLOSED'
-                            ? 'bg-cyan-50 text-cyan-700 border border-cyan-200'
+                            ? 'bg-slate-100 text-slate-700 border border-slate-200'
                             : 'bg-red-50 text-red-700 border border-red-200'
                         }`}
                       >
@@ -420,23 +416,23 @@ export function WorkOrderManagement() {
                     </td>
 
                     {/* Assigned Tech */}
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-600 text-xs">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-slate-600 text-xs">
                       {wo.assignedTechnician ? (
-                        <span className="font-medium text-gray-900">
+                        <span className="font-medium text-slate-900">
                           {wo.assignedTechnician.username || wo.assignedTechnician.firstName || 'Assigned Tech'}
                         </span>
                       ) : (
-                        <span className="text-gray-400 italic">Unassigned</span>
+                        <span className="text-slate-400 italic">Unassigned</span>
                       )}
                     </td>
 
                     {/* Actions */}
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                         {wo.status === 'PENDING_APPROVAL' ? (
                           <button
                             onClick={(e) => { e.stopPropagation(); handleOpenReview(wo); }}
-                            className="text-gray-400 hover:text-green-600 p-1.5 rounded-md hover:bg-green-50 transition-colors flex items-center gap-1 text-xs font-semibold"
+                            className="text-slate-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition-colors flex items-center gap-1 text-xs font-semibold cursor-pointer"
                             title="Review"
                           >
                             <UserCheck className="w-4 h-4" />
@@ -445,7 +441,7 @@ export function WorkOrderManagement() {
                         ) : (
                           <button
                             onClick={(e) => { e.stopPropagation(); handleOpenTechnician(wo); }}
-                            className="text-gray-400 hover:text-blue-600 p-1.5 rounded-md hover:bg-blue-50 transition-colors"
+                            className="text-slate-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer"
                             title="View"
                           >
                             <Eye className="w-4 h-4" />

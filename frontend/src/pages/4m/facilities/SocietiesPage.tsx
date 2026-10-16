@@ -68,7 +68,7 @@ export function SocietiesPage() {
             placeholder="Search societies..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white border border-gray-200 rounded-full pl-10 pr-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#00a651] focus:ring-1 focus:ring-[#00a651] transition-all shadow-sm"
+            className="w-full bg-white border border-gray-200 rounded-full pl-10 pr-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all shadow-sm"
           />
         </div>
       </div>
@@ -100,10 +100,10 @@ export function SocietiesPage() {
                 onClick={() => navigate(`/society/${soc.id}`)}
                 whileHover={{ y: -6, scale: 1.01 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                className="group cursor-pointer bg-white border border-gray-200 hover:border-[#00a651]/40 shadow-sm hover:shadow-md p-6 rounded-3xl relative overflow-hidden flex flex-col justify-between"
+                className="group cursor-pointer bg-white border border-gray-200 hover:border-blue-300 shadow-sm hover:shadow-md p-6 rounded-3xl relative overflow-hidden flex flex-col justify-between"
               >
                 {/* Card top gradient line on hover */}
-                <div className="absolute top-0 inset-x-0 h-[3px] bg-[#00a651] opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute top-0 inset-x-0 h-[3px] bg-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
 
                 {/* Building Watermark Background Graphic */}
                 <div className="absolute inset-0 w-full h-full opacity-[0.03] group-hover:opacity-[0.06] transition-all duration-300 pointer-events-none transform scale-100 group-hover:scale-[1.03] flex items-center justify-center p-4">
@@ -117,17 +117,17 @@ export function SocietiesPage() {
                 <div>
                   <div className="flex items-center justify-between mb-6">
                     {/* Icon badge */}
-                    <div className="w-12 h-12 bg-gray-50 border border-gray-100 group-hover:border-[#00a651]/20 group-hover:bg-[#00a651]/5 text-gray-400 group-hover:text-[#00a651] rounded-2xl flex items-center justify-center transition-all relative z-10">
+                    <div className="w-12 h-12 bg-gray-50 border border-gray-100 group-hover:border-blue-200 group-hover:bg-blue-50 text-gray-400 group-hover:text-blue-600 rounded-2xl flex items-center justify-center transition-all relative z-10">
                       <Building2 size={22} />
                     </div>
                     
                     {/* Detail Link Indicator */}
-                    <div className="p-2 rounded-full bg-gray-100 text-gray-400 group-hover:bg-[#00a651] group-hover:text-white transition-all opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 relative z-10">
+                    <div className="p-2 rounded-full bg-gray-100 text-gray-400 group-hover:bg-blue-600 group-hover:text-white transition-all opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 relative z-10">
                       <ArrowRight size={14} />
                     </div>
                   </div>
 
-                  <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-[#00a651] transition-colors uppercase leading-snug relative z-10">
+                  <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors uppercase leading-snug relative z-10">
                     {soc.name}
                   </h3>
                 </div>

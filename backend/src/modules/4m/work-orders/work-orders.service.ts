@@ -36,10 +36,12 @@ export class WorkOrdersService {
     }
 
     const woNumber = await this.generateNextWONumber();
+    const effectiveAdminId = user?.adminId || user?.userId || null;
 
     const workOrder = await this.prisma.workOrder.create({
       data: {
         woNumber,
+        adminId: effectiveAdminId,
         machineId: Number(dto.machineId),
         problemDescription: dto.problemDescription,
         priority: dto.priority || WorkOrderPriority.MEDIUM,
@@ -83,8 +85,13 @@ export class WorkOrdersService {
     machineId?: number;
     technicianId?: number;
     search?: string;
-  }) {
+  }, user?: any) {
     const where: any = {};
+    const effectiveAdminId = user?.adminId || user?.userId;
+
+    if (effectiveAdminId) {
+      where.adminId = effectiveAdminId;
+    }
 
     if (query.machineId) {
       where.machineId = Number(query.machineId);

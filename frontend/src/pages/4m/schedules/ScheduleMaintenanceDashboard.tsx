@@ -238,12 +238,12 @@ export function ScheduleMaintenanceDashboard() {
   };
 
   return (
-    <div className="sm:p-2 md:p-4 bg-white min-h-screen space-y-6">
+    <div className="sm:p-2 md:p-4 bg-white min-h-screen">
       {/* Header Section */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 print:hidden">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 print:hidden">
         <div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Schedule Maintenance</h1>
-          <p className="text-sm font-medium text-gray-500 mt-1">Manage all maintenance schedules in the system</p>
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Schedules</h1>
+          <p className="text-sm font-medium text-gray-500 mt-1">Manage recurring preventive, predictive, and condition-based maintenance routines</p>
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -260,7 +260,7 @@ export function ScheduleMaintenanceDashboard() {
           {canCreate && (
             <button
               onClick={() => navigate('/schedules/new')}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm cursor-pointer"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-lg text-sm font-semibold transition-all shadow-xs cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               Add New Schedule
@@ -270,7 +270,7 @@ export function ScheduleMaintenanceDashboard() {
       </div>
 
       {/* Schedule Type Filter Tabs */}
-      <div className="flex items-center gap-1 overflow-x-auto pb-1 max-w-full print:hidden">
+      <div className="flex items-center gap-1 overflow-x-auto pb-1 max-w-full mb-6 print:hidden">
         {[
           { id: 'ALL', label: 'All Schedules' },
           { id: 'PREVENTIVE', label: 'Preventive' },
@@ -281,9 +281,9 @@ export function ScheduleMaintenanceDashboard() {
           <button
             key={tab.id}
             onClick={() => setActiveTypeTab(tab.id)}
-            className={`px-3.5 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-all cursor-pointer ${
+            className={`px-3.5 py-2 text-xs font-bold rounded-lg whitespace-nowrap transition-all cursor-pointer ${
               activeTypeTab === tab.id
-                ? 'bg-emerald-600 text-white shadow-sm'
+                ? 'bg-blue-600 text-white shadow-xs'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
             }`}
           >
@@ -293,28 +293,26 @@ export function ScheduleMaintenanceDashboard() {
       </div>
 
       {/* Table Actions Toolbar */}
-      <div className="print:hidden">
-        <TableActions
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          searchPlaceholder="Search schedules..."
-          onExport={canExport ? handleExport : undefined}
-          onPrint={canPrint ? handlePrint : undefined}
-          filterOptions={filterOptions}
-          activeFilters={activeFilters}
-          onFilterChange={setActiveFilters}
-        />
-      </div>
+      <TableActions
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        searchPlaceholder="Search schedules..."
+        onExport={canExport ? handleExport : undefined}
+        onPrint={canPrint ? handlePrint : undefined}
+        filterOptions={filterOptions}
+        activeFilters={activeFilters}
+        onFilterChange={setActiveFilters}
+      />
 
       {/* Master Table Section */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-          <h2 className="text-base font-semibold text-gray-800">Schedule Maintenance List</h2>
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
+          <h2 className="text-base font-semibold text-gray-800">All maintenance schedules</h2>
         </div>
 
-        <div className="flex-1 overflow-x-auto">
+        <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-gray-600">
-            <thead className="bg-gray-50/80 text-gray-700 font-medium text-xs uppercase tracking-wider border-b border-gray-200 sticky top-0">
+            <thead className="bg-gray-50/50 text-gray-700 font-medium text-xs border-b border-gray-200">
               <tr>
                 <th className="px-6 py-4 whitespace-nowrap">Schedule Code</th>
                 <th className="px-6 py-4 whitespace-nowrap">Type & Frequency</th>
@@ -323,7 +321,7 @@ export function ScheduleMaintenanceDashboard() {
                 <th className="px-6 py-4 whitespace-nowrap">Facility & Building</th>
                 <th className="px-6 py-4 whitespace-nowrap">Next Run Date</th>
                 <th className="px-6 py-4 whitespace-nowrap">Status</th>
-                <th className="px-6 py-4 whitespace-nowrap text-right">Actions</th>
+                <th className="px-6 py-4 whitespace-nowrap text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
@@ -398,7 +396,7 @@ export function ScheduleMaintenanceDashboard() {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={(e) => { e.stopPropagation(); handleTriggerWO(sch.id); }}
-                          className="px-3 py-1.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold rounded-lg text-xs transition-all shadow-sm flex items-center gap-1 cursor-pointer"
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold rounded-lg text-xs transition-all shadow-xs flex items-center gap-1 cursor-pointer"
                         >
                           <Send className="w-3.5 h-3.5" />
                           <span>Trigger WO</span>
