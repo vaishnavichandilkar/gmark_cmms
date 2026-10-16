@@ -434,7 +434,7 @@ export function CreateWorkOrderModal({
                 {mediaList.map((m, idx) => (
                   <div
                     key={idx}
-                    className="relative group bg-slate-100 rounded-xl overflow-hidden border border-slate-200 aspect-video flex items-center justify-center"
+                    className="relative group bg-white hover:bg-slate-50/50 rounded-xl overflow-hidden border border-slate-200 hover:border-emerald-300 hover:shadow-md transition-all aspect-video flex items-center justify-center"
                   >
                     {m.fileType === 'VIDEO' ? (
                       <div className="flex flex-col items-center justify-center text-slate-700 p-2 text-center h-full w-full">
@@ -457,32 +457,34 @@ export function CreateWorkOrderModal({
                       <img src={m.fileUrl} alt={m.fileName} className="w-full h-full object-cover" />
                     )}
 
-                    {/* Always Visible Actions */}
-                    <div className="absolute top-2 right-2 flex items-center gap-1 bg-white/95 backdrop-blur-xs p-1 rounded-lg border border-slate-200/90 shadow-xs z-10">
-                      <button
-                        type="button"
-                        onClick={() => handleViewMedia(m)}
-                        className="p-1.5 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-md transition-colors cursor-pointer"
-                        title="View File"
-                      >
-                        <Eye size={15} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditingMedia({ index: idx, fileName: m.fileName, fileUrl: m.fileUrl, fileType: m.fileType, newFile: null })}
-                        className="p-1.5 text-slate-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors cursor-pointer"
-                        title="Edit File"
-                      >
-                        <Pencil size={15} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeMedia(idx)}
-                        className="p-1.5 text-slate-600 hover:text-rose-700 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
-                        title="Delete File"
-                      >
-                        <Trash2 size={15} />
-                      </button>
+                    {/* Floating Action Bar - Keeps Uploaded File Visible on Hover */}
+                    <div className="absolute inset-0 bg-slate-900/10 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
+                      <div className="flex items-center gap-1.5 bg-white/95 backdrop-blur-md px-2.5 py-1.5 rounded-xl shadow-lg border border-slate-200">
+                        <button
+                          type="button"
+                          onClick={() => handleViewMedia(m)}
+                          className="p-1.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-600 hover:text-white rounded-lg transition-all cursor-pointer shadow-2xs hover:scale-105"
+                          title="View File"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingMedia({ index: idx, fileName: m.fileName, fileUrl: m.fileUrl, fileType: m.fileType, newFile: null })}
+                          className="p-1.5 bg-blue-50 hover:bg-blue-600 text-blue-600 hover:text-white rounded-lg transition-all cursor-pointer shadow-2xs hover:scale-105"
+                          title="Edit File"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeMedia(idx)}
+                          className="p-1.5 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white rounded-lg transition-all cursor-pointer shadow-2xs hover:scale-105"
+                          title="Delete File"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
