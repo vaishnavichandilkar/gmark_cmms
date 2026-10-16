@@ -11,7 +11,7 @@ import { FacilityHierarchyPicker } from '../../../components/4m/FacilityHierarch
 import { MachineHierarchyPicker } from '../../../components/4m/MachineHierarchyPicker';
 import { MachineImageCard } from '../../../components/4m/MachineImageCard';
 import { spareService } from '../../../services/spareService';
-import { supplierService, Supplier } from '../../../services/supplierService';
+import { supplierService, type Supplier } from '../../../services/supplierService';
 import { io, Socket } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import { navigateToDeviceDashboard } from '../../../utils/deviceRoutes';

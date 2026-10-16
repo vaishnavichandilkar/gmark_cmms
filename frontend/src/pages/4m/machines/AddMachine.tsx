@@ -11,7 +11,7 @@ import { FacilityHierarchyPicker } from '../../../components/4m/FacilityHierarch
 import { MachineHierarchyPicker } from '../../../components/4m/MachineHierarchyPicker';
 import { MachineImageCard } from '../../../components/4m/MachineImageCard';
 import { spareService } from '../../../services/spareService';
-import { supplierService, Supplier } from '../../../services/supplierService';
+import { supplierService, type Supplier } from '../../../services/supplierService';
 import toast from 'react-hot-toast';
 
 const tabs = ['General', 'Specification', 'Spares', 'AMC', 'Purchase', 'Documents', 'IOT'];
@@ -669,6 +669,15 @@ export function AddMachine() {
     setDocContent('');
     setDocFile(null);
     toast.success('Document added successfully');
+  };
+
+  const handleOpenUpload = (type: 'File' | 'Link' | 'Note') => {
+    setEditingDoc(null);
+    setUploadModalType(type);
+    setDocName('');
+    setDocContent('');
+    setDocFile(null);
+    setIsUploadMenuOpen(false);
   };
 
   const handleEditDoc = (doc: any) => {
