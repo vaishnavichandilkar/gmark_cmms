@@ -11,6 +11,7 @@ import { FacilityHierarchyPicker } from '../../../components/4m/FacilityHierarch
 import { MachineHierarchyPicker } from '../../../components/4m/MachineHierarchyPicker';
 import { MachineImageCard } from '../../../components/4m/MachineImageCard';
 import { spareService } from '../../../services/spareService';
+import { supplierService, Supplier } from '../../../services/supplierService';
 import toast from 'react-hot-toast';
 
 const tabs = ['General', 'Specification', 'Spares', 'AMC', 'Purchase', 'Documents', 'IOT'];
@@ -58,6 +59,18 @@ export function AddMachine() {
   const [amcSearchQuery, setAmcSearchQuery] = useState('');
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [purchaseSubTab, setPurchaseSubTab] = useState('Machine Purchase');
+  const [pendingPurchases, setPendingPurchases] = useState<any[]>(savedDraft?.pendingPurchases || []);
+  const [purchaseSearchQuery, setPurchaseSearchQuery] = useState('');
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [purchaseForm, setPurchaseForm] = useState({
+    supplierName: '',
+    supplierId: '',
+    contactNumber: '',
+    email: '',
+    address: '',
+    file: null as File | null,
+    fileName: '',
+  });
 
   const [uploadModalType, setUploadModalType] = useState<'File' | 'Link' | 'Note' | null>(null);
   const [isUploadMenuOpen, setIsUploadMenuOpen] = useState(false);
@@ -252,10 +265,14 @@ export function AddMachine() {
       api.get('/employees'),
       api.get('/machines/next-codes'),
       spareService.getAll(),
-    ]).then(([facRes, mainFacRes, empRes, codesRes, sparesRes]) => {
+      supplierService.getAll(),
+    ]).then(([facRes, mainFacRes, empRes, codesRes, sparesRes, suppliersRes]) => {
       setEmployees(empRes.data);
       if (sparesRes) {
         setCatalogSpares(sparesRes);
+      }
+      if (suppliersRes) {
+        setSuppliers(Array.isArray(suppliersRes) ? suppliersRes : []);
       }
       const locs: string[] = [];
       if (facRes?.data) {
@@ -631,6 +648,99 @@ export function AddMachine() {
   const handleDeleteDoc = (id: number) => {
     setPendingDocuments(prev => prev.filter(d => d.id !== id));
   };
+
+  const supplierOptions = suppliers.map(s => ({
+    label: s.supplierCode ? `${s.name} (${s.supplierCode})` : s.name,
+    value: s.name,
+  }));
+
+  const handleOpenPurchaseModal = () => {
+    setPurchaseForm({
+      supplierName: '',
+      supplierId: '',
+      contactNumber: '',
+      email: '',
+      address: '',
+      file: null,
+      fileName: '',
+    });
+    setIsPurchaseModalOpen(true);
+  };
+
+  const handleSupplierChange = (e: { target: { name: string; value: string } }) => {
+    const selectedName = e.target.value;
+    const found = suppliers.find(s => s.name === selectedName);
+    if (found) {
+      const fullAddress = [found.address, found.city, found.state, found.postalCode].filter(Boolean).join(', ');
+      setPurchaseForm(prev => ({
+        ...prev,
+        supplierName: found.name,
+        supplierId: found.id.toString(),
+        contactNumber: found.phone || found.contactPerson || prev.contactNumber,
+        email: found.email || prev.email,
+        address: fullAddress || prev.address,
+      }));
+    } else {
+      setPurchaseForm(prev => ({
+        ...prev,
+        supplierName: selectedName,
+      }));
+    }
+  };
+
+  const handlePurchaseFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPurchaseForm(prev => ({
+        ...prev,
+        file: file,
+        fileName: file.name,
+      }));
+    }
+  };
+
+  const handleSavePurchase = () => {
+    if (!purchaseForm.supplierName) {
+      toast.error('Please select a supplier');
+      return;
+    }
+    if (!purchaseForm.contactNumber) {
+      toast.error('Please enter contact number');
+      return;
+    }
+    if (!purchaseForm.email) {
+      toast.error('Please enter email');
+      return;
+    }
+
+    setPendingPurchases(prev => [
+      ...prev,
+      {
+        id: Date.now(),
+        subTab: purchaseSubTab,
+        supplierName: purchaseForm.supplierName,
+        supplierId: purchaseForm.supplierId,
+        contactNumber: purchaseForm.contactNumber,
+        email: purchaseForm.email,
+        address: purchaseForm.address,
+        file: purchaseForm.file,
+        fileName: purchaseForm.fileName,
+        date: new Date().toLocaleDateString('en-GB'),
+      }
+    ]);
+
+    setIsPurchaseModalOpen(false);
+    toast.success(`${purchaseSubTab} added successfully`);
+  };
+
+  const filteredPurchases = pendingPurchases.filter(p => 
+    p.subTab === purchaseSubTab &&
+    (
+      (p.supplierName || '').toLowerCase().includes(purchaseSearchQuery.toLowerCase()) ||
+      (p.email || '').toLowerCase().includes(purchaseSearchQuery.toLowerCase()) ||
+      (p.contactNumber || '').toLowerCase().includes(purchaseSearchQuery.toLowerCase())
+    )
+  );
 
   return (
     <div className="sm:px-4 pb-6 pt-0 w-full flex flex-col bg-white">
@@ -1025,13 +1135,13 @@ export function AddMachine() {
                 <div className="flex border border-gray-200 rounded-lg overflow-hidden bg-white">
                   <button 
                     onClick={() => setPurchaseSubTab('Machine Purchase')}
-                    className={`px-6 py-2 text-sm font-semibold transition-colors cursor-pointer ${purchaseSubTab === 'Machine Purchase' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+                    className={`px-6 py-2 text-sm font-semibold transition-colors cursor-pointer ${purchaseSubTab === 'Machine Purchase' ? 'bg-emerald-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
                   >
                     Machine Purchase
                   </button>
                   <button 
                     onClick={() => setPurchaseSubTab('Spare/Service Purchase')}
-                    className={`px-6 py-2 text-sm font-semibold transition-colors border-l border-gray-200 cursor-pointer ${purchaseSubTab === 'Spare/Service Purchase' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+                    className={`px-6 py-2 text-sm font-semibold transition-colors border-l border-gray-200 cursor-pointer ${purchaseSubTab === 'Spare/Service Purchase' ? 'bg-emerald-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
                   >
                     Spare/Service Purchase
                   </button>
@@ -1039,8 +1149,8 @@ export function AddMachine() {
 
                 <div className="flex items-center gap-4">
                   <button 
-                    onClick={() => setIsPurchaseModalOpen(true)}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-colors shadow-xs cursor-pointer"
+                    onClick={handleOpenPurchaseModal}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-all shadow-xs cursor-pointer"
                   >
                     <Plus size={16} className="stroke-[3]" /> Add Purchase
                   </button>
@@ -1048,8 +1158,10 @@ export function AddMachine() {
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input 
                       type="text" 
+                      value={purchaseSearchQuery}
+                      onChange={e => setPurchaseSearchQuery(e.target.value)}
                       placeholder="Search" 
-                      className="pl-9 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 w-64"
+                      className="pl-9 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-64"
                     />
                   </div>
                 </div>
@@ -1069,14 +1181,32 @@ export function AddMachine() {
                     </tr>
                   </thead>
                   <tbody>
-                    {[]?.length === 0 ? (
+                    {filteredPurchases.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-4 py-8 text-center text-sm font-medium text-gray-500 bg-white">
                           No {purchaseSubTab} added yet.
                         </td>
                       </tr>
                     ) : (
-                      null
+                      filteredPurchases.map((item, idx) => (
+                        <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50/50">
+                          <td className="px-4 py-3"><input type="checkbox" className="rounded border-gray-300" /></td>
+                          <td className="px-4 py-3 text-xs text-gray-700 font-medium">{idx + 1}</td>
+                          <td className="px-4 py-3 text-xs font-semibold text-gray-900">{item.supplierName}</td>
+                          <td className="px-4 py-3 text-xs text-gray-600">{item.email}</td>
+                          <td className="px-4 py-3 text-xs text-gray-600">{item.contactNumber}</td>
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => setPendingPurchases(prev => prev.filter(p => p.id !== item.id))}
+                              className="text-red-500 hover:text-red-700 p-1 cursor-pointer"
+                              title="Delete"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
                     )}
                   </tbody>
                 </table>
@@ -1501,10 +1631,10 @@ export function AddMachine() {
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">Supplier Name<span className="text-red-500">*</span></label>
                 <CustomSelect
                   name="supplierName"
-                  value=""
-                  onChange={() => {}}
+                  value={purchaseForm.supplierName}
+                  onChange={handleSupplierChange}
                   placeholder="Select"
-                  options={[]}
+                  options={supplierOptions}
                 />
               </div>
 
@@ -1512,8 +1642,10 @@ export function AddMachine() {
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">Contact Number<span className="text-red-500">*</span></label>
                 <input 
                   type="text" 
+                  value={purchaseForm.contactNumber}
+                  onChange={e => setPurchaseForm(prev => ({ ...prev, contactNumber: e.target.value }))}
                   placeholder="Enter Number"
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400"
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-gray-900 placeholder-gray-400"
                 />
               </div>
 
@@ -1521,17 +1653,21 @@ export function AddMachine() {
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">Email<span className="text-red-500">*</span></label>
                 <input 
                   type="email" 
+                  value={purchaseForm.email}
+                  onChange={e => setPurchaseForm(prev => ({ ...prev, email: e.target.value }))}
                   placeholder="email@gmail.com"
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400"
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-gray-900 placeholder-gray-400"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">Address</label>
                 <textarea 
+                  value={purchaseForm.address}
+                  onChange={e => setPurchaseForm(prev => ({ ...prev, address: e.target.value }))}
                   placeholder="Address"
                   rows={2}
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400 resize-y min-h-[64px]"
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-gray-900 placeholder-gray-400 resize-y min-h-[64px]"
                 ></textarea>
               </div>
 
@@ -1539,14 +1675,19 @@ export function AddMachine() {
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">Upload Purchase / Invoice</label>
                 <input 
                   type="file"
-                  className="block w-full h-[64px] text-sm text-gray-600 border border-gray-500 rounded-lg p-3 cursor-pointer focus:outline-none file:mr-4 file:py-1.5 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-200 file:text-gray-700 hover:file:bg-gray-300 transition-colors"
+                  onChange={handlePurchaseFileChange}
+                  className="block w-full h-[64px] text-sm text-gray-600 border border-gray-300 rounded-xl p-3 cursor-pointer focus:outline-none file:mr-4 file:py-1.5 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 transition-colors"
                 />
+                {purchaseForm.fileName && (
+                  <p className="text-xs text-emerald-600 font-semibold mt-1 truncate">Selected: {purchaseForm.fileName}</p>
+                )}
               </div>
 
               <div className="col-span-2 flex justify-center mt-4">
                 <button 
-                  onClick={() => setIsPurchaseModalOpen(false)}
-                  className="px-10 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors shadow-xs cursor-pointer"
+                  type="button"
+                  onClick={handleSavePurchase}
+                  className="px-10 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-lg font-semibold text-sm transition-colors shadow-xs cursor-pointer"
                 >
                   Save
                 </button>

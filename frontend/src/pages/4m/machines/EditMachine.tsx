@@ -11,6 +11,7 @@ import { FacilityHierarchyPicker } from '../../../components/4m/FacilityHierarch
 import { MachineHierarchyPicker } from '../../../components/4m/MachineHierarchyPicker';
 import { MachineImageCard } from '../../../components/4m/MachineImageCard';
 import { spareService } from '../../../services/spareService';
+import { supplierService, Supplier } from '../../../services/supplierService';
 import { io, Socket } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import { navigateToDeviceDashboard } from '../../../utils/deviceRoutes';
@@ -87,6 +88,18 @@ export function EditMachine() {
   const [specToDelete, setSpecToDelete] = useState<number | null>(null);
   const [amcSubTab, setAmcSubTab] = useState('AMC');
   const [purchaseSubTab, setPurchaseSubTab] = useState('Machine Purchase');
+  const [purchases, setPurchases] = useState<any[]>([]);
+  const [purchaseSearchQuery, setPurchaseSearchQuery] = useState('');
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [purchaseForm, setPurchaseForm] = useState({
+    supplierName: '',
+    supplierId: '',
+    contactNumber: '',
+    email: '',
+    address: '',
+    file: null as File | null,
+    fileName: '',
+  });
   const [facilities, setFacilities] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [locationSearch, setLocationSearch] = useState('');
@@ -275,16 +288,18 @@ export function EditMachine() {
 
   const fetchData = async () => {
     try {
-      const [deviceRes, facilitiesRes, employeesRes, docsRes] = await Promise.all([
+      const [deviceRes, facilitiesRes, employeesRes, docsRes, suppliersData] = await Promise.all([
         api.get(`/machines/${id}`),
         api.get('/facilities'),
         api.get('/employees'),
-        api.get(`/machines/${id}/documents`).catch(() => ({ data: [] }))
+        api.get(`/machines/${id}/documents`).catch(() => ({ data: [] })),
+        supplierService.getAll().catch(() => [])
       ]);
       
       const device = deviceRes.data;
       setFacilities(Array.isArray(facilitiesRes.data) ? facilitiesRes.data : []);
       setEmployees(Array.isArray(employeesRes.data) ? employeesRes.data : []);
+      setSuppliers(Array.isArray(suppliersData) ? suppliersData : []);
       const docs = Array.isArray(docsRes.data) ? docsRes.data : [];
       setDocuments(docs);
 
@@ -496,6 +511,113 @@ export function EditMachine() {
   const canEditCurrentTab = hasTabPermission(currentUser, activeTab, 'edit');
   const canCreateInTab = hasTabPermission(currentUser, activeTab, 'create');
   const canDeleteInTab = hasTabPermission(currentUser, activeTab, 'delete');
+
+  const supplierOptions = suppliers.map(s => ({
+    label: s.supplierCode ? `${s.name} (${s.supplierCode})` : s.name,
+    value: s.name,
+  }));
+
+  const handleOpenPurchaseModal = () => {
+    setPurchaseForm({
+      supplierName: '',
+      supplierId: '',
+      contactNumber: '',
+      email: '',
+      address: '',
+      file: null,
+      fileName: '',
+    });
+    setIsPurchaseModalOpen(true);
+  };
+
+  const handleSupplierChange = (e: { target: { name: string; value: string } }) => {
+    const selectedName = e.target.value;
+    const found = suppliers.find(s => s.name === selectedName);
+    if (found) {
+      const fullAddress = [found.address, found.city, found.state, found.postalCode].filter(Boolean).join(', ');
+      setPurchaseForm(prev => ({
+        ...prev,
+        supplierName: found.name,
+        supplierId: found.id.toString(),
+        contactNumber: found.phone || found.contactPerson || prev.contactNumber,
+        email: found.email || prev.email,
+        address: fullAddress || prev.address,
+      }));
+    } else {
+      setPurchaseForm(prev => ({
+        ...prev,
+        supplierName: selectedName,
+      }));
+    }
+  };
+
+  const handlePurchaseFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPurchaseForm(prev => ({
+        ...prev,
+        file: file,
+        fileName: file.name,
+      }));
+    }
+  };
+
+  const handleSavePurchase = async () => {
+    if (!purchaseForm.supplierName) {
+      toast.error('Please select a supplier');
+      return;
+    }
+    if (!purchaseForm.contactNumber) {
+      toast.error('Please enter contact number');
+      return;
+    }
+    if (!purchaseForm.email) {
+      toast.error('Please enter email');
+      return;
+    }
+
+    const newPurchase = {
+      id: Date.now(),
+      subTab: purchaseSubTab,
+      supplierName: purchaseForm.supplierName,
+      supplierId: purchaseForm.supplierId,
+      contactNumber: purchaseForm.contactNumber,
+      email: purchaseForm.email,
+      address: purchaseForm.address,
+      file: purchaseForm.file,
+      fileName: purchaseForm.fileName,
+      date: new Date().toLocaleDateString('en-GB'),
+    };
+
+    setPurchases(prev => [...prev, newPurchase]);
+
+    // If an invoice file was uploaded, save it to machine documents
+    if (purchaseForm.file && id) {
+      try {
+        const uploadData = new FormData();
+        uploadData.append('name', `${purchaseSubTab} Invoice - ${purchaseForm.supplierName}`);
+        uploadData.append('file', purchaseForm.file);
+        await api.post(`/machines/${id}/documents/file`, uploadData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        fetchDocuments();
+      } catch (uploadErr) {
+        console.warn('Could not upload purchase invoice document:', uploadErr);
+      }
+    }
+
+    setIsPurchaseModalOpen(false);
+    toast.success(`${purchaseSubTab} added successfully`);
+  };
+
+  const filteredPurchases = purchases.filter(p => 
+    p.subTab === purchaseSubTab &&
+    (
+      (p.supplierName || '').toLowerCase().includes(purchaseSearchQuery.toLowerCase()) ||
+      (p.email || '').toLowerCase().includes(purchaseSearchQuery.toLowerCase()) ||
+      (p.contactNumber || '').toLowerCase().includes(purchaseSearchQuery.toLowerCase())
+    )
+  );
 
   return (
     <div className="sm:px-2 md:px-4 pb-6 pt-0 w-full flex flex-col">
@@ -940,13 +1062,13 @@ export function EditMachine() {
                 <div className="flex border border-slate-200 rounded-lg overflow-hidden bg-white shadow-2xs">
                   <button 
                     onClick={() => setPurchaseSubTab('Machine Purchase')}
-                    className={`px-4 py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer ${purchaseSubTab === 'Machine Purchase' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                    className={`px-4 py-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer ${purchaseSubTab === 'Machine Purchase' ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
                   >
                     Machine Purchase
                   </button>
                   <button 
                     onClick={() => setPurchaseSubTab('Spare/Service Purchase')}
-                    className={`px-4 py-2 text-xs sm:text-sm font-semibold transition-colors border-l border-slate-200 cursor-pointer ${purchaseSubTab === 'Spare/Service Purchase' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                    className={`px-4 py-2 text-xs sm:text-sm font-semibold transition-colors border-l border-slate-200 cursor-pointer ${purchaseSubTab === 'Spare/Service Purchase' ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
                   >
                     Spare/Service Purchase
                   </button>
@@ -957,13 +1079,15 @@ export function EditMachine() {
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input 
                       type="text" 
+                      value={purchaseSearchQuery}
+                      onChange={e => setPurchaseSearchQuery(e.target.value)}
                       placeholder="Search..." 
-                      className="h-[38px] pl-9 pr-3.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 w-56"
+                      className="h-[38px] pl-9 pr-3.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 w-56"
                     />
                   </div>
                   <button 
-                    onClick={() => setIsPurchaseModalOpen(true)}
-                    className="h-[38px] px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm rounded-lg flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                    onClick={handleOpenPurchaseModal}
+                    className="h-[38px] px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-semibold text-xs sm:text-sm rounded-lg flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
                   >
                     <Plus size={16} className="stroke-[2.5]" /> Add Purchase
                   </button>
@@ -975,7 +1099,7 @@ export function EditMachine() {
                 <table className="w-full text-left whitespace-nowrap">
                   <thead className="bg-slate-50/80 border-b border-slate-200">
                     <tr>
-                      <th className="px-4 py-3 w-12"><input type="checkbox" className="rounded border-slate-300 text-blue-600" disabled /></th>
+                      <th className="px-4 py-3 w-12"><input type="checkbox" className="rounded border-slate-300 text-emerald-600" disabled /></th>
                       <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">No.</th>
                       <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Name</th>
                       <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Email</th>
@@ -984,13 +1108,33 @@ export function EditMachine() {
                     </tr>
                   </thead>
                   <tbody>
-                    {[]?.length === 0 ? (
+                    {filteredPurchases.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-4 py-8 text-center text-sm font-medium text-slate-500 bg-white">
                           No {purchaseSubTab} added yet.
                         </td>
                       </tr>
-                    ) : null}
+                    ) : (
+                      filteredPurchases.map((item, idx) => (
+                        <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                          <td className="px-4 py-3"><input type="checkbox" className="rounded border-slate-300" /></td>
+                          <td className="px-4 py-3 text-xs text-slate-700 font-medium">{idx + 1}</td>
+                          <td className="px-4 py-3 text-xs font-semibold text-slate-900">{item.supplierName}</td>
+                          <td className="px-4 py-3 text-xs text-slate-600">{item.email}</td>
+                          <td className="px-4 py-3 text-xs text-slate-600">{item.contactNumber}</td>
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => setPurchases(prev => prev.filter(p => p.id !== item.id))}
+                              className="text-red-500 hover:text-red-700 p-1 cursor-pointer"
+                              title="Delete"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1476,10 +1620,10 @@ export function EditMachine() {
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Supplier Name<span className="text-red-500">*</span></label>
                 <CustomSelect
                   name="supplierName"
-                  value=""
-                  onChange={() => {}}
+                  value={purchaseForm.supplierName}
+                  onChange={handleSupplierChange}
                   placeholder="Select"
-                  options={[]}
+                  options={supplierOptions}
                 />
               </div>
 
@@ -1487,8 +1631,10 @@ export function EditMachine() {
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Contact Number<span className="text-red-500">*</span></label>
                 <input 
                   type="text" 
+                  value={purchaseForm.contactNumber}
+                  onChange={e => setPurchaseForm(prev => ({ ...prev, contactNumber: e.target.value }))}
                   placeholder="Enter Number"
-                  className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400"
+                  className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-900 placeholder-slate-400"
                 />
               </div>
 
@@ -1496,17 +1642,21 @@ export function EditMachine() {
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Email<span className="text-red-500">*</span></label>
                 <input 
                   type="email" 
+                  value={purchaseForm.email}
+                  onChange={e => setPurchaseForm(prev => ({ ...prev, email: e.target.value }))}
                   placeholder="email@example.com"
-                  className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400"
+                  className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-900 placeholder-slate-400"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Address</label>
                 <textarea 
+                  value={purchaseForm.address}
+                  onChange={e => setPurchaseForm(prev => ({ ...prev, address: e.target.value }))}
                   placeholder="Address"
                   rows={2}
-                  className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400 resize-none h-[64px]"
+                  className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-900 placeholder-slate-400 resize-none h-[64px]"
                 ></textarea>
               </div>
 
@@ -1514,20 +1664,26 @@ export function EditMachine() {
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Upload Purchase / Invoice</label>
                 <input 
                   type="file"
+                  onChange={handlePurchaseFileChange}
                   className="block w-full h-[64px] text-xs text-slate-600 border border-slate-300 rounded-lg p-2 cursor-pointer focus:outline-none file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 transition-colors"
                 />
+                {purchaseForm.fileName && (
+                  <p className="text-xs text-emerald-600 font-semibold mt-1 truncate">Selected: {purchaseForm.fileName}</p>
+                )}
               </div>
 
               <div className="col-span-1 md:col-span-2 flex justify-end gap-3 mt-4 pt-3 border-t border-slate-200">
                 <button 
+                  type="button"
                   onClick={() => setIsPurchaseModalOpen(false)}
                   className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button 
-                  onClick={() => setIsPurchaseModalOpen(false)}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
+                  type="button"
+                  onClick={handleSavePurchase}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
                 >
                   Save
                 </button>
