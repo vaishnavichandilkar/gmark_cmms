@@ -391,30 +391,31 @@ export function CreateWorkOrderPage() {
                       <img src={m.fileUrl} alt={m.fileName} className="w-full h-full object-cover" />
                     )}
 
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                    {/* Always Visible Actions */}
+                    <div className="absolute top-2 right-2 flex items-center gap-1 bg-white/95 backdrop-blur-xs p-1 rounded-lg border border-slate-200/90 shadow-xs z-10">
                       <button
                         type="button"
                         onClick={() => handleViewMedia(m)}
-                        className="p-1.5 bg-white/20 hover:bg-white text-white hover:text-black rounded-lg transition-colors cursor-pointer"
+                        className="p-1.5 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-md transition-colors cursor-pointer"
                         title="View File"
                       >
-                        <Eye size={16} />
+                        <Eye size={15} />
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditingMedia({ index: idx, fileName: m.fileName, fileUrl: m.fileUrl, fileType: m.fileType, newFile: null })}
-                        className="p-1.5 bg-blue-600/80 hover:bg-blue-600 text-white rounded-lg transition-colors cursor-pointer"
+                        className="p-1.5 text-slate-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors cursor-pointer"
                         title="Edit File"
                       >
-                        <Pencil size={16} />
+                        <Pencil size={15} />
                       </button>
                       <button
                         type="button"
                         onClick={() => removeMedia(idx)}
-                        className="p-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-lg transition-colors cursor-pointer"
+                        className="p-1.5 text-slate-600 hover:text-rose-700 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
                         title="Delete File"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={15} />
                       </button>
                     </div>
                   </div>
