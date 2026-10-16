@@ -59,18 +59,18 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       {/* Main Content Area */}
       <div className="main-content flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden">
         {/* Modern Fiix Top Navbar */}
-        <header className="w-full bg-white border-b border-slate-200/90 h-[56px] px-4 sm:px-6 flex items-center justify-between z-40 shrink-0 shadow-xs print:hidden">
+        <header className="w-full bg-white border-b border-slate-200/90 h-[42px] px-3 sm:px-5 flex items-center justify-between z-40 shrink-0 shadow-xs print:hidden">
           
           {/* Breadcrumbs Trail */}
-          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 overflow-x-auto py-1">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 overflow-x-auto py-0.5">
             <button 
               onClick={() => navigate('/dashboard')}
               className="p-1 text-slate-400 hover:text-blue-600 rounded transition-colors flex items-center gap-1 shrink-0"
               title="Home"
             >
-              <Home size={14} />
+              <Home size={13} />
             </button>
-            <ChevronRight size={12} className="text-slate-300 shrink-0" />
+            <ChevronRight size={11} className="text-slate-300 shrink-0" />
             
             {breadcrumbs.map((crumb, index) => {
               const isLast = index === breadcrumbs.length - 1;
@@ -83,14 +83,14 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                     onClick={() => crumb.path && navigate(crumb.path)}
                     className={`${
                       isLast 
-                        ? 'text-slate-900 font-bold bg-slate-100/70 px-2 py-0.5 rounded-md text-[13px]' 
+                        ? 'text-slate-900 font-bold bg-slate-100/70 px-1.5 py-0.5 rounded text-xs' 
                         : 'text-slate-500 hover:text-blue-600 transition-colors'
                     } ${crumb.path && !isLast ? 'cursor-pointer hover:underline' : ''}`}
                   >
                     {crumb.label}
                   </span>
                   {!isLast && (
-                    <ChevronRight size={12} className="text-slate-300 shrink-0" />
+                    <ChevronRight size={11} className="text-slate-300 shrink-0" />
                   )}
                 </div>
               );
@@ -98,20 +98,20 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
 
           {/* Right Header Badges & Context */}
-          <div className="hidden sm:flex items-center gap-3 shrink-0">
+          <div className="hidden sm:flex items-center gap-2.5 shrink-0">
             {/* System Status Pill */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200/70 rounded-full text-[11px] font-semibold">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/70 rounded-full text-[10px] font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
               <span>CMMS Online</span>
             </div>
 
             {/* User Quick Info */}
             {user && (
-              <div className="flex items-center gap-2 pl-3 border-l border-slate-200 text-xs text-slate-600">
+              <div className="flex items-center gap-1.5 pl-2.5 border-l border-slate-200 text-xs text-slate-600">
                 <span className="font-semibold text-slate-800">
                   {user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.username}
                 </span>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200/60 rounded">
+                <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200/60 rounded">
                   {user.role === 'SUPER_ADMIN' ? 'Admin' : (user.role || 'User')}
                 </span>
               </div>
@@ -120,7 +120,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         </header>
 
         {/* Scrollable Workspace */}
-        <main className="flex-1 p-3 sm:p-5 md:p-6 overflow-y-auto bg-slate-50">
+        <main className="flex-1 p-2.5 sm:p-4 overflow-y-auto bg-slate-50">
           <div className="max-w-[1600px] mx-auto w-full">
             {children}
           </div>

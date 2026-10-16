@@ -73,12 +73,12 @@ export function NotificationBell({ isExpanded }: { isExpanded: boolean }) {
     <div className="relative">
       <button
         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-        className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition-colors shrink-0 relative"
+        className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors shrink-0 relative"
         title="Notifications"
       >
-        <Bell size={18} />
+        <Bell size={13} />
         {unreadCount > 0 && (
-          <span className="absolute top-1.5 right-2 w-2 h-2 bg-red-500 rounded-full shadow-sm animate-pulse" />
+          <span className="absolute top-0.5 right-0.5 w-2 h-2 bg-red-500 rounded-full shadow-sm animate-pulse" />
         )}
       </button>
 
