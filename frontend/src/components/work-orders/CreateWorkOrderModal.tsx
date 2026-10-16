@@ -11,6 +11,8 @@ import {
   Cpu,
   Loader2,
   ChevronLeft,
+  Pencil,
+  FileText,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { workOrderService } from '../../services/workOrderService';
@@ -40,9 +42,27 @@ export function CreateWorkOrderModal({
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [mediaList, setMediaList] = useState<{ fileUrl: string; fileName: string; fileType: string }[]>([]);
   const [viewingMediaUrl, setViewingMediaUrl] = useState<string | null>(null);
+  const [editingMedia, setEditingMedia] = useState<{
+    index: number;
+    fileName: string;
+    fileUrl: string;
+    fileType: string;
+    newFile?: File | null;
+  } | null>(null);
+  const [savingMediaEdit, setSavingMediaEdit] = useState(false);
 
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const detectFileType = (file: File) => {
+    if (file.type.startsWith('video') || file.name.match(/\.(mp4|mov|avi|wmv|webm|mkv)$/i)) return 'VIDEO';
+    if (file.type.startsWith('image') || file.name.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i)) return 'IMAGE';
+    return 'DOCUMENT';
+  };
+
+  const isDocFile = (m: { fileName: string; fileType?: string }) => {
+    return m.fileType === 'DOCUMENT' || !!m.fileName?.match(/\.(pdf|doc|docx|xls|xlsx|csv|txt|ppt|pptx)$/i);
+  };
 
   useEffect(() => {
     if (preselectedMachine) {
@@ -88,7 +108,7 @@ export function CreateWorkOrderModal({
       const mockFiles = Array.from(files).map(f => ({
         fileName: f.name,
         fileUrl: URL.createObjectURL(f),
-        fileType: f.type.startsWith('video') ? 'VIDEO' : 'IMAGE',
+        fileType: detectFileType(f),
       }));
       setMediaList(prev => [...prev, ...mockFiles]);
       toast.success('Media files attached!');
@@ -100,6 +120,58 @@ export function CreateWorkOrderModal({
   const removeMedia = (index: number) => {
     setMediaList(prev => prev.filter((_, i) => i !== index));
     toast.success('Attached file removed');
+  };
+
+  const handleViewMedia = (m: { fileUrl: string; fileName: string; fileType: string }) => {
+    if (isDocFile(m)) {
+      window.open(m.fileUrl, '_blank');
+    } else {
+      setViewingMediaUrl(m.fileUrl);
+    }
+  };
+
+  const handleSaveMediaEdit = async () => {
+    if (!editingMedia || !editingMedia.fileName.trim()) {
+      toast.error('File name is required');
+      return;
+    }
+
+    setSavingMediaEdit(true);
+    try {
+      let updatedUrl = editingMedia.fileUrl;
+      let updatedType = editingMedia.fileType;
+
+      if (editingMedia.newFile) {
+        try {
+          const res = await workOrderService.uploadMediaFiles([editingMedia.newFile]);
+          if (res && res.files && res.files[0]) {
+            updatedUrl = res.files[0].fileUrl;
+            updatedType = res.files[0].fileType || detectFileType(editingMedia.newFile);
+          }
+        } catch {
+          updatedUrl = URL.createObjectURL(editingMedia.newFile);
+          updatedType = detectFileType(editingMedia.newFile);
+        }
+      }
+
+      setMediaList(prev => prev.map((item, idx) => {
+        if (idx === editingMedia.index) {
+          return {
+            fileName: editingMedia.fileName.trim(),
+            fileUrl: updatedUrl,
+            fileType: updatedType,
+          };
+        }
+        return item;
+      }));
+
+      toast.success('Attached file updated successfully');
+      setEditingMedia(null);
+    } catch (err) {
+      toast.error('Failed to update attached file');
+    } finally {
+      setSavingMediaEdit(false);
+    }
   };
 
   const validateForm = (): boolean => {
@@ -362,29 +434,51 @@ export function CreateWorkOrderModal({
                 {mediaList.map((m, idx) => (
                   <div
                     key={idx}
-                    className="relative group bg-gray-100 rounded-xl overflow-hidden border border-gray-200 aspect-video flex items-center justify-center"
+                    className="relative group bg-slate-100 rounded-xl overflow-hidden border border-slate-200 aspect-video flex items-center justify-center"
                   >
                     {m.fileType === 'VIDEO' ? (
-                      <div className="flex flex-col items-center text-slate-700 p-2">
-                        <Film size={28} />
+                      <div className="flex flex-col items-center justify-center text-slate-700 p-2 text-center h-full w-full">
+                        <Film size={28} className="text-slate-600 mb-1" />
                         <span className="text-[10px] truncate max-w-full font-semibold">{m.fileName}</span>
+                      </div>
+                    ) : isDocFile(m) ? (
+                      <div className="flex flex-col items-center justify-center p-3 text-center h-full w-full bg-slate-50">
+                        <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-1 shadow-2xs">
+                          <FileText size={18} />
+                        </div>
+                        <span className="text-[11px] font-semibold text-slate-800 line-clamp-2 px-1 max-w-full leading-tight" title={m.fileName}>
+                          {m.fileName}
+                        </span>
+                        <span className="text-[9px] uppercase font-bold text-slate-400 mt-0.5">
+                          {m.fileName.split('.').pop() || 'DOC'}
+                        </span>
                       </div>
                     ) : (
                       <img src={m.fileUrl} alt={m.fileName} className="w-full h-full object-cover" />
                     )}
 
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
                       <button
                         type="button"
-                        onClick={() => setViewingMediaUrl(m.fileUrl)}
-                        className="p-1.5 bg-white/20 hover:bg-white text-white hover:text-black rounded-lg transition-colors"
+                        onClick={() => handleViewMedia(m)}
+                        className="p-1.5 bg-white/20 hover:bg-white text-white hover:text-black rounded-lg transition-colors cursor-pointer"
+                        title="View File"
                       >
                         <Eye size={16} />
                       </button>
                       <button
                         type="button"
+                        onClick={() => setEditingMedia({ index: idx, fileName: m.fileName, fileUrl: m.fileUrl, fileType: m.fileType, newFile: null })}
+                        className="p-1.5 bg-blue-600/80 hover:bg-blue-600 text-white rounded-lg transition-colors cursor-pointer"
+                        title="Edit File"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => removeMedia(idx)}
-                        className="p-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-lg transition-colors"
+                        className="p-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-lg transition-colors cursor-pointer"
+                        title="Delete File"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -410,7 +504,7 @@ export function CreateWorkOrderModal({
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
+            className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             Cancel
           </button>
@@ -418,7 +512,7 @@ export function CreateWorkOrderModal({
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-sm font-semibold transition-all shadow-sm disabled:opacity-70 min-w-[100px]"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-sm font-semibold transition-all shadow-sm disabled:opacity-70 min-w-[100px] cursor-pointer"
           >
             {isSubmitting ? (
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -429,14 +523,87 @@ export function CreateWorkOrderModal({
         </div>
       </motion.div>
 
+      {/* Edit Media Modal */}
+      {editingMedia && (
+        <div className="fixed inset-0 z-70 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl border border-slate-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+              <h3 className="text-base font-bold text-slate-900">Edit Attached File</h3>
+              <button
+                type="button"
+                onClick={() => setEditingMedia(null)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">File Name <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  value={editingMedia.fileName}
+                  onChange={e => setEditingMedia(prev => prev ? { ...prev, fileName: e.target.value } : null)}
+                  className="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-900"
+                  placeholder="Enter file name"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Replace File (Optional)</label>
+                <input
+                  type="file"
+                  onChange={e => {
+                    if (e.target.files && e.target.files[0]) {
+                      const selected = e.target.files[0];
+                      setEditingMedia(prev => prev ? {
+                        ...prev,
+                        newFile: selected,
+                        fileName: prev.fileName || selected.name
+                      } : null);
+                    }
+                  }}
+                  className="block w-full text-xs text-slate-600 border border-slate-300 rounded-lg p-2 cursor-pointer focus:outline-none file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 transition-colors"
+                />
+                {editingMedia.newFile && (
+                  <p className="text-xs text-emerald-600 font-semibold mt-1 truncate">
+                    Selected new file: {editingMedia.newFile.name}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setEditingMedia(null)}
+                  className="px-4 py-2 border border-slate-300 bg-white text-slate-700 rounded-lg text-xs sm:text-sm font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveMediaEdit}
+                  disabled={savingMediaEdit}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-lg text-xs sm:text-sm font-semibold transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  {savingMediaEdit ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Media Viewer Modal */}
       {viewingMediaUrl && (
         <div className="fixed inset-0 z-60 bg-black/90 flex items-center justify-center p-4">
           <button
+            type="button"
             onClick={() => setViewingMediaUrl(null)}
-            className="absolute top-4 right-4 text-white hover:text-gray-300 p-2"
+            className="absolute top-4 right-4 text-white hover:text-gray-300 p-2 cursor-pointer bg-white/10 hover:bg-white/20 rounded-full transition-colors"
           >
-            <X size={28} />
+            <X size={24} />
           </button>
           <img src={viewingMediaUrl} alt="Enlarged media view" className="max-w-full max-h-[85vh] rounded-xl shadow-2xl" />
         </div>
