@@ -101,7 +101,7 @@ function App() {
               borderRadius: '12px',
               border: '1px solid #e5e7eb',
               boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-              fontSize: '14px',
+              fontSize: '10.5px',
               fontWeight: 500,
             },
             success: {

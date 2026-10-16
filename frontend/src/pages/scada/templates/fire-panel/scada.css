@@ -42,7 +42,7 @@
 .scada-metric-label {
   color: #9ca3af; /* gray-400 */
   font-weight: 600; /* font-semibold */
-  font-size: 10px; /* text-[10px] */
+  font-size: 7.5px; /* scaled 75% */
   letter-spacing: 0.05em; /* tracking-wider */
   text-transform: uppercase; /* uppercase */
 }
