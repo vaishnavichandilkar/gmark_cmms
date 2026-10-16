@@ -585,7 +585,7 @@ export function AddMachine() {
               onClick={() => setActiveTab(tab)}
               className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === tab 
-                  ? 'bg-blue-600 text-white shadow-2xs' 
+                  ? 'bg-emerald-600 text-white shadow-2xs' 
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >{tab}</button>
@@ -1150,7 +1150,7 @@ export function AddMachine() {
           type="button"
           onClick={handleFinalSave} 
           disabled={loading} 
-          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 active:scale-98 text-white rounded-md font-semibold text-xs transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
+          className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-md font-semibold text-xs transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
         >
           {loading ? 'Saving...' : 'Save Machine'}
         </button>

@@ -65,7 +65,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 overflow-x-auto py-0.5">
             <button 
               onClick={() => navigate('/dashboard')}
-              className="p-1 text-slate-400 hover:text-blue-600 rounded transition-colors flex items-center gap-1 shrink-0"
+              className="p-1 text-slate-400 hover:text-emerald-600 rounded transition-colors flex items-center gap-1 shrink-0"
               title="Home"
             >
               <Home size={13} />
@@ -84,7 +84,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                     className={`${
                       isLast 
                         ? 'text-slate-900 font-bold bg-slate-100/70 px-1.5 py-0.5 rounded text-xs' 
-                        : 'text-slate-500 hover:text-blue-600 transition-colors'
+                        : 'text-slate-500 hover:text-emerald-600 transition-colors'
                     } ${crumb.path && !isLast ? 'cursor-pointer hover:underline' : ''}`}
                   >
                     {crumb.label}
@@ -111,7 +111,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                 <span className="font-semibold text-slate-800">
                   {user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.username}
                 </span>
-                <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200/60 rounded">
+                <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/60 rounded">
                   {user.role === 'SUPER_ADMIN' ? 'Admin' : (user.role || 'User')}
                 </span>
               </div>

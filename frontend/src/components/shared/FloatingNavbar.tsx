@@ -236,20 +236,20 @@ export function FloatingNavbar() {
               : 'w-7 h-7 mx-auto justify-center'
           } ${
             isCurrentActive
-              ? 'bg-blue-50/90 text-blue-700 font-semibold shadow-2xs'
+              ? 'bg-emerald-50/90 text-emerald-700 font-semibold shadow-2xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 font-medium'
           } ${
             isCurrentActive
               ? isExpanded
-                ? 'before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[2px] before:bg-blue-600 before:rounded-r-sm'
-                : 'before:absolute before:left-0.5 before:top-1 before:bottom-1 before:w-[2px] before:bg-blue-600 before:rounded-r-sm'
+                ? 'before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[2px] before:bg-emerald-600 before:rounded-r-sm'
+                : 'before:absolute before:left-0.5 before:top-1 before:bottom-1 before:w-[2px] before:bg-emerald-600 before:rounded-r-sm'
               : ''
           }`}
           title={!isExpanded ? item.label : undefined}
         >
           <div className={`flex items-center ${isExpanded ? 'w-full min-w-0' : 'justify-center'} z-10`}>
             <span className={`shrink-0 transition-colors ${
-              isCurrentActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'
+              isCurrentActive ? 'text-emerald-600' : 'text-slate-400 group-hover:text-slate-600'
             }`}>
               {item.icon}
             </span>
@@ -298,12 +298,12 @@ export function FloatingNavbar() {
                         }}
                         className={`h-[24px] px-2 rounded flex items-center justify-between text-xs transition-all cursor-pointer relative group ${
                           isChildActive
-                            ? 'bg-blue-50 text-blue-700 font-semibold before:absolute before:-left-[10px] before:top-1 before:bottom-1 before:w-[2px] before:bg-blue-600'
+                            ? 'bg-emerald-50 text-emerald-700 font-semibold before:absolute before:-left-[10px] before:top-1 before:bottom-1 before:w-[2px] before:bg-emerald-600'
                             : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100/60 font-medium'
                         }`}
                       >
                         <div className="flex items-center gap-1.5 min-w-0">
-                          <span className={isChildActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}>
+                          <span className={isChildActive ? 'text-emerald-600' : 'text-slate-400 group-hover:text-slate-600'}>
                             {child.icon}
                           </span>
                           <span className="truncate">{child.label}</span>
@@ -328,7 +328,7 @@ export function FloatingNavbar() {
         {/* Toggle Expand Button */}
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="absolute -right-2.5 top-[11px] w-5 h-5 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 hover:text-blue-600 hover:border-blue-400 hover:shadow-xs transition-all duration-150 z-50 shadow-xs cursor-pointer"
+          className="absolute -right-2.5 top-[11px] w-5 h-5 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:border-emerald-400 hover:shadow-xs transition-all duration-150 z-50 shadow-xs cursor-pointer"
           title={isExpanded ? 'Collapse Sidebar' : 'Expand Sidebar'}
         >
           {isExpanded ? <ChevronLeft size={11} strokeWidth={2.5} /> : <ChevronRight size={11} strokeWidth={2.5} />}
@@ -342,7 +342,7 @@ export function FloatingNavbar() {
             className={isExpanded ? "h-6 w-auto max-w-[100px] object-contain" : "h-5 w-auto object-contain"} 
           />
           {isExpanded && (
-            <span className="text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200/60 rounded">
+            <span className="text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/60 rounded">
               CMMS
             </span>
           )}
@@ -360,7 +360,7 @@ export function FloatingNavbar() {
               className={`flex items-center gap-1.5 cursor-pointer hover:bg-white p-1 rounded-md border border-transparent hover:border-slate-200/80 transition-all relative ${!isExpanded ? 'p-0 hover:bg-transparent hover:border-transparent' : 'flex-1 min-w-0 mr-1'}`}
               onClick={() => setIsProfilePopupOpen(!isProfilePopupOpen)}
             >
-              <div className="w-6 h-6 rounded-md bg-blue-50 text-blue-700 border border-blue-200/80 flex items-center justify-center shrink-0 font-bold text-[11px] shadow-xs">
+              <div className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/80 flex items-center justify-center shrink-0 font-bold text-[11px] shadow-xs">
                 {user.firstName ? user.firstName.charAt(0).toUpperCase() : (user.username ? user.username.charAt(0).toUpperCase() : 'U')}
               </div>
               
@@ -393,7 +393,7 @@ export function FloatingNavbar() {
                       className={`absolute bottom-[calc(100%+8px)] ${isExpanded ? 'left-0' : 'left-full ml-3'} w-56 bg-white rounded-lg shadow-lg border border-slate-200 overflow-hidden z-50 cursor-default`}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="p-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+                      <div className="p-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 rounded-md bg-white/20 flex items-center justify-center shrink-0 border border-white/30 font-bold text-xs">
                             {user.firstName ? user.firstName.charAt(0).toUpperCase() : 'U'}
@@ -402,7 +402,7 @@ export function FloatingNavbar() {
                             <span className="text-xs font-bold truncate">
                               {user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.username || 'Admin User'}
                             </span>
-                            <span className="text-[10px] text-blue-100 truncate">{user.email || user.username}</span>
+                            <span className="text-[10px] text-emerald-100 truncate">{user.email || user.username}</span>
                           </div>
                         </div>
                       </div>
@@ -412,7 +412,7 @@ export function FloatingNavbar() {
                             setIsProfilePopupOpen(false);
                             setIsChangePasswordModalOpen(true);
                           }}
-                          className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600 rounded-md transition-colors cursor-pointer"
+                          className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-emerald-600 rounded-md transition-colors cursor-pointer"
                         >
                           <Key size={13} className="text-slate-400" />
                           Change Password
@@ -464,7 +464,7 @@ export function FloatingNavbar() {
       {/* Mobile Hamburger Button */}
       <button
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        className="fixed top-2 right-3 sm:hidden z-[60] w-8 h-8 bg-white border border-slate-200 rounded-md flex items-center justify-center text-slate-600 hover:text-blue-600 shadow-xs cursor-pointer"
+        className="fixed top-2 right-3 sm:hidden z-[60] w-8 h-8 bg-white border border-slate-200 rounded-md flex items-center justify-center text-slate-600 hover:text-emerald-600 shadow-xs cursor-pointer"
       >
         {isMobileMenuOpen ? <X size={16} /> : <Menu size={16} />}
       </button>
@@ -493,7 +493,7 @@ export function FloatingNavbar() {
               {/* Logo Section */}
               <div className="flex items-center justify-between px-3 h-[42px] border-b border-slate-100">
                 <img src={logo4m} alt="4M Logo" className="h-6 w-auto object-contain" />
-                <span className="text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200/60 rounded">
+                <span className="text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/60 rounded">
                   CMMS
                 </span>
               </div>
@@ -510,7 +510,7 @@ export function FloatingNavbar() {
                   onClick={() => setIsProfilePopupOpen(!isProfilePopupOpen)}
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-7 h-7 rounded-md bg-blue-50 text-blue-700 border border-blue-200 flex items-center justify-center shrink-0 font-bold text-xs">
+                    <div className="w-7 h-7 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center shrink-0 font-bold text-xs">
                       {user.firstName ? user.firstName.charAt(0).toUpperCase() : 'U'}
                     </div>
                     <div className="flex flex-col min-w-0">
@@ -542,7 +542,7 @@ export function FloatingNavbar() {
                             setIsMobileMenuOpen(false);
                             setIsChangePasswordModalOpen(true);
                           }}
-                          className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600 rounded-md transition-colors"
+                          className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-emerald-600 rounded-md transition-colors"
                         >
                           <Key size={14} />
                           Change Password

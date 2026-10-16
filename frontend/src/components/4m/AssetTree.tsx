@@ -205,7 +205,7 @@ const TreeNode = ({
     switch (node.type) {
       case 'society':
       case 'mainFacility':
-        return { icon: <Building2 className="w-4 h-4 text-blue-600" />, bg: 'bg-blue-50', border: 'border-blue-100' };
+        return { icon: <Building2 className="w-4 h-4 text-emerald-600" />, bg: 'bg-emerald-50', border: 'border-emerald-100' };
       case 'building':
       case 'facility':
         return { icon: <Building className="w-4 h-4 text-[#00a651]" />, bg: 'bg-green-50', border: 'border-green-100' };
@@ -262,7 +262,7 @@ const TreeNode = ({
             : isOver && isTargetValid
             ? 'bg-emerald-50/90 border-2 border-dashed border-emerald-500 rounded-xl ring-4 ring-emerald-500/20 shadow-sm z-20'
             : isSelected 
-            ? 'bg-blue-50/80 text-blue-700' 
+            ? 'bg-emerald-50/80 text-emerald-700' 
             : 'text-gray-700 hover:bg-gray-50'
         } ${canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}
         style={{ paddingLeft: `${level * 24 + 12}px` }}
@@ -277,7 +277,7 @@ const TreeNode = ({
       >
         {/* Left accent bar for selection */}
         {isSelected && !isOver && (
-           <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-blue-500" />
+           <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-emerald-500" />
         )}
 
         {/* Drag grip icon */}

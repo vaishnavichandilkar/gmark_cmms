@@ -265,7 +265,7 @@ export function CustomSelect({
         className={`flex items-center w-full transition-all outline-none ${
           variant === 'ghost'
             ? `px-2.5 py-1.5 bg-transparent border-none ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50 rounded-lg'} ${isOpen ? 'bg-slate-50' : ''}`
-            : `${inputClassName ? inputClassName : 'px-2.5 py-1 min-h-[32px] h-8 text-xs'} border ${rounded === 'xl' ? 'rounded-lg' : rounded === '2xl' ? 'rounded-xl' : 'rounded-md'} ${disabled ? 'bg-slate-100 cursor-not-allowed text-slate-400' : 'bg-white cursor-pointer'} ${isOpen ? 'border-blue-600 ring-1 ring-blue-500/20' : 'border-slate-300 hover:border-slate-400'}`
+            : `${inputClassName ? inputClassName : 'px-2.5 py-1 min-h-[32px] h-8 text-xs'} border ${rounded === 'xl' ? 'rounded-lg' : rounded === '2xl' ? 'rounded-xl' : 'rounded-md'} ${disabled ? 'bg-slate-100 cursor-not-allowed text-slate-400' : 'bg-white cursor-pointer'} ${isOpen ? 'border-emerald-600 ring-1 ring-emerald-500/20' : 'border-slate-300 hover:border-slate-400'}`
         }`}
         onClick={() => {
           if (!disabled && !isOpen) setIsOpen(true);
@@ -303,7 +303,7 @@ export function CustomSelect({
             disabled={disabled}
             className={`p-0.5 transition-all duration-150 ${
               isOpen 
-                ? 'rotate-180 text-blue-600' 
+                ? 'rotate-180 text-emerald-600' 
                 : 'hover:text-slate-600'
             } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
             onClick={(e) => {
@@ -343,7 +343,7 @@ export function CustomSelect({
                     value={filterSearch}
                     onChange={(e) => setFilterSearch(e.target.value)}
                     placeholder="Search..."
-                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-600 focus:bg-white transition-colors text-slate-800 placeholder-slate-400"
+                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-emerald-600 focus:bg-white transition-colors text-slate-800 placeholder-slate-400"
                   />
                   {filterSearch && (
                     <button
@@ -370,11 +370,11 @@ export function CustomSelect({
                       key={aIdx}
                       type="button"
                       onClick={() => handleSelect(actOpt)}
-                      className={`w-full px-3 py-2 cursor-pointer text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 border border-blue-200 rounded-lg transition-all flex items-center justify-center gap-1.5 shadow-xs ${
-                        isHighlighted ? 'ring-2 ring-blue-500' : ''
+                      className={`w-full px-3 py-2 cursor-pointer text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 border border-emerald-200 rounded-lg transition-all flex items-center justify-center gap-1.5 shadow-xs ${
+                        isHighlighted ? 'ring-2 ring-emerald-500' : ''
                       }`}
                     >
-                      <Plus size={14} className="text-blue-600 flex-shrink-0" />
+                      <Plus size={14} className="text-emerald-600 flex-shrink-0" />
                       <span className="truncate">{cleanActionLabel(rawLabel)}</span>
                     </button>
                   );
@@ -389,9 +389,9 @@ export function CustomSelect({
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => handleAddCustom(trimmedSearch)}
-                  className="w-full px-3 py-2 text-left cursor-pointer text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 border border-blue-300 rounded-lg transition-all flex items-center gap-1.5 shadow-xs"
+                  className="w-full px-3 py-2 text-left cursor-pointer text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 border border-emerald-300 rounded-lg transition-all flex items-center gap-1.5 shadow-xs"
                 >
-                  <Plus size={14} className="text-blue-600 flex-shrink-0" />
+                  <Plus size={14} className="text-emerald-600 flex-shrink-0" />
                   <span className="truncate">Add &ldquo;{trimmedSearch}&rdquo;</span>
                 </button>
               </div>
@@ -414,14 +414,14 @@ export function CustomSelect({
                       onMouseEnter={() => setHighlightedIndex(itemIndex)}
                       className={`px-3 py-2 cursor-pointer text-xs sm:text-sm rounded-lg transition-all flex items-center justify-between ${
                         isSelected 
-                          ? 'bg-blue-50 text-blue-700 font-semibold' 
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold' 
                           : isHighlighted
                           ? 'bg-slate-100 text-slate-900 font-medium'
                           : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
                       }`}
                     >
                       <span className="truncate">{optLabel}</span>
-                      {isSelected && <Check size={15} className="text-blue-600 flex-shrink-0 ml-2" />}
+                      {isSelected && <Check size={15} className="text-emerald-600 flex-shrink-0 ml-2" />}
                     </div>
                   );
                 })

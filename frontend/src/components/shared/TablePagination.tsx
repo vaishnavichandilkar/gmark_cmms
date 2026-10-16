@@ -47,11 +47,11 @@ export function TablePagination({
           <button
             onClick={() => setIsOpen(!isOpen)}
             className={`flex items-center gap-1.5 cursor-pointer border px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
-              isOpen ? 'border-blue-600 bg-blue-50/50 text-blue-700' : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
+              isOpen ? 'border-emerald-600 bg-emerald-50/50 text-emerald-700' : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
             }`}
           >
             <span>{rowsPerPage}</span>
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180 text-blue-600' : 'text-slate-400'}`} />
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180 text-emerald-600' : 'text-slate-400'}`} />
           </button>
 
           {isOpen && (
@@ -64,7 +64,7 @@ export function TablePagination({
                     setIsOpen(false);
                   }}
                   className={`px-3 py-1.5 cursor-pointer text-xs transition-colors ${
-                    rowsPerPage === val ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-700 hover:bg-slate-50'
+                    rowsPerPage === val ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-700 hover:bg-slate-50'
                   }`}
                 >
                   {val} rows

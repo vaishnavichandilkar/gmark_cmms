@@ -250,7 +250,7 @@ export function EmployeeHierarchyPicker({
                 <button 
                   onClick={handleConfirm}
                   disabled={!selectedNode || selectedNode.type !== 'employee'}
-                  className="px-6 py-2 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 rounded-xl text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Confirm
                 </button>

@@ -230,7 +230,7 @@ export function AddSchedulePage() {
                 onClick={() => setActiveSubTab(tab.id as any)}
                 className={`py-2 px-3.5 text-xs font-bold whitespace-nowrap rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-blue-600 text-white shadow-xs'
+                    ? 'bg-emerald-600 text-white shadow-xs'
                     : 'bg-gray-100 text-gray-600 hover:text-gray-900 hover:bg-gray-200'
                 }`}
               >
@@ -253,7 +253,7 @@ export function AddSchedulePage() {
                   <select
                     value={selectedMachineId}
                     onChange={e => handleMachineSelect(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-sm text-gray-900 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-500/20 transition-all cursor-pointer"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-sm text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20 transition-all cursor-pointer"
                   >
                     <option value="">Select Machine</option>
                     {machinesList.map(m => (
@@ -271,7 +271,7 @@ export function AddSchedulePage() {
                   <select
                     value={scheduleType}
                     onChange={e => setScheduleType(e.target.value as any)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-sm text-gray-900 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-500/20 transition-all cursor-pointer"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-sm text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20 transition-all cursor-pointer"
                   >
                     <option value="PREVENTIVE">Preventive Maintenance</option>
                     <option value="PREDICTIVE">Predictive Diagnostic</option>
@@ -287,7 +287,7 @@ export function AddSchedulePage() {
                   <select
                     value={priority}
                     onChange={e => setPriority(e.target.value as any)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-sm text-gray-900 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-500/20 transition-all cursor-pointer"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-sm text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500/20 transition-all cursor-pointer"
                   >
                     <option value="LOW">Low</option>
                     <option value="MEDIUM">Medium</option>
@@ -686,7 +686,7 @@ export function AddSchedulePage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-lg text-xs font-bold transition-all shadow-xs disabled:opacity-70 min-w-[90px] cursor-pointer"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-xs font-bold transition-all shadow-xs disabled:opacity-70 min-w-[90px] cursor-pointer"
             >
               {isSubmitting ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

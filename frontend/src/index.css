@@ -16,17 +16,30 @@
   --text-3xl: 1.875rem; /* 22.5px (75% of 30px) */
   --text-4xl: 2.25rem;  /* 27.0px (75% of 36px) */
 
-  /* Fiix Enterprise CMMS Brand Colors */
-  --color-fiix-50: #eff6ff;
-  --color-fiix-100: #dbeafe;
-  --color-fiix-200: #bfdbfe;
-  --color-fiix-300: #93c5fd;
-  --color-fiix-400: #60a5fa;
-  --color-fiix-500: #3b82f6;
-  --color-fiix-600: #2563eb;
-  --color-fiix-700: #1d4ed8;
-  --color-fiix-800: #1e40af;
-  --color-fiix-900: #1e3a8a;
+  /* 4M Brand Enterprise Green Colors */
+  --color-fiix-50: #edfcf4;
+  --color-fiix-100: #d3f9e2;
+  --color-fiix-200: #aaf0cc;
+  --color-fiix-300: #70e2b0;
+  --color-fiix-400: #31ca8f;
+  --color-fiix-500: #0cae74;
+  --color-fiix-600: #009a43;
+  --color-fiix-700: #037b3b;
+  --color-fiix-800: #066132;
+  --color-fiix-900: #07502a;
+
+  /* Global Blue -> 4M Brand Green mapping */
+  --color-blue-50: #edfcf4;
+  --color-blue-100: #d3f9e2;
+  --color-blue-200: #aaf0cc;
+  --color-blue-300: #70e2b0;
+  --color-blue-400: #31ca8f;
+  --color-blue-500: #0cae74;
+  --color-blue-600: #009a43;
+  --color-blue-700: #037b3b;
+  --color-blue-800: #066132;
+  --color-blue-900: #07502a;
+  --color-blue-950: #022d16;
 
   /* 4M Brand Logo Green Colors */
   --color-green-50: #edfcf4;
@@ -119,13 +132,13 @@
     font-size: 0.95rem; /* ~11.4px */
   }
 
-  /* Fiix Enterprise Form Input Focus States */
+  /* 4M Brand Enterprise Form Input Focus States */
   input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):focus,
   select:focus,
   textarea:focus {
     outline: none;
-    border-color: #2563eb;
-    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+    border-color: #009a43;
+    box-shadow: 0 0 0 2px rgba(0, 154, 67, 0.15);
   }
 }
 
@@ -443,15 +456,15 @@
   transition: all 0.2s !important;
 }
 .react-datepicker__day:hover {
-  background-color: #dbeafe !important;
-  color: #2563eb !important;
+  background-color: #d3f9e2 !important;
+  color: #009a43 !important;
 }
 .react-datepicker__day--selected, .react-datepicker__day--keyboard-selected {
-  background-color: #2563eb !important;
+  background-color: #009a43 !important;
   color: #ffffff !important;
 }
 .react-datepicker__day--selected:hover, .react-datepicker__day--keyboard-selected:hover {
-  background-color: #1d4ed8 !important;
+  background-color: #037b3b !important;
 }
 .react-datepicker__day--outside-month {
   color: #d1d5db !important;

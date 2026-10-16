@@ -88,12 +88,12 @@ export function TableActions({
           <div className="relative" ref={exportMenuRef}>
             <button 
               onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-              className="flex items-center gap-2 h-[38px] px-3.5 bg-blue-50/60 border border-blue-200 hover:bg-blue-100/70 hover:border-blue-300 text-blue-700 rounded-lg text-xs font-semibold shadow-xs transition-all shrink-0 cursor-pointer" 
+              className="flex items-center gap-2 h-[38px] px-3.5 bg-emerald-50/60 border border-emerald-200 hover:bg-emerald-100/70 hover:border-emerald-300 text-emerald-700 rounded-lg text-xs font-semibold shadow-xs transition-all shrink-0 cursor-pointer" 
               title="Export"
             >
-              <Download className="w-3.5 h-3.5 text-blue-600" />
+              <Download className="w-3.5 h-3.5 text-emerald-600" />
               <span className="hidden sm:inline">Export</span>
-              <ChevronDown className="w-3 h-3 text-blue-400 hidden sm:block" />
+              <ChevronDown className="w-3 h-3 text-emerald-400 hidden sm:block" />
             </button>
             
             {isExportMenuOpen && (
@@ -103,7 +103,7 @@ export function TableActions({
                     onExport('pdf');
                     setIsExportMenuOpen(false);
                   }}
-                  className="w-full text-left px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                  className="w-full text-left px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2.5 transition-colors cursor-pointer"
                 >
                   <FileText className="w-4 h-4 text-rose-500" />
                   Export as PDF
@@ -113,7 +113,7 @@ export function TableActions({
                     onExport('excel');
                     setIsExportMenuOpen(false);
                   }}
-                  className="w-full text-left px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                  className="w-full text-left px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2.5 transition-colors cursor-pointer"
                 >
                   <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
                   Export as Excel
@@ -140,12 +140,12 @@ export function TableActions({
               onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
               className={`flex items-center gap-2 h-[38px] px-3.5 border rounded-lg text-xs font-semibold transition-all shrink-0 shadow-xs cursor-pointer ${
                 hasActiveFilters 
-                  ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100' 
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100' 
                   : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400'
               }`}
               title="Filter"
             >
-              <Filter className={`w-3.5 h-3.5 ${hasActiveFilters ? 'text-blue-600' : 'text-slate-500'}`} />
+              <Filter className={`w-3.5 h-3.5 ${hasActiveFilters ? 'text-emerald-600' : 'text-slate-500'}`} />
               <span className="hidden sm:inline">
                 Filter {hasActiveFilters && `(${Object.keys(activeFilters).length})`}
               </span>
@@ -155,7 +155,7 @@ export function TableActions({
               <div className="absolute right-0 mt-1.5 w-72 sm:w-80 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col">
                 <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
                   <div className="flex items-center gap-2">
-                    <Filter className="w-4 h-4 text-blue-600" />
+                    <Filter className="w-4 h-4 text-emerald-600" />
                     <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Filter Records</span>
                   </div>
                   {hasActiveFilters && (
