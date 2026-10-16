@@ -2,13 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { 
   ChevronLeft, Printer, RotateCw, SlidersHorizontal, Plus, 
-  Trash2, Search, QrCode, Save, ArrowLeft, Eye, X, FileText, ChevronDown, Calendar,
-  Upload, Camera, Loader2, Image as ImageIcon, Pencil, Maximize2, Download, ZoomIn, ZoomOut
+  Trash2, Search, QrCode, Save, ArrowLeft, Eye, X, ChevronDown, Calendar,
+  Upload, Loader2, Image as ImageIcon, Pencil, Maximize2, Download, ZoomIn, ZoomOut
 } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { 
   spareService, type SparePart, type LocationStock, type MachineUsage, 
-  type SpecificationField, type WarrantyItem, type SupplierItem, type SpareDocument, type SpareLogItem 
+  type SpecificationField, type WarrantyItem, type SupplierItem, type SpareDocument 
 } from '../../../services/spareService';
 import { supplierService } from '../../../services/supplierService';
 import toast from 'react-hot-toast';
@@ -64,7 +64,6 @@ export function SpareDetailsPage() {
   const tabs = SPARE_TABS;
   const [activeTab, setActiveTab] = useState<TabType>('General');
   const [loading, setLoading] = useState(false);
-  const currentTabIndex = tabs.indexOf(activeTab);
 
   // Form State
   const [formData, setFormData] = useState<Partial<SparePart>>({
@@ -515,8 +514,8 @@ export function SpareDetailsPage() {
         [field]: value
       };
       if (field === 'inHandQuantity' || field === 'atSourceQuantity') {
-        const inHand = field === 'inHandQuantity' ? (value === '' ? 0 : Number(value) || 0) : (prev.inHandQuantity === '' ? 0 : Number(prev.inHandQuantity) || 0);
-        const atSource = field === 'atSourceQuantity' ? (value === '' ? 0 : Number(value) || 0) : (prev.atSourceQuantity === '' ? 0 : Number(prev.atSourceQuantity) || 0);
+        const inHand = field === 'inHandQuantity' ? (value === '' ? 0 : Number(value) || 0) : ((prev.inHandQuantity as any) === '' ? 0 : Number(prev.inHandQuantity) || 0);
+        const atSource = field === 'atSourceQuantity' ? (value === '' ? 0 : Number(value) || 0) : ((prev.atSourceQuantity as any) === '' ? 0 : Number(prev.atSourceQuantity) || 0);
         updated.stockQuantity = inHand + atSource;
         updated.totalStock = inHand + atSource;
       }

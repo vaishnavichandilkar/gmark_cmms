@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { ChevronLeft, User, Mail, Phone, Calendar, Briefcase, Building2, Wallet, Key, Eye, EyeOff } from 'lucide-react';
+import { ChevronLeft, User, Mail, Phone, Calendar, Briefcase, Building2, Wallet } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { CustomSelect } from '../../../components/shared/CustomSelect';
 import { CustomDatePicker } from '../../../components/shared/CustomDatePicker';
@@ -32,7 +32,6 @@ export function AddEmployee() {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(false);
   const [error, setError] = useState('');
-  const [designationsList, setDesignationsList] = useState<string[]>([]);
   const [reportingOptions, setReportingOptions] = useState<string[]>(['Super Admin']);
   
   const salaryInputRef = useRef<HTMLInputElement>(null);
@@ -46,7 +45,6 @@ export function AddEmployee() {
   }, [initialLoading, shouldFocusSalary]);
 
   useEffect(() => {
-    fetchDesignations();
     fetchReportingEmployees();
     
     if (id) {
@@ -94,34 +92,6 @@ export function AddEmployee() {
       setReportingOptions(options);
     } catch (err) {
       console.error('Failed to fetch reporting employees:', err);
-    }
-  };
-
-  const fetchDesignations = async () => {
-    try {
-      const response = await api.get('/designations');
-      // Filter for active designations and map to name
-      const activeDesignations = response.data
-        .filter((d: any) => d.isActive)
-        .map((d: any) => d.name);
-      setDesignationsList(activeDesignations);
-    } catch (err) {
-      console.error('Failed to fetch designations:', err);
-    }
-  };
-
-  const fetchNextEmployeeCode = async () => {
-    try {
-      setInitialLoading(true);
-      const response = await api.get('/employees/next-code');
-      setFormData(prev => ({
-        ...prev,
-        employeeCode: response.data.nextCode
-      }));
-    } catch (err) {
-      console.error('Failed to fetch next employee code:', err);
-    } finally {
-      setInitialLoading(false);
     }
   };
 

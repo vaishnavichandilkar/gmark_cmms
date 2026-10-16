@@ -91,8 +91,6 @@ export interface SparePart {
 
 const STORAGE_KEY = 'gmark_spares_master_data_v3';
 
-const INITIAL_MOCK_SPARES: SparePart[] = [];
-
 function getStoredSpares(): SparePart[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);

@@ -42,6 +42,10 @@ export const supplierService = {
     }
   },
 
+  getAll: async (search?: string): Promise<Supplier[]> => {
+    return supplierService.getSuppliers(search);
+  },
+
   getNextCode: async (): Promise<string> => {
     try {
       const response = await api.get('/suppliers/next-code');

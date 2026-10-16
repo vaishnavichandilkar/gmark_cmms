@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, Wrench, Upload, Film, Trash2, Eye, AlertTriangle, Cpu, Loader2 } from 'lucide-react';
+import { ChevronLeft, Upload, Film, Trash2, Eye, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { workOrderService } from '../../../services/workOrderService';
 import { api } from '../../../lib/api';

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, X, Info } from 'lucide-react';
+import { ArrowLeft, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supplierService, type Supplier } from '../../../services/supplierService';
 

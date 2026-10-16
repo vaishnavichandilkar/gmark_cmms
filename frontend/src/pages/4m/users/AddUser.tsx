@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, User, Mail, Phone, Building2, Shield, Briefcase, CheckCircle2, KeyRound, Copy, Eye, EyeOff, Check, Trash2, Plus, Pencil, Calendar, Hash, AtSign } from 'lucide-react';
+import { ChevronLeft, User, Mail, Phone, Shield, Briefcase, CheckCircle2, KeyRound, Copy, Eye, EyeOff, Check, Trash2, Plus, Pencil, Calendar, Hash, AtSign } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { CustomSelect } from '../../../components/shared/CustomSelect';
 import { MultiSelect } from '../../../components/shared/MultiSelect';
@@ -626,11 +626,6 @@ export function AddUser() {
     );
   }
 
-  const facilityOptions = facilities.map(f => ({
-    label: f.mainFacilityName,
-    value: f.id.toString()
-  }));
-
   const selectedEmpId = formData.employeeId;
   const selectedEmpIds = formData.employeeIds && formData.employeeIds.length > 0 
     ? formData.employeeIds 
@@ -678,8 +673,6 @@ export function AddUser() {
     ]));
   };
 
-  const reportingOptions = getReportingOptionsForEmp(selectedEmpId);
-
   const selectedEmployeesList = effectiveEmployees.filter(emp => selectedEmpIds.includes(emp.id.toString()));
 
   const formatDate = (dateStr?: string | null) => {
@@ -691,21 +684,6 @@ export function AddUser() {
     } catch {
       return null;
     }
-  };
-
-  const formatRole = (role?: string | null) => {
-    if (!role) return '-';
-    const roleMap: Record<string, string> = {
-      'SUPER_ADMIN': 'Admin',
-      'SOCIETY_ADMIN': 'Society Admin',
-      'BUILDING_ADMIN': 'Building Admin',
-      'OPERATOR': 'Operator',
-      'VIEWER': 'Viewer',
-    };
-    if (roleMap[role.toUpperCase()]) {
-      return roleMap[role.toUpperCase()];
-    }
-    return role.charAt(0).toUpperCase() + role.slice(1);
   };
 
   return (

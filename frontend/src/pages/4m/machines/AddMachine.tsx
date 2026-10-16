@@ -54,6 +54,7 @@ export function AddMachine() {
   const [spareModalRate, setSpareModalRate] = useState<number | string>('');
   const [isAmcModalOpen, setIsAmcModalOpen] = useState(false);
   const [amcSubTab, setAmcSubTab] = useState('AMC');
+  const [amcSearchQuery, setAmcSearchQuery] = useState('');
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [purchaseSubTab, setPurchaseSubTab] = useState('Machine Purchase');
 
@@ -70,7 +71,7 @@ export function AddMachine() {
   const [pendingMachineType, setPendingMachineType] = useState(savedDraft?.pendingMachineType || 'HYPN');
   const [tempMachineType, setTempMachineType] = useState('HYPN');
 
-  const [formData, setFormData] = useState(savedDraft?.formData || {
+  const [formData, setFormData] = useState<any>(savedDraft?.formData || {
     company: '',
     facilityId: '',
     maintenanceHead: '',
@@ -164,7 +165,7 @@ export function AddMachine() {
     try {
       const res = await api.get('/machines/next-machine-code');
       if (res.data?.nextCode) {
-        setFormData(prev => ({
+        setFormData((prev: any) => ({
           ...prev,
           machineCode: res.data.nextCode
         }));
@@ -178,7 +179,7 @@ export function AddMachine() {
     try {
       const res = await api.get('/machines/next-asset-code');
       if (res.data?.nextCode) {
-        setFormData(prev => ({
+        setFormData((prev: any) => ({
           ...prev,
           assetCode: res.data.nextCode
         }));
@@ -217,7 +218,7 @@ export function AddMachine() {
       setAvailableLocationsList(locs);
 
       if (codesRes?.data) {
-        setFormData(prev => ({
+        setFormData((prev: any) => ({
           ...prev,
           machineCode: prev.machineCode || codesRes.data.nextMachineCode || '',
           assetCode: prev.assetCode || codesRes.data.nextAssetCode || '',
@@ -250,7 +251,7 @@ export function AddMachine() {
       api.get(`/machines/${formData.parentDeviceId}`).then((res) => {
         const parent = res.data;
         if (parent) {
-          setFormData(prev => ({
+          setFormData((prev: any) => ({
             ...prev,
             locationId: parent.facilityId?.toString() || parent.buildingId?.toString() || prev.locationId,
             locationType: parent.facilityId ? 'facility' : (parent.buildingId ? 'building' : (prev as any).locationType),
@@ -269,7 +270,7 @@ export function AddMachine() {
 
   const handleChange = (e: any) => {
     const { name, value, dataset } = e.target;
-    setFormData((prev) => {
+    setFormData((prev: any) => {
       const updates: any = {
         ...prev,
         [name]: value,
@@ -689,7 +690,7 @@ export function AddMachine() {
                       <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${formData.isLocationPart ? 'border-blue-600' : 'border-gray-300'}`}>
                         {formData.isLocationPart && <div className="w-2.5 h-2.5 bg-blue-600 rounded-full"></div>}
                       </div>
-                      <input type="radio" checked={formData.isLocationPart} onChange={() => setFormData(prev => ({...prev, isLocationPart: true}))} className="hidden" />
+                      <input type="radio" checked={formData.isLocationPart} onChange={() => setFormData((prev: any) => ({...prev, isLocationPart: true}))} className="hidden" />
                       <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">This Machine is a part of</span>
                     </label>
                     <div className="flex-1 max-w-md">
@@ -700,7 +701,7 @@ export function AddMachine() {
                     <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${!formData.isLocationPart ? 'border-blue-600' : 'border-gray-300'}`}>
                       {!formData.isLocationPart && <div className="w-2.5 h-2.5 bg-blue-600 rounded-full"></div>}
                     </div>
-                    <input type="radio" checked={!formData.isLocationPart} onChange={() => setFormData(prev => ({...prev, isLocationPart: false}))} className="hidden" />
+                    <input type="radio" checked={!formData.isLocationPart} onChange={() => setFormData((prev: any) => ({...prev, isLocationPart: false}))} className="hidden" />
                     <span className="text-sm font-semibold text-gray-700">This Machine is not a part of another location, is located at</span>
                   </label>
                 </div>

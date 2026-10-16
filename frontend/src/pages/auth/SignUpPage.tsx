@@ -225,7 +225,7 @@ export function SignUpPage() {
     
     // Construct structured payload as specified in Master Prompt
     const payload = {
-      moduleAccess: formData.moduleAccess,
+      moduleAccess: selectedPackage,
       company: {
         companyName: formData.companyName.trim(),
         businessCategory: formData.businessCategory.trim(),

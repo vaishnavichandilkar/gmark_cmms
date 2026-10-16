@@ -1,13 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Wrench,
   QrCode,
   Plus,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  AlertTriangle,
   Eye,
   UserCheck,
 } from 'lucide-react';
@@ -28,7 +24,6 @@ import { hasPermission } from '../../../utils/permissions';
 export function WorkOrderManagement() {
   const navigate = useNavigate();
   const { user } = useSelector((state: RootState) => state.auth);
-  const [searchParams, setSearchParams] = useSearchParams();
 
   const canCreate = hasPermission(user, 'work_orders', 'create');
   const canExport = hasPermission(user, 'work_orders', 'export');

@@ -4,7 +4,7 @@ import { Search, Filter, RefreshCw, Activity, AlertTriangle, CheckCircle2, WifiO
 import { api } from '../../../lib/api';
 import { TableSkeleton } from '../../../components/shared/ui/TableSkeleton';
 import { exportData } from '../../../utils/exportUtils';
-import { getDeviceDashboardRoute, navigateToDeviceDashboard } from '../../../utils/deviceRoutes';
+import { getDeviceDashboardRoute } from '../../../utils/deviceRoutes';
 
 interface DeviceData {
   id: number;

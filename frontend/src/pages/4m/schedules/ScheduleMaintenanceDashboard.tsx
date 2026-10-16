@@ -3,9 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Calendar,
   Plus,
-  Wrench,
   FileText,
-  Eye,
   Send,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';

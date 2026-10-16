@@ -198,10 +198,10 @@ export function FacilityHierarchyPicker({
       finalTree.push(...societyNodes);
 
       // Branch 2: Facilities Hierarchy
-      const mfNodesWithPrefix = mainFacilities.map((mf: any) => ({
+      const mfNodesWithPrefix: TreeNodeData[] = mainFacilities.map((mf: any) => ({
         id: `mf-${mf.id}`,
         name: mf.mainFacilityName,
-        type: 'mainFacility',
+        type: 'mainFacility' as const,
         originalData: mf,
         children: []
       }));

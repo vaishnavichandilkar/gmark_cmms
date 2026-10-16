@@ -3,7 +3,7 @@ import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface TablePaginationProps {
   currentPage: number;
-  totalPages: number;
+  totalPages?: number;
   totalItems: number;
   startIndex?: number;
   endIndex?: number;
@@ -14,7 +14,7 @@ interface TablePaginationProps {
 
 export function TablePagination({
   currentPage,
-  totalPages,
+  totalPages: propTotalPages,
   totalItems,
   startIndex: propStartIndex,
   endIndex: propEndIndex,
@@ -22,6 +22,7 @@ export function TablePagination({
   onPageChange,
   onRowsPerPageChange,
 }: TablePaginationProps) {
+  const totalPages = propTotalPages !== undefined ? propTotalPages : Math.ceil(totalItems / (rowsPerPage || 10));
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 

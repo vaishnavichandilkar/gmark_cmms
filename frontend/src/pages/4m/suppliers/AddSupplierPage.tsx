@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { 
-  ArrowLeft, Printer, RefreshCw, Filter, MapPin, ChevronDown, Check, Upload, 
-  Image as ImageIcon, QrCode, Plus, Trash2, FileText, Search, ExternalLink,
+  ArrowLeft, Printer, RefreshCw, Filter, MapPin, ChevronDown, Upload, 
+  Image as ImageIcon, QrCode, Plus, Trash2, FileText, Search,
   Eye, Pencil, Maximize2, Loader2, X, ZoomIn, ZoomOut, RotateCw
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supplierService, type Supplier } from '../../../services/supplierService';
-import { spareService, type SparePart } from '../../../services/spareService';
+import { spareService } from '../../../services/spareService';
 import { SelectLocationPickerModal } from '../../../components/4m/SelectLocationPickerModal';
 import { SelectSparePickerModal } from '../../../components/4m/SelectSparePickerModal';
 import { INDIAN_STATES } from '../../../constants/states';
@@ -332,7 +332,7 @@ export const AddSupplierPage: React.FC = () => {
     }
   };
 
-  const renderProfileCard = (isStep1: boolean = false) => {
+  const renderProfileCard = (_isStep1: boolean = false) => {
     const currentImage = localPreviewUrl || formData.logoUrl;
 
     return (
@@ -600,45 +600,6 @@ export const AddSupplierPage: React.FC = () => {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleAddSpare = () => {
-    if (!newSpareName.trim()) {
-      toast.error('Enter spare name');
-      return;
-    }
-    setSupplierSpares([
-      ...supplierSpares,
-      {
-        id: Date.now(),
-        name: newSpareName,
-        code: `PRT-${Math.floor(100 + Math.random() * 900)}`,
-        category: 'General',
-        vendorPrice: Number(newSparePrice) || 500,
-        stock: 10,
-      },
-    ]);
-    setNewSpareName('');
-    setNewSparePrice('');
-    toast.success('Added spare part link');
-  };
-
-  const handleAddDoc = () => {
-    if (!docName.trim()) {
-      toast.error('Enter document name');
-      return;
-    }
-    setSupplierDocuments([
-      ...supplierDocuments,
-      {
-        id: Date.now(),
-        name: docName,
-        type: docType,
-        uploadedAt: new Date().toISOString().slice(0, 10),
-      },
-    ]);
-    setDocName('');
-    toast.success('Added document record');
   };
 
   return (

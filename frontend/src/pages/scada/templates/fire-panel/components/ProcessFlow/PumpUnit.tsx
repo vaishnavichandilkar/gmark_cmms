@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { Zap, Power, Clock } from 'lucide-react';
 import { AnimatedPump } from './AnimatedPump';
 
