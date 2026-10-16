@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../store';
 import { hasTabPermission } from '../../../utils/permissions';
-import { ArrowLeft, Plus, Trash2, Search, RefreshCw, Sparkles, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Search, RefreshCw, Sparkles, ChevronDown, Eye, Pencil, X } from 'lucide-react';
 import { CustomSelect } from '../../../components/shared/CustomSelect';
 import { CustomDatePicker } from '../../../components/shared/CustomDatePicker';
 import { api } from '../../../lib/api';
@@ -78,6 +78,9 @@ export function AddMachine() {
   const [docName, setDocName] = useState('');
   const [docContent, setDocContent] = useState('');
   const [docFile, setDocFile] = useState<File | null>(null);
+  const [editingDoc, setEditingDoc] = useState<any | null>(null);
+  const [viewingDoc, setViewingDoc] = useState<any | null>(null);
+  const [docSearchQuery, setDocSearchQuery] = useState('');
 
   const [isIotModalOpen, setIsIotModalOpen] = useState(false);
   const [pendingMacId, setPendingMacId] = useState(savedDraft?.pendingMacId || '');
@@ -615,24 +618,46 @@ export function AddMachine() {
   };
 
   const handleUploadDocument = () => {
-    if (!docName) {
+    if (!docName.trim()) {
       toast.error('Please enter a name');
       return;
     }
-    if (uploadModalType === 'File' && !docFile) {
+    if (uploadModalType === 'File' && !docFile && !editingDoc) {
       toast.error('Please select a file');
       return;
     }
-    if ((uploadModalType === 'Link' || uploadModalType === 'Note') && !docContent) {
+    if ((uploadModalType === 'Link' || uploadModalType === 'Note') && !docContent.trim()) {
       toast.error('Please provide content');
+      return;
+    }
+
+    if (editingDoc) {
+      setPendingDocuments(prev => prev.map(d => {
+        if (d.id === editingDoc.id) {
+          return {
+            ...d,
+            name: docName.trim(),
+            content: uploadModalType !== 'File' ? docContent.trim() : (docFile ? URL.createObjectURL(docFile) : d.content),
+            file: docFile || d.file,
+            size: uploadModalType === 'File' && docFile ? `${(docFile.size / (1024 * 1024)).toFixed(2)} MB` : d.size,
+          };
+        }
+        return d;
+      }));
+      toast.success('Document updated successfully');
+      setEditingDoc(null);
+      setUploadModalType(null);
+      setDocName('');
+      setDocContent('');
+      setDocFile(null);
       return;
     }
 
     setPendingDocuments(prev => [...prev, {
       id: Date.now(),
-      name: docName,
+      name: docName.trim(),
       type: uploadModalType,
-      content: uploadModalType !== 'File' ? docContent : null,
+      content: uploadModalType !== 'File' ? docContent.trim() : (docFile ? URL.createObjectURL(docFile) : null),
       file: uploadModalType === 'File' ? docFile : null,
       size: uploadModalType === 'File' && docFile ? `${(docFile.size / (1024 * 1024)).toFixed(2)} MB` : '-',
       uploadedBy: 'Admin',
@@ -643,10 +668,41 @@ export function AddMachine() {
     setDocName('');
     setDocContent('');
     setDocFile(null);
+    toast.success('Document added successfully');
+  };
+
+  const handleEditDoc = (doc: any) => {
+    setEditingDoc(doc);
+    setUploadModalType(doc.type);
+    setDocName(doc.name || '');
+    setDocContent(doc.content || '');
+    setDocFile(doc.file || null);
+  };
+
+  const handleViewDoc = (doc: any) => {
+    if (doc.type === 'File') {
+      if (doc.file) {
+        const fileUrl = URL.createObjectURL(doc.file);
+        window.open(fileUrl, '_blank');
+      } else if (doc.content) {
+        const fullUrl = doc.content.startsWith('http') || doc.content.startsWith('data:')
+          ? doc.content
+          : `http://localhost:3001${doc.content.startsWith('/') ? doc.content : `/${doc.content}`}`;
+        window.open(fullUrl, '_blank');
+      } else {
+        toast.error('File content unavailable');
+      }
+    } else if (doc.type === 'Link') {
+      const linkUrl = doc.content.startsWith('http') ? doc.content : `https://${doc.content}`;
+      window.open(linkUrl, '_blank');
+    } else {
+      setViewingDoc(doc);
+    }
   };
 
   const handleDeleteDoc = (id: number) => {
     setPendingDocuments(prev => prev.filter(d => d.id !== id));
+    toast.success('Document removed');
   };
 
   const supplierOptions = suppliers.map(s => ({
@@ -740,6 +796,12 @@ export function AddMachine() {
       (p.email || '').toLowerCase().includes(purchaseSearchQuery.toLowerCase()) ||
       (p.contactNumber || '').toLowerCase().includes(purchaseSearchQuery.toLowerCase())
     )
+  );
+
+  const filteredDocuments = pendingDocuments.filter(d => 
+    (d.name || '').toLowerCase().includes(docSearchQuery.toLowerCase()) ||
+    (d.type || '').toLowerCase().includes(docSearchQuery.toLowerCase()) ||
+    (d.content || '').toLowerCase().includes(docSearchQuery.toLowerCase())
   );
 
   return (
@@ -1217,11 +1279,22 @@ export function AddMachine() {
           {activeTab === 'Documents' && (
             <div className="space-y-6 w-full">
               {/* Toolbar */}
-              <div className="flex justify-end items-center">
+              <div className="flex justify-between items-center">
+                <div className="relative">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input 
+                    type="text" 
+                    value={docSearchQuery}
+                    onChange={e => setDocSearchQuery(e.target.value)}
+                    placeholder="Search documents..." 
+                    className="pl-9 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-64"
+                  />
+                </div>
+
                 <div className="relative">
                   <button 
                     onClick={() => setIsUploadMenuOpen(!isUploadMenuOpen)}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-colors shadow-xs cursor-pointer"
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-all shadow-xs cursor-pointer"
                   >
                     <Plus size={16} className="stroke-[3]" /> Upload
                   </button>
@@ -1230,20 +1303,20 @@ export function AddMachine() {
                   {isUploadMenuOpen && (
                     <div className="absolute top-full right-0 mt-2 w-32 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-20">
                       <button 
-                        onClick={() => { setUploadModalType('File'); setIsUploadMenuOpen(false); }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                        onClick={() => handleOpenUpload('File')}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors cursor-pointer"
                       >
                         File
                       </button>
                       <button 
-                        onClick={() => { setUploadModalType('Link'); setIsUploadMenuOpen(false); }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                        onClick={() => handleOpenUpload('Link')}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors cursor-pointer"
                       >
                         Link
                       </button>
                       <button 
-                        onClick={() => { setUploadModalType('Note'); setIsUploadMenuOpen(false); }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                        onClick={() => handleOpenUpload('Note')}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors cursor-pointer"
                       >
                         Notes
                       </button>
@@ -1266,36 +1339,69 @@ export function AddMachine() {
                     </tr>
                   </thead>
                   <tbody>
-                    {pendingDocuments?.length === 0 ? (
+                    {filteredDocuments?.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-4 py-8 text-center text-sm font-medium text-gray-500 bg-white">
                           No documents added yet.
                         </td>
                       </tr>
                     ) : (
-                      pendingDocuments.map((doc, index) => (
+                      filteredDocuments.map((doc, index) => (
                         <tr key={doc.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
                           <td className="px-4 py-3"><input type="checkbox" className="rounded border-gray-300" /></td>
-                          <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{doc.name}</td>
-                          <td className="px-4 py-3 text-sm text-gray-500">{doc.type}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900 font-medium">{index + 1}</td>
+                          <td className="px-4 py-3 text-sm font-semibold text-gray-900">{doc.name}</td>
+                          <td className="px-4 py-3 text-sm text-gray-500">
+                            <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
+                              doc.type === 'File' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                              doc.type === 'Link' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                              'bg-amber-50 text-amber-700 border border-amber-200'
+                            }`}>
+                              {doc.type}
+                            </span>
+                          </td>
                           <td className="px-4 py-3 text-sm text-gray-500">
                             {doc.type === 'File' ? (
-                              <a href={doc.content} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">View File</a>
+                              <button 
+                                type="button" 
+                                onClick={() => handleViewDoc(doc)}
+                                className="text-emerald-600 hover:text-emerald-700 hover:underline font-medium cursor-pointer flex items-center gap-1"
+                              >
+                                <span>{doc.file?.name || doc.name || 'View File'}</span>
+                              </button>
                             ) : doc.type === 'Link' ? (
-                              <a href={doc.content} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{doc.content}</a>
+                              <a href={doc.content} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">{doc.content}</a>
                             ) : (
-                              <span className="truncate max-w-[200px] block">{doc.content}</span>
+                              <span className="truncate max-w-[200px] block text-gray-700">{doc.content}</span>
                             )}
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <button 
-                              onClick={() => handleDeleteDoc(doc.id)}
-                              className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors block mx-auto cursor-pointer"
-                              title="Delete Document"
-                            >
-                              <Trash2 size={16}/>
-                            </button>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button 
+                                type="button"
+                                onClick={() => handleViewDoc(doc)}
+                                className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                                title="View Document"
+                              >
+                                <Eye size={16}/>
+                              </button>
+                              <button 
+                                type="button"
+                                onClick={() => handleEditDoc(doc)}
+                                className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                                title="Edit Document"
+                              >
+                                <Pencil size={16}/>
+                              </button>
+                              <button 
+                                type="button"
+                                onClick={() => handleDeleteDoc(doc.id)}
+                                className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                title="Delete Document"
+                              >
+                                <Trash2 size={16}/>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -1700,19 +1806,117 @@ export function AddMachine() {
       {uploadModalType && (
         <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-xl p-8 shadow-xl relative">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">{uploadModalType === 'File' ? 'Upload File' : uploadModalType === 'Link' ? 'Add Link' : 'Add Note'}</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              {editingDoc 
+                ? (uploadModalType === 'File' ? 'Edit File' : uploadModalType === 'Link' ? 'Edit Link' : 'Edit Note')
+                : (uploadModalType === 'File' ? 'Upload File' : uploadModalType === 'Link' ? 'Add Link' : 'Add Note')}
+            </h2>
             <div className="space-y-6">
-              <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Name</label><input type="text" value={docName} onChange={e=>setDocName(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" /></div>
-              {uploadModalType === 'File' && (
-                <div><input type="file" onChange={e=>setDocFile(e.target.files ? e.target.files[0] : null)} className="block w-full text-sm text-gray-600 border border-gray-300 rounded-xl p-2 cursor-pointer focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200" /></div>
-              )}
-              {(uploadModalType === 'Link' || uploadModalType === 'Note') && (
-                <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">{uploadModalType === 'Link' ? 'URL' : 'Content'}</label><input type="text" value={docContent} onChange={e=>setDocContent(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" /></div>
-              )}
-              <div className="flex gap-4 mt-8">
-                <button onClick={()=>setUploadModalType(null)} className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm transition-colors cursor-pointer">Cancel</button>
-                <button onClick={handleUploadDocument} className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors cursor-pointer">Save</button>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Name</label>
+                <input 
+                  type="text" 
+                  value={docName} 
+                  onChange={e => setDocName(e.target.value)} 
+                  placeholder="Enter name"
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-gray-900" 
+                />
               </div>
+
+              {uploadModalType === 'File' && (
+                <div>
+                  <input 
+                    type="file" 
+                    onChange={e => setDocFile(e.target.files ? e.target.files[0] : null)} 
+                    className="block w-full text-sm text-gray-600 border border-gray-300 rounded-xl p-3 cursor-pointer focus:outline-none file:mr-4 file:py-1.5 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 transition-colors" 
+                  />
+                  {(docFile || editingDoc?.file || editingDoc?.content) && (
+                    <p className="text-xs text-emerald-600 font-semibold mt-1.5 truncate">
+                      File: {docFile?.name || editingDoc?.file?.name || editingDoc?.name || 'Attached file'}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {(uploadModalType === 'Link' || uploadModalType === 'Note') && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">{uploadModalType === 'Link' ? 'URL' : 'Content'}</label>
+                  {uploadModalType === 'Link' ? (
+                    <input 
+                      type="text" 
+                      value={docContent} 
+                      onChange={e => setDocContent(e.target.value)} 
+                      placeholder="https://..."
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-gray-900" 
+                    />
+                  ) : (
+                    <textarea 
+                      value={docContent} 
+                      onChange={e => setDocContent(e.target.value)} 
+                      placeholder="Enter note..."
+                      rows={3}
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-gray-900 resize-none" 
+                    />
+                  )}
+                </div>
+              )}
+
+              <div className="flex gap-4 mt-8">
+                <button 
+                  type="button"
+                  onClick={() => { setUploadModalType(null); setEditingDoc(null); }} 
+                  className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button"
+                  onClick={handleUploadDocument} 
+                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-lg font-semibold text-sm transition-colors cursor-pointer shadow-xs"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Note / Document Viewer Modal */}
+      {viewingDoc && (
+        <div 
+          className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => setViewingDoc(null)}
+        >
+          <div 
+            className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-xl relative border border-slate-200"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">{viewingDoc.name}</h3>
+                <span className="text-xs text-slate-500 font-medium">{viewingDoc.type}</span>
+              </div>
+              <button 
+                onClick={() => setViewingDoc(null)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="py-5">
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-sm text-slate-800 whitespace-pre-wrap leading-relaxed max-h-[50vh] overflow-y-auto">
+                {viewingDoc.content}
+              </div>
+            </div>
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setViewingDoc(null)}
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-xs transition-colors cursor-pointer"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

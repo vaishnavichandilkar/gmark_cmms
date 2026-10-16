@@ -57,4 +57,19 @@ export class MachineDocumentsService {
       where: { id: docId },
     });
   }
+
+  async updateDocument(docId: number, data: { name?: string; content?: string }) {
+    const doc = await this.prisma.machineDocument.findUnique({ where: { id: docId } });
+    if (!doc) {
+      throw new NotFoundException(`Document with ID ${docId} not found`);
+    }
+
+    return this.prisma.machineDocument.update({
+      where: { id: docId },
+      data: {
+        ...(data.name && { name: data.name }),
+        ...(data.content && { content: data.content }),
+      },
+    });
+  }
 }

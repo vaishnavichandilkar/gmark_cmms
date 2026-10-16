@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Delete,
   Param,
   Body,
@@ -130,5 +131,34 @@ export class MachineDocumentsController {
       ip,
     );
     return result;
+  }
+
+  @Put(':docId')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads/',
+        filename: (req, file, cb) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+        },
+      }),
+    }),
+  )
+  async updateDocument(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('docId', ParseIntPipe) docId: number,
+    @Body('name') name: string,
+    @Body('url') url: string,
+    @Body('note') note: string,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    const updateData: any = {};
+    if (name) updateData.name = name;
+    if (file) updateData.content = `/uploads/${file.filename}`;
+    else if (url) updateData.content = url;
+    else if (note) updateData.content = note;
+
+    return this.documentsService.updateDocument(docId, updateData);
   }
 }
