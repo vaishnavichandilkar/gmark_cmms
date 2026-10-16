@@ -563,57 +563,57 @@ export function AddMachine() {
   };
 
   return (
-    <div className="sm:px-6 pb-6 pt-0 w-full flex flex-col bg-white">
+    <div className="sm:px-4 pb-6 pt-0 w-full flex flex-col bg-white">
       {/* Header */}
-      <div className="flex items-center mb-6">
+      <div className="flex items-center mb-4">
         <button
           type="button"
           onClick={handleGoBack}
-          className="text-gray-800 hover:text-black mr-3 focus:outline-none flex items-center cursor-pointer"
+          className="text-slate-700 hover:text-black mr-2.5 focus:outline-none flex items-center cursor-pointer"
         >
-          <ArrowLeft size={24} className="stroke-[2.5]" />
+          <ArrowLeft size={20} className="stroke-[2.5]" />
         </button>
-        <h1 className="text-2xl font-bold text-gray-900">New Machine</h1>
+        <h1 className="text-xl font-bold text-slate-900">New Machine</h1>
       </div>
 
-      <div className="bg-white rounded-xl shadow-xs border border-slate-200 w-full relative">
-        <div className="flex overflow-x-auto border-b border-slate-200 bg-slate-50/70 p-1.5 gap-1">
+      <div className="bg-white rounded-lg shadow-2xs border border-slate-200/90 w-full relative">
+        <div className="flex overflow-x-auto border-b border-slate-200 bg-slate-50/70 p-1 gap-1">
           {permittedTabs.map((tab) => (
             <button
               key={tab}
               type="button"
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === tab 
-                  ? 'bg-blue-600 text-white shadow-xs' 
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                  ? 'bg-blue-600 text-white shadow-2xs' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >{tab}</button>
           ))}
         </div>
 
-        <div className="p-4 sm:px-8 sm:pt-8 sm:pb-6 w-full">
+        <div className="p-4 sm:p-5 w-full">
           {activeTab === 'General' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-2.5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-2">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Facility<span className="text-red-500">*</span></label>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Facility<span className="text-red-500">*</span></label>
                   <FacilityHierarchyPicker name="company" value={formData.company} onChange={handleChange} placeholder="Select Facility" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Sub-Facility<span className="text-red-500">*</span></label>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Sub-Facility<span className="text-red-500">*</span></label>
                   <FacilityHierarchyPicker name="facilityId" value={formData.facilityId} onChange={handleChange} placeholder="Select Sub-Facility" filterByMainFacilityId={formData.company} disabled={!formData.company} selectableTypes={['facility', 'building']} defaultExpanded={true} />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Maintenance Head</label>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Maintenance Head</label>
                   <CustomSelect name="maintenanceHead" value={formData.maintenanceHead} onChange={handleChange} placeholder="Select Head" options={employees.map(e => ({ label: `${e.designation || 'N/A'} - ${e.fullName}`, value: e.fullName }))} />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Name<span className="text-red-500">*</span></label><input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all" /></div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-2">
+                <div><label className="block text-[11px] font-medium text-slate-600 mb-0.5">Machine Name<span className="text-red-500">*</span></label><input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full px-2.5 py-1 min-h-[32px] h-8 bg-white border border-slate-300 rounded-md text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 transition-all" /></div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">
                     Machine Code <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -623,13 +623,13 @@ export function AddMachine() {
                     onChange={handleChange}
                     readOnly
                     placeholder="Enter Machine Code"
-                    className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-xl text-sm outline-none text-gray-600 font-medium cursor-not-allowed"
+                    className="w-full px-2.5 py-1 min-h-[32px] h-8 bg-slate-100 border border-slate-200 rounded-md text-xs outline-none text-slate-600 font-medium cursor-not-allowed"
                   />
                 </div>
-                <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Status<span className="text-red-500">*</span></label><CustomSelect name="status" value={formData.status} onChange={handleChange} placeholder="Select Status" options={[{ label: 'Online', value: 'Online' }, { label: 'Offline', value: 'Offline' }]} /></div>
-                <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Serial Number<span className="text-red-500">*</span></label><input type="text" name="serialNumber" value={formData.serialNumber} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all" /></div>
+                <div><label className="block text-[11px] font-medium text-slate-600 mb-0.5">Status<span className="text-red-500">*</span></label><CustomSelect name="status" value={formData.status} onChange={handleChange} placeholder="Select Status" options={[{ label: 'Online', value: 'Online' }, { label: 'Offline', value: 'Offline' }]} /></div>
+                <div><label className="block text-[11px] font-medium text-slate-600 mb-0.5">Serial Number<span className="text-red-500">*</span></label><input type="text" name="serialNumber" value={formData.serialNumber} onChange={handleChange} className="w-full px-2.5 py-1 min-h-[32px] h-8 bg-white border border-slate-300 rounded-md text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 transition-all" /></div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Make<span className="text-red-500">*</span></label>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Make<span className="text-red-500">*</span></label>
                   <CustomSelect 
                     name="make" 
                     value={formData.make} 
@@ -641,7 +641,7 @@ export function AddMachine() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Model Number<span className="text-red-500">*</span></label>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Model Number<span className="text-red-500">*</span></label>
                   <CustomSelect 
                     name="modelNumber" 
                     value={formData.modelNumber} 
@@ -653,7 +653,7 @@ export function AddMachine() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Category<span className="text-red-500">*</span></label>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Machine Category<span className="text-red-500">*</span></label>
                   <CustomSelect 
                     name="machineCategory" 
                     value={formData.machineCategory} 
@@ -665,7 +665,7 @@ export function AddMachine() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Sub-Category<span className="text-red-500">*</span></label>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Machine Sub-Category<span className="text-red-500">*</span></label>
                   <CustomSelect 
                     name="machineSubCategory" 
                     value={formData.machineSubCategory} 
@@ -678,42 +678,42 @@ export function AddMachine() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Description</label>
-                <textarea name="description" value={formData.description} onChange={handleChange} rows={3} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all resize-none"></textarea>
+                <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Machine Description</label>
+                <textarea name="description" value={formData.description} onChange={handleChange} rows={2} className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-md text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 transition-all resize-none h-12"></textarea>
               </div>
 
               <div>
-                <h3 className="text-sm font-semibold text-gray-400 mb-4">Location</h3>
-                <div className="bg-gray-50 p-4 sm:p-6 rounded-xl border border-gray-200 space-y-5">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                    <label className="flex items-center gap-3 min-w-[220px] cursor-pointer">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${formData.isLocationPart ? 'border-blue-600' : 'border-gray-300'}`}>
-                        {formData.isLocationPart && <div className="w-2.5 h-2.5 bg-blue-600 rounded-full"></div>}
+                <h3 className="text-[11px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Location</h3>
+                <div className="bg-slate-50/80 p-2 sm:p-2.5 rounded-md border border-slate-200 space-y-1.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+                    <label className="flex items-center gap-2 min-w-[190px] cursor-pointer">
+                      <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${formData.isLocationPart ? 'border-blue-600' : 'border-slate-300'}`}>
+                        {formData.isLocationPart && <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>}
                       </div>
                       <input type="radio" checked={formData.isLocationPart} onChange={() => setFormData((prev: any) => ({...prev, isLocationPart: true}))} className="hidden" />
-                      <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">This Machine is a part of</span>
+                      <span className="text-xs font-medium text-slate-700 whitespace-nowrap">This Machine is a part of</span>
                     </label>
                     <div className="flex-1 max-w-md">
                       <MachineHierarchyPicker name="parentDeviceId" value={formData.parentDeviceId} onChange={handleChange} disabled={!formData.isLocationPart} filterByCompany={formData.company} filterByLocationId={formData.locationId} />
                     </div>
                   </div>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${!formData.isLocationPart ? 'border-blue-600' : 'border-gray-300'}`}>
-                      {!formData.isLocationPart && <div className="w-2.5 h-2.5 bg-blue-600 rounded-full"></div>}
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${!formData.isLocationPart ? 'border-blue-600' : 'border-slate-300'}`}>
+                      {!formData.isLocationPart && <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>}
                     </div>
                     <input type="radio" checked={!formData.isLocationPart} onChange={() => setFormData((prev: any) => ({...prev, isLocationPart: false}))} className="hidden" />
-                    <span className="text-sm font-semibold text-gray-700">This Machine is not a part of another location, is located at</span>
+                    <span className="text-xs font-medium text-slate-700">This Machine is not a part of another location, is located at</span>
                   </label>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
-                <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Location<span className="text-red-500">*</span></label><FacilityHierarchyPicker name="locationId" value={formData.locationId} onChange={handleChange} /></div>
-                <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Latitude<span className="text-red-500">*</span></label><input type="text" name="latitude" value={formData.latitude} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" /></div>
-                <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Longitude<span className="text-red-500">*</span></label><input type="text" name="longitude" value={formData.longitude} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" /></div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-2">
+                <div><label className="block text-[11px] font-medium text-slate-600 mb-0.5">Location<span className="text-red-500">*</span></label><FacilityHierarchyPicker name="locationId" value={formData.locationId} onChange={handleChange} /></div>
+                <div><label className="block text-[11px] font-medium text-slate-600 mb-0.5">Latitude<span className="text-red-500">*</span></label><input type="text" name="latitude" value={formData.latitude} onChange={handleChange} className="w-full px-2.5 py-1 min-h-[32px] h-8 bg-white border border-slate-300 rounded-md text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 transition-all" /></div>
+                <div><label className="block text-[11px] font-medium text-slate-600 mb-0.5">Longitude<span className="text-red-500">*</span></label><input type="text" name="longitude" value={formData.longitude} onChange={handleChange} className="w-full px-2.5 py-1 min-h-[32px] h-8 bg-white border border-slate-300 rounded-md text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 transition-all" /></div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-x-3 gap-y-2">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">
                     Asset Code <span className="text-red-500">*</span>
                   </label>
                   <input 
@@ -723,11 +723,11 @@ export function AddMachine() {
                     onChange={handleChange} 
                     readOnly
                     placeholder="Enter Asset Code"
-                    className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-xl text-sm outline-none text-gray-600 font-medium cursor-not-allowed" 
+                    className="w-full px-2.5 py-1 min-h-[32px] h-8 bg-slate-100 border border-slate-200 rounded-md text-xs outline-none text-slate-600 font-medium cursor-not-allowed" 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">
                     Cost Center<span className="text-red-500">*</span>
                   </label>
                   <input 
@@ -736,12 +736,12 @@ export function AddMachine() {
                     value={formData.costCenter || 'CC-MAINT-01'} 
                     onChange={handleChange} 
                     placeholder="e.g. CC-MAINT-01" 
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 font-medium text-gray-800" 
+                    className="w-full px-2.5 py-1 min-h-[32px] h-8 bg-white border border-slate-300 rounded-md text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 transition-all" 
                   />
                 </div>
-                <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Select Head of Department<span className="text-red-500">*</span></label><CustomSelect name="headOfDepartment" value={formData.headOfDepartment} onChange={handleChange} options={employees.map(e => ({ label: `${e.designation || 'N/A'} - ${e.fullName}`, value: e.fullName }))} /></div>
-                <div><label className="block text-xs font-semibold text-gray-700 mb-1.5">Machine Owner<span className="text-red-500">*</span></label><CustomSelect name="machineOwner" value={formData.machineOwner} onChange={handleChange} options={employees.map(e => ({ label: `${e.designation || 'N/A'} - ${e.fullName}`, value: e.fullName }))} /></div>
-                <div className="col-span-4"><label className="block text-xs font-semibold text-gray-700 mb-1.5">Notes</label><textarea name="notes" value={formData.notes} onChange={handleChange} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none h-12"></textarea></div>
+                <div><label className="block text-[11px] font-medium text-slate-600 mb-0.5">Select Head of Department<span className="text-red-500">*</span></label><CustomSelect name="headOfDepartment" value={formData.headOfDepartment} onChange={handleChange} options={employees.map(e => ({ label: `${e.designation || 'N/A'} - ${e.fullName}`, value: e.fullName }))} /></div>
+                <div><label className="block text-[11px] font-medium text-slate-600 mb-0.5">Machine Owner<span className="text-red-500">*</span></label><CustomSelect name="machineOwner" value={formData.machineOwner} onChange={handleChange} options={employees.map(e => ({ label: `${e.designation || 'N/A'} - ${e.fullName}`, value: e.fullName }))} /></div>
+                <div className="col-span-1 md:col-span-4"><label className="block text-[11px] font-medium text-slate-600 mb-0.5">Notes</label><textarea name="notes" value={formData.notes} onChange={handleChange} className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-md text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 transition-all resize-none h-11"></textarea></div>
               </div>
             </div>
           )}
@@ -1145,12 +1145,12 @@ export function AddMachine() {
       </div>
 
       {/* Save Button */}
-      <div className="flex justify-end gap-4 w-full pt-6">
+      <div className="flex justify-end gap-3 w-full pt-3.5">
         <button 
           type="button"
           onClick={handleFinalSave} 
           disabled={loading} 
-          className="px-10 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
+          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 active:scale-98 text-white rounded-md font-semibold text-xs transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
         >
           {loading ? 'Saving...' : 'Save Machine'}
         </button>

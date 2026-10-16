@@ -265,7 +265,7 @@ export function CustomSelect({
         className={`flex items-center w-full transition-all outline-none ${
           variant === 'ghost'
             ? `px-2.5 py-1.5 bg-transparent border-none ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50 rounded-lg'} ${isOpen ? 'bg-slate-50' : ''}`
-            : `${inputClassName ? inputClassName : 'px-3 py-2 min-h-[38px]'} border ${rounded === 'xl' ? 'rounded-xl' : rounded === '2xl' ? 'rounded-2xl' : 'rounded-lg'} ${disabled ? 'bg-slate-100 cursor-not-allowed text-slate-400' : 'bg-white cursor-pointer'} ${isOpen ? 'border-blue-600 ring-2 ring-blue-500/20' : 'border-slate-300 hover:border-slate-400'}`
+            : `${inputClassName ? inputClassName : 'px-2.5 py-1 min-h-[32px] h-8 text-xs'} border ${rounded === 'xl' ? 'rounded-lg' : rounded === '2xl' ? 'rounded-xl' : 'rounded-md'} ${disabled ? 'bg-slate-100 cursor-not-allowed text-slate-400' : 'bg-white cursor-pointer'} ${isOpen ? 'border-blue-600 ring-1 ring-blue-500/20' : 'border-slate-300 hover:border-slate-400'}`
         }`}
         onClick={() => {
           if (!disabled && !isOpen) setIsOpen(true);
@@ -283,7 +283,7 @@ export function CustomSelect({
             if (!disabled && !isOpen) setIsOpen(true);
           }}
           placeholder={displayLabel || placeholder}
-          className={`flex-1 w-full min-w-0 bg-transparent outline-none text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 ${
+          className={`flex-1 w-full min-w-0 bg-transparent outline-none text-xs text-slate-800 placeholder:text-slate-400 ${
             disabled ? 'cursor-not-allowed' : 'cursor-text'
           } ${value && !isOpen ? 'font-medium' : ''}`}
         />

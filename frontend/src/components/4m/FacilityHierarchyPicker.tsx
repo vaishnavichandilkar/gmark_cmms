@@ -385,9 +385,9 @@ export function FacilityHierarchyPicker({
         className={`relative w-full ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} ${className}`}
         onClick={() => !disabled && setIsOpen(true)}
       >
-        <div className={`w-full flex items-center justify-between px-4 py-2.5 bg-white border border-gray-300 rounded-lg transition-all focus-within:ring-2 focus-within:ring-green-500/20 focus-within:border-green-500 ${!displayValue ? 'text-gray-500' : 'text-gray-900'}`}>
+        <div className={`w-full flex items-center justify-between px-2.5 py-1 min-h-[32px] h-8 bg-white border border-slate-300 rounded-md text-xs transition-all focus-within:ring-1 focus-within:ring-blue-500/20 focus-within:border-blue-600 ${!displayValue ? 'text-slate-400' : 'text-slate-900'}`}>
           <span className="truncate">{displayValue || placeholder}</span>
-          <ChevronDown size={18} className="text-gray-400" />
+          <ChevronDown size={14} className="text-slate-400 shrink-0" />
         </div>
       </div>
 
