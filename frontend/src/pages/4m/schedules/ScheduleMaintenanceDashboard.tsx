@@ -5,6 +5,9 @@ import {
   Plus,
   FileText,
   Send,
+  Pencil,
+  Trash2,
+  X,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { scheduleService, type MaintenanceSchedule } from '../../../services/scheduleService';
@@ -44,6 +47,8 @@ export function ScheduleMaintenanceDashboard() {
   const [showAddScheduleModal, setShowAddScheduleModal] = useState(false);
   const [showCheckpointModal, setShowCheckpointModal] = useState(false);
   const [selectedMachineForCheckpoint, setSelectedMachineForCheckpoint] = useState<number>(1);
+  const [scheduleToDelete, setScheduleToDelete] = useState<MaintenanceSchedule | null>(null);
+  const [deletingSchedule, setDeletingSchedule] = useState(false);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -235,6 +240,21 @@ export function ScheduleMaintenanceDashboard() {
     }
   };
 
+  const handleDeleteSchedule = async () => {
+    if (!scheduleToDelete) return;
+    setDeletingSchedule(true);
+    try {
+      await scheduleService.deleteSchedule(scheduleToDelete.id);
+      toast.success('Maintenance schedule deleted successfully');
+      setScheduleToDelete(null);
+      fetchSchedulesData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to delete maintenance schedule');
+    } finally {
+      setDeletingSchedule(false);
+    }
+  };
+
   return (
     <div className="sm:p-2 md:p-4 bg-white min-h-screen">
       {/* Header Section */}
@@ -329,11 +349,12 @@ export function ScheduleMaintenanceDashboard() {
                 currentSchedules.map((sch) => (
                   <tr
                     key={sch.id}
-                    className="hover:bg-gray-50/50 transition-colors group cursor-pointer"
+                    onClick={() => navigate(`/schedules/edit/${sch.id}`)}
+                    className="hover:bg-gray-50/70 transition-colors group cursor-pointer"
                   >
                     {/* Schedule Code */}
                     <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
-                      <span className="font-mono font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded border border-gray-200 text-xs">
+                      <span className="font-mono font-bold text-gray-900 bg-gray-100 group-hover:bg-emerald-50 group-hover:text-emerald-700 group-hover:border-emerald-300 px-2 py-0.5 rounded border border-gray-200 text-xs transition-colors">
                         {sch.scheduleCode}
                       </span>
                     </td>
@@ -391,10 +412,37 @@ export function ScheduleMaintenanceDashboard() {
 
                     {/* Actions */}
                     <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-1.5">
                         <button
-                          onClick={(e) => { e.stopPropagation(); handleTriggerWO(sch.id); }}
-                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold rounded-lg text-xs transition-all shadow-xs flex items-center gap-1 cursor-pointer"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/schedules/edit/${sch.id}`);
+                          }}
+                          className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg transition-all cursor-pointer shadow-2xs"
+                          title="Edit Schedule"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setScheduleToDelete(sch);
+                          }}
+                          className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg transition-all cursor-pointer shadow-2xs"
+                          title="Delete Schedule"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTriggerWO(sch.id);
+                          }}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-lg text-xs transition-all shadow-xs flex items-center gap-1 cursor-pointer"
+                          title="Trigger Work Order"
                         >
                           <Send className="w-3.5 h-3.5" />
                           <span>Trigger WO</span>
@@ -444,6 +492,55 @@ export function ScheduleMaintenanceDashboard() {
         machineId={selectedMachineForCheckpoint}
         onSuccess={fetchSchedulesData}
       />
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {scheduleToDelete && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl border border-slate-200 relative animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center text-rose-600 shrink-0">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">Delete Schedule</h2>
+                  <p className="text-xs text-slate-500 font-mono">{scheduleToDelete.scheduleCode}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setScheduleToDelete(null)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Are you sure you want to delete maintenance schedule <strong className="font-semibold text-slate-800">{scheduleToDelete.scheduleCode}</strong> for machine <strong className="font-semibold text-slate-800">{scheduleToDelete.machine?.name || 'Unknown'}</strong>? This will remove all associated schedule tasks, spares, and configuration.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={deletingSchedule}
+                onClick={() => setScheduleToDelete(null)}
+                className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold rounded-lg text-xs transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deletingSchedule}
+                onClick={handleDeleteSchedule}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-semibold rounded-lg text-xs transition-all shadow-xs cursor-pointer flex items-center gap-2"
+              >
+                {deletingSchedule ? 'Deleting...' : 'Delete Schedule'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

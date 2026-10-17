@@ -380,7 +380,7 @@ export function AssetsManagement() {
           <div>
             <h2 className="text-lg font-bold text-gray-900">All Assets</h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              Drag &amp; drop any facility or machine to reassign location • Double-click to view details
+              Drag &amp; drop any facility or machine to reassign location • Click any asset to view details
             </p>
           </div>
           {canManageAssets && (
@@ -403,10 +403,17 @@ export function AssetsManagement() {
           ) : (
             <AssetTree 
               data={treeData} 
-              onSelect={setSelectedNode} 
+              onSelect={(node) => {
+                setSelectedNode(node);
+                if (['OPERATOR', 'VIEWER'].includes(user?.role as string) && node.type !== 'device') {
+                  return;
+                }
+                navigate('.', { replace: true, state: { ...location.state, detailId: node.id } });
+                setDetailsNode(node);
+              }} 
               onDoubleClick={(node) => {
                 if (['OPERATOR', 'VIEWER'].includes(user?.role as string) && node.type !== 'device') {
-                  return; // Restrict access to facility/building details for these roles
+                  return;
                 }
                 navigate('.', { replace: true, state: { ...location.state, detailId: node.id } });
                 setDetailsNode(node);

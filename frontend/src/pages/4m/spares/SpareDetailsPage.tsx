@@ -60,6 +60,7 @@ export function SpareDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const isEditMode = Boolean(id);
   const returnUrl = (location.state as any)?.returnUrl;
+  const returnTab = (location.state as any)?.returnTab || 'Spares';
 
   const tabs = SPARE_TABS;
   const [activeTab, setActiveTab] = useState<TabType>('General');
@@ -108,7 +109,8 @@ export function SpareDetailsPage() {
   const [stockHistoryRecords] = useState<StockHistoryRecord[]>([]);
 
   useEffect(() => {
-    // 1. Restore draft if returning from Add Machine or another sub-page
+    // 1. Restore draft if returning from Add Machine, Add Supplier or another sub-page
+    let targetTab: TabType = 'General';
     const savedDraftStr = sessionStorage.getItem('spare_details_draft');
     if (savedDraftStr) {
       try {
@@ -116,11 +118,14 @@ export function SpareDetailsPage() {
         if (draft.formData) {
           setFormData(prev => ({ ...prev, ...draft.formData }));
         }
-        if (draft.activeTab) {
-          setActiveTab(draft.activeTab);
+        if (draft.activeTab && SPARE_TABS.includes(draft.activeTab)) {
+          targetTab = draft.activeTab;
         }
         if (draft.newMachineForm) {
           setNewMachineForm(draft.newMachineForm);
+        }
+        if (draft.newSupplier) {
+          setNewSupplier(draft.newSupplier);
         }
       } catch (e) {
         console.error('Failed to restore spare details draft', e);
@@ -129,9 +134,12 @@ export function SpareDetailsPage() {
     }
 
     const stateObj = location.state as any;
-    if (stateObj?.tab) {
-      setActiveTab(stateObj.tab as TabType);
+    if (stateObj?.spareTab && SPARE_TABS.includes(stateObj.spareTab)) {
+      targetTab = stateObj.spareTab as TabType;
+    } else if (stateObj?.tab && SPARE_TABS.includes(stateObj.tab)) {
+      targetTab = stateObj.tab as TabType;
     }
+    setActiveTab(targetTab);
 
     if (stateObj?.supplierName) {
       setFormData(prev => {
@@ -194,6 +202,47 @@ export function SpareDetailsPage() {
 
       toast.success(`Machine "${mName}" successfully added to spare!`);
     }
+
+    // 3. Handle returning with a newly created supplier
+    if (stateObj?.newSupplier) {
+      const supplier = stateObj.newSupplier;
+      const sName = supplier.name || supplier.supplierName || 'New Supplier';
+      const sCategory = supplier.businessCategory || supplier.categoriesList?.[0] || 'Supplier';
+
+      fetchSuppliers();
+
+      const newSupplierObj: SupplierItem = {
+        id: String(supplier.id || Date.now()),
+        name: sName,
+        businessCategory: sCategory,
+        reorderDays: Number(supplier.reorderDays) || 7,
+        vendorPrice: Number(supplier.vendorPrice) || Number(formData.rate) || 0
+      };
+
+      setFormData(prev => {
+        const alreadyHas = (prev.suppliersList || []).some(
+          s => s.name?.trim().toLowerCase() === sName.trim().toLowerCase() || String(s.id) === String(supplier.id)
+        );
+        if (alreadyHas) return prev;
+        return {
+          ...prev,
+          suppliersList: [...(prev.suppliersList || []), newSupplierObj]
+        };
+      });
+
+      setNewSupplier({
+        name: sName,
+        businessCategory: sCategory,
+        reorderDays: (Number(supplier.reorderDays) || 7) as any,
+        vendorPrice: (Number(supplier.vendorPrice) || Number(formData.rate) || 0) as any
+      });
+
+      setActiveTab('Suppliers');
+      setIsSupplierPickerModalOpen(false);
+      setIsAddSupplierModalOpen(false);
+
+      toast.success(`Supplier "${sName}" successfully added to spare!`);
+    }
   }, [location.state]);
 
   // Machines List Tab Modals & State
@@ -246,7 +295,8 @@ export function SpareDetailsPage() {
 
   // Suppliers Tab State
   const [isAddSupplierModalOpen, setIsAddSupplierModalOpen] = useState(false);
-  const [newSupplier, setNewSupplier] = useState({ name: '', businessCategory: '', reorderDays: '' as any, vendorPrice: '' as any });
+  const [isCustomSupplierInput, setIsCustomSupplierInput] = useState(false);
+  const [newSupplier, setNewSupplier] = useState({ name: 'Select', businessCategory: 'Select', reorderDays: '' as any, vendorPrice: '' as any });
   const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>([]);
   const [supplierSearchQuery, setSupplierSearchQuery] = useState('');
 
@@ -298,17 +348,28 @@ export function SpareDetailsPage() {
   const fetchSuppliers = async () => {
     try {
       const data = await supplierService.getAll();
-      if (Array.isArray(data)) {
+      if (Array.isArray(data) && data.length > 0) {
         const mapped = data.map((s: any) => ({
           id: String(s.id),
           name: s.name,
           category: s.businessCategory || 'Supplier',
-          code: s.supplierCode || `SUP${s.id}`,
+          code: s.supplierCode || `12064`,
         }));
         setAvailableSuppliersList(mapped);
+      } else {
+        setAvailableSuppliersList([
+          { id: '1', name: 'Supplier Name', category: 'Manufacturer', code: '12064' },
+          { id: '2', name: 'Supplier Name', category: 'Manufacturer', code: '12064' },
+          { id: '3', name: 'Supplier Name', category: 'Manufacturer', code: '12064' },
+        ]);
       }
     } catch (err) {
       console.error('Failed to load suppliers for picker:', err);
+      setAvailableSuppliersList([
+        { id: '1', name: 'Supplier Name', category: 'Manufacturer', code: '12064' },
+        { id: '2', name: 'Supplier Name', category: 'Manufacturer', code: '12064' },
+        { id: '3', name: 'Supplier Name', category: 'Manufacturer', code: '12064' },
+      ]);
     }
   };
 
@@ -546,7 +607,7 @@ export function SpareDetailsPage() {
         toast.success('Spare Part updated successfully');
         if (!stayOnPage) {
           if (returnUrl) {
-            navigate(returnUrl, { state: { tab: 'Spares', newSpareId: Number(id), newSpare: { ...payload, id: Number(id) } } });
+            navigate(returnUrl, { state: { tab: returnTab, newSpareId: Number(id), newSpare: { ...payload, id: Number(id) } } });
           } else {
             navigate('/spares');
           }
@@ -557,7 +618,7 @@ export function SpareDetailsPage() {
         toast.success('New Spare Part created successfully');
         if (!stayOnPage) {
           if (returnUrl) {
-            navigate(returnUrl, { state: { tab: 'Spares', newSpareId: created.id, newSpare: created } });
+            navigate(returnUrl, { state: { tab: returnTab, newSpareId: created.id, newSpare: created } });
           } else {
             navigate('/spares');
           }
@@ -674,6 +735,8 @@ export function SpareDetailsPage() {
         returnUrl: location.pathname,
         parentReturnUrl: returnUrl,
       }));
+      sessionStorage.setItem('addMachineReturnUrl', location.pathname);
+      sessionStorage.setItem('addMachineReturnTab', 'Machines List');
     } catch (err) {
       console.error('Failed to save spare details draft:', err);
     }
@@ -783,25 +846,51 @@ export function SpareDetailsPage() {
   };
 
   // Supplier Handlers
+  const handleGoToAddSupplier = () => {
+    try {
+      sessionStorage.setItem('spare_details_draft', JSON.stringify({
+        formData,
+        activeTab: 'Suppliers',
+        newSupplier,
+        returnUrl: location.pathname,
+        parentReturnUrl: returnUrl,
+      }));
+      sessionStorage.setItem('addSupplierReturnUrl', location.pathname);
+      sessionStorage.setItem('addSupplierReturnTab', 'Suppliers');
+    } catch (err) {
+      console.error('Failed to save spare details draft:', err);
+    }
+
+    navigate('/suppliers/new', {
+      state: {
+        returnUrl: location.pathname,
+        returnTab: 'Suppliers',
+        fromSpare: true
+      }
+    });
+  };
+
   const handleAddSupplier = () => {
-    if (newSupplier.name === 'Select' || !newSupplier.name.trim()) {
-      toast.error('Please select a supplier name');
+    if (!newSupplier.name || newSupplier.name === 'Select' || !newSupplier.name.trim()) {
+      toast.error('Please select or enter a supplier name');
       return;
     }
     const newSupplierObj: SupplierItem = {
       id: Date.now().toString(),
-      name: newSupplier.name,
-      businessCategory: newSupplier.businessCategory === 'Select' ? 'Manufacturer' : newSupplier.businessCategory,
-      reorderDays: Number(newSupplier.reorderDays) || 23,
-      vendorPrice: Number(newSupplier.vendorPrice) || 1000
+      name: newSupplier.name.trim(),
+      businessCategory: (!newSupplier.businessCategory || newSupplier.businessCategory === 'Select') ? 'Supplier' : newSupplier.businessCategory,
+      reorderDays: Number(newSupplier.reorderDays) || 0,
+      vendorPrice: Number(newSupplier.vendorPrice) || 0
     };
     setFormData(prev => ({
       ...prev,
       suppliersList: [...(prev.suppliersList || []), newSupplierObj]
     }));
     setIsAddSupplierModalOpen(false);
+    setIsSupplierPickerModalOpen(false);
+    setIsCustomSupplierInput(false);
     setNewSupplier({ name: 'Select', businessCategory: 'Select', reorderDays: '' as any, vendorPrice: '' as any });
-    toast.success('Added business supplier');
+    toast.success('Added supplier to spare');
   };
 
   const handleDeleteSelectedSuppliers = () => {
@@ -888,14 +977,25 @@ export function SpareDetailsPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* Breadcrumb matching Figma Screen 2 & Screen 4 */}
+      <div className="text-xs text-gray-500 font-medium flex items-center gap-1.5 pt-1">
+        <span className="hover:text-gray-800 cursor-pointer" onClick={() => navigate('/spares')}>Pages</span>
+        <span>/</span>
+        <span className="hover:text-gray-800 cursor-pointer" onClick={() => navigate('/spares')}>Spares</span>
+        <span>/</span>
+        <span className="text-gray-700">{isEditMode ? (formData.partName || 'Spare') : 'New Spare'}</span>
+        <span>/</span>
+        <span className="text-emerald-700 font-semibold">{activeTab}</span>
+      </div>
+
       {/* Top Header Controls Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         
         {/* Left Side: Back Arrow + Spare Name Header */}
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => returnUrl ? navigate(returnUrl, { state: { tab: 'Spares' } }) : navigate('/spares')}
+            onClick={() => returnUrl ? navigate(returnUrl, { state: { tab: returnTab } }) : navigate('/spares')}
             className="p-1.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
             title="Back to Spares List"
           >
@@ -906,7 +1006,7 @@ export function SpareDetailsPage() {
           </h1>
         </div>
 
-        {/* Right Side Header Action Buttons */}
+        {/* Right Side Header Action Buttons matching Figma Screen 1 */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => window.print()}
@@ -925,10 +1025,10 @@ export function SpareDetailsPage() {
           </button>
 
           <button
-            className="h-[38px] w-[38px] bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center transition-all shadow-xs cursor-pointer"
-            title="Filter"
+            className="h-[38px] w-[38px] bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center justify-center transition-all shadow-xs cursor-pointer"
+            title="Options"
           >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
+            <ChevronDown className="w-4 h-4 stroke-[2.5]" />
           </button>
         </div>
       </div>
@@ -1086,8 +1186,8 @@ export function SpareDetailsPage() {
               );
             })()}
 
-            {/* Stock Badge - Fiix Blue status pill */}
-            <div className="bg-blue-600 text-white py-2 px-4 rounded-xl font-bold text-center text-sm shadow-xs">
+            {/* Stock Badge - Emerald status pill matching Figma */}
+            <div className="bg-emerald-600 text-white py-2 px-4 rounded-xl font-bold text-center text-sm shadow-xs">
               Stock : {formData.stockQuantity ?? 20}
             </div>
           </div>
@@ -1108,6 +1208,24 @@ export function SpareDetailsPage() {
               <div className="text-xs text-slate-400 font-semibold">Spare Sub-Category</div>
               <div className="font-bold text-slate-900">{formData.subCategory || 'Spare Sub-Category'}</div>
             </div>
+
+            {/* Left Sidebar Action Buttons matching Figma Screen 1 */}
+            <div className="pt-3 space-y-2">
+              <button
+                type="button"
+                onClick={() => handleSave()}
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors shadow-xs cursor-pointer text-center"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={handleBack}
+                className="w-full py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl text-xs transition-colors shadow-xs cursor-pointer text-center"
+              >
+                Back
+              </button>
+            </div>
           </div>
 
         </div>
@@ -1125,7 +1243,7 @@ export function SpareDetailsPage() {
                   onClick={() => setActiveTab(tab)}
                   className={`px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition-all rounded-lg cursor-pointer ${
                     isActive
-                      ? 'bg-blue-600 text-white shadow-xs'
+                      ? 'bg-emerald-600 text-white shadow-xs'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                   }`}
                 >
@@ -1712,19 +1830,24 @@ export function SpareDetailsPage() {
                   </div>
 
                   <button
-                    onClick={() => navigate('/suppliers/new')}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-sky-100 hover:bg-sky-200 text-sky-700 font-bold rounded-lg text-xs transition-colors"
+                    onClick={() => {
+                      fetchSuppliers();
+                      setNewSupplier({ name: 'Select', businessCategory: 'Select', reorderDays: '' as any, vendorPrice: '' as any });
+                      setIsCustomSupplierInput(false);
+                      setIsAddSupplierModalOpen(true);
+                    }}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 font-bold rounded-lg text-xs transition-colors cursor-pointer"
                   >
-                    <Plus className="w-3.5 h-3.5 text-sky-600" />
+                    <Plus className="w-3.5 h-3.5 text-emerald-600" />
                     <span>Add</span>
                   </button>
 
                   <button
                     onClick={handleDeleteSelectedSuppliers}
-                    className="p-1.5 bg-sky-100 hover:bg-sky-200 text-sky-700 rounded-lg flex items-center justify-center transition-colors"
+                    className="p-1.5 bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-700 rounded-lg flex items-center justify-center transition-colors cursor-pointer"
                     title="Delete Selected Suppliers"
                   >
-                    <Trash2 className="w-3.5 h-3.5 text-sky-600" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
@@ -1757,7 +1880,20 @@ export function SpareDetailsPage() {
                       {filteredSuppliersList.length === 0 ? (
                         <tr>
                           <td colSpan={6} className="py-8 text-center text-gray-400 font-medium">
-                            No supplier entries found. Click <button type="button" onClick={() => navigate('/suppliers/new')} className="text-blue-600 font-bold hover:underline cursor-pointer">"+ Add"</button> to create a new supplier.
+                            No supplier entries found. Click{" "}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                fetchSuppliers();
+                                setNewSupplier({ name: 'Select', businessCategory: 'Select', reorderDays: '' as any, vendorPrice: '' as any });
+                                setIsCustomSupplierInput(false);
+                                setIsAddSupplierModalOpen(true);
+                              }}
+                              className="text-emerald-600 font-bold hover:underline cursor-pointer"
+                            >
+                              "+ Add"
+                            </button>{" "}
+                            to create a new supplier.
                           </td>
                         </tr>
                       ) : (
@@ -2452,14 +2588,17 @@ export function SpareDetailsPage() {
       {isAddMachineModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
           <div className="bg-white rounded-3xl max-w-lg w-full p-8 space-y-6 shadow-2xl relative">
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={() => setIsAddMachineModalOpen(false)} 
-                className="text-gray-900 hover:text-emerald-700 transition-colors"
-              >
-                <ArrowLeft className="w-6 h-6 stroke-[2.5]" />
-              </button>
-              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Add Machine</h2>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setIsAddMachineModalOpen(false)} 
+                  className="text-gray-900 hover:text-emerald-700 transition-colors cursor-pointer p-1 rounded-full hover:bg-gray-100"
+                >
+                  <ArrowLeft className="w-6 h-6 stroke-[2.5]" />
+                </button>
+                <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Add Machine</h2>
+              </div>
             </div>
 
             <div className="text-xs font-semibold text-gray-500">
@@ -2467,43 +2606,125 @@ export function SpareDetailsPage() {
             </div>
 
             <div className="space-y-4 text-xs">
+              {/* Location */}
               <div>
                 <label className="block font-bold text-gray-800 mb-1.5">Location</label>
-                <div 
-                  onClick={() => {
-                    fetchLocations();
-                    setIsMachineLocationPickerOpen(true);
-                  }}
-                  className="w-full px-4 py-3 border border-gray-400 rounded-2xl bg-white flex items-center justify-between cursor-pointer hover:border-emerald-500 transition-colors"
-                >
-                  <span className={newMachineForm.location && newMachineForm.location !== 'Select' ? 'text-gray-900 font-medium' : 'text-gray-400'}>
-                    {newMachineForm.location && newMachineForm.location !== 'Select' ? newMachineForm.location : 'Select Location'}
-                  </span>
-                  <ChevronDown className="w-4 h-4 text-gray-600" />
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <select
+                      value={newMachineForm.location || ''}
+                      onChange={(e) => setNewMachineForm(prev => ({ ...prev, location: e.target.value }))}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 text-sm font-medium appearance-none pr-10 cursor-pointer"
+                    >
+                      <option value="">Select Location</option>
+                      {availableLocations.map((loc) => (
+                        <option key={loc.id} value={loc.location}>
+                          {loc.location} {loc.code ? `(${loc.code})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      fetchLocations();
+                      setIsMachineLocationPickerOpen(true);
+                    }}
+                    title="Browse locations"
+                    className="h-[46px] px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-2xl text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                  >
+                    <Search className="w-3.5 h-3.5 text-gray-600" />
+                    <span>Browse</span>
+                  </button>
                 </div>
               </div>
 
+              {/* Machine */}
               <div>
-                <label className="block font-bold text-gray-800 mb-1.5">Machine</label>
-                <div 
-                  onClick={() => {
-                    fetchMachines();
-                    setIsMachinePickerModalOpen(true);
-                  }}
-                  className="w-full px-4 py-3 border border-gray-400 rounded-2xl bg-white flex items-center justify-between cursor-pointer hover:border-emerald-500 transition-colors"
-                >
-                  <span className={newMachineForm.name && newMachineForm.name !== 'Select' ? 'text-gray-900 font-medium' : 'text-gray-400'}>
-                    {newMachineForm.name && newMachineForm.name !== 'Select' ? newMachineForm.name : 'Select Machine'}
-                  </span>
-                  <ChevronDown className="w-4 h-4 text-gray-600" />
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block font-bold text-gray-800">Machine *</label>
+                  <button
+                    type="button"
+                    onClick={handleGoToAddMachine}
+                    className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 hover:underline cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" /> Add New Machine
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <select
+                      value={newMachineForm.name || ''}
+                      onChange={(e) => {
+                        if (e.target.value === '__ADD_NEW__') {
+                          handleGoToAddMachine();
+                        } else {
+                          const found = availableMachinesList.find(m => m.machineName === e.target.value);
+                          setNewMachineForm(prev => ({
+                            ...prev,
+                            name: e.target.value,
+                            location: found?.location || prev.location || 'Main Facility'
+                          }));
+                        }
+                      }}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 text-sm font-medium appearance-none pr-10 cursor-pointer"
+                    >
+                      <option value="">Select Machine</option>
+                      {availableMachinesList.map((m) => (
+                        <option key={m.id} value={m.machineName}>
+                          {m.machineName} {m.code ? `(${m.code})` : ''} - {m.location}
+                        </option>
+                      ))}
+                      <option value="__ADD_NEW__" className="text-emerald-600 font-semibold">+ Add in Machine Management...</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      fetchMachines();
+                      setIsMachinePickerModalOpen(true);
+                    }}
+                    title="Browse machines list"
+                    className="h-[46px] px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-2xl text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                  >
+                    <Search className="w-3.5 h-3.5 text-gray-600" />
+                    <span>Browse</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleGoToAddMachine}
+                    title="Add new machine in Machine Management"
+                    className="h-[46px] px-3.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-2xl text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                    <span>Add</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between mt-1.5 text-[11px] text-gray-500">
+                  <span>Machine not in the list?</span>
+                  <button
+                    type="button"
+                    onClick={handleGoToAddMachine}
+                    className="text-emerald-600 hover:underline font-bold cursor-pointer"
+                  >
+                    + Create in Machine Management
+                  </button>
                 </div>
               </div>
             </div>
 
             <div className="flex justify-center pt-2">
               <button
+                type="button"
                 onClick={handleAddMachineSubmit}
-                className="px-10 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm shadow-md transition-all"
+                className="px-10 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm shadow-md transition-all cursor-pointer"
               >
                 Save
               </button>
@@ -2519,8 +2740,9 @@ export function SpareDetailsPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <button 
+                  type="button"
                   onClick={() => setIsMachineLocationPickerOpen(false)} 
-                  className="text-gray-900 hover:text-emerald-700 transition-colors"
+                  className="text-gray-900 hover:text-emerald-700 transition-colors cursor-pointer p-1 rounded-full hover:bg-gray-100"
                 >
                   <ArrowLeft className="w-6 h-6 stroke-[2.5]" />
                 </button>
@@ -2540,14 +2762,15 @@ export function SpareDetailsPage() {
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => {
                     const newLocName = `Location ${availableLocations.length + 1}`;
                     setAvailableLocations(prev => [...prev, { id: Date.now().toString(), location: newLocName, facilityName: 'Facility Name', code: 'C1354' }]);
                     toast.success('Added location');
                   }}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-sky-100 hover:bg-sky-200 text-sky-700 font-bold rounded-lg text-xs transition-colors"
+                  className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 font-bold rounded-lg text-xs transition-colors cursor-pointer"
                 >
-                  <Plus className="w-3.5 h-3.5 text-sky-600" />
+                  <Plus className="w-3.5 h-3.5 text-emerald-600" />
                   <span>Add</span>
                 </button>
               </div>
@@ -2607,8 +2830,9 @@ export function SpareDetailsPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <button 
+                  type="button"
                   onClick={() => setIsMachinePickerModalOpen(false)} 
-                  className="text-gray-900 hover:text-emerald-700 transition-colors"
+                  className="text-gray-900 hover:text-emerald-700 transition-colors cursor-pointer p-1 rounded-full hover:bg-gray-100"
                 >
                   <ArrowLeft className="w-6 h-6 stroke-[2.5]" />
                 </button>
@@ -2628,10 +2852,12 @@ export function SpareDetailsPage() {
                 </div>
 
                 <button
+                  type="button"
                   onClick={handleGoToAddMachine}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-sky-100 hover:bg-sky-200 text-sky-700 font-bold rounded-lg text-xs transition-colors"
+                  title="Add new machine in Machine Management"
+                  className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 font-bold rounded-lg text-xs transition-colors cursor-pointer"
                 >
-                  <Plus className="w-3.5 h-3.5 text-sky-600" />
+                  <Plus className="w-3.5 h-3.5 text-emerald-600" />
                   <span>Add</span>
                 </button>
               </div>
@@ -2654,7 +2880,15 @@ export function SpareDetailsPage() {
                   {filteredAvailableMachines.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="py-8 text-center text-gray-400 font-medium">
-                        No machines found.
+                        No machines found. Click{" "}
+                        <button
+                          type="button"
+                          onClick={handleGoToAddMachine}
+                          className="text-emerald-600 font-bold hover:underline cursor-pointer"
+                        >
+                          "+ Add New Machine"
+                        </button>{" "}
+                        to create one.
                       </td>
                     </tr>
                   ) : (
@@ -2861,27 +3095,28 @@ export function SpareDetailsPage() {
         </div>
       )}
 
-      {/* ADD BUSINESS (SUPPLIER) MODAL (Matching Image 1 "New Spares 39" & Image 2 "Business Category") */}
+      {/* ADD BUSINESS (SUPPLIER) MODAL (Matching Figma Screen 2 & 3) */}
       {isAddSupplierModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
           <div className="bg-white rounded-3xl max-w-lg w-full p-8 space-y-6 shadow-2xl relative">
             {/* Header */}
             <div className="flex items-center gap-3">
               <button 
+                type="button"
                 onClick={() => setIsAddSupplierModalOpen(false)} 
-                className="text-gray-900 hover:text-emerald-700 transition-colors"
+                className="text-gray-900 hover:text-emerald-700 transition-colors cursor-pointer p-1 rounded-full hover:bg-gray-100"
               >
                 <ArrowLeft className="w-6 h-6 stroke-[2.5]" />
               </button>
               <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Add Business</h2>
             </div>
 
-            {/* Asset Subheader */}
+            {/* Asset Subheader matching Figma Screen 2 */}
             <div className="text-xs font-semibold text-gray-500">
               Asset : {formData.partName ? `${formData.partName.replace('S1', 'F1')}` : 'Facility Name F1'}
             </div>
 
-            {/* Form Fields */}
+            {/* Form Fields matching Figma Screen 2 */}
             <div className="space-y-4 text-xs">
               {/* Supplier Name (Picker Trigger) */}
               <div>
@@ -2893,35 +3128,38 @@ export function SpareDetailsPage() {
                   }}
                   className="w-full px-4 py-3 border border-gray-400 rounded-2xl bg-white flex items-center justify-between cursor-pointer hover:border-emerald-500 transition-colors"
                 >
-                  <span className={newSupplier.name !== 'Select' ? 'text-gray-900 font-medium' : 'text-gray-400'}>
-                    {newSupplier.name}
+                  <span className={newSupplier.name && newSupplier.name !== 'Select' ? 'text-gray-900 font-medium' : 'text-gray-400'}>
+                    {newSupplier.name && newSupplier.name !== 'Select' ? newSupplier.name : 'Select'}
                   </span>
                   <ChevronDown className="w-4 h-4 text-gray-600" />
                 </div>
               </div>
 
-              {/* Business Category */}
+              {/* Business Category matching Figma Screen 2 & Screen 3 */}
               <div>
                 <label className="block font-bold text-gray-800 mb-1.5">Business Category</label>
-                <select
-                  value={newSupplier.businessCategory}
-                  onChange={(e) => setNewSupplier(prev => ({ ...prev, businessCategory: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-400 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 text-sm font-medium"
-                >
-                  <option value="Select">Select</option>
-                  <option value="Supplier">Supplier</option>
-                  <option value="Manufacturer">Manufacturer</option>
-                  <option value="Service Provider">Service Provider</option>
-                </select>
+                <div className="relative">
+                  <select
+                    value={newSupplier.businessCategory}
+                    onChange={(e) => setNewSupplier(prev => ({ ...prev, businessCategory: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-400 rounded-2xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 text-sm font-medium appearance-none pr-10 cursor-pointer"
+                  >
+                    <option value="Select">Select</option>
+                    <option value="Supplier">Supplier</option>
+                    <option value="Manufacturer">Manufacturer</option>
+                    <option value="Service Provider">Service Provider</option>
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-gray-600 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
 
-              {/* No. of Days For Reorder Delivery */}
+              {/* No. of Days For Reorder Delivery matching Figma Screen 2 */}
               <div>
                 <label className="block font-bold text-gray-800 mb-1.5">No. of Days For Reorder Delivery</label>
                 <input
                   type="number"
                   min="0"
-                  placeholder="0"
+                  placeholder="23"
                   onKeyDown={handleNumericKeyDown}
                   onFocus={(e) => {
                     if (e.target.value === '0') e.target.select();
@@ -2939,11 +3177,12 @@ export function SpareDetailsPage() {
               </div>
             </div>
 
-            {/* Action Button */}
+            {/* Action Button matching Figma Screen 2 */}
             <div className="flex justify-center pt-2">
               <button
+                type="button"
                 onClick={handleAddSupplier}
-                className="px-10 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm shadow-md transition-all"
+                className="px-10 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm shadow-md transition-all cursor-pointer"
               >
                 Save
               </button>
@@ -2952,15 +3191,16 @@ export function SpareDetailsPage() {
         </div>
       )}
 
-      {/* SUPPLIERS SELECTOR MODAL (Matching Image 3 "New Spares 40") */}
+      {/* SUPPLIERS SELECTOR MODAL (Matching Figma Screen 4) */}
       {isSupplierPickerModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[60] flex items-center justify-center p-4 animate-fadeIn">
           <div className="bg-white rounded-3xl max-w-lg w-full p-8 space-y-6 shadow-2xl relative">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <button 
+                  type="button"
                   onClick={() => setIsSupplierPickerModalOpen(false)} 
-                  className="text-gray-900 hover:text-emerald-700 transition-colors"
+                  className="text-gray-900 hover:text-emerald-700 transition-colors cursor-pointer p-1 rounded-full hover:bg-gray-100"
                 >
                   <ArrowLeft className="w-6 h-6 stroke-[2.5]" />
                 </button>
@@ -2980,23 +3220,21 @@ export function SpareDetailsPage() {
                 </div>
 
                 <button
-                  onClick={() => {
-                    const newName = `Supplier Name ${availableSuppliersList.length + 1}`;
-                    setAvailableSuppliersList(prev => [...prev, { id: Date.now().toString(), name: newName, category: 'Manufacturer', code: 'C1354' }]);
-                    toast.success('Added supplier option');
-                  }}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-sky-100 hover:bg-sky-200 text-sky-700 font-bold rounded-lg text-xs transition-colors"
+                  type="button"
+                  onClick={handleGoToAddSupplier}
+                  title="Add new supplier in Suppliers Management"
+                  className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 font-bold rounded-lg text-xs transition-colors cursor-pointer"
                 >
-                  <Plus className="w-3.5 h-3.5 text-sky-600" />
+                  <Plus className="w-3.5 h-3.5 text-emerald-600" />
                   <span>Add</span>
                 </button>
               </div>
             </div>
 
-            <div className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+            <div className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm max-h-[380px] overflow-y-auto">
               <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-[#dedede]/70 text-gray-700 text-[11px] uppercase tracking-wider font-bold">
+                <thead className="sticky top-0 bg-[#dedede]/90 backdrop-blur-xs">
+                  <tr className="text-gray-700 text-[11px] uppercase tracking-wider font-bold">
                     <th className="py-2.5 px-4 w-10 text-center">
                       <input type="checkbox" className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300" />
                     </th>
@@ -3017,7 +3255,15 @@ export function SpareDetailsPage() {
                       return (
                         <tr>
                           <td colSpan={5} className="py-8 text-center text-gray-400 font-medium">
-                            No suppliers found.
+                            No suppliers found. Click{" "}
+                            <button
+                              type="button"
+                              onClick={handleGoToAddSupplier}
+                              className="text-emerald-600 font-bold hover:underline cursor-pointer"
+                            >
+                              "+ Add"
+                            </button>{" "}
+                            to create a new supplier.
                           </td>
                         </tr>
                       );
@@ -3026,13 +3272,29 @@ export function SpareDetailsPage() {
                       <tr 
                         key={item.id} 
                         onClick={() => {
-                          setNewSupplier(prev => ({ ...prev, name: item.name, businessCategory: item.category }));
+                          setNewSupplier(prev => ({
+                            ...prev,
+                            name: item.name,
+                            businessCategory: item.category || prev.businessCategory || 'Supplier'
+                          }));
                           setIsSupplierPickerModalOpen(false);
                         }}
                         className="hover:bg-blue-50/40 transition-colors cursor-pointer"
                       >
-                        <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
-                          <input type="checkbox" className="w-3.5 h-3.5 text-blue-600 rounded border-gray-300" />
+                        <td className="py-3 px-4 text-center">
+                          <input 
+                            type="checkbox" 
+                            checked={newSupplier.name === item.name}
+                            onChange={() => {
+                              setNewSupplier(prev => ({
+                                ...prev,
+                                name: item.name,
+                                businessCategory: item.category || prev.businessCategory || 'Supplier'
+                              }));
+                              setIsSupplierPickerModalOpen(false);
+                            }}
+                            className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300 cursor-pointer" 
+                          />
                         </td>
                         <td className="py-3 px-4 font-medium text-gray-500">{idx + 1}</td>
                         <td className="py-3 px-4 font-semibold text-gray-800">{item.name}</td>

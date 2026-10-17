@@ -166,6 +166,12 @@ export function FloatingNavbar() {
     if (!user.permissions || !Array.isArray(user.permissions)) return false;
 
     const perm = user.permissions.find((p: any) => p.moduleId === moduleId);
+    if (!perm && moduleId === 'assets') {
+      const mmPerm = user.permissions.find((p: any) => p.moduleId === 'machine_management');
+      if (mmPerm && mmPerm.canView) return true;
+      const fmPerm = user.permissions.find((p: any) => p.moduleId === 'facility_management');
+      if (fmPerm && fmPerm.canView) return true;
+    }
     return perm ? !!perm.canView : false;
   };
 

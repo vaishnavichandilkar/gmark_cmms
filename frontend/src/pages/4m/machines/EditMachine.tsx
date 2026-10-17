@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../store';
 import { hasTabPermission } from '../../../utils/permissions';
 import { CustomSelect } from '../../../components/shared/CustomSelect';
 import { CustomDatePicker } from '../../../components/shared/CustomDatePicker';
-import { ArrowLeft, Search, Plus, Wifi, Activity, ShieldAlert, RefreshCw, Sparkles, Trash2, Eye, Pencil, X } from 'lucide-react';
+import { ArrowLeft, Search, Plus, Wifi, Activity, ShieldAlert, RefreshCw, Sparkles, Trash2, Eye, Pencil, X, ChevronDown } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { FacilityHierarchyPicker } from '../../../components/4m/FacilityHierarchyPicker';
 import { MachineHierarchyPicker } from '../../../components/4m/MachineHierarchyPicker';
@@ -26,8 +26,100 @@ export function EditMachine() {
   const [activeTab, setActiveTab] = useState(location.state?.tab || 'General');
   const [saving, setSaving] = useState(false);
   
-  const [machineSpares, setMachineSpares] = useState<any[]>([]);
+  const [machineSpares, setMachineSpares] = useState<any[]>(() => {
+    try {
+      const stored = localStorage.getItem(`machine_${id}_spares`);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
   const [spareSearchQuery, setSpareSearchQuery] = useState('');
+  const [catalogSpares, setCatalogSpares] = useState<any[]>([]);
+  const [availableLocationsList, setAvailableLocationsList] = useState<string[]>([]);
+  const [spareModalLocation, setSpareModalLocation] = useState('');
+  const [spareModalName, setSpareModalName] = useState('');
+  const [spareModalQuantity, setSpareModalQuantity] = useState<number | string>(1);
+  const [spareModalRate, setSpareModalRate] = useState<number | string>('');
+
+  useEffect(() => {
+    if (id) {
+      localStorage.setItem(`machine_${id}_spares`, JSON.stringify(machineSpares));
+    }
+  }, [id, machineSpares]);
+
+  const handleOpenAddSpareModal = () => {
+    setSpareModalLocation(formData.company || availableLocationsList[0] || 'Main Store');
+    setSpareModalName('');
+    setSpareModalQuantity(1);
+    setSpareModalRate('');
+    setIsSparesModalOpen(true);
+  };
+
+  const handleNavigateToCreateSpare = () => {
+    setIsSparesModalOpen(false);
+    navigate('/spares/new', {
+      state: {
+        returnUrl: location.pathname,
+        returnTab: 'Spares',
+        tab: 'General',
+        spareTab: 'General',
+      }
+    });
+  };
+
+  const handleSelectSpareName = (val: string) => {
+    setSpareModalName(val);
+    const found = catalogSpares.find(s => (s.partName || s.name) === val || String(s.id) === val);
+    if (found) {
+      if (found.location) setSpareModalLocation(found.location);
+      if (found.rate !== undefined && found.rate !== null && found.rate !== '') {
+        setSpareModalRate(found.rate);
+      } else if (found.unitCost !== undefined && found.unitCost !== null && found.unitCost !== '') {
+        setSpareModalRate(found.unitCost);
+      }
+    }
+  };
+
+  const handleSaveSpareModal = () => {
+    if (!spareModalName.trim()) {
+      toast.error('Please select or enter a spare name');
+      return;
+    }
+
+    const qty = Number(spareModalQuantity) || 1;
+    const rate = Number(spareModalRate) || 0;
+    const total = qty * rate;
+
+    const found = catalogSpares.find(s => (s.partName || s.name) === spareModalName);
+
+    const newSpareItem = {
+      id: found?.id || Date.now(),
+      partName: spareModalName.trim(),
+      partCode: found?.partCode || `PRT-${Math.floor(100 + Math.random() * 900)}`,
+      category: found?.category || 'General',
+      location: spareModalLocation || found?.location || 'Main Store',
+      quantityUsed: qty,
+      stockQuantity: qty,
+      inHandQuantity: qty,
+      rate: rate,
+      unitCost: rate,
+      total: total,
+    };
+
+    setMachineSpares(prev => {
+      const idx = prev.findIndex(s => s.id === newSpareItem.id || s.partName === newSpareItem.partName);
+      if (idx >= 0) {
+        const updated = [...prev];
+        updated[idx] = { ...updated[idx], ...newSpareItem };
+        return updated;
+      }
+      return [...prev, newSpareItem];
+    });
+
+    toast.success('Spare added successfully');
+    setIsSparesModalOpen(false);
+  };
 
   // Handle return from Spares Management with newly created spare
   useEffect(() => {
@@ -37,20 +129,54 @@ export function EditMachine() {
     const syncSpare = async () => {
       if (location.state?.newSpare) {
         const spare = location.state.newSpare;
+        const formattedSpare = {
+          id: spare.id || Date.now(),
+          partName: spare.partName || spare.name || '',
+          partCode: spare.partCode || '',
+          category: spare.category || 'General',
+          location: spare.location || 'Main Store',
+          quantityUsed: 1,
+          stockQuantity: spare.stockQuantity || 1,
+          inHandQuantity: spare.inHandQuantity || 1,
+          rate: Number(spare.rate) || Number(spare.unitCost) || 0,
+          unitCost: Number(spare.unitCost) || Number(spare.rate) || 0,
+          total: Number(spare.rate) || Number(spare.unitCost) || 0,
+        };
         setMachineSpares(prev => {
-          if (prev.some(s => s.id === spare.id)) return prev;
-          return [...prev, spare];
+          if (prev.some(s => s.id === formattedSpare.id || s.partName === formattedSpare.partName)) return prev;
+          return [...prev, formattedSpare];
         });
+        toast.success(`Spare "${formattedSpare.partName}" added`);
+        try {
+          const freshSpares = await spareService.getAll();
+          if (freshSpares) setCatalogSpares(freshSpares);
+        } catch (_) {}
       } else if (location.state?.newSpareId) {
         const spareId = Number(location.state.newSpareId);
         try {
           const fetchedSpare = await spareService.getById(spareId);
           if (fetchedSpare) {
+            const formattedSpare = {
+              id: fetchedSpare.id,
+              partName: fetchedSpare.partName || (fetchedSpare as any).name || '',
+              partCode: fetchedSpare.partCode || '',
+              category: fetchedSpare.category || 'General',
+              location: fetchedSpare.location || 'Main Store',
+              quantityUsed: 1,
+              stockQuantity: fetchedSpare.stockQuantity || 1,
+              inHandQuantity: fetchedSpare.inHandQuantity || 1,
+              rate: Number(fetchedSpare.rate) || Number(fetchedSpare.unitCost) || 0,
+              unitCost: Number(fetchedSpare.unitCost) || Number(fetchedSpare.rate) || 0,
+              total: Number(fetchedSpare.rate) || Number(fetchedSpare.unitCost) || 0,
+            };
             setMachineSpares(prev => {
-              if (prev.some(s => s.id === fetchedSpare.id)) return prev;
-              return [...prev, fetchedSpare];
+              if (prev.some(s => s.id === formattedSpare.id || s.partName === formattedSpare.partName)) return prev;
+              return [...prev, formattedSpare];
             });
+            toast.success(`Spare "${formattedSpare.partName}" added`);
           }
+          const freshSpares = await spareService.getAll();
+          if (freshSpares) setCatalogSpares(freshSpares);
         } catch (e) {
           console.error('Failed to load returned spare', e);
         }
@@ -112,6 +238,7 @@ export function EditMachine() {
     name: '',
     deviceId: '',
     company: '',
+    facilityId: '',
     maintenanceHead: '',
     machineCode: '',
     serialNumber: '',
@@ -126,6 +253,7 @@ export function EditMachine() {
     
     isLocationPart: false,
     locationId: '',
+    locationType: '',
     locationName: '',
     parentDeviceId: '',
     assetCode: '',
@@ -138,6 +266,36 @@ export function EditMachine() {
     notes: '',
     imageUrl: '',
   });
+
+  const [makeOptions, setMakeOptions] = useState<string[]>(['Make 1']);
+  const [modelOptions, setModelOptions] = useState<string[]>(['Model 1']);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>(['Category 1', 'HYPN', 'FIRE', 'STP', 'WTP', 'SUMP']);
+  const [subCategoryOptions, setSubCategoryOptions] = useState<string[]>(['Sub-Category 1']);
+  const initialLoadRef = useRef(true);
+
+  const handleAddOption = async (
+    type: 'make' | 'modelNumber' | 'machineCategory' | 'machineSubCategory',
+    value: string
+  ) => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+
+    if (type === 'make') {
+      setMakeOptions(prev => prev.includes(trimmed) ? prev : [...prev, trimmed]);
+    } else if (type === 'modelNumber') {
+      setModelOptions(prev => prev.includes(trimmed) ? prev : [...prev, trimmed]);
+    } else if (type === 'machineCategory') {
+      setCategoryOptions(prev => prev.includes(trimmed) ? prev : [...prev, trimmed]);
+    } else if (type === 'machineSubCategory') {
+      setSubCategoryOptions(prev => prev.includes(trimmed) ? prev : [...prev, trimmed]);
+    }
+
+    try {
+      await api.post('/machines/options', { type, value: trimmed });
+    } catch (err) {
+      console.error(`Failed to persist option for ${type}:`, err);
+    }
+  };
 
   const [uploadingImage, setUploadingImage] = useState(false);
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string>('');
@@ -291,20 +449,56 @@ export function EditMachine() {
 
   const fetchData = async () => {
     try {
-      const [deviceRes, facilitiesRes, employeesRes, docsRes, suppliersData] = await Promise.all([
+      const [deviceRes, facilitiesRes, employeesRes, docsRes, suppliersData, optionsRes, sparesData, mainFacRes] = await Promise.all([
         api.get(`/machines/${id}`),
         api.get('/facilities'),
         api.get('/employees'),
         api.get(`/machines/${id}/documents`).catch(() => ({ data: [] })),
-        supplierService.getAll().catch(() => [])
+        supplierService.getAll().catch(() => []),
+        api.get('/machines/dropdown-options').catch(() => ({ data: null })),
+        spareService.getAll().catch(() => []),
+        api.get('/main-facilities').catch(() => ({ data: [] })),
       ]);
       
       const device = deviceRes.data;
       setFacilities(Array.isArray(facilitiesRes.data) ? facilitiesRes.data : []);
       setEmployees(Array.isArray(employeesRes.data) ? employeesRes.data : []);
       setSuppliers(Array.isArray(suppliersData) ? suppliersData : []);
+      if (Array.isArray(sparesData)) {
+        setCatalogSpares(sparesData);
+      }
+      const locs: string[] = [];
+      if (Array.isArray(facilitiesRes?.data)) {
+        facilitiesRes.data.forEach((f: any) => {
+          if (f.facilityName && !locs.includes(f.facilityName)) locs.push(f.facilityName);
+        });
+      }
+      if (Array.isArray(mainFacRes?.data)) {
+        mainFacRes.data.forEach((mf: any) => {
+          if (mf.mainFacilityName && !locs.includes(mf.mainFacilityName)) locs.push(mf.mainFacilityName);
+        });
+      }
+      if (locs.length === 0) {
+        locs.push('Main Store', 'Building A', 'Floor 1', 'Warehouse');
+      }
+      setAvailableLocationsList(locs);
       const docs = Array.isArray(docsRes.data) ? docsRes.data : [];
       setDocuments(docs);
+
+      if (optionsRes?.data) {
+        if (Array.isArray(optionsRes.data.makes) && optionsRes.data.makes.length > 0) {
+          setMakeOptions(optionsRes.data.makes);
+        }
+        if (Array.isArray(optionsRes.data.modelNumbers) && optionsRes.data.modelNumbers.length > 0) {
+          setModelOptions(optionsRes.data.modelNumbers);
+        }
+        if (Array.isArray(optionsRes.data.machineCategories) && optionsRes.data.machineCategories.length > 0) {
+          setCategoryOptions(optionsRes.data.machineCategories);
+        }
+        if (Array.isArray(optionsRes.data.machineSubCategories) && optionsRes.data.machineSubCategories.length > 0) {
+          setSubCategoryOptions(optionsRes.data.machineSubCategories);
+        }
+      }
 
       const photoDoc = docs.find((d: any) => 
         d.type === 'File' && (
@@ -315,12 +509,16 @@ export function EditMachine() {
       );
       
       if (device) {
+        const isDeviceBuilding = !!device.buildingId;
+        const subFacilityId = device.facilityId?.toString() || device.buildingId?.toString() || '';
+
         setFormData(prev => ({
           ...prev,
           status: device.status === 'online' ? 'Online' : 'Offline',
           name: device.name || '',
           deviceId: device.deviceId || '',
-          company: device.company || '',
+          company: device.company || device.facility?.mainFacilityId?.toString() || '',
+          facilityId: subFacilityId,
           maintenanceHead: device.maintenanceHead || '',
           machineCode: device.machineCode || '',
           serialNumber: device.serialNumber || '',
@@ -330,9 +528,10 @@ export function EditMachine() {
           machineSubCategory: device.machineSubCategory || '',
           description: device.description || '',
           isLocationPart: device.isLocationPart || false,
-          locationId: device.facilityId?.toString() || device.buildingId?.toString() || '',
+          locationId: subFacilityId,
+          locationType: isDeviceBuilding ? 'building' : 'facility',
           locationName: device.facility?.facilityName || device.building?.name || '',
-          parentDeviceId: device.parentDeviceId?.toString() || '',
+          parentDeviceId: device.parentMachineId?.toString() || device.parentDeviceId?.toString() || '',
           assetCode: device.assetCode || '',
           latitude: device.latitude || '',
           longitude: device.longitude || '',
@@ -342,14 +541,51 @@ export function EditMachine() {
           notes: device.notes || '',
           imageUrl: photoDoc?.content || device.imageUrl || '',
         }));
+
+        if (device.make) setMakeOptions(prev => prev.includes(device.make) ? prev : [...prev, device.make]);
+        if (device.modelNumber) setModelOptions(prev => prev.includes(device.modelNumber) ? prev : [...prev, device.modelNumber]);
+        if (device.machineCategory) setCategoryOptions(prev => prev.includes(device.machineCategory) ? prev : [...prev, device.machineCategory]);
+        if (device.machineSubCategory) setSubCategoryOptions(prev => prev.includes(device.machineSubCategory) ? prev : [...prev, device.machineSubCategory]);
+
         if (photoDoc?.content) {
           setLocalPreviewUrl(photoDoc.content);
+        } else if (device.imageUrl) {
+          setLocalPreviewUrl(device.imageUrl);
         }
       }
     } catch (error) {
       console.error('Error fetching data:', error);
+    } finally {
+      setTimeout(() => {
+        initialLoadRef.current = false;
+      }, 500);
     }
   };
+
+  useEffect(() => {
+    if (initialLoadRef.current) {
+      return;
+    }
+    if (formData.isLocationPart && formData.parentDeviceId) {
+      api.get(`/machines/${formData.parentDeviceId}`).then((res) => {
+        const parent = res.data;
+        if (parent) {
+          setFormData((prev: any) => ({
+            ...prev,
+            locationId: parent.facilityId?.toString() || parent.buildingId?.toString() || prev.locationId,
+            locationType: parent.facilityId ? 'facility' : (parent.buildingId ? 'building' : (prev as any).locationType),
+            latitude: parent.latitude || prev.latitude,
+            longitude: parent.longitude || prev.longitude,
+            assetCode: parent.assetCode || prev.assetCode,
+            costCenter: parent.costCenter || prev.costCenter,
+            headOfDepartment: parent.headOfDepartment || prev.headOfDepartment,
+            machineOwner: parent.machineOwner || prev.machineOwner,
+            notes: parent.notes || prev.notes,
+          }));
+        }
+      }).catch(console.error);
+    }
+  }, [formData.parentDeviceId, formData.isLocationPart]);
 
   const fetchNextAssetCode = async () => {
     try {
@@ -369,25 +605,47 @@ export function EditMachine() {
 
   const handleChange = (e: any) => {
     const { name, value, dataset } = e.target;
-    setFormData((prev) => ({ 
-      ...prev, 
-      [name]: value,
-      ...(dataset?.type ? { locationType: dataset.type } : {})
-    }));
+    setFormData((prev: any) => {
+      const updates: any = {
+        ...prev,
+        [name]: value,
+        ...(dataset?.type ? { locationType: dataset.type } : {})
+      };
+      
+      if (name === 'company') {
+        updates.facilityId = '';
+      }
+      if (name === 'facilityId' && value && (!prev.locationId || prev.locationId === prev.facilityId)) {
+        updates.locationId = value;
+      }
+      
+      return updates;
+    });
   };
 
   const handleSave = async () => {
+    if (!formData.name?.trim()) {
+      toast.error('Please enter Machine Name.');
+      setActiveTab('General');
+      return;
+    }
     if (!formData.assetCode) {
       toast.error('Please enter the Asset Code.');
+      setActiveTab('General');
       return;
     }
     
     setSaving(true);
     try {
+      const targetId = formData.facilityId || formData.locationId;
+      const isBuilding = (formData as any).locationType === 'building' || (formData as any).locationType === 'society';
+
       await api.put(`/machines/${id}`, {
         name: formData.name,
-        deviceId: formData.deviceId,
+        deviceId: formData.deviceId || null,
         company: formData.company,
+        facilityId: isBuilding ? null : (targetId ? parseInt(targetId) : null),
+        buildingId: isBuilding ? (targetId ? parseInt(targetId) : null) : null,
         maintenanceHead: formData.maintenanceHead,
         machineCode: formData.machineCode,
         serialNumber: formData.serialNumber,
@@ -397,9 +655,7 @@ export function EditMachine() {
         machineSubCategory: formData.machineSubCategory,
         description: formData.description,
         isLocationPart: formData.isLocationPart,
-        facilityId: (formData as any).locationType === 'facility' || (formData as any).locationType === 'mainFacility' ? (formData.locationId ? parseInt(formData.locationId) : undefined) : undefined,
-        buildingId: (formData as any).locationType === 'building' || (formData as any).locationType === 'society' ? (formData.locationId ? parseInt(formData.locationId) : undefined) : undefined,
-        parentDeviceId: formData.parentDeviceId ? parseInt(formData.parentDeviceId) : undefined,
+        parentDeviceId: formData.isLocationPart && formData.parentDeviceId ? parseInt(formData.parentDeviceId) : null,
         assetCode: formData.assetCode,
         latitude: formData.latitude,
         longitude: formData.longitude,
@@ -776,159 +1032,175 @@ export function EditMachine() {
               <p className="text-sm text-slate-500 mt-1">You do not have permission to view any tabs for this machine.</p>
             </div>
           ) : activeTab === 'General' ? (
-            <div className="space-y-6">
-              {/* Location Section */}
+            <div className="space-y-3">
+              {/* Facility & Management */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-2">
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Facility<span className="text-red-500">*</span></label>
+                  <FacilityHierarchyPicker name="company" value={formData.company} onChange={handleChange} placeholder="Select Facility" disabled={!canEditCurrentTab} />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Sub-Facility<span className="text-red-500">*</span></label>
+                  <FacilityHierarchyPicker name="facilityId" value={formData.facilityId} onChange={handleChange} placeholder="Select Sub-Facility" filterByMainFacilityId={formData.company} disabled={!formData.company || !canEditCurrentTab} selectableTypes={['facility', 'building']} defaultExpanded={true} />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Maintenance Head</label>
+                  <CustomSelect name="maintenanceHead" value={formData.maintenanceHead} onChange={handleChange} placeholder="Select Head" options={employees.map(e => ({ label: `${e.designation || 'N/A'} - ${e.fullName}`, value: e.fullName }))} disabled={!canEditCurrentTab} />
+                </div>
+              </div>
+
+              {/* Machine Basic Info */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-2">
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Machine Name<span className="text-red-500">*</span></label>
+                  <input type="text" name="name" value={formData.name} onChange={handleChange} disabled={!canEditCurrentTab} className="w-full px-2.5 py-1 min-h-[32px] h-8 bg-white border border-slate-300 rounded-md text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 transition-all disabled:bg-slate-100 disabled:cursor-not-allowed" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">
+                    Machine Code <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="machineCode"
+                    value={formData.machineCode}
+                    onChange={handleChange}
+                    readOnly
+                    placeholder="Enter Machine Code"
+                    className="w-full px-2.5 py-1 min-h-[32px] h-8 bg-slate-100 border border-slate-200 rounded-md text-xs outline-none text-slate-600 font-medium cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Status<span className="text-red-500">*</span></label>
+                  <CustomSelect name="status" value={formData.status} onChange={handleChange} placeholder="Select Status" options={[{ label: 'Online', value: 'Online' }, { label: 'Offline', value: 'Offline' }]} disabled={!canEditCurrentTab} />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Serial Number<span className="text-red-500">*</span></label>
+                  <input type="text" name="serialNumber" value={formData.serialNumber} onChange={handleChange} disabled={!canEditCurrentTab} className="w-full px-2.5 py-1 min-h-[32px] h-8 bg-white border border-slate-300 rounded-md text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 transition-all disabled:bg-slate-100 disabled:cursor-not-allowed" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Make<span className="text-red-500">*</span></label>
+                  <CustomSelect 
+                    name="make" 
+                    value={formData.make} 
+                    onChange={handleChange} 
+                    placeholder="Select Make" 
+                    options={makeOptions} 
+                    allowCustom={canEditCurrentTab} 
+                    onAddOption={(val) => handleAddOption('make', val)} 
+                    disabled={!canEditCurrentTab}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Model Number<span className="text-red-500">*</span></label>
+                  <CustomSelect 
+                    name="modelNumber" 
+                    value={formData.modelNumber} 
+                    onChange={handleChange} 
+                    placeholder="Select Model Number" 
+                    options={modelOptions} 
+                    allowCustom={canEditCurrentTab} 
+                    onAddOption={(val) => handleAddOption('modelNumber', val)} 
+                    disabled={!canEditCurrentTab}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Machine Category<span className="text-red-500">*</span></label>
+                  <CustomSelect 
+                    name="machineCategory" 
+                    value={formData.machineCategory} 
+                    onChange={handleChange} 
+                    placeholder="Select Category" 
+                    options={categoryOptions} 
+                    allowCustom={canEditCurrentTab} 
+                    onAddOption={(val) => handleAddOption('machineCategory', val)} 
+                    disabled={!canEditCurrentTab}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Machine Sub-Category<span className="text-red-500">*</span></label>
+                  <CustomSelect 
+                    name="machineSubCategory" 
+                    value={formData.machineSubCategory} 
+                    onChange={handleChange} 
+                    placeholder="Select Sub-Category" 
+                    options={subCategoryOptions} 
+                    allowCustom={canEditCurrentTab} 
+                    onAddOption={(val) => handleAddOption('machineSubCategory', val)} 
+                    disabled={!canEditCurrentTab}
+                  />
+                </div>
+              </div>
+
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Location Hierarchy</h3>
-                <div className="bg-slate-50/80 p-4 sm:p-5 rounded-xl border border-slate-200 space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                    <label className="flex items-center gap-3 min-w-[220px] cursor-pointer">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${formData.isLocationPart ? 'border-blue-600' : 'border-slate-300'}`}>
-                        {formData.isLocationPart && <div className="w-2.5 h-2.5 bg-blue-600 rounded-full"></div>}
+                <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Machine Description</label>
+                <textarea name="description" value={formData.description} onChange={handleChange} disabled={!canEditCurrentTab} rows={2} className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-md text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 transition-all resize-none h-12 disabled:bg-slate-100 disabled:cursor-not-allowed"></textarea>
+              </div>
+
+              {/* Location Hierarchy */}
+              <div>
+                <h3 className="text-[11px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Location Hierarchy</h3>
+                <div className="bg-slate-50/80 p-2 sm:p-2.5 rounded-md border border-slate-200 space-y-1.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+                    <label className={`flex items-center gap-2 min-w-[190px] ${canEditCurrentTab ? 'cursor-pointer' : 'cursor-default'}`}>
+                      <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${formData.isLocationPart ? 'border-blue-600' : 'border-slate-300'}`}>
+                        {formData.isLocationPart && <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>}
                       </div>
-                      <input 
-                        type="radio" 
-                        className="hidden" 
-                        checked={formData.isLocationPart}
-                        onChange={() => setFormData(prev => ({ ...prev, isLocationPart: true }))}
-                      />
-                      <span className="text-xs sm:text-sm font-semibold text-slate-700 whitespace-nowrap">This Machine is a part of</span>
+                      <input type="radio" checked={formData.isLocationPart} disabled={!canEditCurrentTab} onChange={() => setFormData((prev: any) => ({...prev, isLocationPart: true}))} className="hidden" />
+                      <span className="text-xs font-medium text-slate-700 whitespace-nowrap">This Machine is a part of</span>
                     </label>
                     <div className="flex-1 max-w-md">
-                      <MachineHierarchyPicker
-                        name="parentDeviceId"
-                        value={formData.parentDeviceId}
-                        onChange={handleChange}
-                        disabled={!formData.isLocationPart}
-                        excludeDeviceId={id}
-                        filterByCompany={formData.company}
-                        filterByLocationId={formData.locationId}
-                      />
+                      <MachineHierarchyPicker name="parentDeviceId" value={formData.parentDeviceId} onChange={handleChange} disabled={!formData.isLocationPart || !canEditCurrentTab} filterByCompany={formData.company} filterByLocationId={formData.locationId} excludeDeviceId={id} />
                     </div>
                   </div>
-
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${!formData.isLocationPart ? 'border-blue-600' : 'border-slate-300'}`}>
-                      {!formData.isLocationPart && <div className="w-2.5 h-2.5 bg-blue-600 rounded-full"></div>}
+                  <label className={`flex items-center gap-2 ${canEditCurrentTab ? 'cursor-pointer' : 'cursor-default'}`}>
+                    <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${!formData.isLocationPart ? 'border-blue-600' : 'border-slate-300'}`}>
+                      {!formData.isLocationPart && <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>}
                     </div>
-                    <input 
-                      type="radio" 
-                      className="hidden" 
-                      checked={!formData.isLocationPart}
-                      onChange={() => setFormData(prev => ({ ...prev, isLocationPart: false }))}
-                    />
-                    <span className="text-xs sm:text-sm font-semibold text-slate-700">This Machine is not a part of another location, is located at</span>
+                    <input type="radio" checked={!formData.isLocationPart} disabled={!canEditCurrentTab} onChange={() => setFormData((prev: any) => ({...prev, isLocationPart: false}))} className="hidden" />
+                    <span className="text-xs font-medium text-slate-700">This Machine is not a part of another location, is located at</span>
                   </label>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      Location<span className="text-red-500">*</span>
-                    </label>
-                    <FacilityHierarchyPicker
-                      name="locationId"
-                      value={formData.locationId}
-                      onChange={handleChange}
-                      placeholder="Select"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      Latitude<span className="text-red-500">*</span>
-                    </label>
-                    <input 
-                      type="text" 
-                      name="latitude"
-                      value={formData.latitude}
-                      onChange={handleChange}
-                      placeholder="Enter Latitude"
-                      className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      Longitude<span className="text-red-500">*</span>
-                    </label>
-                    <input 
-                      type="text" 
-                      name="longitude"
-                      value={formData.longitude}
-                      onChange={handleChange}
-                      placeholder="Enter Longitude"
-                      className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900"
-                    />
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-3 gap-y-2">
+                <div><label className="block text-[11px] font-medium text-slate-600 mb-0.5">Location<span className="text-red-500">*</span></label><FacilityHierarchyPicker name="locationId" value={formData.locationId} onChange={handleChange} disabled={!canEditCurrentTab} /></div>
+                <div><label className="block text-[11px] font-medium text-slate-600 mb-0.5">Latitude<span className="text-red-500">*</span></label><input type="text" name="latitude" value={formData.latitude} onChange={handleChange} disabled={!canEditCurrentTab} className="w-full px-2.5 py-1 min-h-[32px] h-8 bg-white border border-slate-300 rounded-md text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 transition-all disabled:bg-slate-100 disabled:cursor-not-allowed" /></div>
+                <div><label className="block text-[11px] font-medium text-slate-600 mb-0.5">Longitude<span className="text-red-500">*</span></label><input type="text" name="longitude" value={formData.longitude} onChange={handleChange} disabled={!canEditCurrentTab} className="w-full px-2.5 py-1 min-h-[32px] h-8 bg-white border border-slate-300 rounded-md text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 transition-all disabled:bg-slate-100 disabled:cursor-not-allowed" /></div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      Asset Code <span className="text-red-500">*</span>
-                    </label>
-                    <input 
-                      type="text" 
-                      name="assetCode" 
-                      value={formData.assetCode} 
-                      onChange={handleChange} 
-                      readOnly
-                      placeholder="Enter Asset Code"
-                      className="w-full h-[38px] px-3.5 py-2 bg-slate-100 border border-slate-300 rounded-lg text-sm outline-none text-slate-600 font-medium cursor-not-allowed" 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      Cost Center<span className="text-red-500">*</span>
-                    </label>
-                    <input 
-                      type="text" 
-                      name="costCenter"
-                      value={formData.costCenter || 'CC-MAINT-01'}
-                      onChange={handleChange}
-                      placeholder="e.g. CC-MAINT-01"
-                      className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 font-medium"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      Select Head of Department<span className="text-red-500">*</span>
-                    </label>
-                    <CustomSelect
-                      name="headOfDepartment"
-                      value={formData.headOfDepartment}
-                      onChange={handleChange}
-                      placeholder="Select"
-                      options={employees.map(e => ({ label: `${e.designation || 'N/A'} - ${e.fullName}`, value: e.fullName }))}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      Machine Owner<span className="text-red-500">*</span>
-                    </label>
-                    <CustomSelect
-                      name="machineOwner"
-                      value={formData.machineOwner}
-                      onChange={handleChange}
-                      placeholder="Select"
-                      options={employees.map(e => ({ label: `${e.designation || 'N/A'} - ${e.fullName}`, value: e.fullName }))}
-                    />
-                  </div>
-                  <div className="col-span-1 md:col-span-4">
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      Notes
-                    </label>
-                    <textarea 
-                      name="notes"
-                      value={formData.notes}
-                      onChange={handleChange}
-                      placeholder="Enter notes..."
-                      rows={2}
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 resize-none"
-                    ></textarea>
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-x-3 gap-y-2">
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">
+                    Asset Code <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    name="assetCode" 
+                    value={formData.assetCode} 
+                    onChange={handleChange} 
+                    readOnly
+                    placeholder="Enter Asset Code"
+                    className="w-full px-2.5 py-1 min-h-[32px] h-8 bg-slate-100 border border-slate-200 rounded-md text-xs outline-none text-slate-600 font-medium cursor-not-allowed" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-0.5">
+                    Cost Center<span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    name="costCenter" 
+                    value={formData.costCenter || 'CC-MAINT-01'} 
+                    onChange={handleChange} 
+                    disabled={!canEditCurrentTab}
+                    placeholder="e.g. CC-MAINT-01" 
+                    className="w-full px-2.5 py-1 min-h-[32px] h-8 bg-white border border-slate-300 rounded-md text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 transition-all disabled:bg-slate-100 disabled:cursor-not-allowed" 
+                  />
+                </div>
+                <div><label className="block text-[11px] font-medium text-slate-600 mb-0.5">Select Head of Department<span className="text-red-500">*</span></label><CustomSelect name="headOfDepartment" value={formData.headOfDepartment} onChange={handleChange} disabled={!canEditCurrentTab} options={employees.map(e => ({ label: `${e.designation || 'N/A'} - ${e.fullName}`, value: e.fullName }))} /></div>
+                <div><label className="block text-[11px] font-medium text-slate-600 mb-0.5">Machine Owner<span className="text-red-500">*</span></label><CustomSelect name="machineOwner" value={formData.machineOwner} onChange={handleChange} disabled={!canEditCurrentTab} options={employees.map(e => ({ label: `${e.designation || 'N/A'} - ${e.fullName}`, value: e.fullName }))} /></div>
+                <div className="col-span-1 md:col-span-4"><label className="block text-[11px] font-medium text-slate-600 mb-0.5">Notes</label><textarea name="notes" value={formData.notes} onChange={handleChange} disabled={!canEditCurrentTab} className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-md text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 transition-all resize-none h-11 disabled:bg-slate-100 disabled:cursor-not-allowed"></textarea></div>
               </div>
-
             </div>
           ) : activeTab === 'Specification' ? (
             <div className="space-y-6">
@@ -995,9 +1267,10 @@ export function EditMachine() {
                     className="h-[38px] pl-9 pr-3.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 w-64"
                   />
                 </div>
-                {canCreateInTab && (
+                {(canCreateInTab || canEditCurrentTab) && (
                   <button 
-                    onClick={() => navigate('/spares/new', { state: { returnUrl: `/machine-management/edit/${id}`, tab: 'Spares' } })}
+                    type="button"
+                    onClick={handleOpenAddSpareModal}
                     className="h-[38px] px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm rounded-lg flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
                   >
                     <Plus size={16} className="stroke-[2.5]" /> Add Spare
@@ -1029,7 +1302,16 @@ export function EditMachine() {
                     ).length === 0 ? (
                       <tr>
                         <td colSpan={9} className="px-4 py-8 text-center text-sm font-medium text-slate-500 bg-white">
-                          No spares added yet. Click "+ Add Spare" to create and link spare parts.
+                          No spares added yet.{' '}
+                          {(canCreateInTab || canEditCurrentTab) && (
+                            <button
+                              type="button"
+                              onClick={handleOpenAddSpareModal}
+                              className="text-blue-600 hover:underline font-semibold ml-1 cursor-pointer"
+                            >
+                              Click here to Add Spare
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ) : (
@@ -1038,9 +1320,9 @@ export function EditMachine() {
                         (s.partCode || '').toLowerCase().includes(spareSearchQuery.toLowerCase()) ||
                         (s.category || '').toLowerCase().includes(spareSearchQuery.toLowerCase())
                       ).map((spare, index) => {
-                        const qty = spare.stockQuantity || spare.inHandQuantity || 1;
-                        const rate = spare.rate !== undefined ? Number(spare.rate) : spare.unitCost ? Number(spare.unitCost) : 0;
-                        const total = qty * rate;
+                        const qty = spare.quantityUsed || spare.stockQuantity || spare.inHandQuantity || 1;
+                        const rate = spare.rate !== undefined && spare.rate !== null ? Number(spare.rate) : spare.unitCost ? Number(spare.unitCost) : 0;
+                        const total = spare.total !== undefined ? Number(spare.total) : qty * rate;
                         return (
                           <tr key={spare.id || index} className="hover:bg-blue-50/40 transition-colors">
                             <td className="px-4 py-3"><input type="checkbox" className="rounded border-slate-300 text-blue-600" /></td>
@@ -1544,85 +1826,131 @@ export function EditMachine() {
         </div>
       )}
 
-      {/* Add Spares Modal */}
+      {/* Add Spare Modal (Matching Figma New machine 26) */}
       {isSparesModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-[480px] p-6 shadow-xl border border-slate-200 relative">
-            <div className="flex items-center gap-3 mb-5">
-              <button onClick={() => setIsSparesModalOpen(false)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 cursor-pointer">
+        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-[440px] p-6 sm:p-7 shadow-2xl relative border border-slate-200">
+            <div className="flex items-center gap-2 mb-1">
+              <button 
+                type="button"
+                onClick={() => setIsSparesModalOpen(false)} 
+                className="p-1 -ml-1 text-slate-500 hover:text-slate-900 transition-colors rounded-lg cursor-pointer"
+              >
                 <ArrowLeft size={20} className="stroke-[2.5]" />
               </button>
-              <h2 className="text-lg font-bold text-slate-900">Add Spares</h2>
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight">Add Spare</h2>
             </div>
+            <p className="text-xs text-gray-400 font-medium ml-7 mb-6">
+              Asset • {formData.name || 'Machine Name S1'}
+            </p>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Spare Name</label>
-                <CustomSelect
-                  name="spareName"
-                  value=""
-                  onChange={() => {}}
-                  placeholder="Select"
-                  options={[]}
-                />
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Location</label>
+                <div className="relative">
+                  <select
+                    value={spareModalLocation}
+                    onChange={(e) => setSpareModalLocation(e.target.value)}
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 appearance-none pr-10 cursor-pointer"
+                  >
+                    <option value="">Select</option>
+                    {availableLocationsList.map((loc, idx) => (
+                      <option key={idx} value={loc}>{loc}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={18} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-gray-700">Spare Name</label>
+                  <button
+                    type="button"
+                    onClick={handleNavigateToCreateSpare}
+                    className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 hover:underline cursor-pointer"
+                  >
+                    <Plus size={13} className="stroke-[2.5]" /> Add New Spare
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    {catalogSpares.length > 0 ? (
+                      <>
+                        <select
+                          value={spareModalName}
+                          onChange={(e) => {
+                            if (e.target.value === '__ADD_NEW__') {
+                              handleNavigateToCreateSpare();
+                            } else {
+                              handleSelectSpareName(e.target.value);
+                            }
+                          }}
+                          className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 appearance-none pr-10 cursor-pointer"
+                        >
+                          <option value="">Select</option>
+                          {catalogSpares.map((spare) => (
+                            <option key={spare.id} value={spare.partName || spare.name}>
+                              {spare.partName || spare.name} {spare.partCode ? `(${spare.partCode})` : ''}
+                            </option>
+                          ))}
+                          <option value="__ADD_NEW__" className="text-emerald-600 font-semibold">+ Add in Spares Management...</option>
+                        </select>
+                        <ChevronDown size={18} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                      </>
+                    ) : (
+                      <input
+                        type="text"
+                        value={spareModalName}
+                        onChange={(e) => setSpareModalName(e.target.value)}
+                        placeholder="Select or enter spare name"
+                        className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                      />
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleNavigateToCreateSpare}
+                    title="Add new spare in Spares Management"
+                    className="h-[46px] px-3.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-xl text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                  >
+                    <Plus size={15} className="stroke-[3]" /> Add
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Model Number</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Quantity Used</label>
                   <input 
-                    type="text" 
-                    placeholder="e.g. 120"
-                    className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400"
+                    type="number"
+                    min="1"
+                    placeholder="12"
+                    value={spareModalQuantity}
+                    onChange={(e) => setSpareModalQuantity(e.target.value)}
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-gray-900 placeholder-gray-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Make</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Rate</label>
                   <input 
-                    type="text" 
-                    placeholder="Enter Make"
-                    className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Part Number</label>
-                  <input 
-                    type="text" 
-                    placeholder="e.g. 120"
-                    className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Quantity Used</label>
-                  <input 
-                    type="text" 
-                    placeholder="Enter Quantity Used"
-                    className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400"
+                    type="number"
+                    min="0"
+                    placeholder="1200"
+                    value={spareModalRate}
+                    onChange={(e) => setSpareModalRate(e.target.value)}
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-gray-900 placeholder-gray-400"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Rate (INR)</label>
-                <input 
-                  type="text" 
-                  placeholder="Enter Rate"
-                  className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-900 placeholder-slate-400"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 mt-6 pt-3 border-t border-slate-200">
+              <div className="flex justify-center pt-4">
                 <button 
-                  onClick={() => setIsSparesModalOpen(false)}
-                  className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
+                  type="button"
+                  onClick={handleSaveSpareModal}
+                  className="px-10 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-lg font-semibold text-sm transition-colors shadow-xs cursor-pointer"
                 >
-                  Cancel
-                </button>
-                <button 
-                  onClick={() => setIsSparesModalOpen(false)}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
-                >
-                  Save
+                  Save Spare
                 </button>
               </div>
             </div>

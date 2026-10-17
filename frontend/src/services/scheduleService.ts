@@ -72,6 +72,16 @@ export const scheduleService = {
     return response.data;
   },
 
+  async updateSchedule(id: number, data: any) {
+    const response = await api.put(`/schedules/${id}`, data);
+    return response.data;
+  },
+
+  async deleteSchedule(id: number) {
+    const response = await api.delete(`/schedules/${id}`);
+    return response.data;
+  },
+
   async triggerScheduleWO(id: number) {
     const response = await api.post(`/schedules/${id}/trigger-wo`);
     return response.data;

@@ -43,6 +43,14 @@ export const hasPermission = (user: any, moduleId: string, action: ActionType): 
     if (fmPerm) return hasPermission(user, 'facility_management', action);
   }
 
+  // Convenience fallback: if checking assets but user only has machine_management or facility_management permission
+  if (!perm && moduleId === 'assets') {
+    const mmPerm = user.permissions.find((p: any) => p.moduleId === 'machine_management');
+    if (mmPerm) return hasPermission(user, 'machine_management', action);
+    const fmPerm = user.permissions.find((p: any) => p.moduleId === 'facility_management');
+    if (fmPerm) return hasPermission(user, 'facility_management', action);
+  }
+
   // If the user has no permissions entry for this module, deny access
   if (!perm) return false;
 

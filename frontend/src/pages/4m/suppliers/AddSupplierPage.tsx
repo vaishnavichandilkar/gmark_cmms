@@ -585,15 +585,31 @@ export const AddSupplierPage: React.FC = () => {
     try {
       const payload = buildPayload();
 
+      let createdSupplier: any = null;
       if (isEditMode && id) {
-        await supplierService.updateSupplier(Number(id), payload);
+        createdSupplier = await supplierService.updateSupplier(Number(id), payload);
         toast.success('Supplier updated successfully');
       } else {
-        await supplierService.createSupplier(payload);
+        createdSupplier = await supplierService.createSupplier(payload);
         toast.success('Supplier created successfully');
       }
       sessionStorage.removeItem('supplier_page_draft');
-      navigate('/suppliers');
+
+      const targetReturnUrl = (location.state as any)?.returnUrl || sessionStorage.getItem('addSupplierReturnUrl');
+      const targetReturnTab = (location.state as any)?.returnTab || sessionStorage.getItem('addSupplierReturnTab') || 'Suppliers';
+      sessionStorage.removeItem('addSupplierReturnUrl');
+      sessionStorage.removeItem('addSupplierReturnTab');
+
+      if (targetReturnUrl) {
+        navigate(targetReturnUrl, {
+          state: {
+            tab: targetReturnTab,
+            newSupplier: createdSupplier || { ...payload, name: payload.name || formData.name }
+          }
+        });
+      } else {
+        navigate('/suppliers');
+      }
     } catch (err: any) {
       console.error('Failed to save supplier:', err);
       toast.error(err?.response?.data?.message || 'Failed to save supplier');
@@ -612,7 +628,19 @@ export const AddSupplierPage: React.FC = () => {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => (step === 2 ? setStep(1) : navigate('/suppliers'))}
+              onClick={() => {
+                const targetReturnUrl = (location.state as any)?.returnUrl || sessionStorage.getItem('addSupplierReturnUrl');
+                const targetReturnTab = (location.state as any)?.returnTab || sessionStorage.getItem('addSupplierReturnTab') || 'Suppliers';
+                if (step === 2) {
+                  setStep(1);
+                } else if (targetReturnUrl) {
+                  sessionStorage.removeItem('addSupplierReturnUrl');
+                  sessionStorage.removeItem('addSupplierReturnTab');
+                  navigate(targetReturnUrl, { state: { tab: targetReturnTab } });
+                } else {
+                  navigate('/suppliers');
+                }
+              }}
               className="text-emerald-950 hover:text-emerald-800 transition-colors p-1 rounded-full hover:bg-gray-100 cursor-pointer"
             >
               <ArrowLeft size={24} strokeWidth={2.5} />
@@ -805,7 +833,17 @@ export const AddSupplierPage: React.FC = () => {
               <div className="pt-8 flex justify-between items-center border-t border-gray-100 mt-6">
                 <button
                   type="button"
-                  onClick={() => navigate('/suppliers')}
+                  onClick={() => {
+                    const targetReturnUrl = (location.state as any)?.returnUrl || sessionStorage.getItem('addSupplierReturnUrl');
+                    const targetReturnTab = (location.state as any)?.returnTab || sessionStorage.getItem('addSupplierReturnTab') || 'Suppliers';
+                    if (targetReturnUrl) {
+                      sessionStorage.removeItem('addSupplierReturnUrl');
+                      sessionStorage.removeItem('addSupplierReturnTab');
+                      navigate(targetReturnUrl, { state: { tab: targetReturnTab } });
+                    } else {
+                      navigate('/suppliers');
+                    }
+                  }}
                   className="px-8 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold text-sm transition-colors shadow-sm cursor-pointer"
                 >
                   Back

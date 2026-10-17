@@ -593,9 +593,20 @@ function App() {
           <Route path="/public/machine/:codeOrId" element={<PublicMachineCard />} />
 
           <Route
-            path="/work-orders"
+            path="/assets"
             element={
               <ProtectedRoute moduleId="assets" action="view">
+                <DashboardLayout>
+                  <AssetsManagement />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/work-orders"
+            element={
+              <ProtectedRoute moduleId="work_orders" action="view">
                 <DashboardLayout>
                   <WorkOrderManagement />
                 </DashboardLayout>
@@ -624,6 +635,16 @@ function App() {
           />
           <Route
             path="/schedules/new"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AddSchedulePage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/schedules/edit/:id"
             element={
               <ProtectedRoute>
                 <DashboardLayout>

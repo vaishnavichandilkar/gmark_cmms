@@ -92,8 +92,8 @@ export function DashboardPage() {
   const [devices, setDevices] = useState<any[]>([]);
 
   // Selection States
-  const [selectedMainFacilityId, setSelectedMainFacilityId] = useState<string | null>(null);
-  const [selectedFacilityId, setSelectedFacilityId] = useState<string | null>(null);
+  const [selectedMainFacilityIds, setSelectedMainFacilityIds] = useState<string[]>([]);
+  const [selectedFacilityIds, setSelectedFacilityIds] = useState<string[]>([]);
   const [selectedMachineIds, setSelectedMachineIds] = useState<string[]>([]);
   const [activeMachineId, setActiveMachineId] = useState<string | null>(null);
   
@@ -165,41 +165,39 @@ export function DashboardPage() {
   useEffect(() => {
     if (!hasInitialized.current && (machines.length > 0 || devices.length > 0 || facilities.length > 0)) {
       if (savedDefault) {
-        const validAssets: string[] = [];
-        savedDefault.machineIds?.forEach((id: string) => {
-          if (id.startsWith('m_') && machines.find(m => m.id === Number(id.replace('m_','')))) validAssets.push(id);
-          if (id.startsWith('d_') && devices.find(d => d.id === Number(id.replace('d_','')))) validAssets.push(id);
-        });
+        const savedMain = Array.isArray(savedDefault.mainFacilityIds)
+          ? savedDefault.mainFacilityIds
+          : savedDefault.mainFacilityId
+          ? [savedDefault.mainFacilityId]
+          : [];
+        const savedSub = Array.isArray(savedDefault.facilityIds)
+          ? savedDefault.facilityIds
+          : savedDefault.facilityId
+          ? [savedDefault.facilityId]
+          : [];
 
-        if (validAssets.length > 0) {
+        if (savedMain.length > 0 || savedSub.length > 0) {
           hasInitialized.current = true;
-          setSelectedMainFacilityId(savedDefault.mainFacilityId);
-          setSelectedFacilityId(savedDefault.facilityId);
-          setSelectedMachineIds(validAssets);
+          setSelectedMainFacilityIds(savedMain);
+          setSelectedFacilityIds(savedSub);
+          // Machine should NOT auto select!
+          setSelectedMachineIds([]);
           return;
         }
       }
 
       if (user?.deviceId) {
         const targetMachine = machines.find(m => m.deviceId === user.deviceId || m.id?.toString() === user.deviceId);
-        const targetDevice = devices.find(d => d.deviceId === user.deviceId || d.id?.toString() === user.deviceId);
-        
         const targetFacId = targetMachine?.facilityId || user.facilityId;
         const targetFac = facilities.find(f => f.id === targetFacId);
         const targetMfId = targetFac?.mainFacilityId || user.mainFacilityId;
 
-        if (targetMfId) setSelectedMainFacilityId(`mf_${targetMfId}`);
-        if (targetFacId) setSelectedFacilityId(`f_${targetFacId}`);
-
-        if (targetMachine) {
-          setSelectedMachineIds([`m_${targetMachine.id}`]);
-          hasInitialized.current = true;
-          return;
-        } else if (targetDevice) {
-          setSelectedMachineIds([`d_${targetDevice.id}`]);
-          hasInitialized.current = true;
-          return;
-        }
+        if (targetMfId) setSelectedMainFacilityIds([`mf_${targetMfId}`]);
+        if (targetFacId) setSelectedFacilityIds([`f_${targetFacId}`]);
+        // Machine should NOT auto select!
+        setSelectedMachineIds([]);
+        hasInitialized.current = true;
+        return;
       }
 
       if (user?.facilityId) {
@@ -207,44 +205,37 @@ export function DashboardPage() {
         const targetFac = facilities.find(f => f.id === targetFacId);
         const targetMfId = targetFac?.mainFacilityId || user.mainFacilityId;
 
-        if (targetMfId) setSelectedMainFacilityId(`mf_${targetMfId}`);
-        setSelectedFacilityId(`f_${targetFacId}`);
-
-        const facMachines = machines.filter(m => m.facilityId === targetFacId);
-        if (facMachines.length > 0) {
-          setSelectedMachineIds(facMachines.map(m => `m_${m.id}`));
-        }
+        if (targetMfId) setSelectedMainFacilityIds([`mf_${targetMfId}`]);
+        setSelectedFacilityIds([`f_${targetFacId}`]);
+        // Machine should NOT auto select!
+        setSelectedMachineIds([]);
         hasInitialized.current = true;
         return;
       }
 
       if (user?.mainFacilityId) {
         const targetMfId = Number(user.mainFacilityId);
-        setSelectedMainFacilityId(`mf_${targetMfId}`);
+        setSelectedMainFacilityIds([`mf_${targetMfId}`]);
 
         const childFacs = facilities.filter(f => f.mainFacilityId === targetMfId);
         if (childFacs.length > 0) {
-          setSelectedFacilityId(`f_${childFacs[0].id}`);
-          const facMachines = machines.filter(m => m.facilityId === childFacs[0].id);
-          if (facMachines.length > 0) {
-            setSelectedMachineIds(facMachines.map(m => `m_${m.id}`));
-          }
+          setSelectedFacilityIds([`f_${childFacs[0].id}`]);
         }
+        // Machine should NOT auto select!
+        setSelectedMachineIds([]);
         hasInitialized.current = true;
         return;
       }
 
       if (mainFacilities.length > 0) {
         const firstMf = mainFacilities[0];
-        setSelectedMainFacilityId(`mf_${firstMf.id}`);
+        setSelectedMainFacilityIds([`mf_${firstMf.id}`]);
         const childFacs = facilities.filter(f => f.mainFacilityId === firstMf.id);
         if (childFacs.length > 0) {
-          setSelectedFacilityId(`f_${childFacs[0].id}`);
-          const facMachines = machines.filter(m => m.facilityId === childFacs[0].id);
-          if (facMachines.length > 0) {
-            setSelectedMachineIds(facMachines.map(m => `m_${m.id}`));
-          }
+          setSelectedFacilityIds([`f_${childFacs[0].id}`]);
         }
+        // Machine should NOT auto select!
+        setSelectedMachineIds([]);
         hasInitialized.current = true;
       }
     }
@@ -252,17 +243,29 @@ export function DashboardPage() {
 
   // Prompt to save logic
   useEffect(() => {
-    if (selectedMachineIds.length > 0 && selectedFacilityId && selectedMainFacilityId && !isMachineDropdownOpen) {
+    if (selectedMachineIds.length > 0 && selectedFacilityIds.length > 0 && selectedMainFacilityIds.length > 0 && !isMachineDropdownOpen) {
       const currentSelectionStr = JSON.stringify({
-        mainFacilityId: selectedMainFacilityId,
-        facilityId: selectedFacilityId,
+        mainFacilityIds: [...selectedMainFacilityIds].sort(),
+        facilityIds: [...selectedFacilityIds].sort(),
         machineIds: [...selectedMachineIds].sort()
       });
 
+      const savedMain = Array.isArray(savedDefault?.mainFacilityIds)
+        ? savedDefault.mainFacilityIds
+        : savedDefault?.mainFacilityId
+        ? [savedDefault.mainFacilityId]
+        : [];
+      const savedSub = Array.isArray(savedDefault?.facilityIds)
+        ? savedDefault.facilityIds
+        : savedDefault?.facilityId
+        ? [savedDefault.facilityId]
+        : [];
+      const savedMacs = Array.isArray(savedDefault?.machineIds) ? savedDefault.machineIds : [];
+
       const isDifferentFromSaved = !savedDefault ||
-        savedDefault.mainFacilityId !== selectedMainFacilityId ||
-        savedDefault.facilityId !== selectedFacilityId ||
-        JSON.stringify(savedDefault.machineIds.sort()) !== JSON.stringify([...selectedMachineIds].sort());
+        JSON.stringify(savedMain.sort()) !== JSON.stringify([...selectedMainFacilityIds].sort()) ||
+        JSON.stringify(savedSub.sort()) !== JSON.stringify([...selectedFacilityIds].sort()) ||
+        JSON.stringify(savedMacs.sort()) !== JSON.stringify([...selectedMachineIds].sort());
 
       const isNotDismissed = dismissedSelection !== currentSelectionStr;
 
@@ -274,12 +277,12 @@ export function DashboardPage() {
     } else {
       setShowDefaultPrompt(false);
     }
-  }, [selectedMachineIds, selectedFacilityId, selectedMainFacilityId, savedDefault, dismissedSelection, isMachineDropdownOpen]);
+  }, [selectedMachineIds, selectedFacilityIds, selectedMainFacilityIds, savedDefault, dismissedSelection, isMachineDropdownOpen]);
 
   const handleSaveDefault = () => {
     const newDefault = {
-      mainFacilityId: selectedMainFacilityId,
-      facilityId: selectedFacilityId,
+      mainFacilityIds: selectedMainFacilityIds,
+      facilityIds: selectedFacilityIds,
       machineIds: selectedMachineIds
     };
     localStorage.setItem(defaultSelectionKey, JSON.stringify(newDefault));
@@ -289,8 +292,8 @@ export function DashboardPage() {
 
   const handleDismissDefault = () => {
     const currentSelectionStr = JSON.stringify({
-      mainFacilityId: selectedMainFacilityId,
-      facilityId: selectedFacilityId,
+      mainFacilityIds: [...selectedMainFacilityIds].sort(),
+      facilityIds: [...selectedFacilityIds].sort(),
       machineIds: [...selectedMachineIds].sort()
     });
     setDismissedSelection(currentSelectionStr);
@@ -381,36 +384,73 @@ export function DashboardPage() {
   }, [visibleMainFacilities, visibleSocieties]);
 
   const combinedSubOptions = useMemo(() => {
-    if (!selectedMainFacilityId) return [];
-    if (selectedMainFacilityId.startsWith('mf_')) {
-      const mfId = Number(selectedMainFacilityId.replace('mf_', ''));
-      return visibleFacilities.filter(f => f.mainFacilityId === mfId).map(f => ({ label: f.facilityName, value: `f_${f.id}` }));
-    }
-    if (selectedMainFacilityId.startsWith('soc_')) {
-      const socId = Number(selectedMainFacilityId.replace('soc_', ''));
-      return visibleBuildings.filter(b => b.societyId === socId).map(b => ({ label: b.name, value: `b_${b.id}` }));
-    }
-    return [];
-  }, [selectedMainFacilityId, visibleFacilities, visibleBuildings]);
+    if (selectedMainFacilityIds.length === 0) return [];
+    const opts: { label: string; value: string }[] = [];
+    selectedMainFacilityIds.forEach(mainId => {
+      if (mainId.startsWith('mf_')) {
+        const mfId = Number(mainId.replace('mf_', ''));
+        visibleFacilities
+          .filter(f => f.mainFacilityId === mfId)
+          .forEach(f => {
+            const val = `f_${f.id}`;
+            if (!opts.some(o => o.value === val)) {
+              opts.push({ label: f.facilityName, value: val });
+            }
+          });
+      } else if (mainId.startsWith('soc_')) {
+        const socId = Number(mainId.replace('soc_', ''));
+        visibleBuildings
+          .filter(b => b.societyId === socId)
+          .forEach(b => {
+            const val = `b_${b.id}`;
+            if (!opts.some(o => o.value === val)) {
+              opts.push({ label: b.name, value: val });
+            }
+          });
+      }
+    });
+    return opts;
+  }, [selectedMainFacilityIds, visibleFacilities, visibleBuildings]);
 
   const filteredMachines = useMemo(() => {
-    let result: any[] = [];
-    if (!selectedFacilityId) return [];
-    if (selectedFacilityId.startsWith('f_')) {
-      const fId = Number(selectedFacilityId.replace('f_', ''));
-      result = machines.filter(m => m.facilityId === fId).map(m => ({ ...m, uniqueId: `m_${m.id}` }));
-    } else if (selectedFacilityId.startsWith('b_')) {
-      const bId = Number(selectedFacilityId.replace('b_', ''));
-      const bldgMachines = machines.filter(m => m.buildingId === bId).map(m => ({ ...m, uniqueId: `m_${m.id}` }));
-      const bldgDevices = devices.filter(d => d.buildingId === bId).map(d => ({ ...d, uniqueId: `d_${d.id}` }));
-      result = [...bldgMachines, ...bldgDevices];
-    }
+    if (selectedFacilityIds.length === 0) return [];
+    const result: any[] = [];
+    const addedUniqueIds = new Set<string>();
+
+    selectedFacilityIds.forEach(facIdStr => {
+      if (facIdStr.startsWith('f_')) {
+        const fId = Number(facIdStr.replace('f_', ''));
+        machines.filter(m => m.facilityId === fId).forEach(m => {
+          const uId = `m_${m.id}`;
+          if (!addedUniqueIds.has(uId)) {
+            addedUniqueIds.add(uId);
+            result.push({ ...m, uniqueId: uId });
+          }
+        });
+      } else if (facIdStr.startsWith('b_')) {
+        const bId = Number(facIdStr.replace('b_', ''));
+        machines.filter(m => m.buildingId === bId).forEach(m => {
+          const uId = `m_${m.id}`;
+          if (!addedUniqueIds.has(uId)) {
+            addedUniqueIds.add(uId);
+            result.push({ ...m, uniqueId: uId });
+          }
+        });
+        devices.filter(d => d.buildingId === bId).forEach(d => {
+          const uId = `d_${d.id}`;
+          if (!addedUniqueIds.has(uId)) {
+            addedUniqueIds.add(uId);
+            result.push({ ...d, uniqueId: uId });
+          }
+        });
+      }
+    });
 
     if (user?.deviceId) {
-      result = result.filter(m => m.deviceId === user.deviceId || m.id?.toString() === user.deviceId);
+      return result.filter(m => m.deviceId === user.deviceId || m.id?.toString() === user.deviceId);
     }
     return result;
-  }, [selectedFacilityId, machines, devices, user]);
+  }, [selectedFacilityIds, machines, devices, user]);
 
   const getMachinesForFacility = (facIdStr: string | null) => {
     if (!facIdStr) return [];
@@ -722,57 +762,56 @@ export function DashboardPage() {
               </div>
 
               <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
-                <CustomSelect
+                <MultiSelect
                   name="mainFacility"
                   placeholder="Facility..."
                   className="w-full md:w-48"
-                  value={selectedMainFacilityId || ''}
+                  values={selectedMainFacilityIds}
                   options={combinedMainOptions}
-                  onChange={(e) => {
-                    const val = e.target.value || null;
-                    setSelectedMainFacilityId(val);
-                    if (!val) {
-                      setSelectedFacilityId(null);
-                      setSelectedMachineIds([]);
-                      return;
-                    }
-                    let subOpts: string[] = [];
-                    if (val.startsWith('mf_')) {
-                      const mfId = Number(val.replace('mf_', ''));
-                      subOpts = visibleFacilities.filter(f => f.mainFacilityId === mfId).map(f => `f_${f.id}`);
-                    } else if (val.startsWith('soc_')) {
-                      const socId = Number(val.replace('soc_', ''));
-                      subOpts = visibleBuildings.filter(b => b.societyId === socId).map(b => `b_${b.id}`);
-                    }
-
-                    if (subOpts.length > 0) {
-                      const firstSub = subOpts[0];
-                      setSelectedFacilityId(firstSub);
-                      const allMacs = getMachinesForFacility(firstSub);
-                      setSelectedMachineIds(allMacs);
-                    } else {
-                      setSelectedFacilityId(null);
+                  onChange={(selectedValues) => {
+                    setSelectedMainFacilityIds(selectedValues);
+                    setSelectedFacilityIds(prev => {
+                      if (selectedValues.length === 0) return [];
+                      return prev.filter(subId => {
+                        if (subId.startsWith('f_')) {
+                          const fId = Number(subId.replace('f_', ''));
+                          const fac = visibleFacilities.find(f => f.id === fId);
+                          return fac && selectedValues.includes(`mf_${fac.mainFacilityId}`);
+                        }
+                        if (subId.startsWith('b_')) {
+                          const bId = Number(subId.replace('b_', ''));
+                          const bldg = visibleBuildings.find(b => b.id === bId);
+                          return bldg && selectedValues.includes(`soc_${bldg.societyId}`);
+                        }
+                        return false;
+                      });
+                    });
+                    if (selectedValues.length === 0) {
                       setSelectedMachineIds([]);
                     }
                   }}
                 />
 
-                <CustomSelect
+                <MultiSelect
                   name="facility"
                   placeholder="Sub-Facility..."
                   className="w-full md:w-48"
-                  disabled={!selectedMainFacilityId}
-                  value={selectedFacilityId || ''}
+                  disabled={selectedMainFacilityIds.length === 0}
+                  values={selectedFacilityIds}
                   options={combinedSubOptions}
-                  onChange={(e) => {
-                    const val = e.target.value || null;
-                    setSelectedFacilityId(val);
-                    if (val) {
-                      const allMacs = getMachinesForFacility(val);
-                      setSelectedMachineIds(allMacs);
-                    } else {
-                      setSelectedMachineIds([]);
-                    }
+                  onChange={(selectedValues) => {
+                    setSelectedFacilityIds(selectedValues);
+                    // Machine should NOT auto select!
+                    setSelectedMachineIds(prev => {
+                      if (selectedValues.length === 0) return [];
+                      return prev.filter(mId => {
+                        const m = getAssetDetails(mId);
+                        if (!m) return false;
+                        if (m.facilityId) return selectedValues.includes(`f_${m.facilityId}`);
+                        if (m.buildingId) return selectedValues.includes(`b_${m.buildingId}`);
+                        return false;
+                      });
+                    });
                   }}
                 />
 
@@ -780,7 +819,7 @@ export function DashboardPage() {
                   name="machine"
                   placeholder="Machines..."
                   className="w-full md:w-64"
-                  disabled={!selectedFacilityId}
+                  disabled={selectedFacilityIds.length === 0}
                   values={selectedMachineIds}
                   options={filteredMachines.map(m => ({ label: m.name, value: m.uniqueId }))}
                   onChange={(selectedValues) => {
@@ -791,11 +830,11 @@ export function DashboardPage() {
                   }}
                 />
 
-                {(selectedMainFacilityId || selectedFacilityId || selectedMachineIds.length > 0) && (
+                {(selectedMainFacilityIds.length > 0 || selectedFacilityIds.length > 0 || selectedMachineIds.length > 0) && (
                   <button
                     onClick={() => {
-                      setSelectedMainFacilityId(null);
-                      setSelectedFacilityId(null);
+                      setSelectedMainFacilityIds([]);
+                      setSelectedFacilityIds([]);
                       setSelectedMachineIds([]);
                       setSavedDefault(null);
                       localStorage.removeItem(defaultSelectionKey);
@@ -810,7 +849,7 @@ export function DashboardPage() {
             </div>
 
             {/* Quick Navigation Icons */}
-            {selectedMachineIds.length > 1 && (
+            {selectedMachineIds.length > 0 && (
               <div className="px-2 w-full">
                 <div className="flex flex-wrap gap-4 items-center">
                   {(isTabsExpanded ? selectedMachineIds : selectedMachineIds.slice(0, 3)).map(mId => {

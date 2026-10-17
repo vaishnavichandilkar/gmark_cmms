@@ -205,20 +205,54 @@ export function AddMachine() {
     const syncSpare = async () => {
       if (locationState?.newSpare) {
         const createdSpare = locationState.newSpare;
+        const formattedSpare = {
+          id: createdSpare.id || Date.now(),
+          partName: createdSpare.partName || createdSpare.name || '',
+          partCode: createdSpare.partCode || '',
+          category: createdSpare.category || 'General',
+          location: createdSpare.location || 'Main Store',
+          quantityUsed: 1,
+          stockQuantity: createdSpare.stockQuantity || 1,
+          inHandQuantity: createdSpare.inHandQuantity || 1,
+          rate: Number(createdSpare.rate) || Number(createdSpare.unitCost) || 0,
+          unitCost: Number(createdSpare.unitCost) || Number(createdSpare.rate) || 0,
+          total: Number(createdSpare.rate) || Number(createdSpare.unitCost) || 0,
+        };
         setPendingSpares(prev => {
-          if (prev.some(s => s.id === createdSpare.id)) return prev;
-          return [...prev, createdSpare];
+          if (prev.some(s => s.id === formattedSpare.id || s.partName === formattedSpare.partName)) return prev;
+          return [...prev, formattedSpare];
         });
+        toast.success(`Spare "${formattedSpare.partName}" added`);
+        try {
+          const freshSpares = await spareService.getAll();
+          if (freshSpares) setCatalogSpares(freshSpares);
+        } catch (_) {}
       } else if (locationState?.newSpareId) {
         const spareId = Number(locationState.newSpareId);
         try {
           const createdSpare = await spareService.getById(spareId);
           if (createdSpare) {
+            const formattedSpare = {
+              id: createdSpare.id,
+              partName: createdSpare.partName || (createdSpare as any).name || '',
+              partCode: createdSpare.partCode || '',
+              category: createdSpare.category || 'General',
+              location: createdSpare.location || 'Main Store',
+              quantityUsed: 1,
+              stockQuantity: createdSpare.stockQuantity || 1,
+              inHandQuantity: createdSpare.inHandQuantity || 1,
+              rate: Number(createdSpare.rate) || Number(createdSpare.unitCost) || 0,
+              unitCost: Number(createdSpare.unitCost) || Number(createdSpare.rate) || 0,
+              total: Number(createdSpare.rate) || Number(createdSpare.unitCost) || 0,
+            };
             setPendingSpares(prev => {
-              if (prev.some(s => s.id === createdSpare.id)) return prev;
-              return [...prev, createdSpare];
+              if (prev.some(s => s.id === formattedSpare.id || s.partName === formattedSpare.partName)) return prev;
+              return [...prev, formattedSpare];
             });
+            toast.success(`Spare "${formattedSpare.partName}" added`);
           }
+          const freshSpares = await spareService.getAll();
+          if (freshSpares) setCatalogSpares(freshSpares);
         } catch (e) {
           console.error('Failed to load returned spare', e);
         }
@@ -372,11 +406,15 @@ export function AddMachine() {
       } catch {
         return null;
       }
-    })();
+    })() || sessionStorage.getItem('addMachineReturnUrl');
+    const targetReturnTab = locationState?.returnTab || sessionStorage.getItem('addMachineReturnTab') || 'Machines List';
+    sessionStorage.removeItem('addMachineReturnUrl');
+    sessionStorage.removeItem('addMachineReturnTab');
+
     if (targetReturnUrl) {
       navigate(targetReturnUrl, {
         state: {
-          tab: locationState?.returnTab || 'Machines List'
+          tab: targetReturnTab
         }
       });
     } else {
@@ -390,6 +428,28 @@ export function AddMachine() {
     setSpareModalQuantity(1);
     setSpareModalRate('');
     setIsSparesModalOpen(true);
+  };
+
+  const handleNavigateToCreateSpare = () => {
+    sessionStorage.setItem('add_machine_draft', JSON.stringify({
+      formData,
+      pendingSpares,
+      pendingSpecifications,
+      pendingPurchases,
+      pendingDocuments,
+      pendingMacId,
+      pendingMachineType,
+      activeTab: 'Spares',
+    }));
+    setIsSparesModalOpen(false);
+    navigate('/spares/new', {
+      state: {
+        returnUrl: location.pathname,
+        returnTab: 'Spares',
+        tab: 'General',
+        spareTab: 'General',
+      }
+    });
   };
 
   const handleSelectSpareName = (val: string) => {
@@ -574,12 +634,15 @@ export function AddMachine() {
         } catch {
           return null;
         }
-      })();
+      })() || sessionStorage.getItem('addMachineReturnUrl');
+      const targetReturnTab = locationState?.returnTab || sessionStorage.getItem('addMachineReturnTab') || 'Machines List';
+      sessionStorage.removeItem('addMachineReturnUrl');
+      sessionStorage.removeItem('addMachineReturnTab');
 
       if (targetReturnUrl) {
         navigate(targetReturnUrl, {
           state: {
-            tab: locationState?.returnTab || 'Machines List',
+            tab: targetReturnTab,
             newMachine: machineRes.data || { ...payload, id: newMachineId },
             newMachineId: newMachineId,
           }
@@ -1568,33 +1631,59 @@ export function AddMachine() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Spare Name</label>
-                <div className="relative">
-                  {catalogSpares.length > 0 ? (
-                    <>
-                      <select
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-gray-700">Spare Name</label>
+                  <button
+                    type="button"
+                    onClick={handleNavigateToCreateSpare}
+                    className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 hover:underline cursor-pointer"
+                  >
+                    <Plus size={13} className="stroke-[2.5]" /> Add New Spare
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    {catalogSpares.length > 0 ? (
+                      <>
+                        <select
+                          value={spareModalName}
+                          onChange={(e) => {
+                            if (e.target.value === '__ADD_NEW__') {
+                              handleNavigateToCreateSpare();
+                            } else {
+                              handleSelectSpareName(e.target.value);
+                            }
+                          }}
+                          className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 appearance-none pr-10 cursor-pointer"
+                        >
+                          <option value="">Select</option>
+                          {catalogSpares.map((spare) => (
+                            <option key={spare.id} value={spare.partName || spare.name}>
+                              {spare.partName || spare.name} {spare.partCode ? `(${spare.partCode})` : ''}
+                            </option>
+                          ))}
+                          <option value="__ADD_NEW__" className="text-emerald-600 font-semibold">+ Add in Spares Management...</option>
+                        </select>
+                        <ChevronDown size={18} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                      </>
+                    ) : (
+                      <input
+                        type="text"
                         value={spareModalName}
-                        onChange={(e) => handleSelectSpareName(e.target.value)}
-                        className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 appearance-none pr-10 cursor-pointer"
-                      >
-                        <option value="">Select</option>
-                        {catalogSpares.map((spare) => (
-                          <option key={spare.id} value={spare.partName || spare.name}>
-                            {spare.partName || spare.name} {spare.partCode ? `(${spare.partCode})` : ''}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown size={18} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                    </>
-                  ) : (
-                    <input
-                      type="text"
-                      value={spareModalName}
-                      onChange={(e) => setSpareModalName(e.target.value)}
-                      placeholder="Select or enter spare name"
-                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                    />
-                  )}
+                        onChange={(e) => setSpareModalName(e.target.value)}
+                        placeholder="Select or enter spare name"
+                        className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                      />
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleNavigateToCreateSpare}
+                    title="Add new spare in Spares Management"
+                    className="h-[46px] px-3.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-xl text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                  >
+                    <Plus size={15} className="stroke-[3]" /> Add
+                  </button>
                 </div>
               </div>
 

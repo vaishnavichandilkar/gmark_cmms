@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Query, Body, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Query, Body, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { SchedulesService } from './schedules.service';
 import { JwtAuthGuard } from '../../core/auth/guards/jwt-auth.guard';
@@ -34,6 +34,29 @@ export class SchedulesController {
   @ApiOperation({ summary: 'Get schedule details by ID' })
   async getScheduleById(@Param('id', ParseIntPipe) id: number) {
     return this.schedulesService.getScheduleById(id);
+  }
+
+  @Put(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Update an existing maintenance schedule' })
+  async updateSchedule(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: any,
+    @CurrentUser() user: any,
+  ) {
+    return this.schedulesService.updateSchedule(id, body, user);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Delete a maintenance schedule' })
+  async deleteSchedule(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: any,
+  ) {
+    return this.schedulesService.deleteSchedule(id, user);
   }
 
   @Post(':id/trigger-wo')

@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException, OnModuleInit } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { WorkOrderPriority } from '@prisma/client';
 
 @Injectable()
 export class SchedulesService implements OnModuleInit {
+  private readonly logger = new Logger(SchedulesService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async onModuleInit() {
@@ -12,9 +14,30 @@ export class SchedulesService implements OnModuleInit {
 
   private async generateNextScheduleCode(): Promise<string> {
     const year = new Date().getFullYear();
-    const count = await this.prisma.maintenanceSchedule.count();
-    const nextSeq = (count + 1).toString().padStart(4, '0');
-    return `SCH-${year}-${nextSeq}`;
+    const prefix = `SCH-${year}-`;
+    const schedules = await this.prisma.maintenanceSchedule.findMany({
+      where: { scheduleCode: { startsWith: prefix } },
+      select: { scheduleCode: true },
+    });
+
+    let maxNum = 0;
+    for (const s of schedules) {
+      const match = s.scheduleCode.match(/(\d+)$/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    }
+
+    let nextNum = maxNum + 1;
+    let candidate = `${prefix}${nextNum.toString().padStart(4, '0')}`;
+    while (await this.prisma.maintenanceSchedule.findUnique({ where: { scheduleCode: candidate } })) {
+      nextNum++;
+      candidate = `${prefix}${nextNum.toString().padStart(4, '0')}`;
+    }
+    return candidate;
   }
 
   async seedInitialSchedules() {
@@ -122,7 +145,7 @@ export class SchedulesService implements OnModuleInit {
     startDate: string;
     endDate?: string;
     notes?: string;
-    notifyUsers?: string[];
+    notifyUsers?: string[] | string;
     tasks?: { description: string; taskType?: string; frequency?: string; assignedTechnicianId?: number; checkpointMasterId?: number; standardValue?: string; toleranceMin?: number; toleranceMax?: number }[];
     spares?: { sparePartId?: number; partName: string; partCode?: string; quantity: number }[];
   }, user?: any) {
@@ -154,66 +177,131 @@ export class SchedulesService implements OnModuleInit {
     else nextRun.setMonth(nextRun.getMonth() + 1); // MONTHLY default
 
     const effectiveAdminId = user?.adminId || user?.userId || null;
-    const schedule = await this.prisma.maintenanceSchedule.create({
-      data: {
-        scheduleCode,
-        adminId: effectiveAdminId,
-        scheduleType: dto.scheduleType || 'PREVENTIVE',
-        frequency: dto.frequency || 'MONTHLY',
-        priority: dto.priority || WorkOrderPriority.MEDIUM,
-        status: 'ACTIVE',
-        machineId: Number(dto.machineId),
-        mainFacilityId: dto.mainFacilityId ? Number(dto.mainFacilityId) : machine.facilityId,
-        facilityId: dto.facilityId ? Number(dto.facilityId) : machine.facilityId,
-        buildingId: dto.buildingId ? Number(dto.buildingId) : machine.buildingId,
-        prePlanToleranceDays: dto.prePlanToleranceDays !== undefined ? Number(dto.prePlanToleranceDays) : 1,
-        postPlanToleranceDays: dto.postPlanToleranceDays !== undefined ? Number(dto.postPlanToleranceDays) : 1,
-        triggerTime: dto.triggerTime || '09:00',
-        startDate: startDt,
-        endDate: dto.endDate ? new Date(dto.endDate) : null,
-        nextRunDate: nextRun,
-        completedBy: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username : 'Maintenance Engineer',
-        notes: dto.notes || null,
-        notifyUsers: dto.notifyUsers ? JSON.stringify(dto.notifyUsers) : null,
-        tasks: dto.tasks && dto.tasks.length > 0 ? {
-          create: dto.tasks.map(t => ({
-            description: t.description,
+    const authorName = user
+      ? (`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || user.email || 'System User')
+      : 'Maintenance Engineer';
+
+    // Normalize priority
+    let priorityVal: WorkOrderPriority = WorkOrderPriority.MEDIUM;
+    if (dto.priority) {
+      const upper = String(dto.priority).toUpperCase() as WorkOrderPriority;
+      if (Object.values(WorkOrderPriority).includes(upper)) {
+        priorityVal = upper;
+      }
+    }
+
+    // Normalize notifyUsers
+    let notifyUsersJson: string | null = null;
+    if (dto.notifyUsers) {
+      if (Array.isArray(dto.notifyUsers)) {
+        const cleaned = dto.notifyUsers.map(u => String(u).trim()).filter(Boolean);
+        if (cleaned.length > 0) notifyUsersJson = JSON.stringify(cleaned);
+      } else if (typeof dto.notifyUsers === 'string' && dto.notifyUsers.trim()) {
+        notifyUsersJson = dto.notifyUsers.trim();
+      }
+    }
+
+    // Validate sparePartIds to avoid foreign key violation
+    let validatedSpares: { sparePartId: number | null; partName: string; partCode: string | null; quantity: number }[] | undefined = undefined;
+    if (dto.spares && Array.isArray(dto.spares) && dto.spares.length > 0) {
+      const validSpareIds = new Set(
+        (await this.prisma.sparePartMaster.findMany({ select: { id: true } })).map(s => s.id)
+      );
+      validatedSpares = dto.spares
+        .filter(s => s && s.partName && s.partName.trim())
+        .map(s => {
+          const rawId = s.sparePartId ? Number(s.sparePartId) : null;
+          return {
+            sparePartId: (rawId && validSpareIds.has(rawId)) ? rawId : null,
+            partName: s.partName.trim(),
+            partCode: s.partCode ? String(s.partCode).trim() : null,
+            quantity: (!isNaN(Number(s.quantity)) && Number(s.quantity) > 0) ? Number(s.quantity) : 1,
+          };
+        });
+    }
+
+    // Validate tasks & foreign keys (technicians and checkpoints)
+    let validatedTasks: any[] | undefined = undefined;
+    if (dto.tasks && Array.isArray(dto.tasks) && dto.tasks.length > 0) {
+      const validUserIds = new Set(
+        (await this.prisma.user.findMany({ select: { id: true } })).map(u => u.id)
+      );
+      const validCheckpointIds = new Set(
+        (await this.prisma.checkpointMaster.findMany({ select: { id: true } })).map(c => c.id)
+      );
+
+      validatedTasks = dto.tasks
+        .filter(t => t && t.description && t.description.trim())
+        .map(t => {
+          const techId = t.assignedTechnicianId ? Number(t.assignedTechnicianId) : null;
+          const cpId = t.checkpointMasterId ? Number(t.checkpointMasterId) : null;
+          return {
+            description: t.description.trim(),
             taskType: t.taskType || 'INSPECTION',
             frequency: t.frequency || dto.frequency || 'MONTHLY',
-            assignedTechnicianId: t.assignedTechnicianId ? Number(t.assignedTechnicianId) : null,
-            checkpointMasterId: t.checkpointMasterId ? Number(t.checkpointMasterId) : null,
+            assignedTechnicianId: (techId && validUserIds.has(techId)) ? techId : null,
+            checkpointMasterId: (cpId && validCheckpointIds.has(cpId)) ? cpId : null,
             standardValue: t.standardValue || null,
-            toleranceMin: t.toleranceMin !== undefined ? Number(t.toleranceMin) : null,
-            toleranceMax: t.toleranceMax !== undefined ? Number(t.toleranceMax) : null,
-          })),
-        } : undefined,
-        spares: dto.spares && dto.spares.length > 0 ? {
-          create: dto.spares.map(s => ({
-            sparePartId: s.sparePartId ? Number(s.sparePartId) : null,
-            partName: s.partName,
-            partCode: s.partCode || null,
-            quantity: Number(s.quantity) || 1,
-          })),
-        } : undefined,
-        logs: {
-          create: [
-            {
-              action: 'CREATED',
-              details: `Schedule ${scheduleCode} configured with ${dto.tasks?.length || 0} tasks & ${dto.spares?.length || 0} spares.`,
-              performedBy: user ? user.username : 'System User',
-            },
-          ],
-        },
-      },
-      include: {
-        machine: true,
-        tasks: true,
-        spares: true,
-        logs: true,
-      },
-    });
+            toleranceMin: (t.toleranceMin !== undefined && t.toleranceMin !== null && !isNaN(Number(t.toleranceMin))) ? Number(t.toleranceMin) : null,
+            toleranceMax: (t.toleranceMax !== undefined && t.toleranceMax !== null && !isNaN(Number(t.toleranceMax))) ? Number(t.toleranceMax) : null,
+          };
+        });
+    }
 
-    return schedule;
+    const prePlan = (!isNaN(Number(dto.prePlanToleranceDays)) && dto.prePlanToleranceDays !== null && dto.prePlanToleranceDays !== undefined) ? Number(dto.prePlanToleranceDays) : 1;
+    const postPlan = (!isNaN(Number(dto.postPlanToleranceDays)) && dto.postPlanToleranceDays !== null && dto.postPlanToleranceDays !== undefined) ? Number(dto.postPlanToleranceDays) : 1;
+
+    try {
+      const schedule = await this.prisma.maintenanceSchedule.create({
+        data: {
+          scheduleCode,
+          adminId: effectiveAdminId,
+          scheduleType: dto.scheduleType || 'PREVENTIVE',
+          frequency: dto.frequency || 'MONTHLY',
+          priority: priorityVal,
+          status: 'ACTIVE',
+          machineId: Number(dto.machineId),
+          mainFacilityId: dto.mainFacilityId ? Number(dto.mainFacilityId) : machine.facilityId,
+          facilityId: dto.facilityId ? Number(dto.facilityId) : machine.facilityId,
+          buildingId: dto.buildingId ? Number(dto.buildingId) : machine.buildingId,
+          prePlanToleranceDays: prePlan,
+          postPlanToleranceDays: postPlan,
+          triggerTime: dto.triggerTime || '09:00',
+          startDate: startDt,
+          endDate: dto.endDate ? new Date(dto.endDate) : null,
+          nextRunDate: nextRun,
+          completedBy: authorName,
+          notes: dto.notes || null,
+          notifyUsers: notifyUsersJson,
+          tasks: validatedTasks && validatedTasks.length > 0 ? {
+            create: validatedTasks,
+          } : undefined,
+          spares: validatedSpares && validatedSpares.length > 0 ? {
+            create: validatedSpares,
+          } : undefined,
+          logs: {
+            create: [
+              {
+                action: 'CREATED',
+                details: `Schedule ${scheduleCode} configured with ${validatedTasks?.length || 0} tasks & ${validatedSpares?.length || 0} spares.`,
+                performedBy: authorName,
+              },
+            ],
+          },
+        },
+        include: {
+          machine: true,
+          tasks: true,
+          spares: true,
+          logs: true,
+        },
+      });
+
+      return schedule;
+    } catch (err: any) {
+      this.logger.error(`Failed to create maintenance schedule: ${err.message}`, err.stack);
+      throw new BadRequestException(`Failed to save maintenance schedule: ${err.message}`);
+    }
   }
 
   async getSchedules(query: { type?: string; search?: string; machineId?: number }, user?: any) {
@@ -348,5 +436,179 @@ export class SchedulesService implements OnModuleInit {
     });
 
     return { schedule, workOrder, notificationDispatched: true };
+  }
+
+  async updateSchedule(id: number, dto: any, user?: any) {
+    const existing = await this.getScheduleById(id);
+
+    let nextRunDate = existing.nextRunDate;
+    if (dto.startDate || dto.frequency) {
+      const baseDate = dto.startDate ? new Date(dto.startDate) : new Date(existing.startDate);
+      const freq = dto.frequency || existing.frequency;
+      const freqDaysMap: Record<string, number> = {
+        DAILY: 1,
+        WEEKLY: 7,
+        BIWEEKLY: 14,
+        MONTHLY: 30,
+        QUARTERLY: 90,
+        HALFYEARLY: 180,
+        ANNUAL: 365,
+      };
+      const days = freqDaysMap[freq] || 30;
+      nextRunDate = new Date(baseDate.getTime() + days * 86400000);
+    }
+
+    const authorName = user
+      ? (`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || user.email || 'System User')
+      : 'Maintenance Engineer';
+
+    // Normalize priority if provided
+    let priorityVal: WorkOrderPriority | undefined = undefined;
+    if (dto.priority) {
+      const upper = String(dto.priority).toUpperCase() as WorkOrderPriority;
+      if (Object.values(WorkOrderPriority).includes(upper)) {
+        priorityVal = upper;
+      }
+    }
+
+    // Normalize notifyUsers if provided
+    let notifyUsersJson: string | undefined = undefined;
+    if (dto.notifyUsers !== undefined) {
+      if (Array.isArray(dto.notifyUsers)) {
+        const cleaned = dto.notifyUsers.map((u: any) => String(u).trim()).filter(Boolean);
+        notifyUsersJson = JSON.stringify(cleaned);
+      } else if (typeof dto.notifyUsers === 'string') {
+        notifyUsersJson = dto.notifyUsers;
+      }
+    }
+
+    try {
+      if (dto.tasks && Array.isArray(dto.tasks)) {
+        await this.prisma.maintenanceScheduleTask.deleteMany({
+          where: { scheduleId: Number(id) },
+        });
+      }
+
+      if (dto.spares && Array.isArray(dto.spares)) {
+        await this.prisma.maintenanceScheduleSpare.deleteMany({
+          where: { scheduleId: Number(id) },
+        });
+      }
+
+      // Validate spares
+      let validatedSpares: any[] | undefined = undefined;
+      if (dto.spares && Array.isArray(dto.spares)) {
+        const validSpareIds = new Set(
+          (await this.prisma.sparePartMaster.findMany({ select: { id: true } })).map(s => s.id)
+        );
+        validatedSpares = dto.spares
+          .filter((s: any) => s && s.partName && s.partName.trim())
+          .map((s: any) => {
+            const rawId = s.sparePartId ? Number(s.sparePartId) : null;
+            return {
+              sparePartId: (rawId && validSpareIds.has(rawId)) ? rawId : undefined,
+              partName: s.partName.trim(),
+              partCode: s.partCode ? String(s.partCode).trim() : undefined,
+              quantity: (!isNaN(Number(s.quantity)) && Number(s.quantity) > 0) ? Number(s.quantity) : 1,
+            };
+          });
+      }
+
+      // Validate tasks
+      let validatedTasks: any[] | undefined = undefined;
+      if (dto.tasks && Array.isArray(dto.tasks)) {
+        const validUserIds = new Set(
+          (await this.prisma.user.findMany({ select: { id: true } })).map(u => u.id)
+        );
+        const validCheckpointIds = new Set(
+          (await this.prisma.checkpointMaster.findMany({ select: { id: true } })).map(c => c.id)
+        );
+
+        validatedTasks = dto.tasks
+          .filter((t: any) => t && t.description && t.description.trim())
+          .map((t: any) => {
+            const techId = t.assignedTechnicianId ? Number(t.assignedTechnicianId) : null;
+            const cpId = t.checkpointMasterId ? Number(t.checkpointMasterId) : null;
+            return {
+              description: t.description.trim(),
+              taskType: t.taskType || 'INSPECTION',
+              frequency: t.frequency || dto.frequency || 'MONTHLY',
+              assignedTechnicianId: (techId && validUserIds.has(techId)) ? techId : undefined,
+              checkpointMasterId: (cpId && validCheckpointIds.has(cpId)) ? cpId : undefined,
+              standardValue: t.standardValue || undefined,
+              toleranceMin: (t.toleranceMin !== undefined && t.toleranceMin !== null && !isNaN(Number(t.toleranceMin))) ? Number(t.toleranceMin) : undefined,
+              toleranceMax: (t.toleranceMax !== undefined && t.toleranceMax !== null && !isNaN(Number(t.toleranceMax))) ? Number(t.toleranceMax) : undefined,
+            };
+          });
+      }
+
+      const updated = await this.prisma.maintenanceSchedule.update({
+        where: { id: Number(id) },
+        data: {
+          ...(dto.machineId && { machineId: Number(dto.machineId) }),
+          ...(dto.scheduleType && { scheduleType: dto.scheduleType }),
+          ...(dto.frequency && { frequency: dto.frequency }),
+          ...(priorityVal && { priority: priorityVal }),
+          ...(dto.status && { status: dto.status }),
+          ...(dto.startDate && { startDate: new Date(dto.startDate) }),
+          ...(nextRunDate && { nextRunDate }),
+          ...(dto.prePlanToleranceDays !== undefined && !isNaN(Number(dto.prePlanToleranceDays)) && { prePlanToleranceDays: Number(dto.prePlanToleranceDays) }),
+          ...(dto.postPlanToleranceDays !== undefined && !isNaN(Number(dto.postPlanToleranceDays)) && { postPlanToleranceDays: Number(dto.postPlanToleranceDays) }),
+          ...(dto.triggerTime && { triggerTime: dto.triggerTime }),
+          ...(dto.notes !== undefined && { notes: dto.notes }),
+          ...(notifyUsersJson !== undefined && { notifyUsers: notifyUsersJson }),
+          ...(validatedTasks && {
+            tasks: {
+              create: validatedTasks,
+            },
+          }),
+          ...(validatedSpares && {
+            spares: {
+              create: validatedSpares,
+            },
+          }),
+          logs: {
+            create: [
+              {
+                action: 'UPDATED',
+                details: `Schedule updated by ${authorName}.`,
+                performedBy: authorName,
+              },
+            ],
+          },
+        },
+        include: {
+          machine: true,
+          tasks: true,
+          spares: true,
+          logs: true,
+        },
+      });
+
+      return updated;
+    } catch (err: any) {
+      this.logger.error(`Failed to update maintenance schedule #${id}: ${err.message}`, err.stack);
+      throw new BadRequestException(`Failed to update maintenance schedule: ${err.message}`);
+    }
+  }
+
+  async deleteSchedule(id: number, user?: any) {
+    await this.getScheduleById(id);
+
+    await this.prisma.maintenanceScheduleTask.deleteMany({
+      where: { scheduleId: Number(id) },
+    });
+    await this.prisma.maintenanceScheduleSpare.deleteMany({
+      where: { scheduleId: Number(id) },
+    });
+    await this.prisma.maintenanceScheduleLog.deleteMany({
+      where: { scheduleId: Number(id) },
+    });
+
+    await this.prisma.maintenanceSchedule.delete({
+      where: { id: Number(id) },
+    });
+
+    return { success: true, message: `Schedule #${id} deleted successfully` };
   }
 }

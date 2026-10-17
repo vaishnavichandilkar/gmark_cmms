@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import {
   ChevronLeft,
   Package,
@@ -23,6 +23,9 @@ import { CheckpointMasterModal } from '../../../components/checkpoints/Checkpoin
 export function AddSchedulePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { id } = useParams<{ id: string }>();
+  const isEditMode = Boolean(id);
+  const [scheduleCode, setScheduleCode] = useState('');
   const targetMachineId = searchParams.get('machineId');
 
   // Active Tab: 1. General, 2. Scheduling, 3. Check Points, 4. Spares, 5. Notifications, 6. Notes, 7. Files, 8. Logs
@@ -88,34 +91,84 @@ export function AddSchedulePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchMachines();
-  }, []);
+    const init = async () => {
+      try {
+        setLoading(true);
+        const res = await api.get('/machines');
+        const machines = Array.isArray(res.data) ? res.data : [];
+        setMachinesList(machines);
 
-  const fetchMachines = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get('/machines');
-      if (res.data && Array.isArray(res.data)) {
-        setMachinesList(res.data);
-        if (targetMachineId) {
-          const found = res.data.find(m => String(m.id) === String(targetMachineId));
+        if (id) {
+          try {
+            const sch = await scheduleService.getScheduleById(Number(id));
+            if (sch) {
+              setScheduleCode(sch.scheduleCode || '');
+              if (sch.machineId) {
+                setSelectedMachineId(sch.machineId);
+                const foundM = machines.find((m: any) => String(m.id) === String(sch.machineId));
+                setSelectedMachine(foundM || sch.machine || null);
+              }
+              if (sch.scheduleType) setScheduleType(sch.scheduleType);
+              if (sch.priority) setPriority(sch.priority);
+              if (sch.frequency) setFrequency(sch.frequency);
+              if (sch.startDate) {
+                setStartDate(new Date(sch.startDate).toISOString().split('T')[0]);
+              }
+              if (sch.prePlanToleranceDays !== undefined) setPrePlanTolerance(sch.prePlanToleranceDays);
+              if (sch.postPlanToleranceDays !== undefined) setPostPlanTolerance(sch.postPlanToleranceDays);
+              if (sch.triggerTime) setTriggerTime(sch.triggerTime);
+              if (sch.notes !== undefined) setNotes(sch.notes || '');
+              if (sch.notifyUsers) {
+                try {
+                  const parsed = JSON.parse(sch.notifyUsers);
+                  if (Array.isArray(parsed) && parsed.length > 0) {
+                    setAdditionalEmails(parsed.join(', '));
+                  } else if (typeof sch.notifyUsers === 'string') {
+                    setAdditionalEmails(sch.notifyUsers);
+                  }
+                } catch {
+                  setAdditionalEmails(sch.notifyUsers);
+                }
+              }
+              if (sch.tasks && Array.isArray(sch.tasks) && sch.tasks.length > 0) {
+                setTasks(sch.tasks.map((t: any) => ({
+                  description: t.description,
+                  taskType: t.taskType || 'INSPECTION',
+                  standardValue: t.standardValue || '',
+                })));
+              }
+              if (sch.spares && Array.isArray(sch.spares) && sch.spares.length > 0) {
+                setSelectedSpares(sch.spares.map((s: any) => ({
+                  sparePartId: s.sparePartId,
+                  partName: s.partName,
+                  partCode: s.partCode,
+                  quantity: s.quantity,
+                })));
+              }
+            }
+          } catch (fetchErr) {
+            console.error('Failed to load schedule for editing', fetchErr);
+            toast.error('Failed to load schedule details');
+          }
+        } else if (targetMachineId) {
+          const found = machines.find((m: any) => String(m.id) === String(targetMachineId));
           if (found) {
             setSelectedMachineId(found.id);
             setSelectedMachine(found);
-            return;
           }
+        } else if (machines.length > 0) {
+          setSelectedMachineId(machines[0].id);
+          setSelectedMachine(machines[0]);
         }
-        if (res.data.length > 0) {
-          setSelectedMachineId(res.data[0].id);
-          setSelectedMachine(res.data[0]);
-        }
+      } catch (err) {
+        console.error('Failed to fetch machines:', err);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Failed to fetch machines:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    init();
+  }, [id, targetMachineId]);
 
   const handleMachineSelect = (mId: string | number) => {
     setSelectedMachineId(mId);
@@ -153,26 +206,35 @@ export function AddSchedulePage() {
 
     setIsSubmitting(true);
     try {
+      const emails = additionalEmails
+        ? additionalEmails.split(',').map(s => s.trim()).filter(Boolean)
+        : [];
+
       const payload = {
         machineId: Number(selectedMachineId),
         scheduleType,
         frequency,
         priority,
         startDate,
-        prePlanToleranceDays: Number(prePlanTolerance),
-        postPlanToleranceDays: Number(postPlanTolerance),
+        prePlanToleranceDays: Number(prePlanTolerance) || 1,
+        postPlanToleranceDays: Number(postPlanTolerance) || 1,
         triggerTime,
-        notes,
-        notifyUsers: [additionalEmails],
-        tasks,
+        notes: notes.trim(),
+        notifyUsers: emails,
+        tasks: tasks.filter(t => t && t.description && t.description.trim()),
         spares: selectedSpares,
       };
 
-      const res = await scheduleService.createSchedule(payload);
-      toast.success(`Maintenance Schedule ${res.scheduleCode || 'SCH-2026-XXXX'} saved successfully!`);
+      if (isEditMode) {
+        await scheduleService.updateSchedule(Number(id), payload);
+        toast.success(`Maintenance Schedule ${scheduleCode || `SCH-${id}`} updated successfully!`);
+      } else {
+        const res = await scheduleService.createSchedule(payload);
+        toast.success(`Maintenance Schedule ${res.scheduleCode || 'SCH-2026-XXXX'} saved successfully!`);
+      }
       navigate('/schedules');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to save maintenance schedule.');
+      toast.error(err.response?.data?.message || `Failed to ${isEditMode ? 'update' : 'save'} maintenance schedule.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -194,7 +256,7 @@ export function AddSchedulePage() {
         <span>&gt;</span>
         <span className="cursor-pointer hover:text-gray-800" onClick={() => navigate('/schedules')}>Schedules</span>
         <span>&gt;</span>
-        <span className="text-gray-900 font-bold">New</span>
+        <span className="text-gray-900 font-bold">{isEditMode ? 'Edit' : 'New'}</span>
       </div>
 
       {/* Header */}
@@ -205,7 +267,19 @@ export function AddSchedulePage() {
         >
           <ChevronLeft size={22} className="stroke-[2.5]" />
         </button>
-        <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">New Schedule Maintenance</h1>
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+              {isEditMode ? 'Edit Schedule Maintenance' : 'New Schedule Maintenance'}
+            </h1>
+            {scheduleCode && (
+              <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                {scheduleCode}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-slate-500">Configure machine maintenance frequency, tolerance, tasks and notifications</p>
+        </div>
       </div>
 
       {/* Form Card Container */}
@@ -691,7 +765,7 @@ export function AddSchedulePage() {
               {isSubmitting ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               ) : (
-                'Save'
+                isEditMode ? 'Update' : 'Save'
               )}
             </button>
           </div>

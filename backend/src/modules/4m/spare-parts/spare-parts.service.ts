@@ -6,7 +6,7 @@ export class SparePartsService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
 
   async onModuleInit() {
-    // Disabled auto-seeding on init to ensure database stays clean after reset
+    await this.seedInitialSpareParts();
   }
 
   async seedInitialSpareParts() {

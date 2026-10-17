@@ -190,7 +190,7 @@ export function MachineManagement() {
                     key={machine.id || index} 
                     className={`hover:bg-blue-50/40 transition-colors group ${(canEdit || canView) ? 'cursor-pointer' : ''}`}
                     onClick={() => {
-                      if (canEdit || canView) navigate(`/machine-management/edit/${machine.id}`, { state: { tab: 'IOT' } });
+                      if (canEdit || canView) navigate(`/machine-management/edit/${machine.id}`, { state: { tab: 'General' } });
                     }}
                   >
                     <td className="px-5 py-3.5 whitespace-nowrap font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
@@ -228,7 +228,7 @@ export function MachineManagement() {
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/machine-management/edit/${machine.id}`, { state: { tab: 'IOT' } });
+                              navigate(`/machine-management/edit/${machine.id}`, { state: { tab: 'General' } });
                             }}
                             className="text-slate-400 hover:text-blue-600 p-1.5 rounded-md hover:bg-blue-50 transition-colors cursor-pointer" title="View Machine"
                           >
@@ -239,7 +239,7 @@ export function MachineManagement() {
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/machine-management/edit/${machine.id}`, { state: { tab: 'IOT' } });
+                              navigate(`/machine-management/edit/${machine.id}`, { state: { tab: 'General' } });
                             }}
                             className="text-slate-400 hover:text-blue-600 p-1.5 rounded-md hover:bg-blue-50 transition-colors cursor-pointer" title="Edit"
                           >

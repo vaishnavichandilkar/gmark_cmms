@@ -137,18 +137,22 @@ export function AddScheduleCardModal({
 
     setIsSubmitting(true);
     try {
+      const emails = additionalEmails
+        ? additionalEmails.split(',').map(s => s.trim()).filter(Boolean)
+        : [];
+
       const payload = {
         machineId: Number(selectedMachineId),
         scheduleType,
         frequency,
         priority,
         startDate,
-        prePlanToleranceDays: Number(prePlanTolerance),
-        postPlanToleranceDays: Number(postPlanTolerance),
+        prePlanToleranceDays: Number(prePlanTolerance) || 1,
+        postPlanToleranceDays: Number(postPlanTolerance) || 1,
         triggerTime,
-        notes,
-        notifyUsers: [additionalEmails],
-        tasks,
+        notes: notes.trim(),
+        notifyUsers: emails,
+        tasks: tasks.filter(t => t && t.description && t.description.trim()),
         spares: selectedSpares,
       };
 
