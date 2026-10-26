@@ -26,10 +26,13 @@ export class DesignationsService {
   }
 
   async findAll(currentUser?: any) {
+    const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
     const effectiveAdminId = currentUser?.adminId || currentUser?.userId;
-    const whereClause: any = effectiveAdminId
-      ? { adminId: effectiveAdminId }
-      : {};
+    const whereClause: any = isSuperAdmin
+      ? {}
+      : effectiveAdminId
+        ? { OR: [{ adminId: effectiveAdminId }, { adminId: null }] }
+        : {};
 
     const designations = await this.prisma.designation.findMany({
       where: whereClause,
@@ -43,21 +46,123 @@ export class DesignationsService {
       designations.map(async (d) => {
         const userWhere: any = {
           OR: [
-            { designation: d.name },
-            { employee: { designation: d.name } }
+            { designation: { equals: d.name, mode: 'insensitive' } },
+            { employee: { designation: { equals: d.name, mode: 'insensitive' } } }
           ]
         };
-        if (effectiveAdminId) {
+        if (!isSuperAdmin && effectiveAdminId) {
           userWhere.AND = [
             { OR: [{ adminId: effectiveAdminId }, { id: effectiveAdminId }] }
           ];
         }
-        const totalUsers = await this.prisma.user.count({
+        const users = await this.prisma.user.findMany({
           where: userWhere,
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            username: true,
+            email: true,
+            employeeId: true,
+            mainFacilityId: true,
+            facilityId: true,
+            deviceId: true,
+            deviceName: true,
+            mainFacility: {
+              select: {
+                id: true,
+                mainFacilityName: true,
+              }
+            },
+            facility: {
+              select: {
+                id: true,
+                facilityName: true,
+              }
+            },
+            employee: {
+              select: {
+                id: true,
+                fullName: true,
+                employeeCode: true,
+                department: true,
+                officialEmail: true,
+              }
+            }
+          }
         });
+
+        // Also check if any employee with this designation is not yet linked via user
+        const empWhere: any = {
+          designation: { equals: d.name, mode: 'insensitive' }
+        };
+        if (effectiveAdminId) {
+          empWhere.adminId = effectiveAdminId;
+        }
+        const directEmployees = await this.prisma.employee.findMany({
+          where: empWhere,
+          select: {
+            id: true,
+            fullName: true,
+            employeeCode: true,
+            department: true,
+            officialEmail: true,
+          }
+        });
+
+        const userList = users.map(u => ({
+          id: u.id,
+          name: (u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : u.username) || u.employee?.fullName,
+          employeeId: u.employeeId,
+          employeeCode: u.employee?.employeeCode,
+          email: u.email,
+          username: u.username,
+          mainFacilityId: u.mainFacilityId,
+          facilityId: u.facilityId,
+          deviceId: u.deviceId,
+          deviceName: u.deviceName,
+          mainFacilityName: u.mainFacility?.mainFacilityName,
+          facilityName: u.facility?.facilityName,
+        }));
+
+        const existingEmpIds = new Set(users.map(u => u.employeeId).filter(Boolean));
+        for (const de of directEmployees) {
+          if (!existingEmpIds.has(de.id)) {
+            userList.push({
+              id: de.id,
+              name: de.fullName,
+              employeeId: de.id,
+              employeeCode: de.employeeCode,
+              email: de.officialEmail,
+              username: de.officialEmail,
+              mainFacilityId: null,
+              facilityId: null,
+              deviceId: null,
+              deviceName: null,
+              mainFacilityName: undefined,
+              facilityName: undefined,
+            });
+          }
+        }
+
+        const assignedEmployeeIds = Array.from(new Set(userList.map(u => u.employeeId?.toString()).filter(Boolean))) as string[];
+
+        const firstScopedUser = userList.find(u => u.deviceId || u.facilityId || u.mainFacilityId);
+        const accessScope = firstScopedUser ? {
+          mainFacilityId: firstScopedUser.mainFacilityId ? String(firstScopedUser.mainFacilityId) : '',
+          facilityId: firstScopedUser.facilityId ? String(firstScopedUser.facilityId) : '',
+          deviceId: firstScopedUser.deviceId || '',
+          deviceName: firstScopedUser.deviceName || '',
+          mainFacilityName: firstScopedUser.mainFacilityName || '',
+          facilityName: firstScopedUser.facilityName || '',
+        } : null;
+
         return {
           ...d,
-          totalUsers,
+          totalUsers: userList.length,
+          users: userList,
+          assignedEmployeeIds,
+          accessScope,
         };
       })
     );
@@ -67,14 +172,18 @@ export class DesignationsService {
 
   async findOne(idOrName: number | string, currentUser?: any) {
     const isNum = !isNaN(+idOrName);
+    const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
     const effectiveAdminId = currentUser?.adminId || currentUser?.userId;
 
     const where: any = isNum
       ? { id: +idOrName }
       : { name: { equals: idOrName.toString(), mode: 'insensitive' } };
 
-    if (effectiveAdminId) {
-      where.adminId = effectiveAdminId;
+    if (!isSuperAdmin && effectiveAdminId) {
+      where.OR = [
+        { adminId: effectiveAdminId },
+        { adminId: null }
+      ];
     }
 
     const designation = await this.prisma.designation.findFirst({
@@ -88,7 +197,126 @@ export class DesignationsService {
       throw new NotFoundException(`Designation with ID or Name "${idOrName}" not found`);
     }
 
-    return designation;
+    const userWhere: any = {
+      OR: [
+        { designation: { equals: designation.name, mode: 'insensitive' } },
+        { employee: { designation: { equals: designation.name, mode: 'insensitive' } } }
+      ]
+    };
+    if (!isSuperAdmin && effectiveAdminId) {
+      userWhere.AND = [
+        { OR: [{ adminId: effectiveAdminId }, { id: effectiveAdminId }] }
+      ];
+    }
+
+    const users = await this.prisma.user.findMany({
+      where: userWhere,
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        username: true,
+        email: true,
+        employeeId: true,
+        mainFacilityId: true,
+        facilityId: true,
+        deviceId: true,
+        deviceName: true,
+        mainFacility: {
+          select: {
+            id: true,
+            mainFacilityName: true,
+          }
+        },
+        facility: {
+          select: {
+            id: true,
+            facilityName: true,
+          }
+        },
+        employee: {
+          select: {
+            id: true,
+            fullName: true,
+            employeeCode: true,
+            department: true,
+            officialEmail: true,
+          }
+        }
+      }
+    });
+
+    const empWhere: any = {
+      designation: { equals: designation.name, mode: 'insensitive' }
+    };
+    if (!isSuperAdmin && effectiveAdminId) {
+      empWhere.adminId = effectiveAdminId;
+    }
+    const directEmployees = await this.prisma.employee.findMany({
+      where: empWhere,
+      select: {
+        id: true,
+        fullName: true,
+        employeeCode: true,
+        department: true,
+        officialEmail: true,
+      }
+    });
+
+    const userList = users.map(u => ({
+      id: u.id,
+      name: (u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : u.username) || u.employee?.fullName,
+      employeeId: u.employeeId,
+      employeeCode: u.employee?.employeeCode,
+      email: u.email,
+      username: u.username,
+      mainFacilityId: u.mainFacilityId,
+      facilityId: u.facilityId,
+      deviceId: u.deviceId,
+      deviceName: u.deviceName,
+      mainFacilityName: u.mainFacility?.mainFacilityName,
+      facilityName: u.facility?.facilityName,
+    }));
+
+    const existingEmpIds = new Set(users.map(u => u.employeeId).filter(Boolean));
+    for (const de of directEmployees) {
+      if (!existingEmpIds.has(de.id)) {
+        userList.push({
+          id: de.id,
+          name: de.fullName,
+          employeeId: de.id,
+          employeeCode: de.employeeCode,
+          email: de.officialEmail,
+          username: de.officialEmail,
+          mainFacilityId: null,
+          facilityId: null,
+          deviceId: null,
+          deviceName: null,
+          mainFacilityName: undefined,
+          facilityName: undefined,
+        });
+      }
+    }
+
+    const assignedEmployeeIds = Array.from(new Set(userList.map(u => u.employeeId?.toString()).filter(Boolean))) as string[];
+
+    const firstScopedUser = userList.find(u => u.deviceId || u.facilityId || u.mainFacilityId);
+    const accessScope = firstScopedUser ? {
+      mainFacilityId: firstScopedUser.mainFacilityId ? String(firstScopedUser.mainFacilityId) : '',
+      facilityId: firstScopedUser.facilityId ? String(firstScopedUser.facilityId) : '',
+      deviceId: firstScopedUser.deviceId || '',
+      deviceName: firstScopedUser.deviceName || '',
+      mainFacilityName: firstScopedUser.mainFacilityName || '',
+      facilityName: firstScopedUser.facilityName || '',
+    } : null;
+
+    return {
+      ...designation,
+      totalUsers: userList.length,
+      users: userList,
+      assignedEmployeeIds,
+      accessScope,
+    };
   }
 
   async update(id: number, updateDesignationDto: UpdateDesignationDto, currentUser?: any) {

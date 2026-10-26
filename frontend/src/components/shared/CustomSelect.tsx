@@ -104,11 +104,11 @@ export function CustomSelect({
   }, [normalizedOptions, trimmedSearch]);
   const hasExactMatch = !!exactMatch;
 
-  // Separate Action items (like "+ Add New Role") from regular options
+  // Separate Action items (like "+ Add Role") from regular options
   const actionOptions = normalizedOptions.filter(opt => {
     if (typeof opt !== 'string') return !!opt.isAction;
     const str = opt.toLowerCase();
-    return str.startsWith('+') || str.includes('add new') || str.includes('create new');
+    return str.startsWith('+') || str.includes('add new') || str.includes('add role') || str.includes('create new');
   });
 
   const regularOptions = normalizedOptions.filter(opt => !actionOptions.includes(opt));
@@ -358,7 +358,7 @@ export function CustomSelect({
               </div>
             )}
 
-            {/* Pinned Action Header Button (+ Add New Role) */}
+            {/* Pinned Action Header Button (+ Add Role) */}
             {actionOptions.length > 0 && (
               <div className="w-full">
                 {actionOptions.map((actOpt, aIdx) => {

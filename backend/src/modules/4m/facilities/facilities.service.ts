@@ -24,7 +24,8 @@ export class FacilitiesService {
   }
 
   async findAll(currentUser?: any) {
-    const effectiveAdminId = currentUser?.adminId || currentUser?.userId;
+    const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+    const effectiveAdminId = isSuperAdmin ? null : (currentUser?.adminId || currentUser?.userId);
     const whereClause: any = effectiveAdminId ? {
       OR: [
         { adminId: effectiveAdminId },
@@ -32,10 +33,22 @@ export class FacilitiesService {
       ]
     } : {};
 
+    if (currentUser?.facilityId) {
+      const childFacilities = await this.prisma.facility.findMany({
+        where: { parentFacilityId: currentUser.facilityId },
+        select: { id: true },
+      });
+      const facilityIds = [currentUser.facilityId, ...childFacilities.map(f => f.id)];
+      whereClause.id = { in: facilityIds };
+    } else if (currentUser?.mainFacilityId) {
+      whereClause.mainFacilityId = currentUser.mainFacilityId;
+    }
+
     return this.prisma.facility.findMany({
       where: whereClause,
       include: {
-        mainFacility: true
+        mainFacility: true,
+        parentFacility: true,
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -50,7 +63,8 @@ export class FacilitiesService {
     return this.prisma.facility.findUnique({
       where: { id },
       include: {
-        mainFacility: true
+        mainFacility: true,
+        parentFacility: true,
       }
     });
   }
@@ -165,6 +179,81 @@ export class FacilitiesService {
     await this.prisma.machine.updateMany({
       where: { facilityId },
       data: { company: String(newMainFacilityId) },
+    });
+  }
+
+  async getFacilityUsers(facilityId: number) {
+    const facility = await this.prisma.facility.findUnique({
+      where: { id: facilityId },
+      include: {
+        users: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+            designation: true,
+            employeeId: true,
+            employee: {
+              select: {
+                id: true,
+                fullName: true,
+                employeeCode: true,
+                department: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!facility) {
+      throw new NotFoundException(`Facility #${facilityId} not found`);
+    }
+    return facility.users || [];
+  }
+
+  async assignFacilityUsers(facilityId: number, userIds: number[]) {
+    const facility = await this.prisma.facility.findUnique({
+      where: { id: facilityId },
+    });
+    if (!facility) {
+      throw new NotFoundException(`Facility #${facilityId} not found`);
+    }
+
+    const targetUserIds = Array.isArray(userIds) ? userIds.map(Number) : [];
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Unassign users currently assigned to this facility who are not in targetUserIds
+      await tx.user.updateMany({
+        where: {
+          facilityId: facilityId,
+          id: { notIn: targetUserIds },
+        },
+        data: {
+          facilityId: null,
+        },
+      });
+
+      // 2. Assign target users to this facility (and inherit mainFacilityId)
+      if (targetUserIds.length > 0) {
+        await tx.user.updateMany({
+          where: {
+            id: { in: targetUserIds },
+          },
+          data: {
+            facilityId: facilityId,
+            mainFacilityId: facility.mainFacilityId || null,
+          },
+        });
+      }
+
+      return {
+        success: true,
+        facilityId,
+        assignedUserCount: targetUserIds.length,
+      };
     });
   }
 }

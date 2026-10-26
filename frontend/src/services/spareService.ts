@@ -1,3 +1,5 @@
+import { api } from '../lib/api';
+
 export interface LocationStock {
   id: string | number;
   location: string;
@@ -42,9 +44,13 @@ export interface SupplierItem {
 export interface SpareDocument {
   id: string | number;
   name: string;
-  fileType: string;
-  uploadDate: string;
-  size: string;
+  type?: 'File' | 'Link' | 'Note' | string;
+  content?: string;
+  file?: File | null;
+  fileType?: string;
+  uploadDate?: string;
+  size?: string;
+  uploadedBy?: string;
 }
 
 export interface SpareLogItem {
@@ -91,11 +97,27 @@ export interface SparePart {
 
 const STORAGE_KEY = 'gmark_spares_master_data_v3';
 
+const DUMMY_PART_CODES = new Set([
+  'SP-BRG-001',
+  'SP-VLV-002',
+  'SP-GSK-003',
+  'SP-PRS-004',
+  'SP-FLT-005',
+  'SP-MTR-006'
+]);
+
 function getStoredSpares(): SparePart[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        const cleaned = parsed.filter((s: any) => !DUMMY_PART_CODES.has(s.partCode));
+        if (cleaned.length !== parsed.length) {
+          saveStoredSpares(cleaned);
+        }
+        return cleaned;
+      }
     }
   } catch (e) {
     console.error('Failed to parse spares from localStorage', e);
@@ -104,22 +126,19 @@ function getStoredSpares(): SparePart[] {
 }
 
 function saveStoredSpares(spares: SparePart[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(spares));
+  const cleaned = Array.isArray(spares) 
+    ? spares.filter((s: any) => !DUMMY_PART_CODES.has(s.partCode))
+    : [];
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
 }
 
 export const spareService = {
   async getAll(): Promise<SparePart[]> {
     try {
-      const response = await fetch('/api/spare-parts', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          return data;
-        }
+      const response = await api.get('/spare-parts');
+      if (Array.isArray(response.data)) {
+        saveStoredSpares(response.data);
+        return response.data;
       }
     } catch (err) {
       console.warn('Backend fetch failed, falling back to stored spares', err);
@@ -129,13 +148,9 @@ export const spareService = {
 
   async getById(id: number): Promise<SparePart | null> {
     try {
-      const response = await fetch(`/api/spare-parts/${id}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
-      });
-      if (response.ok) {
-        return await response.json();
+      const response = await api.get(`/spare-parts/${id}`);
+      if (response.data) {
+        return response.data;
       }
     } catch (err) {
       console.warn('Backend getById failed', err);
@@ -178,19 +193,12 @@ export const spareService = {
     };
 
     try {
-      const response = await fetch('/api/spare-parts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        },
-        body: JSON.stringify(newSpare)
-      });
-      if (response.ok) {
-        const created = await response.json();
-        spares.unshift(created);
+      const { id: _tempId, ...payloadWithoutId } = newSpare;
+      const response = await api.post('/spare-parts', payloadWithoutId);
+      if (response.data) {
+        spares.unshift(response.data);
         saveStoredSpares(spares);
-        return created;
+        return response.data;
       }
     } catch (err) {
       console.warn('Backend create failed, saving to localStorage', err);
@@ -216,14 +224,11 @@ export const spareService = {
     saveStoredSpares(spares);
 
     try {
-      await fetch(`/api/spare-parts/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        },
-        body: JSON.stringify(data)
-      });
+      const { id: _id, ...payloadWithoutId } = data as any;
+      const response = await api.put(`/spare-parts/${id}`, payloadWithoutId);
+      if (response.data) {
+        return response.data;
+      }
     } catch (err) {
       console.warn('Backend update failed', err);
     }
@@ -235,12 +240,7 @@ export const spareService = {
     const spares = getStoredSpares().filter(s => s.id !== Number(id));
     saveStoredSpares(spares);
     try {
-      await fetch(`/api/spare-parts/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        }
-      });
+      await api.delete(`/spare-parts/${id}`);
     } catch (err) {
       console.warn('Backend delete failed', err);
     }

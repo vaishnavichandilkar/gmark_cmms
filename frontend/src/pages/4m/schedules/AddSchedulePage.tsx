@@ -14,6 +14,9 @@ import {
   Upload,
   CheckSquare,
 } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../../../store';
+import { hasScheduleTabPermission } from '../../../utils/permissions';
 import { toast } from 'react-hot-toast';
 import { scheduleService } from '../../../services/scheduleService';
 import { api } from '../../../lib/api';
@@ -28,10 +31,30 @@ export function AddSchedulePage() {
   const [scheduleCode, setScheduleCode] = useState('');
   const targetMachineId = searchParams.get('machineId');
 
+  const currentUser = useSelector((state: RootState) => state.auth.user);
+  const allTabs = [
+    { id: 'GENERAL' as const, label: '1. General', icon: Cpu },
+    { id: 'SCHEDULING' as const, label: '2. Scheduling', icon: Clock },
+    { id: 'CHECKPOINTS' as const, label: '3. Check Points', icon: CheckSquare },
+    { id: 'SPARES' as const, label: '4. Spares', icon: Package },
+    { id: 'NOTIFICATIONS' as const, label: '5. Notifications', icon: Bell },
+    { id: 'NOTES' as const, label: '6. Notes', icon: FileText },
+    { id: 'FILES' as const, label: '7. Files', icon: Paperclip },
+    { id: 'LOGS' as const, label: '8. Logs', icon: History },
+  ];
+  const permittedTabs = allTabs.filter(tab => hasScheduleTabPermission(currentUser, tab.id, 'view'));
+  const visibleTabs = permittedTabs.length > 0 ? permittedTabs : allTabs;
+
   // Active Tab: 1. General, 2. Scheduling, 3. Check Points, 4. Spares, 5. Notifications, 6. Notes, 7. Files, 8. Logs
   const [activeSubTab, setActiveSubTab] = useState<
     'GENERAL' | 'SCHEDULING' | 'CHECKPOINTS' | 'SPARES' | 'NOTIFICATIONS' | 'NOTES' | 'FILES' | 'LOGS'
-  >('GENERAL');
+  >(visibleTabs[0]?.id || 'GENERAL');
+
+  useEffect(() => {
+    if (visibleTabs.length > 0 && !visibleTabs.some(t => t.id === activeSubTab)) {
+      setActiveSubTab(visibleTabs[0].id);
+    }
+  }, [visibleTabs, activeSubTab]);
 
   // General Tab Fields
   const [selectedMachineId, setSelectedMachineId] = useState<number | string>('');
@@ -48,10 +71,7 @@ export function AddSchedulePage() {
   const [triggerTime, setTriggerTime] = useState('09:00');
 
   // Tasks & Checkpoints Grid
-  const [tasks, setTasks] = useState<{ description: string; taskType: string; standardValue?: string }[]>([
-    { description: 'Inspect pump mechanical seal grease and vibration spectrum', taskType: 'INSPECTION', standardValue: 'Normal < 2.5 mm/s' },
-    { description: 'Check suction & discharge pressure gauges calibration', taskType: 'CALIBRATION', standardValue: '2.0 - 4.5 Bar' },
-  ]);
+  const [tasks, setTasks] = useState<{ description: string; taskType: string; standardValue?: string }[]>([]);
   const [newTaskDesc, setNewTaskDesc] = useState('');
   const [newTaskType, setNewTaskType] = useState('INSPECTION');
   const [newTaskStandard, setNewTaskStandard] = useState('');
@@ -68,10 +88,10 @@ export function AddSchedulePage() {
   const [notifyEngineers, setNotifyEngineers] = useState(true);
   const [notifyTechnicians, setNotifyTechnicians] = useState(true);
   const [notifyOperators, setNotifyOperators] = useState(true);
-  const [additionalEmails, setAdditionalEmails] = useState('maint.lead@gmark.com');
+  const [additionalEmails, setAdditionalEmails] = useState('');
 
   // Notes & Files
-  const [notes, setNotes] = useState('Bi-monthly preventive pump shaft alignment and bearing lubrication check.');
+  const [notes, setNotes] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<{ name: string; size: number }[]>([]);
 
   const handleScheduleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -181,11 +201,15 @@ export function AddSchedulePage() {
       e.preventDefault();
       e.stopPropagation();
     }
-    if (!newTaskDesc.trim()) {
-      toast.error('Please enter a check point description');
-      return;
-    }
-    setTasks(prev => [...prev, { description: newTaskDesc.trim(), taskType: newTaskType, standardValue: newTaskStandard.trim() || undefined }]);
+    const description = newTaskDesc.trim() || `Check Point #${tasks.length + 1}`;
+    setTasks(prev => [
+      ...prev,
+      {
+        description,
+        taskType: newTaskType || 'INSPECTION',
+        standardValue: newTaskStandard.trim() || undefined,
+      },
+    ]);
     setNewTaskDesc('');
     setNewTaskStandard('');
     toast.success('Check point added successfully');
@@ -270,7 +294,7 @@ export function AddSchedulePage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-              {isEditMode ? 'Edit Schedule Maintenance' : 'New Schedule Maintenance'}
+              {isEditMode ? 'Edit Schedule Maintenance' : 'Add Schedule Maintenance'}
             </h1>
             {scheduleCode && (
               <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -286,16 +310,7 @@ export function AddSchedulePage() {
       <div className="bg-white rounded-2xl shadow-xs border border-gray-200 p-4 sm:p-8 space-y-6">
         {/* Sub-Tab Navigation Bar */}
         <div className="flex items-center gap-2 border-b border-gray-100 pb-4 overflow-x-auto">
-          {[
-            { id: 'GENERAL', label: '1. General', icon: Cpu },
-            { id: 'SCHEDULING', label: '2. Scheduling', icon: Clock },
-            { id: 'CHECKPOINTS', label: '3. Check Points', icon: CheckSquare },
-            { id: 'SPARES', label: '4. Spares', icon: Package },
-            { id: 'NOTIFICATIONS', label: '5. Notifications', icon: Bell },
-            { id: 'NOTES', label: '6. Notes', icon: FileText },
-            { id: 'FILES', label: '7. Files', icon: Paperclip },
-            { id: 'LOGS', label: '8. Logs', icon: History },
-          ].map(tab => {
+          {visibleTabs.map(tab => {
             const Icon = tab.icon;
             const isActive = activeSubTab === tab.id;
             return (
@@ -488,7 +503,7 @@ export function AddSchedulePage() {
                 <button
                   type="button"
                   onClick={() => setShowCheckpointModal(true)}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer shrink-0"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer shrink-0"
                 >
                   <Plus size={16} /> Open Master DB Checkpoints
                 </button>
@@ -504,8 +519,14 @@ export function AddSchedulePage() {
                       type="text"
                       value={newTaskDesc}
                       onChange={e => setNewTaskDesc(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddTask();
+                        }
+                      }}
                       placeholder="e.g. Inspect motor bearing vibration & temperature..."
-                      className="w-full px-3.5 py-2 bg-white border border-gray-300 rounded-lg text-xs outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+                      className="w-full px-3.5 py-2 bg-white border border-gray-300 rounded-lg text-xs outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                     />
                   </div>
                   <div>
@@ -513,7 +534,7 @@ export function AddSchedulePage() {
                     <select
                       value={newTaskType}
                       onChange={e => setNewTaskType(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-medium text-gray-700 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-medium text-gray-700 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                     >
                       <option value="INSPECTION">INSPECTION</option>
                       <option value="CLEANING">CLEANING</option>
@@ -528,8 +549,14 @@ export function AddSchedulePage() {
                       type="text"
                       value={newTaskStandard}
                       onChange={e => setNewTaskStandard(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddTask();
+                        }
+                      }}
                       placeholder="e.g. Pass / < 2.5 mm/s"
-                      className="w-full px-3.5 py-2 bg-white border border-gray-300 rounded-lg text-xs outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+                      className="w-full px-3.5 py-2 bg-white border border-gray-300 rounded-lg text-xs outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                     />
                   </div>
                 </div>
@@ -538,7 +565,7 @@ export function AddSchedulePage() {
                   <button
                     type="button"
                     onClick={handleAddTask}
-                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
+                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
                   >
                     <Plus size={15} /> Add Check Point
                   </button>
@@ -550,41 +577,82 @@ export function AddSchedulePage() {
                 <table className="w-full text-left text-xs text-gray-600">
                   <thead className="bg-gray-50 border-b border-gray-200 text-gray-700 font-bold uppercase tracking-wider text-[11px]">
                     <tr>
-                      <th className="px-4 py-3">#</th>
+                      <th className="px-4 py-3 w-12 text-center">#</th>
                       <th className="px-4 py-3">Check Point Description</th>
-                      <th className="px-4 py-3">Type</th>
-                      <th className="px-4 py-3">Standard Expected Value</th>
-                      <th className="px-4 py-3 text-right">Actions</th>
+                      <th className="px-4 py-3 w-36 sm:w-44">Type</th>
+                      <th className="px-4 py-3 w-48 sm:w-64">Standard Expected Value</th>
+                      <th className="px-4 py-3 text-right w-16">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {tasks.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
-                          No check points added yet. Use the form above to add custom check points.
+                          <p className="mb-3 text-xs">No check points added yet.</p>
+                          <button
+                            type="button"
+                            onClick={() => handleAddTask()}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-xl text-xs border border-emerald-200 transition-colors shadow-2xs cursor-pointer"
+                          >
+                            <Plus size={15} /> Add First Check Point
+                          </button>
                         </td>
                       </tr>
                     ) : (
                       tasks.map((task, idx) => (
                         <tr key={idx} className="hover:bg-gray-50/80 transition-colors">
-                          <td className="px-4 py-3.5 font-bold text-gray-400">{idx + 1}</td>
-                          <td className="px-4 py-3.5 font-semibold text-gray-900">{task.description}</td>
-                          <td className="px-4 py-3.5">
-                            <span className="px-2.5 py-1 bg-green-100 text-green-800 rounded-full font-bold text-[10px]">
-                              {task.taskType}
-                            </span>
+                          <td className="px-4 py-2 font-bold text-gray-400 text-center">{idx + 1}</td>
+                          <td className="px-4 py-2">
+                            <input
+                              type="text"
+                              value={task.description}
+                              onChange={(e) => {
+                                const updated = [...tasks];
+                                updated[idx].description = e.target.value;
+                                setTasks(updated);
+                              }}
+                              placeholder="Enter check point description..."
+                              className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-semibold text-gray-900 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                            />
                           </td>
-                          <td className="px-4 py-3.5 font-medium text-gray-700">
-                            {task.standardValue || '—'}
+                          <td className="px-4 py-2">
+                            <select
+                              value={task.taskType}
+                              onChange={(e) => {
+                                const updated = [...tasks];
+                                updated[idx].taskType = e.target.value;
+                                setTasks(updated);
+                              }}
+                              className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-bold text-emerald-800 outline-none focus:border-emerald-600 cursor-pointer"
+                            >
+                              <option value="INSPECTION">INSPECTION</option>
+                              <option value="CLEANING">CLEANING</option>
+                              <option value="LUBRICATION">LUBRICATION</option>
+                              <option value="REPLACEMENT">REPLACEMENT</option>
+                              <option value="CALIBRATION">CALIBRATION</option>
+                            </select>
                           </td>
-                          <td className="px-4 py-3.5 text-right">
+                          <td className="px-4 py-2">
+                            <input
+                              type="text"
+                              value={task.standardValue || ''}
+                              onChange={(e) => {
+                                const updated = [...tasks];
+                                updated[idx].standardValue = e.target.value;
+                                setTasks(updated);
+                              }}
+                              placeholder="e.g. Normal / Pass / < 2.5 mm/s"
+                              className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-medium text-gray-700 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                            />
+                          </td>
+                          <td className="px-4 py-2 text-right">
                             <button
                               type="button"
                               onClick={() => handleRemoveTask(idx)}
                               className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                               title="Remove Check Point"
                             >
-                              <Trash2 size={15} />
+                              <Trash2 size={16} />
                             </button>
                           </td>
                         </tr>
@@ -592,6 +660,19 @@ export function AddSchedulePage() {
                     )}
                   </tbody>
                 </table>
+
+                {/* Footer Add Row Button */}
+                {tasks.length > 0 && (
+                  <div className="p-2.5 bg-gray-50/80 border-t border-gray-100 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => handleAddTask()}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg text-xs border border-emerald-200 transition-colors shadow-2xs cursor-pointer"
+                    >
+                      <Plus size={14} /> Add Another Row
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}

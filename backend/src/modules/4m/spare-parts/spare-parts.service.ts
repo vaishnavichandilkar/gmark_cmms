@@ -1,93 +1,56 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 
 @Injectable()
-export class SparePartsService implements OnModuleInit {
+export class SparePartsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async onModuleInit() {
-    await this.seedInitialSpareParts();
-  }
+  private sanitizeSpareData(data: any) {
+    const sanitized: any = {};
 
-  async seedInitialSpareParts() {
-    const count = await this.prisma.sparePartMaster.count();
-    if (count === 0) {
-      await this.prisma.sparePartMaster.createMany({
-        data: [
-          {
-            partCode: 'SP-BRG-001',
-            partName: 'Heavy Duty Ball Bearing 6205-2RS',
-            category: 'Mechanical',
-            stockQuantity: 45,
-            unitOfMeasure: 'PCS',
-            unitCost: 1250,
-            location: 'Bin A-12',
-            description: 'Deep groove ball bearing for pump shaft assembly',
-          },
-          {
-            partCode: 'SP-VLV-002',
-            partName: 'Stainless Steel Butterfly Valve 2 Inch',
-            category: 'Valves & Piping',
-            stockQuantity: 20,
-            unitOfMeasure: 'PCS',
-            unitCost: 3400,
-            location: 'Bin B-05',
-            description: 'Flanged butterfly valve for water booster line',
-          },
-          {
-            partCode: 'SP-GSK-003',
-            partName: 'High-Temp Mechanical Seal Kit 32mm',
-            category: 'Seals & Gaskets',
-            stockQuantity: 30,
-            unitOfMeasure: 'KIT',
-            unitCost: 2100,
-            location: 'Bin A-08',
-            description: 'Viton shaft mechanical seal for booster pumps',
-          },
-          {
-            partCode: 'SP-PRS-004',
-            partName: 'Digital Pressure Switch Transducer 0-10 Bar',
-            category: 'Instrumentation',
-            stockQuantity: 15,
-            unitOfMeasure: 'PCS',
-            unitCost: 4800,
-            location: 'Bin C-01',
-            description: '4-20mA pressure transducer switch module',
-          },
-          {
-            partCode: 'SP-FLT-005',
-            partName: 'High-Flow Stainless Mesh Strainer Filter',
-            category: 'Filters',
-            stockQuantity: 50,
-            unitOfMeasure: 'PCS',
-            unitCost: 950,
-            location: 'Bin D-03',
-            description: 'Suction line Y-strainer replacement element',
-          },
-          {
-            partCode: 'SP-MTR-006',
-            partName: 'Flexible Rubber Jaw Coupling Element',
-            category: 'Mechanical',
-            stockQuantity: 35,
-            unitOfMeasure: 'PCS',
-            unitCost: 650,
-            location: 'Bin A-15',
-            description: 'Spider insert for motor pump flexible coupling',
-          },
-        ],
-      });
-    }
+    if (data.partCode) sanitized.partCode = String(data.partCode).trim();
+    if (data.partName) sanitized.partName = String(data.partName).trim();
+    if (data.category !== undefined) sanitized.category = data.category ? String(data.category) : null;
+    if (data.subCategory !== undefined) sanitized.subCategory = data.subCategory ? String(data.subCategory) : null;
+
+    if (data.stockQuantity !== undefined) sanitized.stockQuantity = Math.round(Number(data.stockQuantity)) || 0;
+    if (data.inHandQuantity !== undefined) sanitized.inHandQuantity = Math.round(Number(data.inHandQuantity)) || 0;
+    if (data.atSourceQuantity !== undefined) sanitized.atSourceQuantity = Math.round(Number(data.atSourceQuantity)) || 0;
+    if (data.minimumQuantity !== undefined) sanitized.minimumQuantity = Math.round(Number(data.minimumQuantity)) || 0;
+    if (data.totalStock !== undefined) sanitized.totalStock = Math.round(Number(data.totalStock)) || 0;
+
+    if (data.unitOfMeasure !== undefined) sanitized.unitOfMeasure = data.unitOfMeasure ? String(data.unitOfMeasure) : 'PCS';
+    if (data.unitCost !== undefined) sanitized.unitCost = Number(data.unitCost) || 0;
+    if (data.rate !== undefined) sanitized.rate = Number(data.rate) || 0;
+
+    if (data.location !== undefined) sanitized.location = data.location ? String(data.location) : null;
+    if (data.stockLocation !== undefined) sanitized.stockLocation = data.stockLocation ? String(data.stockLocation) : null;
+    if (data.description !== undefined) sanitized.description = data.description ? String(data.description) : null;
+    if (data.headOfDepartment !== undefined) sanitized.headOfDepartment = data.headOfDepartment ? String(data.headOfDepartment) : null;
+    if (data.notes !== undefined) sanitized.notes = data.notes ? String(data.notes) : null;
+    if (data.imageUrl !== undefined) sanitized.imageUrl = data.imageUrl ? String(data.imageUrl) : null;
+    if (data.namePlateFile !== undefined) sanitized.namePlateFile = data.namePlateFile ? String(data.namePlateFile) : null;
+
+    if (data.stockLocations !== undefined) sanitized.stockLocations = data.stockLocations;
+    if (data.machinesList !== undefined) sanitized.machinesList = data.machinesList;
+    if (data.customSpecifications !== undefined) sanitized.customSpecifications = data.customSpecifications;
+    if (data.warrantiesList !== undefined) sanitized.warrantiesList = data.warrantiesList;
+    if (data.suppliersList !== undefined) sanitized.suppliersList = data.suppliersList;
+    if (data.documentsList !== undefined) sanitized.documentsList = data.documentsList;
+    if (data.logsList !== undefined) sanitized.logsList = data.logsList;
+
+    return sanitized;
   }
 
   async getAllSpareParts(currentUser?: any) {
     const effectiveAdminId = currentUser?.adminId || currentUser?.userId;
     const where: any = effectiveAdminId
-      ? { adminId: effectiveAdminId }
+      ? { OR: [{ adminId: effectiveAdminId }, { adminId: null }] }
       : {};
 
     return this.prisma.sparePartMaster.findMany({
       where,
-      orderBy: { partName: 'asc' },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -97,18 +60,28 @@ export class SparePartsService implements OnModuleInit {
 
   async createSparePart(data: any, currentUser?: any) {
     const effectiveAdminId = currentUser?.adminId || currentUser?.userId || null;
+    const sanitized = this.sanitizeSpareData(data);
+
+    if (!sanitized.partCode) {
+      sanitized.partCode = `SP-${Math.floor(10000 + Math.random() * 90000)}`;
+    }
+    if (!sanitized.partName) {
+      sanitized.partName = 'Spare Part';
+    }
+
     return this.prisma.sparePartMaster.create({
       data: {
-        ...data,
+        ...sanitized,
         adminId: effectiveAdminId,
       },
     });
   }
 
   async updateSparePart(id: number, data: any) {
+    const sanitized = this.sanitizeSpareData(data);
     return this.prisma.sparePartMaster.update({
       where: { id },
-      data,
+      data: sanitized,
     });
   }
 
@@ -118,3 +91,4 @@ export class SparePartsService implements OnModuleInit {
     });
   }
 }
+

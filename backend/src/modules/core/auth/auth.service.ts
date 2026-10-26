@@ -383,6 +383,9 @@ export class AuthService {
       'machine_tab_purchase',
       'machine_tab_documents',
       'machine_tab_iot',
+      'machine_tab_wo',
+      'machine_tab_checklist',
+      'machine_tab_schedule_maintenance',
     ];
 
     const facilityTabModules = [
@@ -390,7 +393,37 @@ export class AuthService {
       'facility_tab_document',
     ];
 
-    const allTabModules = [...machineTabModules, ...facilityTabModules];
+    const spareTabModules = [
+      'spare_tab_general',
+      'spare_tab_stock',
+      'spare_tab_machines_list',
+      'spare_tab_specification',
+      'spare_tab_warranties',
+      'spare_tab_suppliers',
+      'spare_tab_documents',
+      'spare_tab_log',
+    ];
+
+    const supplierTabModules = [
+      'supplier_tab_general',
+      'supplier_tab_location',
+      'supplier_tab_spares',
+      'supplier_tab_documents',
+      'supplier_tab_log',
+    ];
+
+    const scheduleTabModules = [
+      'schedule_tab_general',
+      'schedule_tab_scheduling',
+      'schedule_tab_checkpoints',
+      'schedule_tab_spares',
+      'schedule_tab_notifications',
+      'schedule_tab_notes',
+      'schedule_tab_files',
+      'schedule_tab_logs',
+    ];
+
+    const allTabModules = [...machineTabModules, ...facilityTabModules, ...spareTabModules, ...supplierTabModules, ...scheduleTabModules];
 
     const modules = [
       'dashboard',
@@ -407,6 +440,9 @@ export class AuthService {
       'schedules',
       ...machineTabModules,
       ...facilityTabModules,
+      ...spareTabModules,
+      ...supplierTabModules,
+      ...scheduleTabModules,
     ];
 
     // 1. Role-based baseline
@@ -549,6 +585,66 @@ export class AuthService {
                   canCreate: fmPerm.canCreate,
                   canEdit: fmPerm.canEdit,
                   canDelete: fmPerm.canDelete,
+                };
+              }
+            }
+          });
+        }
+
+        // Inherit spares permission to tabs if not explicitly set in designation
+        const sparesPerm = designation.permissions.find((p) => p.moduleId === 'spares');
+        if (sparesPerm) {
+          spareTabModules.forEach((tabMod) => {
+            const hasExplicit = designation.permissions.some((p) => p.moduleId === tabMod);
+            if (!hasExplicit) {
+              const tIdx = mergedPermissions.findIndex((p) => p.moduleId === tabMod);
+              if (tIdx >= 0) {
+                mergedPermissions[tIdx] = {
+                  ...mergedPermissions[tIdx],
+                  canView: sparesPerm.canView,
+                  canCreate: sparesPerm.canCreate,
+                  canEdit: sparesPerm.canEdit,
+                  canDelete: sparesPerm.canDelete,
+                };
+              }
+            }
+          });
+        }
+
+        // Inherit suppliers permission to tabs if not explicitly set in designation
+        const suppliersPerm = designation.permissions.find((p) => p.moduleId === 'suppliers');
+        if (suppliersPerm) {
+          supplierTabModules.forEach((tabMod) => {
+            const hasExplicit = designation.permissions.some((p) => p.moduleId === tabMod);
+            if (!hasExplicit) {
+              const tIdx = mergedPermissions.findIndex((p) => p.moduleId === tabMod);
+              if (tIdx >= 0) {
+                mergedPermissions[tIdx] = {
+                  ...mergedPermissions[tIdx],
+                  canView: suppliersPerm.canView,
+                  canCreate: suppliersPerm.canCreate,
+                  canEdit: suppliersPerm.canEdit,
+                  canDelete: suppliersPerm.canDelete,
+                };
+              }
+            }
+          });
+        }
+
+        // Inherit schedules permission to tabs if not explicitly set in designation
+        const schedulesPerm = designation.permissions.find((p) => p.moduleId === 'schedules');
+        if (schedulesPerm) {
+          scheduleTabModules.forEach((tabMod) => {
+            const hasExplicit = designation.permissions.some((p) => p.moduleId === tabMod);
+            if (!hasExplicit) {
+              const tIdx = mergedPermissions.findIndex((p) => p.moduleId === tabMod);
+              if (tIdx >= 0) {
+                mergedPermissions[tIdx] = {
+                  ...mergedPermissions[tIdx],
+                  canView: schedulesPerm.canView,
+                  canCreate: schedulesPerm.canCreate,
+                  canEdit: schedulesPerm.canEdit,
+                  canDelete: schedulesPerm.canDelete,
                 };
               }
             }

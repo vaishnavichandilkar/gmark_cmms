@@ -567,25 +567,6 @@ export class MachinesService {
       throw new NotFoundException(`Machine '${codeOrId}' not found in database`);
     }
 
-    // Auto-seed default checkpoints if empty
-    if (!machine.checkpoints || machine.checkpoints.length === 0) {
-      await this.prisma.machineCheckpoint.createMany({
-        data: [
-          { machineId: machine.id, title: 'Emergency Stop & Guard Interlock Safety Check', checkpointType: 'SAFETY', standardValue: 'Functional / Pass', frequency: 'DAILY' },
-          { machineId: machine.id, title: 'Motor & Pump Bearing Vibration & Noise Check', checkpointType: 'MECHANICAL', standardValue: '< 2.5 mm/s RMS', frequency: 'WEEKLY' },
-          { machineId: machine.id, title: 'Terminal Box Voltage & Current Balance Inspection', checkpointType: 'ELECTRICAL', standardValue: '415V ± 5%, < 5% Unbalance', frequency: 'MONTHLY' },
-          { machineId: machine.id, title: 'Mechanical Seal Grease & Lubrication Top-up', checkpointType: 'LUBRICATION', standardValue: 'ISO VG 46 Oil level at 75%', frequency: 'WEEKLY' },
-          { machineId: machine.id, title: 'Pressure Switch Cut-in & Cut-out Differential Test', checkpointType: 'OPERATIONAL', standardValue: 'Cut-in 3.5 bar / Cut-out 5.0 bar', frequency: 'DAILY' },
-        ],
-      });
-
-      // Refetch checkpoints
-      const updatedCheckpoints = await this.prisma.machineCheckpoint.findMany({
-        where: { machineId: machine.id },
-      });
-      machine.checkpoints = updatedCheckpoints;
-    }
-
     return machine;
   }
 
@@ -599,9 +580,17 @@ export class MachinesService {
     return machine.checkpoints;
   }
 
-  async moveMachine(id: number, target: { targetType: 'facility' | 'building' | 'machine' | 'device'; targetId: number }) {
+  async moveMachine(id: number, target: { targetType: 'facility' | 'building' | 'machine' | 'device' | 'mainFacility' | 'society'; targetId: number }) {
     const machine = await this.prisma.machine.findUnique({
       where: { id },
+      include: {
+        specifications: true,
+        documents: true,
+        checkpoints: true,
+        workOrders: true,
+        maintenanceSchedules: true,
+        childMachines: true,
+      },
     });
     if (!machine) {
       throw new NotFoundException(`Machine with ID ${id} not found`);
@@ -615,16 +604,86 @@ export class MachinesService {
         throw new NotFoundException(`Facility with ID ${target.targetId} not found`);
       }
 
-      return this.prisma.machine.update({
+      // Resolve mainFacilityId up the facility hierarchy if direct parent is nested
+      let resolvedMainFacilityId = facility.mainFacilityId;
+      if (!resolvedMainFacilityId && facility.parentFacilityId) {
+        let parentId: number | null = facility.parentFacilityId;
+        while (parentId && !resolvedMainFacilityId) {
+          const parentFac: any = await this.prisma.facility.findUnique({ where: { id: parentId } });
+          if (!parentFac) break;
+          resolvedMainFacilityId = parentFac.mainFacilityId;
+          parentId = parentFac.parentFacilityId;
+        }
+      }
+
+      const updatedMachine = await this.prisma.machine.update({
         where: { id },
         data: {
           facilityId: target.targetId,
           buildingId: null,
           parentMachineId: null,
-          company: String(facility.mainFacilityId),
+          company: resolvedMainFacilityId ? String(resolvedMainFacilityId) : machine.company,
           isLocationPart: false,
         },
+        include: {
+          specifications: true,
+          documents: true,
+          checkpoints: true,
+          workOrders: true,
+          maintenanceSchedules: true,
+          childMachines: true,
+        },
       });
+
+      // Update maintenance schedules linked to this machine
+      await this.prisma.maintenanceSchedule.updateMany({
+        where: { machineId: id },
+        data: {
+          facilityId: target.targetId,
+          mainFacilityId: resolvedMainFacilityId || null,
+          buildingId: null,
+        },
+      });
+
+      return updatedMachine;
+    } else if (target.targetType === 'mainFacility') {
+      const mainFacility = await this.prisma.mainFacility.findUnique({
+        where: { id: target.targetId },
+      });
+      if (!mainFacility) {
+        throw new NotFoundException(`Main Facility with ID ${target.targetId} not found`);
+      }
+
+      const updatedMachine = await this.prisma.machine.update({
+        where: { id },
+        data: {
+          facilityId: null,
+          buildingId: null,
+          parentMachineId: null,
+          company: String(mainFacility.id),
+          isLocationPart: false,
+        },
+        include: {
+          specifications: true,
+          documents: true,
+          checkpoints: true,
+          workOrders: true,
+          maintenanceSchedules: true,
+          childMachines: true,
+        },
+      });
+
+      // Update maintenance schedules linked to this machine
+      await this.prisma.maintenanceSchedule.updateMany({
+        where: { machineId: id },
+        data: {
+          facilityId: null,
+          mainFacilityId: target.targetId,
+          buildingId: null,
+        },
+      });
+
+      return updatedMachine;
     } else if (target.targetType === 'building') {
       const building = await this.prisma.building.findUnique({
         where: { id: target.targetId },
@@ -633,7 +692,7 @@ export class MachinesService {
         throw new NotFoundException(`Building with ID ${target.targetId} not found`);
       }
 
-      return this.prisma.machine.update({
+      const updatedMachine = await this.prisma.machine.update({
         where: { id },
         data: {
           buildingId: target.targetId,
@@ -641,7 +700,73 @@ export class MachinesService {
           parentMachineId: null,
           isLocationPart: false,
         },
+        include: {
+          specifications: true,
+          documents: true,
+          checkpoints: true,
+          workOrders: true,
+          maintenanceSchedules: true,
+          childMachines: true,
+        },
       });
+
+      await this.prisma.maintenanceSchedule.updateMany({
+        where: { machineId: id },
+        data: {
+          buildingId: target.targetId,
+          facilityId: null,
+          mainFacilityId: null,
+        },
+      });
+
+      if (machine.deviceId) {
+        await this.prisma.device.updateMany({
+          where: { deviceId: machine.deviceId },
+          data: { buildingId: target.targetId },
+        }).catch(() => {});
+      }
+
+      return updatedMachine;
+    } else if (target.targetType === 'society') {
+      const society = await this.prisma.society.findUnique({
+        where: { id: target.targetId },
+        include: { buildings: true },
+      });
+      if (!society) {
+        throw new NotFoundException(`Society with ID ${target.targetId} not found`);
+      }
+
+      const targetBuildingId = society.buildings?.[0]?.id || null;
+
+      const updatedMachine = await this.prisma.machine.update({
+        where: { id },
+        data: {
+          buildingId: targetBuildingId,
+          facilityId: null,
+          parentMachineId: null,
+          company: society.name,
+          isLocationPart: false,
+        },
+        include: {
+          specifications: true,
+          documents: true,
+          checkpoints: true,
+          workOrders: true,
+          maintenanceSchedules: true,
+          childMachines: true,
+        },
+      });
+
+      await this.prisma.maintenanceSchedule.updateMany({
+        where: { machineId: id },
+        data: {
+          buildingId: targetBuildingId,
+          facilityId: null,
+          mainFacilityId: null,
+        },
+      });
+
+      return updatedMachine;
     } else if (target.targetType === 'machine' || target.targetType === 'device') {
       if (id === target.targetId) {
         throw new BadRequestException('Cannot move a machine under itself');
@@ -660,7 +785,7 @@ export class MachinesService {
         throw new BadRequestException('Cannot move a machine under one of its own sub-machines');
       }
 
-      return this.prisma.machine.update({
+      const updatedMachine = await this.prisma.machine.update({
         where: { id },
         data: {
           parentMachineId: target.targetId,
@@ -669,7 +794,26 @@ export class MachinesService {
           company: targetMachine.company,
           isLocationPart: true,
         },
+        include: {
+          specifications: true,
+          documents: true,
+          checkpoints: true,
+          workOrders: true,
+          maintenanceSchedules: true,
+          childMachines: true,
+        },
       });
+
+      await this.prisma.maintenanceSchedule.updateMany({
+        where: { machineId: id },
+        data: {
+          facilityId: targetMachine.facilityId,
+          buildingId: targetMachine.buildingId,
+          mainFacilityId: targetMachine.company ? Number(targetMachine.company) || null : null,
+        },
+      });
+
+      return updatedMachine;
     } else {
       throw new BadRequestException(`Invalid targetType: ${target.targetType}`);
     }
@@ -689,5 +833,101 @@ export class MachinesService {
       currentId = curr?.parentMachineId || null;
     }
     return false;
+  }
+
+  async getMachineUsers(machineId: number) {
+    const machine = await this.prisma.machine.findUnique({
+      where: { id: machineId },
+      include: { facility: true },
+    });
+    if (!machine) {
+      throw new NotFoundException(`Machine #${machineId} not found`);
+    }
+
+    const identifiers = [
+      machine.deviceId,
+      machine.machineCode,
+      String(machine.id),
+    ].filter(Boolean) as string[];
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        OR: [
+          { deviceId: { in: identifiers } },
+          ...(machine.name ? [{ deviceName: machine.name }] : []),
+        ],
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        designation: true,
+        employeeId: true,
+        employee: {
+          select: {
+            id: true,
+            fullName: true,
+            employeeCode: true,
+            department: true,
+          },
+        },
+      },
+    });
+
+    return users;
+  }
+
+  async assignMachineUsers(machineId: number, userIds: number[]) {
+    const machine = await this.prisma.machine.findUnique({
+      where: { id: machineId },
+      include: { facility: true },
+    });
+    if (!machine) {
+      throw new NotFoundException(`Machine #${machineId} not found`);
+    }
+
+    const targetUserIds = Array.isArray(userIds) ? userIds.map(Number) : [];
+    const deviceIdentifier = machine.deviceId || machine.machineCode || `machine-${machine.id}`;
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Unassign users previously attached to this machine who are not in targetUserIds
+      await tx.user.updateMany({
+        where: {
+          OR: [
+            { deviceId: deviceIdentifier },
+            ...(machine.deviceId ? [{ deviceId: machine.deviceId }] : []),
+            ...(machine.machineCode ? [{ deviceId: machine.machineCode }] : []),
+          ],
+          id: { notIn: targetUserIds },
+        },
+        data: {
+          deviceId: null,
+          deviceName: null,
+        },
+      });
+
+      // 2. Assign target users to this machine
+      if (targetUserIds.length > 0) {
+        await tx.user.updateMany({
+          where: {
+            id: { in: targetUserIds },
+          },
+          data: {
+            deviceId: deviceIdentifier,
+            deviceName: machine.name,
+            facilityId: machine.facilityId || undefined,
+          },
+        });
+      }
+
+      return {
+        success: true,
+        machineId,
+        assignedUserCount: targetUserIds.length,
+      };
+    });
   }
 }

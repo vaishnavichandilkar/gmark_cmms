@@ -158,9 +158,9 @@ export function EmployeeHierarchyPicker({
         className={`relative w-full ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} ${className}`}
         onClick={() => !disabled && setIsOpen(true)}
       >
-        <div className={`w-full flex items-center justify-between px-4 py-2.5 bg-white border border-gray-300 rounded-lg transition-all focus-within:ring-2 focus-within:ring-green-500/20 focus-within:border-green-500 ${!displayValue ? 'text-gray-500' : 'text-gray-900'}`}>
+        <div className={`w-full flex items-center justify-between px-3 min-h-[36px] h-9 bg-white border border-gray-300 rounded-lg text-xs transition-all focus-within:ring-2 focus-within:ring-green-500/20 focus-within:border-green-500 ${!displayValue ? 'text-gray-400' : 'text-gray-900'}`}>
           <span className="truncate">{displayValue || placeholder}</span>
-          <ChevronDown size={18} className="text-gray-400" />
+          <ChevronDown size={14} className="text-gray-400 shrink-0" />
         </div>
       </div>
 

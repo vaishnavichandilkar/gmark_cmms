@@ -102,7 +102,7 @@ export function CheckpointMasterModal({
                 <FileText size={20} className="text-cyan-400" />
               </div>
               <div>
-                <h3 className="font-extrabold text-lg leading-tight tracking-tight text-white">Create Checkpoint (Frame 24)</h3>
+                <h3 className="font-extrabold text-lg leading-tight tracking-tight text-white">Create Checkpoint</h3>
                 <p className="text-xs text-slate-400 mt-0.5 font-medium">Duplicate Validation & Dual Database Persistence</p>
               </div>
             </div>

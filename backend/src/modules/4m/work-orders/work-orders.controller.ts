@@ -118,6 +118,17 @@ export class WorkOrdersController {
     return this.workOrdersService.getWorkOrderById(id);
   }
 
+  @Post(':id/assign')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Assign or reassign technician to work order' })
+  async assignTechnician(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { technicianId: number | null },
+  ) {
+    return this.workOrdersService.assignTechnician(id, body.technicianId);
+  }
+
   @Post(':id/approve')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')

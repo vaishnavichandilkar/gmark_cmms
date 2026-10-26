@@ -39,6 +39,7 @@ export function FloatingNavbar() {
   const [isProfilePopupOpen, setIsProfilePopupOpen] = useState(false);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
+    'Master': true,
     'IOT': true,
     'HYPN': true,
   });
@@ -76,6 +77,12 @@ export function FloatingNavbar() {
       label: 'Master',
       icon: <Settings size={15} />,
       children: [
+        {
+          label: 'Facility Master',
+          path: '/master/main-facility',
+          icon: <Building2 size={13} />,
+          moduleId: 'master_main_facility'
+        },
         {
           label: 'Employee Master',
           path: '/master/employee',
@@ -166,6 +173,11 @@ export function FloatingNavbar() {
     if (!user.permissions || !Array.isArray(user.permissions)) return false;
 
     const perm = user.permissions.find((p: any) => p.moduleId === moduleId);
+    if (!perm && (moduleId === 'master_main_facility' || moduleId === 'facility_master')) {
+      const fmPerm = user.permissions.find((p: any) => p.moduleId === 'facility_management');
+      if (fmPerm && fmPerm.canView) return true;
+      return true;
+    }
     if (!perm && moduleId === 'assets') {
       const mmPerm = user.permissions.find((p: any) => p.moduleId === 'machine_management');
       if (mmPerm && mmPerm.canView) return true;

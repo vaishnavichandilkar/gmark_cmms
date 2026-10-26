@@ -189,11 +189,11 @@ export class UsersController {
   @ApiParam({ name: 'id', description: 'User ID' })
   async updateUserPermissions(
     @Param('id', ParseIntPipe) id: number,
-    @Body() permissions: any[],
+    @Body() payload: any,
     @CurrentUser() currentUser: any,
     @Ip() ip: string,
   ) {
-    const result = await this.usersService.updateUserPermissions(id, permissions);
+    const result = await this.usersService.updateUserPermissions(id, payload);
     await this.auditLogService.create(
       currentUser.userId,
       `User Permissions Updated: ID ${id}`,

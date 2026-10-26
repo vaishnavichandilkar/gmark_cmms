@@ -39,4 +39,17 @@ export class MainFacilitiesController {
   remove(@Param('id') id: string) {
     return this.mainFacilitiesService.remove(+id);
   }
+
+  @Get(':id/users')
+  getMainFacilityUsers(@Param('id') id: string) {
+    return this.mainFacilitiesService.getMainFacilityUsers(+id);
+  }
+
+  @Post(':id/users')
+  assignMainFacilityUsers(
+    @Param('id') id: string,
+    @Body('userIds') userIds: number[]
+  ) {
+    return this.mainFacilitiesService.assignMainFacilityUsers(+id, userIds);
+  }
 }

@@ -150,7 +150,7 @@ export class MachinesController {
   @ApiResponse({ status: 200, description: 'Machine moved successfully.' })
   async moveMachine(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: { targetType: 'facility' | 'building' | 'machine' | 'device'; targetId: number },
+    @Body() body: { targetType: 'facility' | 'building' | 'machine' | 'device' | 'mainFacility' | 'society'; targetId: number },
     @CurrentUser() user: any,
     @Ip() ip: string,
   ) {
@@ -203,5 +203,22 @@ export class MachinesController {
     @Body() body: any // using any for multer/file upload logic
   ) {
     return this.machinesService.addDocument(id, body);
+  }
+
+  @Get(':id/users')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN, UserRole.BUILDING_ADMIN)
+  @ApiOperation({ summary: 'Get users assigned to a machine' })
+  async getMachineUsers(@Param('id', ParseIntPipe) id: number) {
+    return this.machinesService.getMachineUsers(id);
+  }
+
+  @Post(':id/users')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SOCIETY_ADMIN, UserRole.BUILDING_ADMIN)
+  @ApiOperation({ summary: 'Assign users to a machine' })
+  async assignMachineUsers(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { userIds: number[] }
+  ) {
+    return this.machinesService.assignMachineUsers(id, body?.userIds || []);
   }
 }

@@ -20,9 +20,10 @@ export class UsersService {
 
   async findAll(currentUser: any, societyId?: number) {
     let whereClause: any = {};
+    const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
     const effectiveAdminId = currentUser?.adminId || currentUser?.userId;
 
-    if (effectiveAdminId) {
+    if (!isSuperAdmin && effectiveAdminId) {
       whereClause.OR = [
         { adminId: effectiveAdminId },
         { id: effectiveAdminId }
@@ -288,7 +289,11 @@ export class UsersService {
   async getUserPermissions(id: number) {
     const user = await this.prisma.user.findUnique({
       where: { id },
-      include: { employee: true },
+      include: {
+        employee: true,
+        mainFacility: true,
+        facility: true,
+      },
     });
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
@@ -306,6 +311,9 @@ export class UsersService {
       'machine_tab_purchase',
       'machine_tab_documents',
       'machine_tab_iot',
+      'machine_tab_wo',
+      'machine_tab_checklist',
+      'machine_tab_schedule_maintenance',
     ];
 
     const facilityTabModules = [
@@ -313,7 +321,37 @@ export class UsersService {
       'facility_tab_document',
     ];
 
-    const allTabModules = [...machineTabModules, ...facilityTabModules];
+    const spareTabModules = [
+      'spare_tab_general',
+      'spare_tab_stock',
+      'spare_tab_machines_list',
+      'spare_tab_specification',
+      'spare_tab_warranties',
+      'spare_tab_suppliers',
+      'spare_tab_documents',
+      'spare_tab_log',
+    ];
+
+    const supplierTabModules = [
+      'supplier_tab_general',
+      'supplier_tab_location',
+      'supplier_tab_spares',
+      'supplier_tab_documents',
+      'supplier_tab_log',
+    ];
+
+    const scheduleTabModules = [
+      'schedule_tab_general',
+      'schedule_tab_scheduling',
+      'schedule_tab_checkpoints',
+      'schedule_tab_spares',
+      'schedule_tab_notifications',
+      'schedule_tab_notes',
+      'schedule_tab_files',
+      'schedule_tab_logs',
+    ];
+
+    const allTabModules = [...machineTabModules, ...facilityTabModules, ...spareTabModules, ...supplierTabModules, ...scheduleTabModules];
 
     const modules = [
       'dashboard',
@@ -324,8 +362,15 @@ export class UsersService {
       'user_management',
       'facility_management',
       'machine_management',
+      'spares',
+      'suppliers',
+      'work_orders',
+      'schedules',
       ...machineTabModules,
       ...facilityTabModules,
+      ...spareTabModules,
+      ...supplierTabModules,
+      ...scheduleTabModules,
     ];
 
     // 1. Role-based baseline
@@ -350,12 +395,12 @@ export class UsersService {
       }
 
       if (isBuildingAdmin) {
-        const allowed = ['dashboard', 'assets', 'facility_management', 'machine_management', ...allTabModules].includes(moduleId);
+        const allowed = ['dashboard', 'assets', 'facility_management', 'machine_management', 'spares', 'suppliers', 'work_orders', 'schedules', ...allTabModules].includes(moduleId);
         return {
           moduleId,
           canView: allowed,
-          canCreate: ['facility_management', 'machine_management', ...allTabModules].includes(moduleId),
-          canEdit: ['facility_management', 'machine_management', ...allTabModules].includes(moduleId),
+          canCreate: ['facility_management', 'machine_management', 'spares', 'suppliers', 'work_orders', 'schedules', ...allTabModules].includes(moduleId),
+          canEdit: ['facility_management', 'machine_management', 'spares', 'suppliers', 'work_orders', 'schedules', ...allTabModules].includes(moduleId),
           canDelete: false,
           canImport: false,
           canExport: allowed && !allTabModules.includes(moduleId),
@@ -364,7 +409,7 @@ export class UsersService {
       }
 
       if (isOperator) {
-        const allowed = ['dashboard', 'assets', 'facility_management', 'machine_management', ...allTabModules].includes(moduleId);
+        const allowed = ['dashboard', 'assets', 'facility_management', 'machine_management', 'spares', 'suppliers', 'work_orders', 'schedules', ...allTabModules].includes(moduleId);
         return {
           moduleId,
           canView: allowed,
@@ -378,7 +423,7 @@ export class UsersService {
       }
 
       // Default VIEWER
-      const allowed = ['dashboard', 'assets', 'facility_management', 'machine_management', ...allTabModules].includes(moduleId);
+      const allowed = ['dashboard', 'assets', 'facility_management', 'machine_management', 'spares', 'suppliers', 'work_orders', 'schedules', ...allTabModules].includes(moduleId);
       return {
         moduleId,
         canView: allowed,
@@ -426,6 +471,66 @@ export class UsersService {
             });
           }
         });
+
+        // Inherit spares permission to tabs if not explicitly set in designation
+        const sparesPerm = designation.permissions.find((p) => p.moduleId === 'spares');
+        if (sparesPerm) {
+          spareTabModules.forEach((tabMod) => {
+            const hasExplicit = designation.permissions.some((p) => p.moduleId === tabMod);
+            if (!hasExplicit) {
+              const tIdx = basePermissions.findIndex((p) => p.moduleId === tabMod);
+              if (tIdx >= 0) {
+                basePermissions[tIdx] = {
+                  ...basePermissions[tIdx],
+                  canView: sparesPerm.canView,
+                  canCreate: sparesPerm.canCreate,
+                  canEdit: sparesPerm.canEdit,
+                  canDelete: sparesPerm.canDelete,
+                };
+              }
+            }
+          });
+        }
+
+        // Inherit suppliers permission to tabs if not explicitly set in designation
+        const suppliersPerm = designation.permissions.find((p) => p.moduleId === 'suppliers');
+        if (suppliersPerm) {
+          supplierTabModules.forEach((tabMod) => {
+            const hasExplicit = designation.permissions.some((p) => p.moduleId === tabMod);
+            if (!hasExplicit) {
+              const tIdx = basePermissions.findIndex((p) => p.moduleId === tabMod);
+              if (tIdx >= 0) {
+                basePermissions[tIdx] = {
+                  ...basePermissions[tIdx],
+                  canView: suppliersPerm.canView,
+                  canCreate: suppliersPerm.canCreate,
+                  canEdit: suppliersPerm.canEdit,
+                  canDelete: suppliersPerm.canDelete,
+                };
+              }
+            }
+          });
+        }
+
+        // Inherit schedules permission to tabs if not explicitly set in designation
+        const schedulesPerm = designation.permissions.find((p) => p.moduleId === 'schedules');
+        if (schedulesPerm) {
+          scheduleTabModules.forEach((tabMod) => {
+            const hasExplicit = designation.permissions.some((p) => p.moduleId === tabMod);
+            if (!hasExplicit) {
+              const tIdx = basePermissions.findIndex((p) => p.moduleId === tabMod);
+              if (tIdx >= 0) {
+                basePermissions[tIdx] = {
+                  ...basePermissions[tIdx],
+                  canView: schedulesPerm.canView,
+                  canCreate: schedulesPerm.canCreate,
+                  canEdit: schedulesPerm.canEdit,
+                  canDelete: schedulesPerm.canDelete,
+                };
+              }
+            }
+          });
+        }
       }
     }
 
@@ -433,24 +538,56 @@ export class UsersService {
       userId: id,
       designation: designationName || null,
       role: user.role,
+      mainFacilityId: user.mainFacilityId,
+      facilityId: user.facilityId,
+      deviceId: user.deviceId,
+      deviceName: user.deviceName,
+      mainFacility: user.mainFacility,
+      facility: user.facility,
       userOverrides,
       basePermissions,
     };
   }
 
-  async updateUserPermissions(id: number, permissions: any[]) {
+  async updateUserPermissions(id: number, payload: any) {
+    const permissions = Array.isArray(payload) ? payload : (payload?.permissions || []);
+    const { mainFacilityId, facilityId, deviceId, deviceName } = Array.isArray(payload) ? {} : payload;
+
     // Verify user exists
     await this.findOne(id);
 
-    // Run in a transaction: delete old specific permissions and insert new ones
+    // Run in a transaction: update user access scope if provided, delete old specific permissions and insert new ones
     return this.prisma.$transaction(async (tx) => {
+      if (!Array.isArray(payload)) {
+        const updateData: any = {};
+        if (mainFacilityId !== undefined) {
+          updateData.mainFacilityId = mainFacilityId ? Number(mainFacilityId) : null;
+        }
+        if (facilityId !== undefined) {
+          updateData.facilityId = facilityId ? Number(facilityId) : null;
+        }
+        if (deviceId !== undefined) {
+          updateData.deviceId = deviceId || null;
+        }
+        if (deviceName !== undefined) {
+          updateData.deviceName = deviceName || null;
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          await tx.user.update({
+            where: { id },
+            data: updateData,
+          });
+        }
+      }
+
       await tx.userPermission.deleteMany({
         where: { userId: id }
       });
 
       if (permissions && permissions.length > 0) {
         await tx.userPermission.createMany({
-          data: permissions.map(p => ({
+          data: permissions.map((p: any) => ({
             userId: id,
             moduleId: p.moduleId,
             canView: p.canView || false,

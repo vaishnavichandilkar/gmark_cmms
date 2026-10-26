@@ -293,11 +293,16 @@ export function ApproveRejectWOModal({
                     >
                       <option value="">-- Select Technician from Database --</option>
                       {techniciansList.length > 0 ? (
-                        techniciansList.map((t: any) => (
-                          <option key={t.id} value={t.id}>
-                            {t.firstName ? `${t.firstName} ${t.lastName || ''}`.trim() : t.username} ({t.role || 'Technician'})
-                          </option>
-                        ))
+                        techniciansList.map((t: any) => {
+                          const name = t.firstName ? `${t.firstName} ${t.lastName || ''}`.trim() : t.username;
+                          const isAdmin = t.role === 'SUPER_ADMIN' || t.role === 'SOCIETY_ADMIN';
+                          const label = isAdmin ? `${name} (Admin)` : name;
+                          return (
+                            <option key={t.id} value={t.id}>
+                              {label}
+                            </option>
+                          );
+                        })
                       ) : (
                         <>
                           <option value="1">Technician Rajesh Kumar (Electrical & Pumps)</option>

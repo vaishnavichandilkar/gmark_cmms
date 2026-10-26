@@ -5,12 +5,16 @@ import {
   Trash2, Search, QrCode, Save, ArrowLeft, Eye, X, ChevronDown, Calendar,
   Upload, Loader2, Image as ImageIcon, Pencil, Maximize2, Download, ZoomIn, ZoomOut
 } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../../../store';
+import { hasSpareTabPermission } from '../../../utils/permissions';
 import { api } from '../../../lib/api';
 import { 
   spareService, type SparePart, type LocationStock, type MachineUsage, 
   type SpecificationField, type WarrantyItem, type SupplierItem, type SpareDocument 
 } from '../../../services/spareService';
 import { supplierService } from '../../../services/supplierService';
+import { machineSpareSync } from '../../../utils/machineSpareSync';
 import toast from 'react-hot-toast';
 
 type TabType = 'General' | 'Stock' | 'Machines List' | 'Specification' | 'Warranties' | 'Suppliers' | 'Documents' | 'Log';
@@ -62,9 +66,17 @@ export function SpareDetailsPage() {
   const returnUrl = (location.state as any)?.returnUrl;
   const returnTab = (location.state as any)?.returnTab || 'Spares';
 
-  const tabs = SPARE_TABS;
-  const [activeTab, setActiveTab] = useState<TabType>('General');
+  const currentUser = useSelector((state: RootState) => state.auth.user);
+  const permittedTabs = SPARE_TABS.filter(tab => hasSpareTabPermission(currentUser, tab, 'view'));
+  const tabs = permittedTabs.length > 0 ? permittedTabs : SPARE_TABS;
+  const [activeTab, setActiveTab] = useState<TabType>(tabs[0] || 'General');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (tabs.length > 0 && !tabs.includes(activeTab)) {
+      setActiveTab(tabs[0]);
+    }
+  }, [tabs, activeTab]);
 
   // Form State
   const [formData, setFormData] = useState<Partial<SparePart>>({
@@ -139,7 +151,11 @@ export function SpareDetailsPage() {
     } else if (stateObj?.tab && SPARE_TABS.includes(stateObj.tab)) {
       targetTab = stateObj.tab as TabType;
     }
-    setActiveTab(targetTab);
+    if (tabs.includes(targetTab)) {
+      setActiveTab(targetTab);
+    } else if (tabs.length > 0) {
+      setActiveTab(tabs[0]);
+    }
 
     if (stateObj?.supplierName) {
       setFormData(prev => {
@@ -188,6 +204,11 @@ export function SpareDetailsPage() {
           machinesList: [...(prev.machinesList || []), newMachineObj]
         };
       });
+
+      machineSpareSync.onMachineAddedToSpare(
+        { id: id ? Number(id) : formData.id, partName: formData.partName || '', partCode: formData.partCode, category: formData.category, location: formData.location, rate: formData.rate, unitCost: formData.unitCost },
+        newMachineObj
+      );
 
       setNewMachineForm({
         location: mLocation,
@@ -305,6 +326,15 @@ export function SpareDetailsPage() {
   const [availableSuppliersList, setAvailableSuppliersList] = useState<any[]>([]);
 
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
+  const [docSearchQuery, setDocSearchQuery] = useState('');
+  const [isUploadMenuOpen, setIsUploadMenuOpen] = useState(false);
+  const [uploadModalType, setUploadModalType] = useState<'File' | 'Link' | 'Note' | null>(null);
+  const [docName, setDocName] = useState('');
+  const [docContent, setDocContent] = useState('');
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [editingDoc, setEditingDoc] = useState<any | null>(null);
+  const [viewingDoc, setViewingDoc] = useState<any | null>(null);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
   const [selectedLogIds, setSelectedLogIds] = useState<string[]>([]);
 
   useEffect(() => {
@@ -324,6 +354,17 @@ export function SpareDetailsPage() {
         code: m.machineCode || m.assetCode || `MCH${m.id}`,
       }));
       setAvailableMachinesList(mapped);
+
+      // Bidirectional sync: merge any machines that reference this spare
+      setFormData(prev => {
+        if (!prev.partName && !prev.id) return prev;
+        const merged = machineSpareSync.getMergedMachinesForSpare(prev, prev.machinesList || [], mapped);
+        if (merged.length !== (prev.machinesList || []).length || JSON.stringify(merged) !== JSON.stringify(prev.machinesList)) {
+          if (id) spareService.update(Number(id), { machinesList: merged }).catch(console.warn);
+          return { ...prev, machinesList: merged };
+        }
+        return prev;
+      });
     } catch (err) {
       console.error('Failed to load machines for picker:', err);
     }
@@ -384,7 +425,11 @@ export function SpareDetailsPage() {
     try {
       const data = await spareService.getById(spareId);
       if (data) {
-        setFormData(data);
+        const mergedMachines = machineSpareSync.getMergedMachinesForSpare(data, data.machinesList || [], availableMachinesList);
+        setFormData({ ...data, machinesList: mergedMachines });
+        if (mergedMachines.length !== (data.machinesList || []).length) {
+          spareService.update(spareId, { machinesList: mergedMachines }).catch(console.warn);
+        }
       }
     } catch (err) {
       toast.error('Failed to load spare details');
@@ -696,9 +741,12 @@ export function SpareDetailsPage() {
       toast.error('Please select a machine');
       return;
     }
+    const foundAvailable = availableMachinesList.find(m => m.machineName === newMachineForm.name);
+    const mId = foundAvailable?.id || Date.now().toString();
+    const mLocation = (!newMachineForm.location || newMachineForm.location === 'Select') ? (foundAvailable?.location || 'Main Facility') : newMachineForm.location;
     const newMachineObj: MachineUsage = {
-      id: Date.now().toString(),
-      location: (!newMachineForm.location || newMachineForm.location === 'Select') ? 'Facility Name' : newMachineForm.location,
+      id: mId,
+      location: mLocation,
       name: newMachineForm.name,
       quantityUsed: Number(newMachineForm.quantityUsed) || 1,
       rate: Number(newMachineForm.rate) || 0,
@@ -708,6 +756,12 @@ export function SpareDetailsPage() {
       ...prev,
       machinesList: [...(prev.machinesList || []), newMachineObj]
     }));
+
+    machineSpareSync.onMachineAddedToSpare(
+      { id: id ? Number(id) : formData.id, partName: formData.partName || '', partCode: formData.partCode, category: formData.category, location: formData.location, rate: formData.rate, unitCost: formData.unitCost },
+      newMachineObj
+    );
+
     setIsAddMachineModalOpen(false);
     setNewMachineForm({ location: '', name: '', quantityUsed: 1, rate: 0 });
     toast.success('Added machine entry');
@@ -717,6 +771,9 @@ export function SpareDetailsPage() {
     if (selectedMachineIds.length === 0) {
       toast.error('Select machine to delete');
       return;
+    }
+    for (const mId of selectedMachineIds) {
+      machineSpareSync.onMachineRemovedFromSpare(id || formData.id || formData.partName || '', mId);
     }
     setFormData(prev => ({
       ...prev,
@@ -875,10 +932,13 @@ export function SpareDetailsPage() {
       toast.error('Please select or enter a supplier name');
       return;
     }
+    const foundSupplier = availableSuppliersList.find(s => s.name?.trim().toLowerCase() === newSupplier.name.trim().toLowerCase());
+    const sId = foundSupplier?.id || Date.now().toString();
+
     const newSupplierObj: SupplierItem = {
-      id: Date.now().toString(),
+      id: sId,
       name: newSupplier.name.trim(),
-      businessCategory: (!newSupplier.businessCategory || newSupplier.businessCategory === 'Select') ? 'Supplier' : newSupplier.businessCategory,
+      businessCategory: (!newSupplier.businessCategory || newSupplier.businessCategory === 'Select') ? (foundSupplier?.category || 'Supplier') : newSupplier.businessCategory,
       reorderDays: Number(newSupplier.reorderDays) || 0,
       vendorPrice: Number(newSupplier.vendorPrice) || 0
     };
@@ -886,6 +946,32 @@ export function SpareDetailsPage() {
       ...prev,
       suppliersList: [...(prev.suppliersList || []), newSupplierObj]
     }));
+
+    // Bidirectional sync: add this spare to the supplier's spares list in localStorage
+    try {
+      const storageKey = `supplier_${sId}_spares`;
+      const raw = localStorage.getItem(storageKey);
+      let list = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(list)) list = [];
+      const spareEntry = {
+        id: id || formData.id || Date.now(),
+        name: formData.partName || '',
+        partName: formData.partName || '',
+        partCode: formData.partCode || '',
+        location: formData.location || 'Main Store',
+        inHandQuantity: Number(formData.inHandQuantity) || 0,
+        atSourceQuantity: Number(formData.atSourceQuantity) || 0,
+        minimumQuantity: Number(formData.minimumQuantity) || 0,
+        totalStock: Number(formData.totalStock) || 0,
+      };
+      if (!list.some((s: any) => s.id === spareEntry.id || (s.partName && s.partName === spareEntry.partName))) {
+        list.push(spareEntry);
+        localStorage.setItem(storageKey, JSON.stringify(list));
+      }
+    } catch (e) {
+      console.warn('Failed to sync spare to supplier:', e);
+    }
+
     setIsAddSupplierModalOpen(false);
     setIsSupplierPickerModalOpen(false);
     setIsCustomSupplierInput(false);
@@ -898,6 +984,26 @@ export function SpareDetailsPage() {
       toast.error('Select supplier to delete');
       return;
     }
+
+    // Bidirectional sync: remove this spare from the deleted suppliers' spares lists
+    for (const sId of selectedSupplierIds) {
+      try {
+        const storageKey = `supplier_${sId}_spares`;
+        const raw = localStorage.getItem(storageKey);
+        if (raw) {
+          const list = JSON.parse(raw);
+          if (Array.isArray(list)) {
+            const spareId = id || formData.id;
+            const spareName = formData.partName?.toLowerCase();
+            const filtered = list.filter((s: any) => String(s.id) !== String(spareId) && s.partName?.toLowerCase() !== spareName);
+            localStorage.setItem(storageKey, JSON.stringify(filtered));
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to remove spare from supplier:', e);
+      }
+    }
+
     setFormData(prev => ({
       ...prev,
       suppliersList: (prev.suppliersList || []).filter(s => !selectedSupplierIds.includes(String(s.id)))
@@ -906,23 +1012,120 @@ export function SpareDetailsPage() {
     toast.success('Deleted selected suppliers');
   };
 
-  // Document Handlers
-  const handleAddDocument = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const docObj: SpareDocument = {
-        id: Date.now().toString(),
-        name: file.name,
-        fileType: file.type || 'Document',
-        uploadDate: new Date().toISOString().split('T')[0],
-        size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`
-      };
-      setFormData(prev => ({
-        ...prev,
-        documentsList: [...(prev.documentsList || []), docObj]
-      }));
-      toast.success(`Attached ${file.name}`);
+  // Document Handlers (Aligned with Machine Management)
+  const handleOpenUpload = (type: 'File' | 'Link' | 'Note') => {
+    setEditingDoc(null);
+    setUploadModalType(type);
+    setDocName('');
+    setDocContent('');
+    setDocFile(null);
+    setIsUploadMenuOpen(false);
+  };
+
+  const handleEditDoc = (doc: any) => {
+    setEditingDoc(doc);
+    setUploadModalType(doc.type || 'File');
+    setDocName(doc.name || '');
+    setDocContent(doc.content || '');
+    setDocFile(doc.file || null);
+  };
+
+  const handleViewDoc = (doc: any) => {
+    const docType = doc.type || (doc.fileType?.includes('http') ? 'Link' : 'File');
+    if (docType === 'File') {
+      if (doc.file) {
+        const fileUrl = URL.createObjectURL(doc.file);
+        window.open(fileUrl, '_blank');
+      } else if (doc.content) {
+        const fullUrl = doc.content.startsWith('http') || doc.content.startsWith('data:') || doc.content.startsWith('blob:')
+          ? doc.content
+          : `http://localhost:3001${doc.content.startsWith('/') ? doc.content : `/${doc.content}`}`;
+        window.open(fullUrl, '_blank');
+      } else {
+        toast.error('File content unavailable');
+      }
+    } else if (docType === 'Link') {
+      const linkUrl = doc.content?.startsWith('http') ? doc.content : `https://${doc.content}`;
+      window.open(linkUrl, '_blank');
+    } else {
+      setViewingDoc(doc);
     }
+  };
+
+  const handleUploadDocument = async () => {
+    if (!docName.trim()) {
+      toast.error('Name is required');
+      return;
+    }
+    if ((uploadModalType === 'Link' || uploadModalType === 'Note') && !docContent.trim()) {
+      toast.error('Please provide content');
+      return;
+    }
+    if (uploadModalType === 'File' && !docFile && !editingDoc?.content) {
+      toast.error('File is required');
+      return;
+    }
+
+    setUploadingDoc(true);
+    try {
+      if (editingDoc) {
+        setFormData(prev => ({
+          ...prev,
+          documentsList: (prev.documentsList || []).map(d => {
+            if (d.id === editingDoc.id) {
+              return {
+                ...d,
+                name: docName.trim(),
+                type: uploadModalType || 'File',
+                content: uploadModalType !== 'File' ? docContent.trim() : (docFile ? URL.createObjectURL(docFile) : d.content),
+                file: docFile || d.file,
+                fileType: uploadModalType === 'File' ? (docFile?.type || d.fileType || 'Document') : (uploadModalType || 'Document'),
+                size: uploadModalType === 'File' && docFile ? `${(docFile.size / (1024 * 1024)).toFixed(2)} MB` : d.size,
+              };
+            }
+            return d;
+          })
+        }));
+        toast.success('Document updated successfully');
+      } else {
+        const newDoc: SpareDocument = {
+          id: Date.now().toString(),
+          name: docName.trim(),
+          type: uploadModalType || 'File',
+          fileType: uploadModalType === 'File' ? (docFile?.type || 'Document') : (uploadModalType || 'Document'),
+          uploadDate: new Date().toISOString().split('T')[0],
+          size: uploadModalType === 'File' && docFile ? `${(docFile.size / (1024 * 1024)).toFixed(2)} MB` : '-',
+          content: uploadModalType !== 'File' ? docContent.trim() : (docFile ? URL.createObjectURL(docFile) : ''),
+          file: uploadModalType === 'File' ? docFile : null,
+        };
+
+        setFormData(prev => ({
+          ...prev,
+          documentsList: [...(prev.documentsList || []), newDoc]
+        }));
+        toast.success('Document added successfully');
+      }
+
+      setUploadModalType(null);
+      setEditingDoc(null);
+      setDocName('');
+      setDocContent('');
+      setDocFile(null);
+    } catch (err) {
+      console.error('Error saving document:', err);
+      toast.error('Failed to save document');
+    } finally {
+      setUploadingDoc(false);
+    }
+  };
+
+  const handleDeleteSingleDocument = (docId: string | number) => {
+    setFormData(prev => ({
+      ...prev,
+      documentsList: (prev.documentsList || []).filter(d => String(d.id) !== String(docId))
+    }));
+    setSelectedDocumentIds(prev => prev.filter(id => id !== String(docId)));
+    toast.success('Document deleted successfully');
   };
 
   const handleDeleteSelectedDocuments = () => {
@@ -958,6 +1161,13 @@ export function SpareDetailsPage() {
     item.businessCategory.toLowerCase().includes(supplierSearchQuery.toLowerCase())
   );
 
+  const filteredDocumentsList = (formData.documentsList || []).filter(item =>
+    (item.name || '').toLowerCase().includes(docSearchQuery.toLowerCase()) ||
+    (item.type || '').toLowerCase().includes(docSearchQuery.toLowerCase()) ||
+    (item.fileType || '').toLowerCase().includes(docSearchQuery.toLowerCase()) ||
+    (item.content || '').toLowerCase().includes(docSearchQuery.toLowerCase())
+  );
+
   const filteredAvailableLocations = availableLocations.filter(loc =>
     loc.location.toLowerCase().includes(locationPickerSearch.toLowerCase()) ||
     loc.facilityName.toLowerCase().includes(locationPickerSearch.toLowerCase()) ||
@@ -984,29 +1194,39 @@ export function SpareDetailsPage() {
         <span>/</span>
         <span className="hover:text-gray-800 cursor-pointer" onClick={() => navigate('/spares')}>Spares</span>
         <span>/</span>
-        <span className="text-gray-700">{isEditMode ? (formData.partName || 'Spare') : 'New Spare'}</span>
+        <span className="text-gray-700">{isEditMode ? (formData.partName || 'Spare') : 'Add Spare'}</span>
         <span>/</span>
         <span className="text-emerald-700 font-semibold">{activeTab}</span>
       </div>
 
       {/* Top Header Controls Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
         
         {/* Left Side: Back Arrow + Spare Name Header */}
         <div className="flex items-center gap-3">
           <button 
             onClick={() => returnUrl ? navigate(returnUrl, { state: { tab: returnTab } }) : navigate('/spares')}
-            className="p-1.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
             title="Back to Spares List"
           >
-            <ChevronLeft size={24} strokeWidth={2.5} className="text-gray-900" />
+            <ArrowLeft size={18} className="stroke-[2.5]" />
           </button>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-            {formData.partName ? `${formData.partName}` : 'New Spare S1'}
-          </h1>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                {formData.partName ? `${formData.partName}` : (isEditMode ? 'Edit Spare' : 'Add Spare')}
+              </h1>
+              {formData.partCode && (
+                <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                  {formData.partCode}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500">Update spare part specifications, stock levels, warranties, and suppliers</p>
+          </div>
         </div>
 
-        {/* Right Side Header Action Buttons matching Figma Screen 1 */}
+        {/* Right Side Header Action Buttons */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => window.print()}
@@ -1025,7 +1245,7 @@ export function SpareDetailsPage() {
           </button>
 
           <button
-            className="h-[38px] w-[38px] bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center justify-center transition-all shadow-xs cursor-pointer"
+            className="h-[38px] w-[38px] bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center transition-all shadow-xs cursor-pointer"
             title="Options"
           >
             <ChevronDown className="w-4 h-4 stroke-[2.5]" />
@@ -1034,10 +1254,10 @@ export function SpareDetailsPage() {
       </div>
 
       {/* Main Container Layout */}
-      <div className="flex flex-col lg:flex-row gap-6 items-start">
+      <div className="flex flex-col lg:flex-row gap-5 items-start">
         
         {/* LEFT SUMMARY PANEL */}
-        <div className="w-full lg:w-64 bg-white rounded-2xl border border-gray-200/80 p-5 shadow-sm space-y-5 shrink-0">
+        <div className="w-full lg:w-64 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs space-y-4 shrink-0">
           
           {/* Spare Image Box with Stock Badge */}
           <div className="space-y-3">
@@ -1443,43 +1663,44 @@ export function SpareDetailsPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <h3 className="text-base font-bold text-gray-900">Stock Per Locations</h3>
 
-                  <div className="flex items-center gap-2">
-                    <div className="relative w-48 sm:w-60">
+                  <div className="flex justify-end items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewStockLoc({ location: '', inHandQuantity: '' as any, atSourceQuantity: '' as any, minimumQuantity: '' as any });
+                        setIsAddStockModalOpen(true);
+                      }}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-all shadow-xs cursor-pointer"
+                    >
+                      <Plus size={16} className="stroke-[3]" /> Add Stock
+                    </button>
+                    <div className="relative">
+                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                       <input
                         type="text"
                         placeholder="Search"
                         value={stockSearchQuery}
                         onChange={(e) => setStockSearchQuery(e.target.value)}
-                        className="w-full pl-3 pr-8 py-1.5 text-xs bg-gray-100 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        className="pl-9 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 w-64"
                       />
-                      <Search className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-cyan-600" />
                     </div>
-
-                    <button
-                      onClick={() => {
-                        setNewStockLoc({ location: '', inHandQuantity: '' as any, atSourceQuantity: '' as any, minimumQuantity: '' as any });
-                        setIsAddStockModalOpen(true);
-                      }}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-sky-100 hover:bg-sky-200 text-sky-700 font-bold rounded-lg text-xs transition-colors"
-                    >
-                      <Plus className="w-3.5 h-3.5 text-sky-600" />
-                      <span>Add</span>
-                    </button>
-
-                    <button
-                      onClick={handleDeleteSelectedStock}
-                      className="p-1.5 bg-sky-100 hover:bg-sky-200 text-sky-700 rounded-lg flex items-center justify-center transition-colors"
-                      title="Delete Selected Stock"
-                    >
-                      <Trash2 className="w-3.5 h-3.5 text-sky-600" />
-                    </button>
+                    {selectedStockIds.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleDeleteSelectedStock}
+                        className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl flex items-center justify-center transition-colors cursor-pointer"
+                        title="Delete Selected Stock"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                   </div>
                 </div>
 
                 <div className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-[#dedede]/70 text-gray-700 text-[11px] uppercase tracking-wider font-bold">
+                      <tr className="bg-slate-50/90 text-slate-600 font-semibold text-xs border-b border-slate-200 uppercase tracking-wider">
                         <th className="py-2.5 px-4 w-10 text-center">
                           <input
                             type="checkbox"
@@ -1546,39 +1767,40 @@ export function SpareDetailsPage() {
             {/* TAB 3: MACHINES LIST */}
             {activeTab === 'Machines List' && (
               <div className="space-y-5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-2">
-                  <div className="relative w-48 sm:w-60">
+                <div className="flex justify-end items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddMachineModalOpen(true)}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-all shadow-xs cursor-pointer"
+                  >
+                    <Plus size={16} className="stroke-[3]" /> Add Machine
+                  </button>
+                  <div className="relative">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                       type="text"
                       placeholder="Search"
                       value={machineSearchQuery}
                       onChange={(e) => setMachineSearchQuery(e.target.value)}
-                      className="w-full pl-3 pr-8 py-1.5 text-xs bg-gray-100 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="pl-9 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 w-64"
                     />
-                    <Search className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-cyan-600" />
                   </div>
-
-                  <button
-                    onClick={() => setIsAddMachineModalOpen(true)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-sky-100 hover:bg-sky-200 text-sky-700 font-bold rounded-lg text-xs transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-sky-600" />
-                    <span>Add</span>
-                  </button>
-
-                  <button
-                    onClick={handleDeleteSelectedMachines}
-                    className="p-1.5 bg-sky-100 hover:bg-sky-200 text-sky-700 rounded-lg flex items-center justify-center transition-colors"
-                    title="Delete Selected Machine Entries"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 text-sky-600" />
-                  </button>
+                  {selectedMachineIds.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteSelectedMachines}
+                      className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl flex items-center justify-center transition-colors cursor-pointer"
+                      title="Delete Selected Machine Entries"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
                 </div>
 
                 <div className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-[#dedede]/70 text-gray-700 text-[11px] uppercase tracking-wider font-bold">
+                      <tr className="bg-slate-50/90 text-slate-600 font-semibold text-xs border-b border-slate-200 uppercase tracking-wider">
                         <th className="py-2.5 px-4 w-10 text-center">
                           <input
                             type="checkbox"
@@ -1696,14 +1918,14 @@ export function SpareDetailsPage() {
 
                   {/* Add Specification Field Button (Triggers Modal 1) */}
                   <button
+                    type="button"
                     onClick={() => {
                       setSpecForm({ fieldTitle: '', inputType: 'Select', fieldData: '', fieldUnit: 'Select' });
                       setIsAddSpecModalOpen(true);
                     }}
-                    className="flex items-center gap-1.5 px-4 py-2.5 bg-sky-100 hover:bg-sky-200 text-sky-700 font-bold rounded-xl text-xs transition-colors shadow-xs"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-all shadow-xs cursor-pointer"
                   >
-                    <Plus className="w-4 h-4 text-sky-600 stroke-[2.5]" />
-                    <span>Add Specification Field</span>
+                    <Plus size={16} className="stroke-[3]" /> Add Specification Field
                   </button>
                 </div>
               </div>
@@ -1712,39 +1934,40 @@ export function SpareDetailsPage() {
             {/* TAB 5: WARRANTIES */}
             {activeTab === 'Warranties' && (
               <div className="space-y-5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-2">
-                  <div className="relative w-48 sm:w-60">
+                <div className="flex justify-end items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddWarrantyModalOpen(true)}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-all shadow-xs cursor-pointer"
+                  >
+                    <Plus size={16} className="stroke-[3]" /> Add Warranty
+                  </button>
+                  <div className="relative">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                       type="text"
                       placeholder="Search"
                       value={warrantySearchQuery}
                       onChange={(e) => setWarrantySearchQuery(e.target.value)}
-                      className="w-full pl-3 pr-8 py-1.5 text-xs bg-gray-100 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="pl-9 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 w-64"
                     />
-                    <Search className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-cyan-600" />
                   </div>
-
-                  <button
-                    onClick={() => setIsAddWarrantyModalOpen(true)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-sky-100 hover:bg-sky-200 text-sky-700 font-bold rounded-lg text-xs transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-sky-600" />
-                    <span>Add</span>
-                  </button>
-
-                  <button
-                    onClick={handleDeleteSelectedWarranties}
-                    className="p-1.5 bg-sky-100 hover:bg-sky-200 text-sky-700 rounded-lg flex items-center justify-center transition-colors"
-                    title="Delete Selected Warranties"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 text-sky-600" />
-                  </button>
+                  {selectedWarrantyIds.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteSelectedWarranties}
+                      className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl flex items-center justify-center transition-colors cursor-pointer"
+                      title="Delete Selected Warranties"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
                 </div>
 
                 <div className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-[#dedede]/70 text-gray-700 text-[11px] uppercase tracking-wider font-bold">
+                      <tr className="bg-slate-50/90 text-slate-600 font-semibold text-xs border-b border-slate-200 uppercase tracking-wider">
                         <th className="py-2.5 px-4 w-10 text-center">
                           <input
                             type="checkbox"
@@ -1817,44 +2040,45 @@ export function SpareDetailsPage() {
             {/* TAB 6: SUPPLIERS */}
             {activeTab === 'Suppliers' && (
               <div className="space-y-5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-2">
-                  <div className="relative w-48 sm:w-60">
-                    <input
-                      type="text"
-                      placeholder="Search"
-                      value={supplierSearchQuery}
-                      onChange={(e) => setSupplierSearchQuery(e.target.value)}
-                      className="w-full pl-3 pr-8 py-1.5 text-xs bg-gray-100 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                    <Search className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-cyan-600" />
-                  </div>
-
+                <div className="flex justify-end items-center gap-3">
                   <button
+                    type="button"
                     onClick={() => {
                       fetchSuppliers();
                       setNewSupplier({ name: 'Select', businessCategory: 'Select', reorderDays: '' as any, vendorPrice: '' as any });
                       setIsCustomSupplierInput(false);
                       setIsAddSupplierModalOpen(true);
                     }}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 font-bold rounded-lg text-xs transition-colors cursor-pointer"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-all shadow-xs cursor-pointer"
                   >
-                    <Plus className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Add</span>
+                    <Plus size={16} className="stroke-[3]" /> Add Supplier
                   </button>
-
-                  <button
-                    onClick={handleDeleteSelectedSuppliers}
-                    className="p-1.5 bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-700 rounded-lg flex items-center justify-center transition-colors cursor-pointer"
-                    title="Delete Selected Suppliers"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="relative">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search"
+                      value={supplierSearchQuery}
+                      onChange={(e) => setSupplierSearchQuery(e.target.value)}
+                      className="pl-9 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 w-64"
+                    />
+                  </div>
+                  {selectedSupplierIds.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteSelectedSuppliers}
+                      className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl flex items-center justify-center transition-colors cursor-pointer"
+                      title="Delete Selected Suppliers"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
                 </div>
 
                 <div className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-[#dedede]/70 text-gray-700 text-[11px] uppercase tracking-wider font-bold">
+                      <tr className="bg-slate-50/90 text-slate-600 font-semibold text-xs border-b border-slate-200 uppercase tracking-wider">
                         <th className="py-2.5 px-4 w-10 text-center">
                           <input
                             type="checkbox"
@@ -1931,78 +2155,177 @@ export function SpareDetailsPage() {
 
             {/* TAB 7: DOCUMENTS */}
             {activeTab === 'Documents' && (
-              <div className="space-y-5">
-                <div className="flex items-center justify-end gap-2">
-                  <label className="flex items-center gap-1 px-3 py-1.5 bg-sky-100 hover:bg-sky-200 text-sky-700 font-bold rounded-lg text-xs transition-colors cursor-pointer">
-                    <Plus className="w-3.5 h-3.5 text-sky-600" />
-                    <span>Add</span>
-                    <input type="file" onChange={handleAddDocument} className="hidden" />
-                  </label>
+              <div className="space-y-6 w-full">
+                {/* Toolbar */}
+                <div className="flex justify-between items-center">
+                  <div className="relative">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input 
+                      type="text" 
+                      value={docSearchQuery}
+                      onChange={e => setDocSearchQuery(e.target.value)}
+                      placeholder="Search documents..." 
+                      className="pl-9 pr-4 py-2 bg-slate-100 border-none rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-64 text-slate-900"
+                    />
+                  </div>
 
-                  <button
-                    onClick={handleDeleteSelectedDocuments}
-                    className="p-1.5 bg-sky-100 hover:bg-sky-200 text-sky-700 rounded-lg flex items-center justify-center transition-colors"
-                    title="Delete Selected Documents"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 text-sky-600" />
-                  </button>
+                  <div className="flex items-center gap-3">
+                    {selectedDocumentIds.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleDeleteSelectedDocuments}
+                        className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl flex items-center justify-center transition-colors cursor-pointer"
+                        title="Delete Selected Documents"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+
+                    <div className="relative">
+                      <button 
+                        type="button"
+                        onClick={() => setIsUploadMenuOpen(!isUploadMenuOpen)}
+                        className="h-[38px] px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm rounded-lg flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                      >
+                        <Plus size={16} className="stroke-[2.5]" /> Upload
+                      </button>
+                      
+                      {/* Upload Dropdown */}
+                      {isUploadMenuOpen && (
+                        <div className="absolute top-full right-0 mt-2 w-36 bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 z-20">
+                          <button 
+                            type="button"
+                            onClick={() => handleOpenUpload('File')}
+                            className="w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors cursor-pointer"
+                          >
+                            File
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => handleOpenUpload('Link')}
+                            className="w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors cursor-pointer"
+                          >
+                            Link
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => handleOpenUpload('Note')}
+                            className="w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors cursor-pointer"
+                          >
+                            Notes
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
-                <div className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-[#dedede]/70 text-gray-700 text-[11px] uppercase tracking-wider font-bold">
-                        <th className="py-2.5 px-4 w-10 text-center">
-                          <input
-                            type="checkbox"
-                            checked={(formData.documentsList || []).length > 0 && selectedDocumentIds.length === (formData.documentsList || []).length}
+                {/* Table */}
+                <div className="overflow-x-auto w-full border border-slate-200/90 rounded-xl">
+                  <table className="w-full text-left whitespace-nowrap">
+                    <thead className="bg-slate-50/80 border-b border-slate-200">
+                      <tr>
+                        <th className="px-4 py-3 w-12 text-center">
+                          <input 
+                            type="checkbox" 
+                            checked={filteredDocumentsList.length > 0 && selectedDocumentIds.length === filteredDocumentsList.length}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setSelectedDocumentIds((formData.documentsList || []).map(d => String(d.id)));
+                                setSelectedDocumentIds(filteredDocumentsList.map(d => String(d.id)));
                               } else {
                                 setSelectedDocumentIds([]);
                               }
                             }}
-                            className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300"
+                            className="w-3.5 h-3.5 text-emerald-600 rounded border-slate-300" 
                           />
                         </th>
-                        <th className="py-2.5 px-4 w-12">No.</th>
-                        <th className="py-2.5 px-4">Document Name</th>
-                        <th className="py-2.5 px-4">File Type</th>
-                        <th className="py-2.5 px-4">Upload Date</th>
-                        <th className="py-2.5 px-4">File Size</th>
+                        <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">No.</th>
+                        <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Name</th>
+                        <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Document Type</th>
+                        <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Document Details</th>
+                        <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider text-center">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100 text-xs text-gray-700">
-                      {(formData.documentsList || []).length === 0 ? (
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredDocumentsList?.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-16 text-center text-gray-400 font-medium">
-                            No documents uploaded yet. Click <strong className="text-sky-600">+ Add</strong> to attach files.
+                          <td colSpan={6} className="px-4 py-8 text-center text-sm font-medium text-slate-500 bg-white">
+                            No documents added yet.
                           </td>
                         </tr>
                       ) : (
-                        (formData.documentsList || []).map((item, idx) => {
-                          const isSelected = selectedDocumentIds.includes(String(item.id));
+                        filteredDocumentsList.map((doc, index) => {
+                          const isSelected = selectedDocumentIds.includes(String(doc.id));
+                          const docType = doc.type || (doc.fileType?.includes('http') ? 'Link' : 'File');
                           return (
-                            <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                              <td className="py-3 px-4 text-center">
-                                <input
-                                  type="checkbox"
+                            <tr key={doc.id} className="hover:bg-slate-50/60 transition-colors">
+                              <td className="px-4 py-3 text-center">
+                                <input 
+                                  type="checkbox" 
                                   checked={isSelected}
                                   onChange={() => {
-                                    const strId = String(item.id);
+                                    const strId = String(doc.id);
                                     setSelectedDocumentIds(prev => 
                                       prev.includes(strId) ? prev.filter(x => x !== strId) : [...prev, strId]
                                     );
                                   }}
-                                  className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300"
+                                  className="w-3.5 h-3.5 text-emerald-600 rounded border-slate-300" 
                                 />
                               </td>
-                              <td className="py-3 px-4 font-medium text-gray-500">{idx + 1}</td>
-                              <td className="py-3 px-4 font-semibold text-gray-800">{item.name}</td>
-                              <td className="py-3 px-4 text-gray-600">{item.fileType}</td>
-                              <td className="py-3 px-4 text-gray-600">{item.uploadDate}</td>
-                              <td className="py-3 px-4 text-gray-600">{item.size}</td>
+                              <td className="px-4 py-3 text-xs sm:text-sm text-slate-500 font-medium">{index + 1}</td>
+                              <td className="px-4 py-3 text-xs sm:text-sm font-semibold text-slate-900">{doc.name}</td>
+                              <td className="px-4 py-3 text-xs sm:text-sm text-slate-600">
+                                <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
+                                  docType === 'File' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                                  docType === 'Link' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                                  'bg-amber-50 text-amber-700 border border-amber-200'
+                                }`}>
+                                  {docType}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-xs sm:text-sm text-slate-600">
+                                {docType === 'File' ? (
+                                  <button 
+                                    type="button" 
+                                    onClick={() => handleViewDoc(doc)}
+                                    className="text-emerald-600 hover:text-emerald-700 hover:underline font-medium cursor-pointer flex items-center gap-1"
+                                  >
+                                    <span>{doc.file?.name || doc.name || 'View File'}</span>
+                                  </button>
+                                ) : docType === 'Link' ? (
+                                  <a href={doc.content?.startsWith('http') ? doc.content : `https://${doc.content}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium truncate max-w-[200px] inline-block">{doc.content}</a>
+                                ) : (
+                                  <span className="truncate max-w-[200px] block text-slate-700">{doc.content}</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button 
+                                    type="button"
+                                    onClick={() => handleViewDoc(doc)}
+                                    className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                                    title="View Document"
+                                  >
+                                    <Eye size={16} />
+                                  </button>
+                                  <button 
+                                    type="button"
+                                    onClick={() => handleEditDoc(doc)}
+                                    className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                                    title="Edit Document"
+                                  >
+                                    <Pencil size={16} />
+                                  </button>
+                                  <button 
+                                    type="button"
+                                    onClick={() => handleDeleteSingleDocument(doc.id)}
+                                    className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                    title="Delete Document"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              </td>
                             </tr>
                           );
                         })
@@ -2019,7 +2342,7 @@ export function SpareDetailsPage() {
                 <div className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-[#dedede]/70 text-gray-700 text-[11px] uppercase tracking-wider font-bold">
+                      <tr className="bg-slate-50/90 text-slate-600 font-semibold text-xs border-b border-slate-200 uppercase tracking-wider">
                         <th className="py-2.5 px-4 w-10 text-center">
                           <input
                             type="checkbox"
@@ -2234,7 +2557,7 @@ export function SpareDetailsPage() {
             <div className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-[#dedede]/70 text-gray-700 text-[11px] uppercase tracking-wider font-bold">
+                  <tr className="bg-slate-50/90 text-slate-600 font-semibold text-xs border-b border-slate-200 uppercase tracking-wider">
                     <th className="py-2.5 px-4 w-10 text-center">
                       <input type="checkbox" className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300" />
                     </th>
@@ -2498,7 +2821,7 @@ export function SpareDetailsPage() {
             <div className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-[#dedede]/70 text-gray-700 text-[11px] uppercase tracking-wider font-bold">
+                  <tr className="bg-slate-50/90 text-slate-600 font-semibold text-xs border-b border-slate-200 uppercase tracking-wider">
                     <th className="py-2.5 px-4 w-10 text-center">
                       <input type="checkbox" className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300" />
                     </th>
@@ -2559,7 +2882,7 @@ export function SpareDetailsPage() {
             <div className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm max-h-80 overflow-y-auto">
               <table className="w-full text-left border-collapse">
                 <thead className="sticky top-0 bg-white z-10">
-                  <tr className="bg-[#dedede]/70 text-gray-700 text-[11px] uppercase tracking-wider font-bold">
+                  <tr className="bg-slate-50/90 text-slate-600 font-semibold text-xs border-b border-slate-200 uppercase tracking-wider">
                     <th className="py-2.5 px-4 w-12">No.</th>
                     <th className="py-2.5 px-4">Date</th>
                     <th className="py-2.5 px-4">User</th>
@@ -2650,7 +2973,7 @@ export function SpareDetailsPage() {
                     onClick={handleGoToAddMachine}
                     className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 hover:underline cursor-pointer"
                   >
-                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" /> Add New Machine
+                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" /> Add Machine
                   </button>
                 </div>
 
@@ -2699,7 +3022,7 @@ export function SpareDetailsPage() {
                   <button
                     type="button"
                     onClick={handleGoToAddMachine}
-                    title="Add new machine in Machine Management"
+                    title="Add machine in Machine Management"
                     className="h-[46px] px-3.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-2xl text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0"
                   >
                     <Plus className="w-3.5 h-3.5 stroke-[3]" />
@@ -2779,7 +3102,7 @@ export function SpareDetailsPage() {
             <div className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-[#dedede]/70 text-gray-700 text-[11px] uppercase tracking-wider font-bold">
+                  <tr className="bg-slate-50/90 text-slate-600 font-semibold text-xs border-b border-slate-200 uppercase tracking-wider">
                     <th className="py-2.5 px-4 w-10 text-center">
                       <input type="checkbox" className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300" />
                     </th>
@@ -2854,7 +3177,7 @@ export function SpareDetailsPage() {
                 <button
                   type="button"
                   onClick={handleGoToAddMachine}
-                  title="Add new machine in Machine Management"
+                  title="Add machine in Machine Management"
                   className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 font-bold rounded-lg text-xs transition-colors cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5 text-emerald-600" />
@@ -2866,7 +3189,7 @@ export function SpareDetailsPage() {
             <div className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-[#dedede]/70 text-gray-700 text-[11px] uppercase tracking-wider font-bold">
+                  <tr className="bg-slate-50/90 text-slate-600 font-semibold text-xs border-b border-slate-200 uppercase tracking-wider">
                     <th className="py-2.5 px-4 w-10 text-center">
                       <input type="checkbox" className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300" />
                     </th>
@@ -2886,7 +3209,7 @@ export function SpareDetailsPage() {
                           onClick={handleGoToAddMachine}
                           className="text-emerald-600 font-bold hover:underline cursor-pointer"
                         >
-                          "+ Add New Machine"
+                          "+ Add Machine"
                         </button>{" "}
                         to create one.
                       </td>
@@ -3222,7 +3545,7 @@ export function SpareDetailsPage() {
                 <button
                   type="button"
                   onClick={handleGoToAddSupplier}
-                  title="Add new supplier in Suppliers Management"
+                  title="Add supplier in Suppliers Management"
                   className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 font-bold rounded-lg text-xs transition-colors cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5 text-emerald-600" />
@@ -3233,8 +3556,8 @@ export function SpareDetailsPage() {
 
             <div className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm max-h-[380px] overflow-y-auto">
               <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 bg-[#dedede]/90 backdrop-blur-xs">
-                  <tr className="text-gray-700 text-[11px] uppercase tracking-wider font-bold">
+                <thead className="sticky top-0 bg-slate-50/90 text-slate-600 font-semibold text-xs border-b border-slate-200 uppercase tracking-wider backdrop-blur-xs">
+                  <tr className="text-slate-600 font-semibold text-xs">
                     <th className="py-2.5 px-4 w-10 text-center">
                       <input type="checkbox" className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300" />
                     </th>
@@ -3460,6 +3783,167 @@ export function SpareDetailsPage() {
           </div>
         );
       })()}
+
+      {/* Document Upload / Edit Modal (Aligned with Machine Management) */}
+      {uploadModalType && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl w-full max-w-xl p-6 sm:p-8 shadow-xl border border-slate-200 relative">
+            <div className="flex items-center gap-3 mb-6">
+              <button 
+                type="button"
+                onClick={() => { setUploadModalType(null); setEditingDoc(null); }} 
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 cursor-pointer"
+              >
+                <ArrowLeft size={20} className="stroke-[2.5]" />
+              </button>
+              <h2 className="text-xl font-bold text-slate-900">
+                {editingDoc 
+                  ? (uploadModalType === 'File' ? 'Edit File' : uploadModalType === 'Link' ? 'Edit Link' : 'Edit Note')
+                  : (uploadModalType === 'File' ? 'Upload File' : uploadModalType === 'Link' ? 'Upload Link' : 'Upload Note')}
+              </h2>
+            </div>
+            
+            <div className="space-y-5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Document Title <span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  value={docName}
+                  onChange={(e) => setDocName(e.target.value)}
+                  placeholder="Document Title"
+                  className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-900 placeholder-slate-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Type</label>
+                <select
+                  value={uploadModalType}
+                  onChange={(e) => setUploadModalType(e.target.value as any)}
+                  className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-900 cursor-pointer"
+                >
+                  <option value="File">File</option>
+                  <option value="Link">Link</option>
+                  <option value="Note">Note</option>
+                </select>
+              </div>
+
+              {uploadModalType === 'File' && (
+                <div>
+                  <div className="border border-slate-300 rounded-lg p-2 flex items-center mb-1.5">
+                    <input 
+                      type="file"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          const file = e.target.files[0];
+                          setDocFile(file);
+                          if (!docName) {
+                            setDocName(file.name);
+                          }
+                        }
+                      }}
+                      className="block w-full text-xs text-slate-600 cursor-pointer focus:outline-none file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 transition-colors"
+                    />
+                  </div>
+                  {(docFile || editingDoc?.content || editingDoc?.name) && (
+                    <p className="text-xs text-emerald-600 font-semibold mt-1 truncate">
+                      File: {docFile?.name || editingDoc?.name || editingDoc?.content}
+                    </p>
+                  )}
+                  <p className="text-xs text-slate-500">Note: Manuals, Warranties, Specifications (PDF, images, docs)</p>
+                </div>
+              )}
+
+              {uploadModalType === 'Link' && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">URL <span className="text-red-500">*</span></label>
+                  <input 
+                    type="url" 
+                    value={docContent}
+                    onChange={(e) => setDocContent(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full h-[38px] px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-900 placeholder-slate-400"
+                  />
+                </div>
+              )}
+
+              {uploadModalType === 'Note' && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Notes <span className="text-red-500">*</span></label>
+                  <textarea 
+                    value={docContent}
+                    onChange={(e) => setDocContent(e.target.value)}
+                    placeholder="Enter notes..."
+                    rows={3}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-900 placeholder-slate-400 resize-none"
+                  />
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 mt-6 pt-3 border-t border-slate-200">
+                <button 
+                  type="button"
+                  onClick={() => { setUploadModalType(null); setEditingDoc(null); }}
+                  className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button"
+                  onClick={handleUploadDocument}
+                  disabled={uploadingDoc}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  {uploadingDoc ? 'Saving...' : 'Upload'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Note / Document Viewer Modal */}
+      {viewingDoc && (
+        <div 
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => setViewingDoc(null)}
+        >
+          <div 
+            className="bg-white rounded-2xl w-full max-w-lg p-6 sm:p-8 shadow-xl relative border border-slate-200"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">{viewingDoc.name}</h3>
+                <span className="text-xs text-slate-500 font-medium">{viewingDoc.type || 'Document'}</span>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setViewingDoc(null)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900 cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="py-5">
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-sm text-slate-800 whitespace-pre-wrap leading-relaxed max-h-[50vh] overflow-y-auto">
+                {viewingDoc.content || 'No text content available.'}
+              </div>
+            </div>
+            <div className="flex justify-end pt-3 border-t border-slate-200">
+              <button 
+                type="button"
+                onClick={() => setViewingDoc(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs sm:text-sm transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

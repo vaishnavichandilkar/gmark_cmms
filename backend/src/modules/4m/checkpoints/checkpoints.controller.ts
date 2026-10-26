@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query, Param, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Query, Param, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CheckpointsService } from './checkpoints.service';
 import { JwtAuthGuard } from '../../core/auth/guards/jwt-auth.guard';
@@ -38,5 +38,13 @@ export class CheckpointsController {
   @ApiOperation({ summary: 'Get checkpoints linked to a specific machine' })
   async getUserCheckpointsByMachine(@Param('machineId', ParseIntPipe) machineId: number) {
     return this.checkpointsService.getUserCheckpointsByMachine(machineId);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Delete a checkpoint linked to a machine' })
+  async deleteUserCheckpoint(@Param('id', ParseIntPipe) id: number) {
+    return this.checkpointsService.removeUserCheckpoint(id);
   }
 }

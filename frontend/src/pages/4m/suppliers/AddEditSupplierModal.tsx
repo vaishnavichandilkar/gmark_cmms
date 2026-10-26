@@ -130,7 +130,7 @@ export const AddEditSupplierModal: React.FC<AddEditSupplierModalProps> = ({
                 <ArrowLeft size={24} strokeWidth={2.5} />
               </button>
               <h2 className="text-2xl font-bold text-emerald-950 tracking-tight">
-                {supplierToEdit ? 'Edit Supplier' : 'Add New Supplier'}
+                {supplierToEdit ? 'Edit Supplier' : 'Add Supplier'}
               </h2>
             </div>
             <button

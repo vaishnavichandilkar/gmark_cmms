@@ -105,9 +105,15 @@ export const workOrderService = {
     problemDescription: string;
     priority?: string;
     triggerType?: string;
+    assignedTechnicianId?: number | null;
     mediaFiles?: { fileUrl: string; fileName: string; fileType: string }[];
   }) {
     const response = await api.post('/work-orders', data);
+    return response.data;
+  },
+
+  async assignTechnician(id: number, technicianId: number | null) {
+    const response = await api.post(`/work-orders/${id}/assign`, { technicianId });
     return response.data;
   },
 

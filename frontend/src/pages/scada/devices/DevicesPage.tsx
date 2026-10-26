@@ -1,10 +1,14 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Search, Filter, RefreshCw, Activity, AlertTriangle, CheckCircle2, WifiOff, ChevronRight, Server, Clock, Upload, Printer, FileText, FileSpreadsheet } from 'lucide-react';
+import { Search, Filter, RefreshCw, Activity, AlertTriangle, CheckCircle2, WifiOff, ChevronRight, Server, Clock, Upload, Printer, FileText, FileSpreadsheet, X } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { TableSkeleton } from '../../../components/shared/ui/TableSkeleton';
 import { exportData } from '../../../utils/exportUtils';
 import { getDeviceDashboardRoute } from '../../../utils/deviceRoutes';
+import { CustomSelect } from '../../../components/shared/CustomSelect';
+
+import { ColumnCustomizer, type ColumnDefinition } from '../../../components/shared/ColumnCustomizer';
 
 interface DeviceData {
   id: number;
@@ -18,12 +22,63 @@ interface DeviceData {
   alertCount?: number;
 }
 
+const DEVICE_COLUMNS: ColumnDefinition[] = [
+  { id: 'deviceInfo', label: 'Device Info', category: 'General', required: true, defaultVisible: true },
+  { id: 'deviceId', label: 'Device ID', category: 'General', defaultVisible: false },
+  { id: 'topic', label: 'MQTT Topic', category: 'Diagnostics', defaultVisible: false },
+  { id: 'status', label: 'Status', category: 'Status', defaultVisible: true },
+  { id: 'activeAlerts', label: 'Active Alerts', category: 'Diagnostics', defaultVisible: true },
+  { id: 'location', label: 'Location', category: 'Location', defaultVisible: true },
+  { id: 'lastSeen', label: 'Last Update', category: 'General', defaultVisible: true },
+  { id: 'action', label: 'Action', category: 'General', required: true, defaultVisible: true },
+];
+
+const DEFAULT_DEVICE_VISIBLE_COLUMNS = DEVICE_COLUMNS.filter(c => c.defaultVisible !== false).map(c => c.id);
+
 export function DevicesPage() {
   const navigate = useNavigate();
   const [devices, setDevices] = useState<DeviceData[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'alerts' | 'healthy' | 'offline'>('all');
+  const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const filterBtnRef = useRef<HTMLButtonElement>(null);
+  const filterPortalRef = useRef<HTMLDivElement>(null);
+  const [filterCoords, setFilterCoords] = useState<{ top: number; right: number }>({ top: 0, right: 12 });
+
+  const updateFilterPosition = () => {
+    if (!filterBtnRef.current) return;
+    const rect = filterBtnRef.current.getBoundingClientRect();
+    setFilterCoords({ top: rect.bottom + 6, right: Math.max(12, window.innerWidth - rect.right) });
+  };
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        isFilterOpen &&
+        filterBtnRef.current &&
+        !filterBtnRef.current.contains(event.target as Node) &&
+        filterPortalRef.current &&
+        !filterPortalRef.current.contains(event.target as Node)
+      ) {
+        const target = event.target as HTMLElement;
+        if (target && target.closest('[data-custom-select-portal="true"]')) return;
+        setIsFilterOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isFilterOpen]);
+
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('devices_table_columns');
+      return saved ? JSON.parse(saved) : DEFAULT_DEVICE_VISIBLE_COLUMNS;
+    } catch {
+      return DEFAULT_DEVICE_VISIBLE_COLUMNS;
+    }
+  });
 
   const fetchDevices = async () => {
     setLoading(true);
@@ -60,6 +115,10 @@ export function DevicesPage() {
     return { total, offline, withAlerts, healthScore };
   }, [devices]);
 
+  const uniqueBuildings = useMemo(() => {
+    return Array.from(new Set(devices.map(d => d.building).filter(Boolean))).sort();
+  }, [devices]);
+
   const filteredDevices = devices.filter(d => {
     const matchesSearch = d.name.toLowerCase().includes(search.toLowerCase()) ||
       d.deviceId.toLowerCase().includes(search.toLowerCase()) ||
@@ -69,20 +128,31 @@ export function DevicesPage() {
     if (filter === 'alerts') matchesFilter = (d.alertCount || 0) > 0;
     if (filter === 'healthy') matchesFilter = (d.alertCount || 0) === 0 && d.status === 'online';
     if (filter === 'offline') matchesFilter = d.status === 'offline';
+
+    // Active Filters (Customize Filters)
+    if (activeFilters.status && d.status !== activeFilters.status.toLowerCase()) return false;
+    if (activeFilters.building && d.building !== activeFilters.building) return false;
+    if (activeFilters.alertStatus === 'With Alerts' && (d.alertCount || 0) === 0) return false;
+    if (activeFilters.alertStatus === 'No Alerts' && (d.alertCount || 0) > 0) return false;
     
     return matchesSearch && matchesFilter;
   });
 
   const handleExport = (format: 'pdf' | 'excel') => {
-    const headers = ['Device Name', 'Device ID', 'Building', 'Topic', 'Status', 'Alerts'];
-    const rows = filteredDevices.map(device => [
-      device.name || '-',
-      device.deviceId || '-',
-      device.building || '-',
-      device.topic || '-',
-      device.status || '-',
-      device.alertCount?.toString() || '0'
-    ]);
+    const allHeaders: { id: string; label: string; getValue: (d: DeviceData) => string }[] = [
+      { id: 'deviceInfo', label: 'Device Name', getValue: d => d.name || '-' },
+      { id: 'deviceId', label: 'Device ID', getValue: d => d.deviceId || '-' },
+      { id: 'topic', label: 'MQTT Topic', getValue: d => d.topic || '-' },
+      { id: 'status', label: 'Status', getValue: d => d.status || '-' },
+      { id: 'activeAlerts', label: 'Alerts', getValue: d => (d.alertCount ?? (d.alerts?.length || 0)).toString() },
+      { id: 'location', label: 'Building', getValue: d => d.building || '-' },
+      { id: 'lastSeen', label: 'Last Update', getValue: d => d.lastSeen ? new Date(d.lastSeen).toLocaleString() : '-' },
+    ];
+
+    const activeHeaders = allHeaders.filter(h => visibleColumns.includes(h.id));
+    const headers = activeHeaders.map(h => h.label);
+    const rows = filteredDevices.map(device => activeHeaders.map(h => h.getValue(device)));
+
     exportData(headers, rows, 'Devices_Alerts_List', 'System Alerts & Monitoring', format);
   };
 
@@ -99,6 +169,129 @@ export function DevicesPage() {
           <p className="text-sm font-medium text-gray-500">Enterprise-grade device registry and real-time fault detection.</p>
         </div>
         <div className="flex items-center gap-3">
+          <ColumnCustomizer
+            columns={DEVICE_COLUMNS}
+            visibleColumns={visibleColumns}
+            onChange={setVisibleColumns}
+            storageKey="devices_table_columns"
+          />
+
+          <div className="relative">
+            <button
+              ref={filterBtnRef}
+              type="button"
+              onClick={() => {
+                if (!isFilterOpen) updateFilterPosition();
+                setIsFilterOpen(!isFilterOpen);
+              }}
+              className={`flex items-center gap-1.5 h-10 px-3.5 border rounded-xl text-xs font-semibold transition-all shadow-xs cursor-pointer ${
+                Object.keys(activeFilters).length > 0
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100'
+                  : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+              }`}
+              title="Filter"
+            >
+              <Filter className={`w-3.5 h-3.5 ${Object.keys(activeFilters).length > 0 ? 'text-emerald-600' : 'text-gray-500'}`} />
+              <span className="font-semibold">Filter</span>
+              {Object.keys(activeFilters).length > 0 && (
+                <span className="inline-flex items-center justify-center px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-emerald-600 text-white">
+                  {Object.keys(activeFilters).length}
+                </span>
+              )}
+            </button>
+
+            {isFilterOpen && createPortal(
+              <div
+                ref={filterPortalRef}
+                style={{
+                  position: 'fixed',
+                  top: `${filterCoords.top}px`,
+                  right: `${filterCoords.right}px`,
+                  zIndex: 99999,
+                }}
+                className="w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100"
+              >
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/90">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-emerald-100/80 text-emerald-700 flex items-center justify-center">
+                      <Filter className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 tracking-tight">Filter</span>
+                      <p className="text-[10px] text-slate-500 leading-none mt-0.5">Filter devices by multiple criteria</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {Object.keys(activeFilters).length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveFilters({})}
+                        className="text-xs text-rose-600 hover:text-rose-700 font-semibold hover:underline cursor-pointer"
+                      >
+                        Clear All
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsFilterOpen(false)}
+                      className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-4 space-y-3.5 max-h-[60vh] overflow-y-auto">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">Device Status</label>
+                    <CustomSelect
+                      name="status"
+                      value={activeFilters.status || ''}
+                      onChange={(e) => setActiveFilters(prev => ({ ...prev, status: e.target.value }))}
+                      placeholder="All"
+                      options={[
+                        { label: 'All', value: '' },
+                        { label: 'Online', value: 'online' },
+                        { label: 'Offline', value: 'offline' }
+                      ]}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">Alert State</label>
+                    <CustomSelect
+                      name="alertStatus"
+                      value={activeFilters.alertStatus || ''}
+                      onChange={(e) => setActiveFilters(prev => ({ ...prev, alertStatus: e.target.value }))}
+                      placeholder="All"
+                      options={[
+                        { label: 'All', value: '' },
+                        { label: 'With Alerts', value: 'With Alerts' },
+                        { label: 'No Alerts (Healthy)', value: 'No Alerts' }
+                      ]}
+                    />
+                  </div>
+
+                  {uniqueBuildings.length > 0 && (
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">Building / Location</label>
+                      <CustomSelect
+                        name="building"
+                        value={activeFilters.building || ''}
+                        onChange={(e) => setActiveFilters(prev => ({ ...prev, building: e.target.value }))}
+                        placeholder="All"
+                        options={[
+                          { label: 'All', value: '' },
+                          ...uniqueBuildings.map(b => ({ label: b, value: b }))
+                        ]}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>,
+              document.body
+            )}
+          </div>
           <button className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:text-emerald-800 hover:border-emerald-300 hover:bg-emerald-100 rounded-xl transition-all shadow-sm flex items-center justify-center cursor-pointer" title="Import">
             <Upload size={16} />
           </button>
@@ -221,20 +414,38 @@ export function DevicesPage() {
           <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
               <tr className="bg-gray-50/80 border-b border-gray-200">
-                <th className="px-6 py-4 text-[11px] font-black text-gray-500 uppercase tracking-wider">Device Info</th>
-                <th className="px-6 py-4 text-[11px] font-black text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-4 text-[11px] font-black text-gray-500 uppercase tracking-wider">Active Alerts</th>
-                <th className="px-6 py-4 text-[11px] font-black text-gray-500 uppercase tracking-wider">Location</th>
-                <th className="px-6 py-4 text-[11px] font-black text-gray-500 uppercase tracking-wider">Last Update</th>
-                <th className="px-6 py-4 text-right text-[11px] font-black text-gray-500 uppercase tracking-wider">Action</th>
+                {visibleColumns.includes('deviceInfo') && (
+                  <th className="px-4 py-3 text-[11px] font-black text-gray-500 uppercase tracking-wider">Device Info</th>
+                )}
+                {visibleColumns.includes('deviceId') && (
+                  <th className="px-4 py-3 text-[11px] font-black text-gray-500 uppercase tracking-wider">Device ID</th>
+                )}
+                {visibleColumns.includes('topic') && (
+                  <th className="px-4 py-3 text-[11px] font-black text-gray-500 uppercase tracking-wider">MQTT Topic</th>
+                )}
+                {visibleColumns.includes('status') && (
+                  <th className="px-4 py-3 text-[11px] font-black text-gray-500 uppercase tracking-wider">Status</th>
+                )}
+                {visibleColumns.includes('activeAlerts') && (
+                  <th className="px-4 py-3 text-[11px] font-black text-gray-500 uppercase tracking-wider">Active Alerts</th>
+                )}
+                {visibleColumns.includes('location') && (
+                  <th className="px-4 py-3 text-[11px] font-black text-gray-500 uppercase tracking-wider">Location</th>
+                )}
+                {visibleColumns.includes('lastSeen') && (
+                  <th className="px-4 py-3 text-[11px] font-black text-gray-500 uppercase tracking-wider">Last Update</th>
+                )}
+                {visibleColumns.includes('action') && (
+                  <th className="px-4 py-3 text-right text-[11px] font-black text-gray-500 uppercase tracking-wider">Action</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
-                <TableSkeleton columns={6} rows={5} />
+                <TableSkeleton columns={visibleColumns.length} rows={5} />
               ) : filteredDevices.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center">
+                  <td colSpan={visibleColumns.length} className="px-6 py-16 text-center">
                     <div className="w-16 h-16 bg-gray-50 border border-gray-200 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
                       <Filter size={32} className="text-gray-400" />
                     </div>
@@ -257,87 +468,109 @@ export function DevicesPage() {
                           : 'hover:bg-gray-50/80'
                       }`}
                     >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-4">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-colors shadow-sm ${
-                            hasAlerts && isOnline ? 'bg-white border-rose-200 text-rose-500' :
-                            isOnline ? 'bg-white border-emerald-200 text-emerald-500' : 
-                            'bg-gray-50 border-gray-200 text-gray-400'
-                          }`}>
-                            <Server size={18} />
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-gray-900 text-sm group-hover:text-emerald-700 transition-colors">{device.name}</h4>
-                            <p className="text-xs font-medium text-gray-400 font-mono mt-0.5">{device.deviceId}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border shadow-sm ${
-                          isOnline ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-orange-50 text-orange-700 border-orange-200'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-orange-500'}`} />
-                          {device.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        {isOnline ? (
-                          hasAlerts ? (
-                            <div className="flex flex-wrap gap-1.5">
-                              {device.alerts?.map((alert, i) => (
-                                <span key={i} className="px-2 py-1 bg-white border border-rose-200 text-rose-600 text-[11px] font-bold rounded-md shadow-sm flex items-center gap-1">
-                                  <AlertTriangle size={10} />
-                                  {alert}
-                                </span>
-                              ))}
+                      {visibleColumns.includes('deviceInfo') && (
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-4">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-colors shadow-sm ${
+                              hasAlerts && isOnline ? 'bg-white border-rose-200 text-rose-500' :
+                              isOnline ? 'bg-white border-emerald-200 text-emerald-500' : 
+                              'bg-gray-50 border-gray-200 text-gray-400'
+                            }`}>
+                              <Server size={18} />
                             </div>
-                          ) : (
-                            <span className="flex items-center gap-1.5 text-emerald-600 text-[11px] font-bold bg-white px-2 py-1 rounded-md border border-emerald-100 shadow-sm w-fit">
-                              <CheckCircle2 size={12} /> Normal
-                            </span>
-                          )
-                        ) : (
-                          <span className="text-gray-300 text-xs font-bold">-</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm font-bold text-gray-600">{device.building}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500 bg-gray-50 px-2 py-1 rounded-md border border-gray-100 w-fit">
-                          <Clock size={12} className="text-gray-400" />
-                          {new Date(device.lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {(() => {
-                            const scadaRoute = getDeviceDashboardRoute(device.deviceId);
-                            const hasScada = scadaRoute && scadaRoute !== `/devices/${device.deviceId}`;
-                            if (!hasScada) return null;
-                            return (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(scadaRoute);
-                                }}
-                                className="px-2.5 py-1 text-xs font-bold text-gray-600 hover:text-emerald-700 bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-300 rounded-lg transition-all flex items-center gap-1 shadow-sm cursor-pointer"
-                                title="Open Visual SCADA Dashboard"
-                              >
-                                <Activity size={12} className="text-emerald-600" />
-                                <span className="hidden sm:inline">Dashboard</span>
-                              </button>
-                            );
-                          })()}
-                          <div 
-                            className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center group-hover:bg-emerald-50 group-hover:border-emerald-200 group-hover:text-emerald-600 transition-all text-gray-400 shadow-sm"
-                            title="View Registers"
-                          >
-                            <ChevronRight size={16} />
+                            <div>
+                              <h4 className="font-bold text-gray-900 text-sm group-hover:text-emerald-700 transition-colors">{device.name}</h4>
+                              <p className="text-xs font-medium text-gray-400 font-mono mt-0.5">{device.deviceId}</p>
+                            </div>
                           </div>
-                        </div>
-                      </td>
+                        </td>
+                      )}
+                      {visibleColumns.includes('deviceId') && (
+                        <td className="px-4 py-3">
+                          <span className="text-xs font-mono font-semibold text-gray-700 bg-gray-50 px-2 py-1 rounded border border-gray-200">{device.deviceId}</span>
+                        </td>
+                      )}
+                      {visibleColumns.includes('topic') && (
+                        <td className="px-4 py-3">
+                          <span className="text-xs font-mono text-gray-600 max-w-[200px] truncate block" title={device.topic}>{device.topic || '-'}</span>
+                        </td>
+                      )}
+                      {visibleColumns.includes('status') && (
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border shadow-sm ${
+                            isOnline ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-orange-50 text-orange-700 border-orange-200'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-orange-500'}`} />
+                            {device.status}
+                          </span>
+                        </td>
+                      )}
+                      {visibleColumns.includes('activeAlerts') && (
+                        <td className="px-4 py-3">
+                          {isOnline ? (
+                            hasAlerts ? (
+                              <div className="flex flex-wrap gap-1.5">
+                                {device.alerts?.map((alert, i) => (
+                                  <span key={i} className="px-2 py-1 bg-white border border-rose-200 text-rose-600 text-[11px] font-bold rounded-md shadow-sm flex items-center gap-1">
+                                    <AlertTriangle size={10} />
+                                    {alert}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="flex items-center gap-1.5 text-emerald-600 text-[11px] font-bold bg-white px-2 py-1 rounded-md border border-emerald-100 shadow-sm w-fit">
+                                <CheckCircle2 size={12} /> Normal
+                              </span>
+                            )
+                          ) : (
+                            <span className="text-gray-300 text-xs font-bold">-</span>
+                          )}
+                        </td>
+                      )}
+                      {visibleColumns.includes('location') && (
+                        <td className="px-4 py-3">
+                          <span className="text-sm font-bold text-gray-600">{device.building}</span>
+                        </td>
+                      )}
+                      {visibleColumns.includes('lastSeen') && (
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500 bg-gray-50 px-2 py-1 rounded-md border border-gray-100 w-fit">
+                            <Clock size={12} className="text-gray-400" />
+                            {new Date(device.lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                          </div>
+                        </td>
+                      )}
+                      {visibleColumns.includes('action') && (
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {(() => {
+                              const scadaRoute = getDeviceDashboardRoute(device.deviceId);
+                              const hasScada = scadaRoute && scadaRoute !== `/devices/${device.deviceId}`;
+                              if (!hasScada) return null;
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(scadaRoute);
+                                  }}
+                                  className="px-2.5 py-1 text-xs font-bold text-gray-600 hover:text-emerald-700 bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-300 rounded-lg transition-all flex items-center gap-1 shadow-sm cursor-pointer"
+                                  title="Open Visual SCADA Dashboard"
+                                >
+                                  <Activity size={12} className="text-emerald-600" />
+                                  <span className="hidden sm:inline">Dashboard</span>
+                                </button>
+                              );
+                            })()}
+                            <div 
+                              className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center group-hover:bg-emerald-50 group-hover:border-emerald-200 group-hover:text-emerald-600 transition-all text-gray-400 shadow-sm"
+                              title="View Registers"
+                            >
+                              <ChevronRight size={16} />
+                            </div>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })

@@ -58,12 +58,7 @@ export function PublicMachineCard() {
             { title: 'Motor Power Rating', data: '5.5', unit: 'kW (7.5 HP)' },
             { title: 'Power Supply Voltage', data: '415', unit: 'V, 3-Phase, 50Hz' },
           ],
-          checkpoints: [
-            { title: 'Emergency Stop & Guard Interlock Safety Check', checkpointType: 'SAFETY', standardValue: 'Functional / Pass', frequency: 'DAILY' },
-            { title: 'Motor & Pump Bearing Vibration & Noise Check', checkpointType: 'MECHANICAL', standardValue: '< 2.5 mm/s RMS', frequency: 'WEEKLY' },
-            { title: 'Terminal Box Voltage & Current Balance Inspection', checkpointType: 'ELECTRICAL', standardValue: '415V ± 5%, < 5% Unbalance', frequency: 'MONTHLY' },
-            { title: 'Mechanical Seal Grease & Lubrication Top-up', checkpointType: 'LUBRICATION', standardValue: 'ISO VG 46 Oil level at 75%', frequency: 'WEEKLY' },
-          ],
+          checkpoints: [],
         });
       }
     } catch (err: any) {

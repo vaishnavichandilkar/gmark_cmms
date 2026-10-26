@@ -1137,7 +1137,7 @@ export function AdminPage() {
             >
               <X size={16} />
             </button>
-            <h3 className="text-base font-bold mb-4">Add New Society</h3>
+            <h3 className="text-base font-bold mb-4">Add Society</h3>
             <div className="space-y-4">
               <div className="flex flex-col gap-1">
                 <label className="text-[10px] font-bold text-gray-400 uppercase pl-1">Society Name</label>
@@ -1221,7 +1221,7 @@ export function AdminPage() {
             >
               <X size={16} />
             </button>
-            <h3 className="text-base font-bold mb-4">Add New Tower</h3>
+            <h3 className="text-base font-bold mb-4">Add Tower</h3>
             <div className="space-y-4">
               <div className="flex flex-col gap-1">
                 <label className="text-[10px] font-bold text-gray-400 uppercase pl-1">Tower Name</label>
@@ -1305,7 +1305,7 @@ export function AdminPage() {
             >
               <X size={16} />
             </button>
-            <h3 className="text-base font-bold mb-4">Add New Device</h3>
+            <h3 className="text-base font-bold mb-4">Add Device</h3>
             <div className="space-y-4">
               <div className="flex flex-col gap-1">
                 <label className="text-[10px] font-bold text-gray-400 uppercase pl-1">Device Name</label>
@@ -1436,7 +1436,7 @@ export function AdminPage() {
               </div>
               <div>
                 <h3 className="text-base font-black tracking-tight">
-                  {editingUser ? 'Edit Society User' : 'Add New User'}
+                  {editingUser ? 'Edit Society User' : 'Add User'}
                 </h3>
                 <p className="text-[10px] text-gray-400 font-medium">
                   {editingUser ? 'Update access permissions and profile details' : 'Configure credentials and profile info'}

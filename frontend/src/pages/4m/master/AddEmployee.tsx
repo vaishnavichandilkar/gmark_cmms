@@ -32,7 +32,7 @@ export function AddEmployee() {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(false);
   const [error, setError] = useState('');
-  const [reportingOptions, setReportingOptions] = useState<string[]>(['Super Admin']);
+  const [reportingOptions, setReportingOptions] = useState<string[]>(['Admin']);
   
   const salaryInputRef = useRef<HTMLInputElement>(null);
   const [shouldFocusSalary, setShouldFocusSalary] = useState(false);
@@ -85,10 +85,10 @@ export function AddEmployee() {
       const allEmployees = response.data || [];
       const availableEmployees = allEmployees.filter((emp: any) => !id || emp.id.toString() !== id.toString());
       
-      const options = [
-        'Super Admin',
+      const options = Array.from(new Set([
+        'Admin',
         ...availableEmployees.map((emp: any) => emp.employeeCode ? `${emp.fullName} (${emp.employeeCode})` : emp.fullName)
-      ];
+      ]));
       setReportingOptions(options);
     } catch (err) {
       console.error('Failed to fetch reporting employees:', err);
@@ -230,7 +230,7 @@ export function AddEmployee() {
           <ChevronLeft size={24} />
         </button>
         <h1 className="text-2xl font-bold text-gray-800">
-          {id ? (isViewMode ? 'View Employee' : 'Edit Employee') : 'New Employee'}
+          {id ? (isViewMode ? 'View Employee' : 'Edit Employee') : 'Add Employee'}
         </h1>
       </div>
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { ChevronLeft, Building2, MapPin, Tag, CheckCircle2, User, Globe, Hash } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { CustomSelect } from '../../../components/shared/CustomSelect';
 import { EmployeeHierarchyPicker } from '../../../components/4m/EmployeeHierarchyPicker';
 import { useSelector } from 'react-redux';
@@ -247,166 +247,61 @@ export function AddMainFacility() {
   return (
     <div className="sm:p-6 pb-10 w-full h-full flex flex-col overflow-y-auto">
       {/* Header */}
-      <div className="flex items-center mb-6">
-        <button 
-          onClick={() => navigate(-1)} 
-          className="text-gray-600 hover:text-gray-900 mr-2 focus:outline-none"
-        >
-          <ChevronLeft size={24} />
-        </button>
-        <h1 className="text-2xl font-bold text-gray-800">
-          {id ? (isViewMode ? 'View Facility' : 'Edit Facility') : 'New Facility'}
-        </h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+        <div className="flex items-center">
+          <button 
+            type="button" 
+            onClick={() => navigate(returnUrl || -1)} 
+            className="text-gray-600 hover:text-gray-900 mr-2 focus:outline-none cursor-pointer p-1"
+            title="Go Back"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <h1 className="text-xl font-bold text-gray-900 tracking-tight">
+            {id ? (isViewMode ? 'View Facility' : 'Edit Facility') : 'Add Facility'}
+          </h1>
+        </div>
+
+        {/* Top Actions */}
+        <div className="flex items-center gap-2.5">
+          <button 
+            type="button" 
+            onClick={() => navigate(returnUrl || -1)}
+            disabled={loading}
+            className="h-9 px-4 border border-gray-300 bg-white text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50 cursor-pointer shadow-xs"
+          >
+            Back
+          </button>
+          {!isViewMode && (
+            <button 
+              type="button" 
+              onClick={handleSave}
+              disabled={loading}
+              className="flex items-center justify-center gap-1.5 h-9 px-5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-xs disabled:opacity-70 min-w-[80px] cursor-pointer"
+            >
+              {loading ? (
+                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                'Save'
+              )}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Form Container */}
-      <div className={isViewMode ? "" : "bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-8"}>
+      <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-4 sm:p-6">
         
         {globalError && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">
+          <div className="mb-5 p-3.5 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs font-medium">
             {globalError}
           </div>
         )}
 
-        {isViewMode ? (
-          <div className="space-y-8">
-            {/* Header Card */}
-            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-6 sm:p-8 text-white shadow-lg flex flex-col sm:flex-row items-center gap-6">
-              <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md border-2 border-white/40 shadow-inner flex-shrink-0">
-                <Building2 size={48} className="text-white" />
-              </div>
-              <div className="text-center sm:text-left">
-                <h2 className="text-3xl font-bold mb-2">{formData.mainFacilityName || 'Unknown Facility'}</h2>
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-emerald-50 font-medium">
-                  <div className="flex items-center gap-1.5">
-                    <Hash size={18} />
-                    <span>{formData.mainFacilityCode || 'N/A'}</span>
-                  </div>
-                  <span className="hidden sm:inline">•</span>
-                  <div className="flex items-center gap-1.5">
-                    {formData.status === 'Active' ? <CheckCircle2 size={18} className="text-green-300" /> : <CheckCircle2 size={18} className="text-gray-300" />}
-                    <span>{formData.status || 'N/A'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Details Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Information Card */}
-              <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-                <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2 border-b pb-3">
-                  <Tag size={20} className="text-emerald-500" />
-                  Facility Information
-                </h3>
-                <div className="space-y-5">
-                  <div className="flex items-start gap-4">
-                    <div className="bg-emerald-50 p-2.5 rounded-lg">
-                      <Tag size={18} className="text-emerald-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Category</p>
-                      <p className="text-base text-gray-900 font-semibold">{formData.category || '-'}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4">
-                    <div className="bg-gray-50 p-2.5 rounded-lg">
-                      <Tag size={18} className="text-gray-500" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Subcategory</p>
-                      <p className="text-base text-gray-900 font-semibold">{formData.subcategory || '-'}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4">
-                    <div className="bg-emerald-50 p-2.5 rounded-lg">
-                      <Globe size={18} className="text-emerald-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">GST Number</p>
-                      <p className="text-base text-gray-900 font-semibold">{formData.gstNumber || '-'}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4">
-                    <div className="bg-emerald-50 p-2.5 rounded-lg">
-                      <User size={18} className="text-emerald-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Facility Head</p>
-                      <p className="text-base text-gray-900 font-semibold">{formData.mainFacilityHead || '-'}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4">
-                    <div className="bg-gray-50 p-2.5 rounded-lg">
-                      <Building2 size={18} className="text-gray-500" />
-                    </div>
-                    <div className="w-full">
-                      <p className="text-sm font-medium text-gray-500">Description</p>
-                      <p className="text-base text-gray-900 font-semibold break-words">{formData.description || '-'}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Location Card */}
-              <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-                <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2 border-b pb-3">
-                  <MapPin size={20} className="text-emerald-500" />
-                  Location Details
-                </h3>
-                <div className="space-y-5">
-                  <div className="flex items-start gap-4">
-                    <div className="bg-emerald-50 p-2.5 rounded-lg">
-                      <MapPin size={18} className="text-emerald-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Address</p>
-                      <p className="text-base text-gray-900 font-semibold">{formData.address || '-'}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4">
-                    <div className="bg-gray-50 p-2.5 rounded-lg">
-                      <Globe size={18} className="text-gray-500" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">City / Postal Code</p>
-                      <p className="text-base text-gray-900 font-semibold">
-                        {[formData.city, formData.postalCode].filter(Boolean).join(' - ') || '-'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4">
-                    <div className="bg-emerald-50 p-2.5 rounded-lg">
-                      <Globe size={18} className="text-emerald-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">State / Country</p>
-                      <p className="text-base text-gray-900 font-semibold">
-                        {[formData.state, formData.country].filter(Boolean).join(', ') || '-'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4">
-                    <div className="bg-gray-50 p-2.5 rounded-lg">
-                      <MapPin size={18} className="text-gray-500" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Coordinates (Lat, Long)</p>
-                      <p className="text-base text-gray-900 font-semibold">
-                        {formData.latitude && formData.longitude ? `${formData.latitude}, ${formData.longitude}` : '-'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
           {/* Row 1 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
               Facility Code <span className="text-red-500">*</span>
             </label>
             <input 
@@ -415,11 +310,11 @@ export function AddMainFacility() {
               placeholder="Enter Facility Code"
               value={formData.mainFacilityCode}
               readOnly
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed focus:outline-none transition-all"
+              className="w-full h-9 px-3 text-xs border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed focus:outline-none transition-all"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
               Facility Name <span className="text-red-500">*</span>
             </label>
             <input 
@@ -429,11 +324,11 @@ export function AddMainFacility() {
               value={formData.mainFacilityName}
               onChange={handleChange}
               readOnly={isViewMode}
-              className={`w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
+              className={`w-full h-9 px-3 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'bg-white text-gray-900'}`}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
               Facility Head <span className="text-red-500">*</span>
             </label>
             <EmployeeHierarchyPicker 
@@ -451,7 +346,7 @@ export function AddMainFacility() {
 
           {/* Row 2 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
               GST Number
             </label>
             <input 
@@ -462,11 +357,11 @@ export function AddMainFacility() {
               onChange={handleChange}
               readOnly={isViewMode}
               maxLength={15}
-              className={`w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
+              className={`w-full h-9 px-3 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'bg-white text-gray-900'}`}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
               Category <span className="text-red-500">*</span>
             </label>
             <input 
@@ -477,14 +372,14 @@ export function AddMainFacility() {
               value={formData.category}
               onChange={handleChange}
               readOnly={isViewMode}
-              className={`w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
+              className={`w-full h-9 px-3 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'bg-white text-gray-900'}`}
             />
             <datalist id="category-options">
               {availableCategories.map(c => <option key={c as string} value={c as string} />)}
             </datalist>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
               Subcategory <span className="text-red-500">*</span>
             </label>
             <input 
@@ -495,7 +390,7 @@ export function AddMainFacility() {
               value={formData.subcategory}
               onChange={handleChange}
               readOnly={isViewMode}
-              className={`w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
+              className={`w-full h-9 px-3 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'bg-white text-gray-900'}`}
             />
             <datalist id="subcategory-options">
               {availableSubCategories.map(c => <option key={c as string} value={c as string} />)}
@@ -504,7 +399,7 @@ export function AddMainFacility() {
 
           {/* Row 3 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
               Status <span className="text-red-500">*</span>
             </label>
             <CustomSelect 
@@ -518,8 +413,8 @@ export function AddMainFacility() {
           </div>
         </div>
 
-        <div className="mt-6">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+        <div className="mt-4">
+          <label className="block text-xs font-semibold text-gray-700 mb-1">
             Address <span className="text-red-500">*</span>
           </label>
           <textarea 
@@ -528,15 +423,15 @@ export function AddMainFacility() {
             value={formData.address}
             onChange={handleChange}
             readOnly={isViewMode}
-            rows={2}
-            className={`w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all resize-none ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
+            rows={2.5}
+            className={`w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all resize-none ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'bg-white text-gray-900'}`}
           ></textarea>
         </div>
 
         {/* Row 5 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6 mt-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 mt-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
               Postal Code <span className="text-red-500">*</span>
             </label>
             <input 
@@ -547,11 +442,11 @@ export function AddMainFacility() {
               onChange={handleChange}
               readOnly={isViewMode}
               maxLength={6}
-              className={`w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
+              className={`w-full h-9 px-3 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'bg-white text-gray-900'}`}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
               Country
             </label>
             <input 
@@ -561,11 +456,11 @@ export function AddMainFacility() {
               value={formData.country}
               onChange={handleChange}
               readOnly={isViewMode}
-              className={`w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
+              className={`w-full h-9 px-3 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'bg-white text-gray-900'}`}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
               State
             </label>
             <input 
@@ -575,15 +470,15 @@ export function AddMainFacility() {
               value={formData.state}
               onChange={handleChange}
               readOnly={isViewMode}
-              className={`w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
+              className={`w-full h-9 px-3 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'bg-white text-gray-900'}`}
             />
           </div>
         </div>
 
         {/* Row 6 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6 mt-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 mt-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
               City
             </label>
             <input 
@@ -593,11 +488,11 @@ export function AddMainFacility() {
               value={formData.city}
               onChange={handleChange}
               readOnly={isViewMode}
-              className={`w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
+              className={`w-full h-9 px-3 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'bg-white text-gray-900'}`}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
               Latitude <span className="text-red-500">*</span>
             </label>
             <input 
@@ -608,11 +503,11 @@ export function AddMainFacility() {
               onChange={handleChange}
               readOnly={isViewMode}
               maxLength={15}
-              className={`w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
+              className={`w-full h-9 px-3 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'bg-white text-gray-900'}`}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
               Longitude <span className="text-red-500">*</span>
             </label>
             <input 
@@ -623,13 +518,13 @@ export function AddMainFacility() {
               onChange={handleChange}
               readOnly={isViewMode}
               maxLength={15}
-              className={`w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
+              className={`w-full h-9 px-3 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'bg-white text-gray-900'}`}
             />
           </div>
         </div>
 
-        <div className="mt-6">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+        <div className="mt-4">
+          <label className="block text-xs font-semibold text-gray-700 mb-1">
             Description
           </label>
           <textarea 
@@ -638,20 +533,18 @@ export function AddMainFacility() {
             value={formData.description}
             onChange={handleChange}
             readOnly={isViewMode}
-            rows={2}
-            className={`w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all resize-none ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
+            rows={2.5}
+            className={`w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all resize-none ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'bg-white text-gray-900'}`}
           ></textarea>
         </div>
-        </>
-        )}
 
         {/* Buttons */}
-        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-10 border-t border-gray-100 pt-6">
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-2.5 mt-8 border-t border-gray-100 pt-5">
           <button 
             type="button" 
             onClick={() => navigate(-1)}
             disabled={loading}
-            className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
+            className="w-full sm:w-auto h-9 px-5 border border-gray-300 bg-white text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50 cursor-pointer shadow-xs"
           >
             Back
           </button>
@@ -660,10 +553,10 @@ export function AddMainFacility() {
               type="button" 
               onClick={handleSave}
               disabled={loading}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-lg text-sm font-semibold transition-all shadow-xs disabled:opacity-70 min-w-[100px]"
+              className="w-full sm:w-auto flex items-center justify-center gap-1.5 h-9 px-6 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-xs disabled:opacity-70 min-w-[90px] cursor-pointer"
             >
               {loading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               ) : (
                 'Save'
               )}

@@ -669,11 +669,29 @@ model SparePartMaster {
   adminId       Int?
   partName      String
   category      String?
-  stockQuantity Int                  @default(100)
+  subCategory   String?
+  stockQuantity Int                  @default(0)
+  inHandQuantity Int                 @default(0)
+  atSourceQuantity Int               @default(0)
+  minimumQuantity Int?               @default(0)
+  totalStock    Int?                 @default(0)
   unitOfMeasure String               @default("PCS")
   unitCost      Float                @default(0)
+  rate          Float?               @default(0)
   location      String?
+  stockLocation String?
   description   String?
+  headOfDepartment String?
+  notes         String?
+  imageUrl      String?
+  namePlateFile String?
+  stockLocations Json?
+  machinesList  Json?
+  customSpecifications Json?
+  warrantiesList Json?
+  suppliersList Json?
+  documentsList Json?
+  logsList      Json?
   woSpareParts    WorkOrderSparePart[]
   scheduleSpares  MaintenanceScheduleSpare[]
   createdAt       DateTime             @default(now())

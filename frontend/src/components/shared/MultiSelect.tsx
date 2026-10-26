@@ -29,7 +29,7 @@ export function MultiSelect({
   className = '', 
   disabled = false,
   onAddNew,
-  addNewLabel = '+ Add New'
+  addNewLabel = '+ Add'
 }: MultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -82,14 +82,23 @@ export function MultiSelect({
   // Calculate display text based on selected values
   const getDisplayText = () => {
     if (values.length === 0) return '';
-    if (values.length === 1) {
+    const labels = values.map(val => {
       const opt = options.find(o => {
-        const val = typeof o === 'string' ? o : o.value;
-        return val === values[0];
+        const v = typeof o === 'string' ? o : o.value;
+        return v === val;
       });
-      return typeof opt === 'string' ? opt : opt?.label || values[0];
+      const rawLabel = typeof opt === 'string' ? opt : opt?.label || val;
+      const match = rawLabel.match(/^([^(]+)/);
+      return match ? match[1].trim() : rawLabel;
+    });
+
+    if (labels.length === 1) {
+      return labels[0];
     }
-    return `${values.length} selected`;
+    if (labels.length === 2) {
+      return `${labels[0]}, ${labels[1]}`;
+    }
+    return `${labels.slice(0, 2).join(', ')} (+${labels.length - 2} more)`;
   };
 
   const displayText = getDisplayText();

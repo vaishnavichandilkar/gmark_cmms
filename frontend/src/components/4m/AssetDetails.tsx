@@ -1,15 +1,21 @@
 import React, { useState, useRef } from 'react';
 import type { TreeNodeData } from './AssetTree';
-import { Building2, Building, Cpu, Wifi, Image as ImageIcon, QrCode, Activity, MapPin, User, Navigation, Settings, FileText, Wrench } from 'lucide-react';
+import { Building2, Building, Cpu, Wifi, Image as ImageIcon, QrCode, Activity, MapPin, User, Navigation, Settings, FileText, Wrench, FolderInput, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { navigateToDeviceDashboard } from '../../utils/deviceRoutes';
+import { MoveMachineModal } from './MoveMachineModal';
 
 interface AssetDetailsProps {
   node: TreeNodeData | null;
+  onRefresh?: () => void;
+  onMoveNode?: (node: TreeNodeData) => void;
+  onGiveAccess?: (node: TreeNodeData) => void;
 }
 
-export const AssetDetails = ({ node }: AssetDetailsProps) => {
+export const AssetDetails = ({ node, onRefresh, onMoveNode, onGiveAccess }: AssetDetailsProps) => {
+  const [isMoveOpen, setIsMoveOpen] = useState(false);
+
   if (!node) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-gray-400 bg-gray-50/50">
@@ -38,12 +44,57 @@ export const AssetDetails = ({ node }: AssetDetailsProps) => {
             <p className="text-sm text-gray-500 capitalize tracking-wide mt-0.5">{node.type.replace(/([A-Z])/g, ' $1').trim()}</p>
           </div>
         </div>
+
+        <div className="flex items-center gap-2 mr-8">
+          {onGiveAccess && ['device', 'facility', 'building', 'mainFacility', 'society'].includes(node.type) && (
+            <button
+              type="button"
+              onClick={() => onGiveAccess(node)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors shadow-2xs cursor-pointer"
+              title={`Give user access to this ${node.type === 'device' ? 'machine' : 'facility'}`}
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span>Give Access</span>
+            </button>
+          )}
+
+          {(node.type === 'device' || node.type === 'facility' || node.type === 'building') && (
+            <button
+              type="button"
+              onClick={() => {
+                if (onMoveNode) {
+                  onMoveNode(node);
+                } else {
+                  setIsMoveOpen(true);
+                }
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors shadow-2xs cursor-pointer"
+              title={`Move this ${node.type === 'device' ? 'machine' : node.type} to another location`}
+            >
+              <FolderInput className="w-3.5 h-3.5" />
+              <span>Move {node.type === 'device' ? 'Machine' : node.type === 'facility' ? 'Facility' : 'Building'}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Content */}
       <div className="flex-1 p-6 bg-gray-50/50">
         {node.type === 'device' ? <DeviceDetails device={node.originalData} /> : <FacilityDetails node={node} />}
       </div>
+
+      {node.type === 'device' && (
+        <MoveMachineModal
+          isOpen={isMoveOpen}
+          onClose={() => setIsMoveOpen(false)}
+          machine={node.originalData}
+          onSuccess={() => {
+            setIsMoveOpen(false);
+            if (onRefresh) onRefresh();
+            else window.location.reload();
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -130,6 +181,12 @@ const FacilityDetails = ({ node }: { node: TreeNodeData }) => {
             <div>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">GST Number</p>
               <p className="text-sm font-medium text-gray-900">{data.gstNumber}</p>
+            </div>
+          )}
+          {data.parentFacility?.facilityName && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Part Of (Parent Facility)</p>
+              <p className="text-sm font-medium text-gray-900">{data.parentFacility.facilityName}</p>
             </div>
           )}
         </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Search, Plus } from 'lucide-react';
 import { spareService } from '../../services/spareService';
 
@@ -14,16 +15,35 @@ interface SelectSparePickerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectSpare: (item: SpareItem) => void;
+  onAddNewSpare?: () => void;
 }
 
 export const SelectSparePickerModal: React.FC<SelectSparePickerModalProps> = ({
   isOpen,
   onClose,
   onSelectSpare,
+  onAddNewSpare,
 }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [sparesList, setSparesList] = useState<SpareItem[]>([]);
+
+  const handleAddNewSpare = () => {
+    onClose();
+    if (onAddNewSpare) {
+      onAddNewSpare();
+    } else {
+      navigate('/spares/new', {
+        state: {
+          returnUrl: location.pathname,
+          returnTab: 'Spares',
+          tab: 'General',
+        }
+      });
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -90,9 +110,10 @@ export const SelectSparePickerModal: React.FC<SelectSparePickerModalProps> = ({
 
               <button
                 type="button"
-                className="flex items-center gap-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-3 py-1.5 rounded-2xl text-xs transition-all cursor-pointer"
+                onClick={handleAddNewSpare}
+                className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold px-3 py-1.5 rounded-2xl text-xs transition-all cursor-pointer shadow-xs"
               >
-                <Plus size={14} strokeWidth={2.5} className="text-sky-600" />
+                <Plus size={14} strokeWidth={2.5} className="text-emerald-700" />
                 <span>Add</span>
               </button>
             </div>
@@ -113,8 +134,20 @@ export const SelectSparePickerModal: React.FC<SelectSparePickerModalProps> = ({
               <tbody className="divide-y divide-gray-100 text-gray-600">
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-gray-400 font-medium">
-                      No spares found.
+                    <td colSpan={5} className="py-10 text-center">
+                      <div className="flex flex-col items-center justify-center gap-2.5">
+                        <p className="text-gray-500 font-medium text-xs">
+                          {searchQuery ? `No spares found matching "${searchQuery}".` : 'No spares available in inventory.'}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleAddNewSpare}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#00a651] hover:bg-[#009040] text-white font-bold rounded-xl text-xs transition-all shadow-sm cursor-pointer"
+                        >
+                          <Plus size={14} className="stroke-[3]" />
+                          <span>Add Spare in Spare Management</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ) : (

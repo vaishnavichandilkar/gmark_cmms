@@ -181,4 +181,10 @@ export class CheckpointsService implements OnModuleInit {
       orderBy: { createdAt: 'desc' },
     });
   }
+
+  async removeUserCheckpoint(id: number) {
+    return this.prisma.userCheckpoint.delete({
+      where: { id: Number(id) },
+    });
+  }
 }

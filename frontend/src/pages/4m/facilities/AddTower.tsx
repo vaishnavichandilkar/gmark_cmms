@@ -45,12 +45,12 @@ export function AddTower() {
       <div className="w-full max-w-lg bg-white rounded-[32px] p-8 md:p-12 shadow-[0_10px_30px_rgba(0,0,0,0.04)] border border-slate-100 flex flex-col items-center">
         {/* Title */}
         <h1 className="text-2xl md:text-3xl font-extrabold text-[#051c33] mb-4 text-center tracking-tight">
-          Add new tower
+          Add Tower
         </h1>
 
         {/* Capsule Badge */}
         <div className="bg-[#2a3b4e] text-white px-5 py-2.5 rounded-full text-xs font-semibold tracking-wide mb-8 text-center shadow-xs">
-          Add New Tower in Gera Imperium Society
+          Add Tower in Gera Imperium Society
         </div>
 
         {/* Form */}

@@ -37,8 +37,6 @@ export function AddUser() {
   const [initialLoading, setInitialLoading] = useState(false);
   const [globalError, setGlobalError] = useState('');
 
-  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
-  const [createLoginAccount, setCreateLoginAccount] = useState<boolean>(true);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [copiedPassword, setCopiedPassword] = useState<boolean>(false);
 
@@ -161,7 +159,6 @@ export function AddUser() {
 
           setFormData(currentForm);
           setEmployeeConfigs(currentConfigs);
-          if (parsed.currentStep) setCurrentStep(parsed.currentStep);
         } catch (e) {
           console.error('Failed to restore draft:', e);
         } finally {
@@ -208,7 +205,7 @@ export function AddUser() {
             const subFac = subFacilities.find((f: any) => f.id.toString() === facId);
             newData.facilityId = facId;
             newData.mainFacilityId = mainFacId || (subFac?.mainFacilityId ? subFac.mainFacilityId.toString() : '');
-            newData.facilityName = subFac?.facilityName || '';
+            newData.facilityName = deviceName || subFac?.facilityName || '';
             newData.mainFacilityHead = subFac?.facilityHeadName || '';
             newData.category = subFac?.category || '';
             newData.buildingId = '';
@@ -216,7 +213,7 @@ export function AddUser() {
             const mainFac = facilities.find((f: any) => f.id.toString() === mainFacId);
             newData.facilityId = '';
             newData.mainFacilityId = mainFacId;
-            newData.facilityName = mainFac?.mainFacilityName || '';
+            newData.facilityName = deviceName || mainFac?.mainFacilityName || '';
             newData.mainFacilityHead = mainFac?.mainFacilityHead || '';
             newData.category = mainFac?.category || '';
             newData.buildingId = '';
@@ -224,21 +221,35 @@ export function AddUser() {
             newData.buildingId = bldgId;
             newData.facilityId = '';
             newData.mainFacilityId = '';
-            newData.facilityName = '';
+            newData.facilityName = deviceName;
             newData.mainFacilityHead = '';
             newData.category = '';
           }
           newData.isActive = true;
         } else if (selectedType === 'facility') {
-          const subFac = subFacilities.find((f: any) => f.id.toString() === value);
+          const cleanFacId = dataset?.id || value.replace('fac-', '');
+          const subFac = subFacilities.find((f: any) => f.id.toString() === cleanFacId);
           newData.deviceId = '';
           newData.deviceName = '';
           newData.buildingId = '';
-          newData.facilityId = value;
-          newData.mainFacilityId = subFac?.mainFacilityId ? subFac.mainFacilityId.toString() : '';
-          newData.facilityName = subFac?.facilityName || '';
+          newData.facilityId = cleanFacId;
+          newData.mainFacilityId = dataset?.mainFacilityId || (subFac?.mainFacilityId ? subFac.mainFacilityId.toString() : '');
+          newData.facilityName = subFac?.facilityName || dataset?.name || '';
           newData.mainFacilityHead = subFac?.facilityHeadName || '';
           newData.category = subFac?.category || '';
+          newData.isActive = true;
+        } else if (selectedType === 'mainFacility') {
+          const cleanMainId = dataset?.id || value.replace('mf-', '');
+          const mainFac = facilities.find((f: any) => f.id.toString() === cleanMainId);
+          newData.deviceId = '';
+          newData.deviceName = '';
+          newData.buildingId = '';
+          newData.societyId = '';
+          newData.facilityId = '';
+          newData.mainFacilityId = cleanMainId;
+          newData.facilityName = mainFac?.mainFacilityName || dataset?.name || '';
+          newData.mainFacilityHead = mainFac?.mainFacilityHead || '';
+          newData.category = mainFac?.category || '';
           newData.isActive = true;
         } else if (selectedType === 'society') {
           const socName = dataset?.name || '';
@@ -266,25 +277,16 @@ export function AddUser() {
           newData.category = 'Building';
           newData.isActive = true;
         } else {
-          const facility = facilities.find((f: any) => f.id.toString() === value);
+          // Empty / reset
           newData.deviceId = '';
           newData.deviceName = '';
           newData.buildingId = '';
           newData.societyId = '';
-          if (facility) {
-            newData.facilityId = '';
-            newData.mainFacilityId = value;
-            newData.facilityName = facility.mainFacilityName || '';
-            newData.mainFacilityHead = facility.mainFacilityHead || '';
-            newData.category = facility.category || '';
-            newData.isActive = facility.status === 'Active';
-          } else {
-            newData.facilityId = '';
-            newData.mainFacilityId = '';
-            newData.facilityName = '';
-            newData.mainFacilityHead = '';
-            newData.category = '';
-          }
+          newData.facilityId = '';
+          newData.mainFacilityId = '';
+          newData.facilityName = '';
+          newData.mainFacilityHead = '';
+          newData.category = '';
         }
       }
 
@@ -390,7 +392,6 @@ export function AddUser() {
     const draft = {
       formData,
       employeeConfigs,
-      currentStep
     };
     sessionStorage.setItem('addUserDraft', JSON.stringify(draft));
     if (empIdStr) {
@@ -405,7 +406,6 @@ export function AddUser() {
     const draft = {
       formData,
       employeeConfigs,
-      currentStep
     };
     sessionStorage.setItem('addUserDraft', JSON.stringify(draft));
     sessionStorage.setItem('addEmployeeOriginalReturnUrl', window.location.pathname);
@@ -415,7 +415,7 @@ export function AddUser() {
   };
 
   const handleRoleChangeForEmp = (empIdStr: string, selectedValue: string) => {
-    if (selectedValue === '+ Add New Role') {
+    if (selectedValue === '+ Add Role') {
       handleAddNewRoleRedirect(empIdStr);
       return;
     }
@@ -481,37 +481,6 @@ export function AddUser() {
     }
   };
 
-  const handleNextStep = () => {
-    const selectedEmpIds = formData.employeeIds && formData.employeeIds.length > 0 
-      ? formData.employeeIds 
-      : (formData.employeeId ? [formData.employeeId] : []);
-
-    if (selectedEmpIds.length === 0) {
-      setGlobalError('Please select at least one Employee Name.');
-      toast.error('Please select at least one Employee Name.');
-      return;
-    }
-    setGlobalError('');
-
-    // Pre-fill username if empty
-    if (!formData.username) {
-      const employee = employees.find(e => e.id.toString() === selectedEmpIds[0]);
-      if (employee?.fullName) {
-        setFormData(prev => ({
-          ...prev,
-          username: employee.fullName.toLowerCase().trim().replace(/\s+/g, '')
-        }));
-      }
-    }
-
-    // Pre-fill password if empty
-    if (!formData.password) {
-      generatePassword();
-    }
-
-    setCurrentStep(2);
-  };
-
   const handleSave = async () => {
     try {
       setLoading(true);
@@ -524,13 +493,6 @@ export function AddUser() {
       if (selectedEmpIds.length === 0) {
         setGlobalError('Please select at least one Employee Name.');
         toast.error('Please select at least one Employee Name.');
-        setLoading(false);
-        return;
-      }
-
-      if (createLoginAccount && !formData.username) {
-        setGlobalError('Please enter a Username.');
-        toast.error('Please enter a Username.');
         setLoading(false);
         return;
       }
@@ -557,42 +519,53 @@ export function AddUser() {
           status: true
         };
 
-        if (createLoginAccount) {
-          const empEmail = emp.officialEmail || (formData.companyMailId ? formData.companyMailId : `${emp.employeeCode || emp.id}@example.com`);
-          const empUsername = (selectedEmpIds.length === 1 && formData.username) 
-            ? formData.username.trim()
-            : (emp.fullName ? emp.fullName.toLowerCase().trim().replace(/\s+/g, '') : empEmail);
-          const existingUser = users.find(u => u.employeeId?.toString() === empIdStr);
+        const empEmail = emp.officialEmail || (formData.companyMailId ? formData.companyMailId : `${emp.employeeCode || emp.id}@example.com`);
+        
+        // Directly assign username: lowercase alphanumeric
+        const cleanName = emp.fullName ? emp.fullName.toLowerCase().trim().replace(/[^a-z0-9]/g, '') : '';
+        let empUsername = cleanName || (emp.employeeCode ? emp.employeeCode.toLowerCase().trim() : empEmail.split('@')[0]);
 
-          const empPayload: any = {
-            username: empUsername,
-            email: empEmail,
-            firstName: emp.fullName ? emp.fullName.split(' ')[0] : undefined,
-            lastName: emp.fullName ? emp.fullName.split(' ').slice(1).join(' ') : undefined,
-            mobileNumber: emp.mobileNumber || '',
-            role: mapRole(config.role),
-            designation: config.role,
-            isActive: config.status,
-            employeeId: parseInt(empIdStr, 10),
-            mainFacilityId: formData.mainFacilityId ? parseInt(formData.mainFacilityId, 10) : undefined,
-            facilityId: formData.facilityId ? parseInt(formData.facilityId, 10) : null,
-            deviceId: formData.deviceId || null,
-            deviceName: formData.deviceName || null,
-            buildingIds: formData.buildingId ? [parseInt(formData.buildingId, 10)] : undefined,
-            societyId: formData.societyId ? parseInt(formData.societyId, 10) : undefined,
-          };
-
-          if (formData.password) {
-            empPayload.password = formData.password;
+        if (selectedEmpIds.length === 1 && formData.username && formData.username.trim()) {
+          empUsername = formData.username.trim();
+        } else {
+          const conflict = users.find(u => u.username?.toLowerCase() === empUsername.toLowerCase() && u.employeeId?.toString() !== empIdStr && (!id || u.id.toString() !== id.toString()));
+          if (conflict && emp.employeeCode) {
+            empUsername = `${empUsername}${emp.employeeCode.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
           }
+        }
 
-          if (id) {
-            await api.put(`/users/${id}`, empPayload);
-          } else if (existingUser) {
-            await api.put(`/users/${existingUser.id}`, empPayload);
-          } else {
-            await api.post('/users', empPayload);
+        // Directly assign password: standard 'Welcome@123'
+        const empPassword = formData.password || 'Welcome@123';
+        const existingUser = users.find(u => u.employeeId?.toString() === empIdStr);
+
+        const empPayload: any = {
+          username: empUsername,
+          email: empEmail,
+          password: empPassword,
+          firstName: emp.fullName ? emp.fullName.split(' ')[0] : undefined,
+          lastName: emp.fullName ? emp.fullName.split(' ').slice(1).join(' ') : undefined,
+          mobileNumber: emp.mobileNumber || '',
+          role: mapRole(config.role),
+          designation: config.role,
+          isActive: config.status,
+          employeeId: parseInt(empIdStr, 10),
+          mainFacilityId: formData.mainFacilityId ? parseInt(formData.mainFacilityId, 10) : undefined,
+          facilityId: formData.facilityId ? parseInt(formData.facilityId, 10) : null,
+          deviceId: formData.deviceId || null,
+          deviceName: formData.deviceName || null,
+          buildingIds: formData.buildingId ? [parseInt(formData.buildingId, 10)] : undefined,
+          societyId: formData.societyId ? parseInt(formData.societyId, 10) : undefined,
+        };
+
+        if (id) {
+          if (!formData.password) {
+            delete empPayload.password;
           }
+          await api.put(`/users/${id}`, empPayload);
+        } else if (existingUser) {
+          await api.put(`/users/${existingUser.id}`, empPayload);
+        } else {
+          await api.post('/users', empPayload);
         }
 
         if (config.reportingTo) {
@@ -603,7 +576,7 @@ export function AddUser() {
         createdCount++;
       }
 
-      toast.success(`${createdCount} User(s) saved successfully!`);
+      toast.success(`${createdCount} User(s) saved successfully! Default password: Welcome@123`);
       navigate('/user-management');
     } catch (err: any) {
       console.error('Error saving user:', err);
@@ -692,19 +665,13 @@ export function AddUser() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
           <button 
-            onClick={() => {
-              if (currentStep === 2 && !isViewMode) {
-                setCurrentStep(1);
-              } else {
-                navigate(-1);
-              }
-            }} 
+            onClick={() => navigate(-1)} 
             className="text-gray-600 hover:text-gray-900 mr-2 focus:outline-none"
           >
             <ChevronLeft size={24} />
           </button>
           <h1 className="text-2xl font-bold text-gray-800">
-            {id ? (isViewMode ? 'View User' : 'Edit User') : 'New User'}
+            {id ? (isViewMode ? 'View User' : 'Edit User') : 'Add User'}
           </h1>
         </div>
 
@@ -938,6 +905,7 @@ export function AddUser() {
                   </div>
                 )}
 
+
                 {/* Login Password */}
                 <div className="flex items-start gap-4 col-span-1 sm:col-span-2 lg:col-span-3 pt-4 border-t border-gray-100">
                   <div className="bg-emerald-50 p-2.5 rounded-lg">
@@ -985,7 +953,7 @@ export function AddUser() {
               </div>
             </div>
           </div>
-        ) : currentStep === 1 ? (
+        ) : (
           <div className="space-y-6">
             {/* Controls Row */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
@@ -1031,7 +999,7 @@ export function AddUser() {
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-200 transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    Add New Role
+                    Add Role
                   </button>
                 </div>
               </div>
@@ -1074,9 +1042,14 @@ export function AddUser() {
                                 </div>
                                 <div>
                                   <p className="font-semibold text-gray-900">{emp.fullName || 'N/A'}</p>
-                                  {emp.employeeCode && (
-                                    <p className="text-xs text-gray-400 font-mono">{emp.employeeCode}</p>
-                                  )}
+                                  <div className="flex items-center gap-2">
+                                    {emp.employeeCode && (
+                                      <p className="text-xs text-gray-400 font-mono">{emp.employeeCode}</p>
+                                    )}
+                                    <p className="text-xs text-emerald-600 font-medium font-mono">
+                                      @{emp.fullName ? emp.fullName.toLowerCase().trim().replace(/[^a-z0-9]/g, '') : 'user'}
+                                    </p>
+                                  </div>
                                 </div>
                               </div>
                             </td>
@@ -1084,7 +1057,7 @@ export function AddUser() {
                               <CustomSelect 
                                 name={`role_${emp.id}`}
                                 value={currentConfig.role}
-                                options={['+ Add New Role', ...roleOptions]}
+                                options={['+ Add Role', ...roleOptions]}
                                 onChange={(e) => handleRoleChangeForEmp(empIdStr, e.target.value)}
                                 disabled={isViewMode}
                                 placeholder="Select Role"
@@ -1168,105 +1141,10 @@ export function AddUser() {
                     className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-all active:scale-95"
                   >
                     <Plus size={14} />
-                    Add New Employee
+                    Add Employee
                   </button>
                 </div>
               )}
-            </div>
-          </div>
-        ) : (
-          /* Step 2: User Credentials Card */
-          <div className="py-4 flex flex-col items-center">
-            <div className="w-full max-w-xl bg-white rounded-2xl border border-gray-200/90 p-6 sm:p-10 shadow-sm flex flex-col items-center">
-              
-              {/* Key Badge */}
-              <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4 border border-blue-100">
-                <KeyRound size={28} />
-              </div>
-
-              {/* Title & Subtitle */}
-              <h2 className="text-xl font-bold text-gray-900 mb-1">User Credentials</h2>
-              <p className="text-sm text-gray-500 mb-6 text-center">
-                Review the username and set a password for this user account.
-              </p>
-
-              {globalError && (
-                <div className="w-full mb-6 p-4 bg-red-50 border border-red-200 text-red-600 text-sm font-medium rounded-xl text-center">
-                  {globalError}
-                </div>
-              )}
-
-              {/* Create Login Account Box */}
-              <div className="w-full bg-emerald-50/70 border border-emerald-200/80 rounded-xl p-4 flex items-center gap-3 mb-6">
-                <input 
-                  type="checkbox"
-                  id="createAccount"
-                  checked={createLoginAccount}
-                  onChange={(e) => setCreateLoginAccount(e.target.checked)}
-                  className="w-5 h-5 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
-                />
-                <label htmlFor="createAccount" className="text-sm font-semibold text-gray-900 cursor-pointer select-none">
-                  Create a login account for this employee
-                </label>
-              </div>
-
-              {/* Username Field */}
-              <div className="w-full text-left mb-5">
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  Username <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  type="text"
-                  name="username"
-                  value={formData.username}
-                  onChange={handleChange}
-                  placeholder="Enter username"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
-                />
-              </div>
-
-              {/* Password Field */}
-              <div className="w-full text-left mb-3">
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  Password <span className="text-red-500">*</span>
-                </label>
-                <div className="relative w-full">
-                  <input 
-                    type={showPassword ? "text" : "password"}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder="Enter password"
-                    className="w-full pl-4 pr-32 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-mono"
-                  />
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                    <button 
-                      type="button" 
-                      onClick={handleCopyPassword}
-                      className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
-                      title="Copy password"
-                    >
-                      {copiedPassword ? <Check size={16} className="text-green-600" /> : <Copy size={16} />}
-                    </button>
-                    <button 
-                      type="button" 
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
-                      title={showPassword ? "Hide password" : "Show password"}
-                    >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={generatePassword}
-                      className="px-3 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:bg-emerald-200 border border-emerald-300 rounded-lg text-xs font-semibold transition-all ml-1"
-                    >
-                      Generate
-                    </button>
-                  </div>
-                </div>
-              </div>
-
             </div>
           </div>
         )}
@@ -1281,7 +1159,7 @@ export function AddUser() {
             >
               Back
             </button>
-          ) : currentStep === 1 ? (
+          ) : (
             <>
               <button 
                 type="button" 
@@ -1290,25 +1168,6 @@ export function AddUser() {
                 className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
               >
                 Cancel
-              </button>
-              <button 
-                type="button" 
-                onClick={handleNextStep}
-                disabled={loading}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-sm font-semibold transition-all shadow-xs disabled:opacity-70 min-w-[100px]"
-              >
-                Save
-              </button>
-            </>
-          ) : (
-            <>
-              <button 
-                type="button" 
-                onClick={() => setCurrentStep(1)}
-                disabled={loading}
-                className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
-              >
-                Back
               </button>
               <button 
                 type="button" 

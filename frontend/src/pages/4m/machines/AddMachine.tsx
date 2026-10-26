@@ -3,7 +3,10 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../store';
 import { hasTabPermission } from '../../../utils/permissions';
-import { ArrowLeft, Plus, Trash2, Search, RefreshCw, Sparkles, ChevronDown, Eye, Pencil, X } from 'lucide-react';
+import { 
+  ArrowLeft, Plus, Trash2, Search, RefreshCw, Sparkles, ChevronDown, Eye, Pencil, X,
+  Wrench, Calendar, CheckSquare, Clock, AlertTriangle, FileText, CheckCircle2, ExternalLink
+} from 'lucide-react';
 import { CustomSelect } from '../../../components/shared/CustomSelect';
 import { CustomDatePicker } from '../../../components/shared/CustomDatePicker';
 import { api } from '../../../lib/api';
@@ -12,9 +15,12 @@ import { MachineHierarchyPicker } from '../../../components/4m/MachineHierarchyP
 import { MachineImageCard } from '../../../components/4m/MachineImageCard';
 import { spareService } from '../../../services/spareService';
 import { supplierService, type Supplier } from '../../../services/supplierService';
+import { machineSpareSync } from '../../../utils/machineSpareSync';
+import { GiveAccessPromptModal } from '../../../components/4m/GiveAccessPromptModal';
+import { GiveAccessModal } from '../../../components/4m/GiveAccessModal';
 import toast from 'react-hot-toast';
 
-const tabs = ['General', 'Specification', 'Spares', 'AMC', 'Purchase', 'Documents', 'IOT'];
+const tabs = ['General', 'Specification', 'Spares', 'AMC', 'Purchase', 'Documents', 'IOT', 'WO', 'Checklist', 'Schedule Maintenance'];
 
 export function AddMachine() {
   const navigate = useNavigate();
@@ -32,6 +38,16 @@ export function AddMachine() {
 
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState<any[]>([]);
+
+  const [createdMachineForAccess, setCreatedMachineForAccess] = useState<{
+    id: number;
+    name: string;
+    code?: string;
+    category?: string;
+    redirectFn: () => void;
+  } | null>(null);
+  const [isAccessPromptOpen, setIsAccessPromptOpen] = useState(false);
+  const [isGiveAccessModalOpen, setIsGiveAccessModalOpen] = useState(false);
 
   const permittedTabs = tabs.filter(tab => hasTabPermission(currentUser, tab, 'view'));
 
@@ -87,6 +103,60 @@ export function AddMachine() {
   const [tempMacId, setTempMacId] = useState('');
   const [pendingMachineType, setPendingMachineType] = useState(savedDraft?.pendingMachineType || 'HYPN');
   const [tempMachineType, setTempMachineType] = useState('HYPN');
+
+  // WO Tab States
+  const [pendingWorkOrders, setPendingWorkOrders] = useState<any[]>(savedDraft?.pendingWorkOrders || []);
+  const [woSearchQuery, setWoSearchQuery] = useState('');
+  const [isWoModalOpen, setIsWoModalOpen] = useState(false);
+  const [woForm, setWoForm] = useState({
+    problemDescription: '',
+    priority: 'MEDIUM',
+    triggerType: 'MANUAL',
+    assignedTechnicianId: '',
+    estimatedStartDate: '',
+    estimatedEndDate: '',
+  });
+
+  // Checklist Tab States
+  const [pendingCheckpoints, setPendingCheckpoints] = useState<any[]>(savedDraft?.pendingCheckpoints || []);
+  const [checkpointSearchQuery, setCheckpointSearchQuery] = useState('');
+  const [checkpointTabMode, setCheckpointTabMode] = useState<'catalog' | 'custom'>('catalog');
+  const [isCheckpointModalOpen, setIsCheckpointModalOpen] = useState(false);
+  const [masterCheckpoints, setMasterCheckpoints] = useState<any[]>([]);
+  const [selectedMasterCheckpointId, setSelectedMasterCheckpointId] = useState<string>('');
+  const [checkpointForm, setCheckpointForm] = useState({
+    checkpointType: 'PREVENTIVE',
+    category: 'Safety & Mechanical',
+    description: '',
+    frequency: 'MONTHLY',
+    standardValue: '',
+    unit: '',
+    minValue: '',
+    maxValue: '',
+  });
+
+  // Schedule Maintenance Tab States
+  const [pendingSchedules, setPendingSchedules] = useState<any[]>(savedDraft?.pendingSchedules || []);
+  const [scheduleSearchQuery, setScheduleSearchQuery] = useState('');
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState({
+    scheduleType: 'PREVENTIVE',
+    frequency: 'MONTHLY',
+    priority: 'HIGH',
+    startDate: new Date().toISOString().split('T')[0],
+    triggerTime: '09:00',
+    prePlanToleranceDays: 1,
+    postPlanToleranceDays: 1,
+    notes: '',
+  });
+
+  useEffect(() => {
+    api.get('/checkpoints/master').then(res => {
+      if (Array.isArray(res.data)) {
+        setMasterCheckpoints(res.data);
+      }
+    }).catch(() => {});
+  }, []);
 
   const [formData, setFormData] = useState<any>(savedDraft?.formData || {
     company: '',
@@ -300,11 +370,35 @@ export function AddMachine() {
       api.get('/facilities'),
       api.get('/main-facilities'),
       api.get('/employees'),
+      api.get('/users').catch(() => ({ data: [] })),
       api.get('/machines/next-codes'),
       spareService.getAll(),
       supplierService.getAll(),
-    ]).then(([facRes, mainFacRes, empRes, codesRes, sparesRes, suppliersRes]) => {
-      setEmployees(empRes.data);
+    ]).then(([facRes, mainFacRes, empRes, usersRes, codesRes, sparesRes, suppliersRes]) => {
+      const rawUsers = Array.isArray(usersRes?.data) ? usersRes.data : [];
+      const rawEmps = Array.isArray(empRes?.data) ? empRes.data : [];
+      const enriched = rawEmps.map((emp: any) => {
+        const u = rawUsers.find((user: any) => 
+          user.employeeId === emp.id || 
+          (user.email && emp.officialEmail && user.email.toLowerCase() === emp.officialEmail.toLowerCase()) ||
+          (user.fullName && emp.fullName && user.fullName.toLowerCase() === emp.fullName.toLowerCase())
+        );
+        let role = emp.role;
+        if (!role && u) {
+          if (u.role === 'SUPER_ADMIN') {
+            role = 'Admin';
+          } else if (u.designation) {
+            role = u.designation;
+          } else if (u.role) {
+            role = u.role.replace(/_/g, ' ').toLowerCase();
+          }
+        }
+        return {
+          ...emp,
+          role: role || 'Staff',
+        };
+      });
+      setEmployees(enriched);
       if (sparesRes) {
         setCatalogSpares(sparesRes);
       }
@@ -624,6 +718,71 @@ export function AddMachine() {
         }
       }
 
+      if (pendingSpares && pendingSpares.length > 0) {
+        localStorage.setItem(`machine_${newMachineId}_spares`, JSON.stringify(pendingSpares));
+        for (const spare of pendingSpares) {
+          machineSpareSync.onSpareAddedToMachine(
+            { id: newMachineId, name: formData.name, location: formData.company },
+            spare
+          );
+        }
+      }
+
+      // 5. Add Pending Work Orders
+      for (const wo of pendingWorkOrders) {
+        try {
+          await api.post('/work-orders', {
+            machineId: newMachineId,
+            problemDescription: wo.problemDescription,
+            priority: wo.priority || 'MEDIUM',
+            triggerType: wo.triggerType || 'MANUAL',
+            assignedTechnicianId: wo.assignedTechnicianId ? Number(wo.assignedTechnicianId) : null,
+            estimatedStartDate: wo.estimatedStartDate || undefined,
+            estimatedEndDate: wo.estimatedEndDate || undefined,
+          });
+        } catch (woErr) {
+          console.warn('Failed to save pending work order', woErr);
+        }
+      }
+
+      // 6. Add Pending Checkpoints
+      for (const cp of pendingCheckpoints) {
+        try {
+          await api.post('/checkpoints', {
+            machineId: newMachineId,
+            checkpointType: cp.checkpointType || 'PREVENTIVE',
+            category: cp.category || 'General',
+            description: cp.description,
+            frequency: cp.frequency || 'MONTHLY',
+            standardValue: cp.standardValue || undefined,
+            unit: cp.unit || undefined,
+            minValue: cp.minValue ? Number(cp.minValue) : undefined,
+            maxValue: cp.maxValue ? Number(cp.maxValue) : undefined,
+          });
+        } catch (cpErr) {
+          console.warn('Failed to save pending checkpoint', cpErr);
+        }
+      }
+
+      // 7. Add Pending Schedules
+      for (const sch of pendingSchedules) {
+        try {
+          await api.post('/schedules', {
+            machineId: newMachineId,
+            scheduleType: sch.scheduleType || 'PREVENTIVE',
+            frequency: sch.frequency || 'MONTHLY',
+            priority: sch.priority || 'HIGH',
+            startDate: sch.startDate || new Date().toISOString(),
+            triggerTime: sch.triggerTime || '09:00',
+            prePlanToleranceDays: Number(sch.prePlanToleranceDays) || 1,
+            postPlanToleranceDays: Number(sch.postPlanToleranceDays) || 1,
+            notes: sch.notes || '',
+          });
+        } catch (schErr) {
+          console.warn('Failed to save pending schedule', schErr);
+        }
+      }
+
       sessionStorage.removeItem('add_machine_draft');
       toast.success('Machine saved successfully!');
 
@@ -639,17 +798,28 @@ export function AddMachine() {
       sessionStorage.removeItem('addMachineReturnUrl');
       sessionStorage.removeItem('addMachineReturnTab');
 
-      if (targetReturnUrl) {
-        navigate(targetReturnUrl, {
-          state: {
-            tab: targetReturnTab,
-            newMachine: machineRes.data || { ...payload, id: newMachineId },
-            newMachineId: newMachineId,
-          }
-        });
-      } else {
-        navigate('/machine-management');
-      }
+      const handleFinalRedirect = () => {
+        if (targetReturnUrl) {
+          navigate(targetReturnUrl, {
+            state: {
+              tab: targetReturnTab,
+              newMachine: machineRes.data || { ...payload, id: newMachineId },
+              newMachineId: newMachineId,
+            }
+          });
+        } else {
+          navigate('/machine-management');
+        }
+      };
+
+      setCreatedMachineForAccess({
+        id: newMachineId,
+        name: formData.name,
+        code: formData.machineCode,
+        category: formData.machineCategory,
+        redirectFn: handleFinalRedirect,
+      });
+      setIsAccessPromptOpen(true);
     } catch (err: any) {
       console.error('Failed to create machine', err);
       toast.error(err.response?.data?.message || 'Failed to save machine');
@@ -879,15 +1049,37 @@ export function AddMachine() {
   return (
     <div className="sm:px-4 pb-6 pt-0 w-full flex flex-col bg-white">
       {/* Header */}
-      <div className="flex items-center mb-4">
-        <button
-          type="button"
-          onClick={handleGoBack}
-          className="text-slate-700 hover:text-black mr-2.5 focus:outline-none flex items-center cursor-pointer"
-        >
-          <ArrowLeft size={20} className="stroke-[2.5]" />
-        </button>
-        <h1 className="text-xl font-bold text-slate-900">New Machine</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <div className="flex items-center">
+          <button
+            type="button"
+            onClick={handleGoBack}
+            className="text-slate-700 hover:text-black mr-2.5 focus:outline-none flex items-center cursor-pointer"
+            title="Go Back"
+          >
+            <ArrowLeft size={20} className="stroke-[2.5]" />
+          </button>
+          <h1 className="text-xl font-bold text-slate-900">Add Machine</h1>
+        </div>
+
+        {/* Top Actions */}
+        <div className="flex items-center gap-2.5">
+          <button 
+            type="button"
+            onClick={handleGoBack}
+            className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs transition-all shadow-xs cursor-pointer"
+          >
+            Back
+          </button>
+          <button 
+            type="button"
+            onClick={handleFinalSave} 
+            disabled={loading} 
+            className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-lg font-semibold text-xs transition-colors shadow-xs disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+          >
+            {loading ? 'Saving...' : 'Save Machine'}
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-5 items-start w-full">
@@ -941,7 +1133,7 @@ export function AddMachine() {
                 </div>
                 <div>
                   <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Maintenance Head</label>
-                  <CustomSelect name="maintenanceHead" value={formData.maintenanceHead} onChange={handleChange} placeholder="Select Head" options={employees.map(e => ({ label: `${e.designation || 'N/A'} - ${e.fullName}`, value: e.fullName }))} />
+                  <CustomSelect name="maintenanceHead" value={formData.maintenanceHead} onChange={handleChange} placeholder="Select Head" options={employees.map(e => ({ label: `${e.role || 'Staff'} - ${e.fullName}`, value: e.fullName }))} />
                 </div>
               </div>
 
@@ -1074,8 +1266,8 @@ export function AddMachine() {
                     className="w-full px-2.5 py-1 min-h-[32px] h-8 bg-white border border-slate-300 rounded-md text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 transition-all" 
                   />
                 </div>
-                <div><label className="block text-[11px] font-medium text-slate-600 mb-0.5">Select Head of Department<span className="text-red-500">*</span></label><CustomSelect name="headOfDepartment" value={formData.headOfDepartment} onChange={handleChange} options={employees.map(e => ({ label: `${e.designation || 'N/A'} - ${e.fullName}`, value: e.fullName }))} /></div>
-                <div><label className="block text-[11px] font-medium text-slate-600 mb-0.5">Machine Owner<span className="text-red-500">*</span></label><CustomSelect name="machineOwner" value={formData.machineOwner} onChange={handleChange} options={employees.map(e => ({ label: `${e.designation || 'N/A'} - ${e.fullName}`, value: e.fullName }))} /></div>
+                <div><label className="block text-[11px] font-medium text-slate-600 mb-0.5">Select Head of Department<span className="text-red-500">*</span></label><CustomSelect name="headOfDepartment" value={formData.headOfDepartment} onChange={handleChange} options={employees.map(e => ({ label: `${e.role || 'Staff'} - ${e.fullName}`, value: e.fullName }))} /></div>
+                <div><label className="block text-[11px] font-medium text-slate-600 mb-0.5">Machine Owner<span className="text-red-500">*</span></label><CustomSelect name="machineOwner" value={formData.machineOwner} onChange={handleChange} options={employees.map(e => ({ label: `${e.role || 'Staff'} - ${e.fullName}`, value: e.fullName }))} /></div>
                 <div className="col-span-1 md:col-span-4"><label className="block text-[11px] font-medium text-slate-600 mb-0.5">Notes</label><textarea name="notes" value={formData.notes} onChange={handleChange} className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-md text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500/20 focus:border-blue-600 transition-all resize-none h-11"></textarea></div>
               </div>
             </div>
@@ -1540,20 +1732,380 @@ export function AddMachine() {
               </div>
             </div>
           )}
+
+          {activeTab === 'WO' && (
+            <div className="space-y-6">
+              {/* Header and Actions */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-900">Work Orders (WO)</h3>
+                    <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      {pendingWorkOrders.length} Planned
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Assign breakdown tasks, preventive work orders, or service requests for this machine
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={woSearchQuery}
+                      onChange={(e) => setWoSearchQuery(e.target.value)}
+                      placeholder="Search work orders..."
+                      className="pl-9 pr-3.5 py-1.5 min-h-[34px] bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 w-52"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWoForm({
+                        problemDescription: '',
+                        priority: 'MEDIUM',
+                        triggerType: 'MANUAL',
+                        assignedTechnicianId: '',
+                        estimatedStartDate: '',
+                        estimatedEndDate: '',
+                      });
+                      setIsWoModalOpen(true);
+                    }}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 min-h-[34px] bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer whitespace-nowrap"
+                  >
+                    <Plus size={15} />
+                    <span>Create Work Order</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="overflow-x-auto w-full border border-slate-200 rounded-xl shadow-2xs">
+                <table className="w-full text-left whitespace-nowrap text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                    <tr>
+                      <th className="px-4 py-3 w-12">No.</th>
+                      <th className="px-4 py-3">Problem Description</th>
+                      <th className="px-4 py-3">Priority</th>
+                      <th className="px-4 py-3">Trigger Type</th>
+                      <th className="px-4 py-3">Assigned Technician</th>
+                      <th className="px-4 py-3">Target Dates</th>
+                      <th className="px-4 py-3 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {pendingWorkOrders.filter(wo =>
+                      (wo.problemDescription || '').toLowerCase().includes(woSearchQuery.toLowerCase()) ||
+                      (wo.triggerType || '').toLowerCase().includes(woSearchQuery.toLowerCase())
+                    ).length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-12 text-center text-slate-500 bg-white">
+                          <Wrench className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                          <p className="font-semibold text-slate-700">No Work Orders Added</p>
+                          <p className="text-xs text-slate-400 mt-0.5">Click &ldquo;Create Work Order&rdquo; to schedule a job for this machine</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      pendingWorkOrders
+                        .filter(wo =>
+                          (wo.problemDescription || '').toLowerCase().includes(woSearchQuery.toLowerCase()) ||
+                          (wo.triggerType || '').toLowerCase().includes(woSearchQuery.toLowerCase())
+                        )
+                        .map((wo, idx) => {
+                          const tech = employees.find(e => e.id?.toString() === wo.assignedTechnicianId?.toString());
+                          const priorityColors: Record<string, string> = {
+                            CRITICAL: 'bg-red-50 text-red-700 border-red-200',
+                            HIGH: 'bg-orange-50 text-orange-700 border-orange-200',
+                            MEDIUM: 'bg-blue-50 text-blue-700 border-blue-200',
+                            LOW: 'bg-slate-100 text-slate-700 border-slate-200',
+                          };
+                          return (
+                            <tr key={wo.id} className="hover:bg-slate-50/60 transition-colors">
+                              <td className="px-4 py-3 font-medium text-slate-500">{idx + 1}</td>
+                              <td className="px-4 py-3 font-semibold text-slate-800 max-w-[280px] truncate">
+                                {wo.problemDescription}
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2 py-0.5 rounded text-[11px] font-bold border ${priorityColors[wo.priority] || priorityColors.MEDIUM}`}>
+                                  {wo.priority}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 font-medium text-slate-600">{wo.triggerType}</td>
+                              <td className="px-4 py-3 text-slate-700 font-medium">{tech ? tech.fullName : 'Unassigned'}</td>
+                              <td className="px-4 py-3 text-slate-500 font-mono text-[11px]">
+                                {wo.estimatedStartDate || 'Immediate'} → {wo.estimatedEndDate || 'Open'}
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => setPendingWorkOrders(prev => prev.filter(item => item.id !== wo.id))}
+                                  className="p-1 text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
+                                  title="Remove"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'Checklist' && (
+            <div className="space-y-6">
+              {/* Header and Actions */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-900">Machine Checklist & Checkpoints</h3>
+                    <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      {pendingCheckpoints.length} Checkpoints
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Configure routine inspections, safety interlocks, and sensor verification parameters
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={checkpointSearchQuery}
+                      onChange={(e) => setCheckpointSearchQuery(e.target.value)}
+                      placeholder="Search checkpoints..."
+                      className="pl-9 pr-3.5 py-1.5 min-h-[34px] bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 w-52"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCheckpointForm({
+                        checkpointType: 'PREVENTIVE',
+                        category: 'Safety & Mechanical',
+                        description: '',
+                        frequency: 'MONTHLY',
+                        standardValue: '',
+                        unit: '',
+                        minValue: '',
+                        maxValue: '',
+                      });
+                      setSelectedMasterCheckpointId('');
+                      setCheckpointTabMode('catalog');
+                      setIsCheckpointModalOpen(true);
+                    }}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 min-h-[34px] bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer whitespace-nowrap"
+                  >
+                    <Plus size={15} />
+                    <span>Add Checkpoint</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="overflow-x-auto w-full border border-slate-200 rounded-xl shadow-2xs">
+                <table className="w-full text-left whitespace-nowrap text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                    <tr>
+                      <th className="px-4 py-3 w-12">No.</th>
+                      <th className="px-4 py-3">Code</th>
+                      <th className="px-4 py-3">Type</th>
+                      <th className="px-4 py-3">Category</th>
+                      <th className="px-4 py-3">Description</th>
+                      <th className="px-4 py-3">Frequency</th>
+                      <th className="px-4 py-3">Standard / Range</th>
+                      <th className="px-4 py-3 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {pendingCheckpoints.filter(cp =>
+                      (cp.description || '').toLowerCase().includes(checkpointSearchQuery.toLowerCase()) ||
+                      (cp.category || '').toLowerCase().includes(checkpointSearchQuery.toLowerCase()) ||
+                      (cp.code || '').toLowerCase().includes(checkpointSearchQuery.toLowerCase())
+                    ).length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-12 text-center text-slate-500 bg-white">
+                          <CheckSquare className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                          <p className="font-semibold text-slate-700">No Checkpoints Configured</p>
+                          <p className="text-xs text-slate-400 mt-0.5">Add standard checklist points from catalog or create a custom checkpoint</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      pendingCheckpoints
+                        .filter(cp =>
+                          (cp.description || '').toLowerCase().includes(checkpointSearchQuery.toLowerCase()) ||
+                          (cp.category || '').toLowerCase().includes(checkpointSearchQuery.toLowerCase()) ||
+                          (cp.code || '').toLowerCase().includes(checkpointSearchQuery.toLowerCase())
+                        )
+                        .map((cp, idx) => (
+                          <tr key={cp.id} className="hover:bg-slate-50/60 transition-colors">
+                            <td className="px-4 py-3 font-medium text-slate-500">{idx + 1}</td>
+                            <td className="px-4 py-3 font-mono font-bold text-slate-700">{cp.code || `CHK-${idx + 1}`}</td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                cp.checkpointType === 'PREVENTIVE' 
+                                  ? 'bg-blue-50 text-blue-700 border border-blue-200' 
+                                  : 'bg-purple-50 text-purple-700 border border-purple-200'
+                              }`}>
+                                {cp.checkpointType}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-slate-600 font-medium">{cp.category || 'General'}</td>
+                            <td className="px-4 py-3 font-semibold text-slate-800 max-w-[300px] truncate">{cp.description}</td>
+                            <td className="px-4 py-3 text-slate-600 font-medium">{cp.frequency}</td>
+                            <td className="px-4 py-3 text-slate-700">
+                              {cp.standardValue || (cp.minValue !== undefined && cp.maxValue !== undefined ? `${cp.minValue} - ${cp.maxValue} ${cp.unit || ''}` : '-')}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <button
+                                type="button"
+                                onClick={() => setPendingCheckpoints(prev => prev.filter(item => item.id !== cp.id))}
+                                className="p-1 text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
+                                title="Remove"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'Schedule Maintenance' && (
+            <div className="space-y-6">
+              {/* Header and Actions */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-900">Schedule Maintenance</h3>
+                    <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      {pendingSchedules.length} Active Schedules
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Automated recurring maintenance cycles, pre/post tolerance limits, and auto-generated work orders
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={scheduleSearchQuery}
+                      onChange={(e) => setScheduleSearchQuery(e.target.value)}
+                      placeholder="Search schedules..."
+                      className="pl-9 pr-3.5 py-1.5 min-h-[34px] bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 w-52"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setScheduleForm({
+                        scheduleType: 'PREVENTIVE',
+                        frequency: 'MONTHLY',
+                        priority: 'HIGH',
+                        startDate: new Date().toISOString().split('T')[0],
+                        triggerTime: '09:00',
+                        prePlanToleranceDays: 1,
+                        postPlanToleranceDays: 1,
+                        notes: '',
+                      });
+                      setIsScheduleModalOpen(true);
+                    }}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 min-h-[34px] bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer whitespace-nowrap"
+                  >
+                    <Plus size={15} />
+                    <span>Create Schedule</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="overflow-x-auto w-full border border-slate-200 rounded-xl shadow-2xs">
+                <table className="w-full text-left whitespace-nowrap text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                    <tr>
+                      <th className="px-4 py-3 w-12">No.</th>
+                      <th className="px-4 py-3">Schedule Code</th>
+                      <th className="px-4 py-3">Type</th>
+                      <th className="px-4 py-3">Frequency</th>
+                      <th className="px-4 py-3">Priority</th>
+                      <th className="px-4 py-3">Start Date</th>
+                      <th className="px-4 py-3">Tolerance (Pre/Post)</th>
+                      <th className="px-4 py-3">Trigger Time</th>
+                      <th className="px-4 py-3 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {pendingSchedules.filter(sch =>
+                      (sch.scheduleCode || '').toLowerCase().includes(scheduleSearchQuery.toLowerCase()) ||
+                      (sch.scheduleType || '').toLowerCase().includes(scheduleSearchQuery.toLowerCase()) ||
+                      (sch.notes || '').toLowerCase().includes(scheduleSearchQuery.toLowerCase())
+                    ).length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="px-4 py-12 text-center text-slate-500 bg-white">
+                          <Clock className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                          <p className="font-semibold text-slate-700">No Schedules Configured</p>
+                          <p className="text-xs text-slate-400 mt-0.5">Set up preventive maintenance schedules to automatically generate work orders</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      pendingSchedules
+                        .filter(sch =>
+                          (sch.scheduleCode || '').toLowerCase().includes(scheduleSearchQuery.toLowerCase()) ||
+                          (sch.scheduleType || '').toLowerCase().includes(scheduleSearchQuery.toLowerCase()) ||
+                          (sch.notes || '').toLowerCase().includes(scheduleSearchQuery.toLowerCase())
+                        )
+                        .map((sch, idx) => (
+                          <tr key={sch.id} className="hover:bg-slate-50/60 transition-colors">
+                            <td className="px-4 py-3 font-medium text-slate-500">{idx + 1}</td>
+                            <td className="px-4 py-3 font-mono font-bold text-slate-800">{sch.scheduleCode || `SCH-DRAFT-${idx + 1}`}</td>
+                            <td className="px-4 py-3">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                {sch.scheduleType}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 font-medium text-slate-700">{sch.frequency}</td>
+                            <td className="px-4 py-3">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                {sch.priority}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-slate-600 font-mono text-[11px]">{sch.startDate || 'Immediate'}</td>
+                            <td className="px-4 py-3 text-slate-600 font-medium">±{sch.prePlanToleranceDays || 1} Days</td>
+                            <td className="px-4 py-3 text-slate-600 font-mono text-[11px]">{sch.triggerTime || '09:00'}</td>
+                            <td className="px-4 py-3 text-center">
+                              <button
+                                type="button"
+                                onClick={() => setPendingSchedules(prev => prev.filter(item => item.id !== sch.id))}
+                                className="p-1 text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
+                                title="Remove"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-      </div>
-
-      {/* Save Button */}
-      <div className="flex justify-end gap-3 w-full pt-3.5">
-        <button 
-          type="button"
-          onClick={handleFinalSave} 
-          disabled={loading} 
-          className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-md font-semibold text-xs transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
-        >
-          {loading ? 'Saving...' : 'Save Machine'}
-        </button>
       </div>
 
       {/* Modals */}
@@ -1638,7 +2190,7 @@ export function AddMachine() {
                     onClick={handleNavigateToCreateSpare}
                     className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 hover:underline cursor-pointer"
                   >
-                    <Plus size={13} className="stroke-[2.5]" /> Add New Spare
+                    <Plus size={13} className="stroke-[2.5]" /> Add Spare
                   </button>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1679,7 +2231,7 @@ export function AddMachine() {
                   <button
                     type="button"
                     onClick={handleNavigateToCreateSpare}
-                    title="Add new spare in Spares Management"
+                    title="Add spare in Spares Management"
                     className="h-[46px] px-3.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-xl text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0"
                   >
                     <Plus size={15} className="stroke-[3]" /> Add
@@ -2088,6 +2640,602 @@ export function AddMachine() {
             </div>
           </div>
         </div>
+      )}
+      {/* Create Work Order Modal */}
+      {isWoModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Wrench className="w-5 h-5 text-emerald-600" />
+                <h3 className="text-base font-bold text-slate-900">Create Work Order (WO)</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsWoModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4 py-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Problem Description / Work Scope <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={woForm.problemDescription}
+                  onChange={(e) => setWoForm(prev => ({ ...prev, problemDescription: e.target.value }))}
+                  placeholder="Describe machine issue or preventive task instructions..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 h-20 resize-none text-slate-800"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Priority</label>
+                  <CustomSelect
+                    name="priority"
+                    value={woForm.priority}
+                    onChange={(e) => setWoForm(prev => ({ ...prev, priority: e.target.value }))}
+                    options={[
+                      { label: 'Low', value: 'LOW' },
+                      { label: 'Medium', value: 'MEDIUM' },
+                      { label: 'High', value: 'HIGH' },
+                      { label: 'Critical', value: 'CRITICAL' },
+                    ]}
+                    placeholder="Select Priority"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Trigger Type</label>
+                  <CustomSelect
+                    name="triggerType"
+                    value={woForm.triggerType}
+                    onChange={(e) => setWoForm(prev => ({ ...prev, triggerType: e.target.value }))}
+                    options={[
+                      { label: 'Manual Request', value: 'MANUAL' },
+                      { label: 'Breakdown / Fault', value: 'BREAKDOWN' },
+                      { label: 'Routine Preventive', value: 'PREVENTIVE' },
+                      { label: 'Sensor Alert', value: 'IOT_ALERT' },
+                    ]}
+                    placeholder="Select Type"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Assign Technician / Engineer</label>
+                <CustomSelect
+                  name="assignedTechnicianId"
+                  value={woForm.assignedTechnicianId}
+                  onChange={(e) => setWoForm(prev => ({ ...prev, assignedTechnicianId: e.target.value }))}
+                  options={employees.map(emp => ({
+                    label: `${emp.fullName} (${emp.designation || emp.role || 'Tech'})`,
+                    value: emp.id.toString(),
+                  }))}
+                  placeholder="Select Technician (Optional)"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Target Start Date</label>
+                  <input
+                    type="date"
+                    value={woForm.estimatedStartDate}
+                    onChange={(e) => setWoForm(prev => ({ ...prev, estimatedStartDate: e.target.value }))}
+                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Target End Date</label>
+                  <input
+                    type="date"
+                    value={woForm.estimatedEndDate}
+                    onChange={(e) => setWoForm(prev => ({ ...prev, estimatedEndDate: e.target.value }))}
+                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-800"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setIsWoModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!woForm.problemDescription.trim()) {
+                    toast.error('Please enter a problem description');
+                    return;
+                  }
+                  setPendingWorkOrders(prev => [
+                    ...prev,
+                    {
+                      id: Date.now(),
+                      problemDescription: woForm.problemDescription.trim(),
+                      priority: woForm.priority,
+                      triggerType: woForm.triggerType,
+                      assignedTechnicianId: woForm.assignedTechnicianId,
+                      estimatedStartDate: woForm.estimatedStartDate,
+                      estimatedEndDate: woForm.estimatedEndDate,
+                    }
+                  ]);
+                  setIsWoModalOpen(false);
+                  toast.success('Work Order added to pending list');
+                }}
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer"
+              >
+                Add Work Order
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Checkpoint Modal */}
+      {isCheckpointModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-xl p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <CheckSquare className="w-5 h-5 text-emerald-600" />
+                <h3 className="text-base font-bold text-slate-900">Add Machine Checkpoint</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCheckpointModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Segmented Mode Switcher */}
+            <div className="flex bg-slate-100 p-0.5 rounded-lg my-4">
+              <button
+                type="button"
+                onClick={() => setCheckpointTabMode('catalog')}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                  checkpointTabMode === 'catalog'
+                    ? 'bg-white text-emerald-700 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Select From Master Catalog
+              </button>
+              <button
+                type="button"
+                onClick={() => setCheckpointTabMode('custom')}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                  checkpointTabMode === 'custom'
+                    ? 'bg-white text-emerald-700 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Define Custom Checkpoint
+              </button>
+            </div>
+
+            {checkpointTabMode === 'catalog' ? (
+              <div className="space-y-4 py-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Choose Standard Checkpoint from Catalog
+                  </label>
+                  <CustomSelect
+                    name="selectedMasterCheckpointId"
+                    value={selectedMasterCheckpointId}
+                    onChange={(e) => setSelectedMasterCheckpointId(e.target.value)}
+                    options={masterCheckpoints.map(cp => ({
+                      label: `${cp.code} • [${cp.checkpointType}] ${cp.description}`,
+                      value: cp.id.toString(),
+                    }))}
+                    placeholder="Select a master checkpoint..."
+                  />
+                </div>
+
+                {selectedMasterCheckpointId && (() => {
+                  const selectedCp = masterCheckpoints.find(c => c.id.toString() === selectedMasterCheckpointId);
+                  if (!selectedCp) return null;
+                  return (
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono font-bold text-slate-700">{selectedCp.code}</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                          {selectedCp.checkpointType}
+                        </span>
+                      </div>
+                      <p className="font-semibold text-slate-900">{selectedCp.description}</p>
+                      <div className="grid grid-cols-2 gap-2 text-slate-600 text-[11px] pt-1">
+                        <div>Frequency: <span className="font-medium text-slate-800">{selectedCp.frequency}</span></div>
+                        <div>Standard Value: <span className="font-medium text-slate-800">{selectedCp.standardValue || '-'}</span></div>
+                        {selectedCp.minValue !== undefined && selectedCp.maxValue !== undefined && (
+                          <div className="col-span-2">Tolerance: <span className="font-medium text-slate-800">{selectedCp.minValue} to {selectedCp.maxValue} {selectedCp.unit || ''}</span></div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            ) : (
+              <div className="space-y-3.5 py-2">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Checkpoint Type</label>
+                    <CustomSelect
+                      name="checkpointType"
+                      value={checkpointForm.checkpointType}
+                      onChange={(e) => setCheckpointForm(prev => ({ ...prev, checkpointType: e.target.value }))}
+                      options={[
+                        { label: 'Preventive (Pass/Fail, Visual)', value: 'PREVENTIVE' },
+                        { label: 'Predictive (Quantitative, Limits)', value: 'PREDICTIVE' },
+                        { label: 'Inspection / Sensory', value: 'INSPECTION' },
+                      ]}
+                      placeholder="Select Type"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Category</label>
+                    <input
+                      type="text"
+                      value={checkpointForm.category}
+                      onChange={(e) => setCheckpointForm(prev => ({ ...prev, category: e.target.value }))}
+                      placeholder="e.g. Safety & Interlocks"
+                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-800"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Checkpoint Description <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={checkpointForm.description}
+                    onChange={(e) => setCheckpointForm(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Specific instruction or inspection point..."
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 h-16 resize-none text-slate-800"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Frequency</label>
+                    <CustomSelect
+                      name="frequency"
+                      value={checkpointForm.frequency}
+                      onChange={(e) => setCheckpointForm(prev => ({ ...prev, frequency: e.target.value }))}
+                      options={[
+                        { label: 'Daily', value: 'DAILY' },
+                        { label: 'Weekly', value: 'WEEKLY' },
+                        { label: 'Bimonthly', value: 'BIMONTHLY' },
+                        { label: 'Monthly', value: 'MONTHLY' },
+                        { label: 'Quarterly', value: 'QUARTERLY' },
+                        { label: 'Half Yearly', value: 'HALF_YEARLY' },
+                        { label: 'Yearly', value: 'YEARLY' },
+                      ]}
+                      placeholder="Frequency"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Standard / Expected Value</label>
+                    <input
+                      type="text"
+                      value={checkpointForm.standardValue}
+                      onChange={(e) => setCheckpointForm(prev => ({ ...prev, standardValue: e.target.value }))}
+                      placeholder="e.g. Functional / Pass"
+                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-800"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Min Value</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={checkpointForm.minValue}
+                      onChange={(e) => setCheckpointForm(prev => ({ ...prev, minValue: e.target.value }))}
+                      placeholder="Optional"
+                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Max Value</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={checkpointForm.maxValue}
+                      onChange={(e) => setCheckpointForm(prev => ({ ...prev, maxValue: e.target.value }))}
+                      placeholder="Optional"
+                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Unit</label>
+                    <input
+                      type="text"
+                      value={checkpointForm.unit}
+                      onChange={(e) => setCheckpointForm(prev => ({ ...prev, unit: e.target.value }))}
+                      placeholder="e.g. bar, mm/s"
+                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-800"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setIsCheckpointModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (checkpointTabMode === 'catalog') {
+                    if (!selectedMasterCheckpointId) {
+                      toast.error('Please select a checkpoint from the catalog');
+                      return;
+                    }
+                    const selected = masterCheckpoints.find(c => c.id.toString() === selectedMasterCheckpointId);
+                    if (selected) {
+                      setPendingCheckpoints(prev => [
+                        ...prev,
+                        {
+                          id: Date.now(),
+                          code: selected.code,
+                          checkpointType: selected.checkpointType,
+                          category: selected.category,
+                          description: selected.description,
+                          frequency: selected.frequency,
+                          standardValue: selected.standardValue,
+                          unit: selected.unit,
+                          minValue: selected.minValue,
+                          maxValue: selected.maxValue,
+                        }
+                      ]);
+                      setIsCheckpointModalOpen(false);
+                      toast.success('Catalog checkpoint added');
+                    }
+                  } else {
+                    if (!checkpointForm.description.trim()) {
+                      toast.error('Please enter a description');
+                      return;
+                    }
+                    setPendingCheckpoints(prev => [
+                      ...prev,
+                      {
+                        id: Date.now(),
+                        code: `CHK-CUST-${prev.length + 1}`,
+                        checkpointType: checkpointForm.checkpointType,
+                        category: checkpointForm.category || 'General',
+                        description: checkpointForm.description.trim(),
+                        frequency: checkpointForm.frequency,
+                        standardValue: checkpointForm.standardValue,
+                        unit: checkpointForm.unit,
+                        minValue: checkpointForm.minValue,
+                        maxValue: checkpointForm.maxValue,
+                      }
+                    ]);
+                    setIsCheckpointModalOpen(false);
+                    toast.success('Custom checkpoint added');
+                  }
+                }}
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer"
+              >
+                Add Checkpoint
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Maintenance Schedule Modal */}
+      {isScheduleModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-emerald-600" />
+                <h3 className="text-base font-bold text-slate-900">Add Maintenance Schedule</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsScheduleModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Schedule Type</label>
+                  <CustomSelect
+                    name="scheduleType"
+                    value={scheduleForm.scheduleType}
+                    onChange={(e) => setScheduleForm(prev => ({ ...prev, scheduleType: e.target.value }))}
+                    options={[
+                      { label: 'Preventive Servicing', value: 'PREVENTIVE' },
+                      { label: 'Predictive Monitoring', value: 'PREDICTIVE' },
+                      { label: 'Corrective Overhaul', value: 'CORRECTIVE' },
+                    ]}
+                    placeholder="Type"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Frequency</label>
+                  <CustomSelect
+                    name="frequency"
+                    value={scheduleForm.frequency}
+                    onChange={(e) => setScheduleForm(prev => ({ ...prev, frequency: e.target.value }))}
+                    options={[
+                      { label: 'Daily', value: 'DAILY' },
+                      { label: 'Weekly', value: 'WEEKLY' },
+                      { label: 'Bimonthly', value: 'BIMONTHLY' },
+                      { label: 'Monthly', value: 'MONTHLY' },
+                      { label: 'Quarterly', value: 'QUARTERLY' },
+                      { label: 'Half Yearly', value: 'HALF_YEARLY' },
+                      { label: 'Yearly', value: 'YEARLY' },
+                    ]}
+                    placeholder="Frequency"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Priority</label>
+                  <CustomSelect
+                    name="priority"
+                    value={scheduleForm.priority}
+                    onChange={(e) => setScheduleForm(prev => ({ ...prev, priority: e.target.value }))}
+                    options={[
+                      { label: 'Low', value: 'LOW' },
+                      { label: 'Medium', value: 'MEDIUM' },
+                      { label: 'High', value: 'HIGH' },
+                      { label: 'Critical', value: 'CRITICAL' },
+                    ]}
+                    placeholder="Priority"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Trigger Time</label>
+                  <input
+                    type="time"
+                    value={scheduleForm.triggerTime}
+                    onChange={(e) => setScheduleForm(prev => ({ ...prev, triggerTime: e.target.value }))}
+                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-800"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Start Date</label>
+                  <input
+                    type="date"
+                    value={scheduleForm.startDate}
+                    onChange={(e) => setScheduleForm(prev => ({ ...prev, startDate: e.target.value }))}
+                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Tolerance (± Days)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="30"
+                    value={scheduleForm.prePlanToleranceDays}
+                    onChange={(e) => setScheduleForm(prev => ({
+                      ...prev,
+                      prePlanToleranceDays: Number(e.target.value),
+                      postPlanToleranceDays: Number(e.target.value),
+                    }))}
+                    placeholder="1"
+                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-800"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Notes / Instructions</label>
+                <textarea
+                  value={scheduleForm.notes}
+                  onChange={(e) => setScheduleForm(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Special instructions, safety precautions..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 h-16 resize-none text-slate-800"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setIsScheduleModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingSchedules(prev => [
+                    ...prev,
+                    {
+                      id: Date.now(),
+                      scheduleCode: `SCH-2026-${(prev.length + 1).toString().padStart(4, '0')}`,
+                      scheduleType: scheduleForm.scheduleType,
+                      frequency: scheduleForm.frequency,
+                      priority: scheduleForm.priority,
+                      startDate: scheduleForm.startDate,
+                      triggerTime: scheduleForm.triggerTime,
+                      prePlanToleranceDays: scheduleForm.prePlanToleranceDays,
+                      postPlanToleranceDays: scheduleForm.postPlanToleranceDays,
+                      notes: scheduleForm.notes,
+                    }
+                  ]);
+                  setIsScheduleModalOpen(false);
+                  toast.success('Maintenance schedule added');
+                }}
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer"
+              >
+                Add Schedule
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {createdMachineForAccess && (
+        <>
+          <GiveAccessPromptModal
+            isOpen={isAccessPromptOpen}
+            targetType="machine"
+            targetName={createdMachineForAccess.name}
+            targetCode={createdMachineForAccess.code}
+            onGiveAccess={() => {
+              setIsAccessPromptOpen(false);
+              setIsGiveAccessModalOpen(true);
+            }}
+            onSkip={() => {
+              setIsAccessPromptOpen(false);
+              createdMachineForAccess.redirectFn();
+            }}
+          />
+
+          <GiveAccessModal
+            isOpen={isGiveAccessModalOpen}
+            onClose={() => {
+              setIsGiveAccessModalOpen(false);
+              createdMachineForAccess.redirectFn();
+            }}
+            targetType="machine"
+            targetId={createdMachineForAccess.id}
+            targetName={createdMachineForAccess.name}
+            targetCode={createdMachineForAccess.code}
+            targetCategory={createdMachineForAccess.category}
+            onSuccess={() => {
+              createdMachineForAccess.redirectFn();
+            }}
+          />
+        </>
       )}
     </div>
   );

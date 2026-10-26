@@ -8,9 +8,23 @@ export class WorkOrdersService {
 
   private async generateNextWONumber(): Promise<string> {
     const year = new Date().getFullYear();
-    const count = await this.prisma.workOrder.count();
-    const nextSeq = (count + 1).toString().padStart(4, '0');
-    return `WO-${year}-${nextSeq}`;
+    const prefix = `WO-${year}-`;
+    const lastWO = await this.prisma.workOrder.findFirst({
+      where: { woNumber: { startsWith: prefix } },
+      orderBy: { woNumber: 'desc' },
+      select: { woNumber: true },
+    });
+    let nextNum = 1;
+    if (lastWO?.woNumber) {
+      const match = lastWO.woNumber.match(/WO-\d{4}-(\d+)/);
+      if (match && match[1]) {
+        nextNum = parseInt(match[1], 10) + 1;
+      }
+    }
+    while (await this.prisma.workOrder.findUnique({ where: { woNumber: `WO-${year}-${nextNum.toString().padStart(4, '0')}` } })) {
+      nextNum++;
+    }
+    return `WO-${year}-${nextNum.toString().padStart(4, '0')}`;
   }
 
   async createWorkOrder(dto: {
@@ -18,6 +32,7 @@ export class WorkOrdersService {
     problemDescription: string;
     priority?: WorkOrderPriority;
     triggerType?: string;
+    assignedTechnicianId?: number | null;
     mediaFiles?: { fileUrl: string; fileName: string; fileType: string }[];
   }, user?: any) {
     if (!dto.machineId) {
@@ -47,6 +62,7 @@ export class WorkOrdersService {
         priority: dto.priority || WorkOrderPriority.MEDIUM,
         triggerType: dto.triggerType || 'MANUAL',
         status: WorkOrderStatus.PENDING_APPROVAL,
+        assignedTechnicianId: dto.assignedTechnicianId ? Number(dto.assignedTechnicianId) : null,
         createdById: user?.userId ? Number(user.userId) : null,
         creatorName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username : 'System User',
         creatorEmail: user?.email || 'user@gmark.com',
@@ -71,6 +87,7 @@ export class WorkOrdersService {
             building: true,
           },
         },
+        assignedTechnician: true,
         media: true,
         createdBy: true,
       },
@@ -234,6 +251,20 @@ export class WorkOrdersService {
       },
     });
 
+    return updated;
+  }
+
+  async assignTechnician(id: number, technicianId: number | null) {
+    const updated = await this.prisma.workOrder.update({
+      where: { id: Number(id) },
+      data: {
+        assignedTechnicianId: technicianId ? Number(technicianId) : null,
+      },
+      include: {
+        machine: true,
+        assignedTechnician: true,
+      },
+    });
     return updated;
   }
 

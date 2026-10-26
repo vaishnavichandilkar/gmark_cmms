@@ -63,6 +63,8 @@ describe('SchedulesService Automation Tests', () => {
       workOrder: {
         count: jest.fn(),
         create: jest.fn(),
+        findFirst: jest.fn(),
+        findUnique: jest.fn(),
       },
     };
 
@@ -358,6 +360,8 @@ describe('SchedulesService Automation Tests', () => {
       };
       prisma.maintenanceSchedule.findUnique.mockResolvedValue(schedule);
       prisma.workOrder.count.mockResolvedValue(4);
+      prisma.workOrder.findFirst.mockResolvedValue({ woNumber: 'WO-2026-0004' });
+      prisma.workOrder.findUnique.mockResolvedValue(null);
       prisma.workOrder.create.mockResolvedValue({ id: 101, woNumber: 'WO-2026-0005' });
       prisma.maintenanceSchedule.update.mockResolvedValue(schedule);
       prisma.maintenanceScheduleLog.create.mockResolvedValue({ id: 1 });

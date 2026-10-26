@@ -49,4 +49,17 @@ export class FacilitiesController {
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.facilitiesService.remove(id);
   }
+
+  @Get(':id/users')
+  getFacilityUsers(@Param('id', ParseIntPipe) id: number) {
+    return this.facilitiesService.getFacilityUsers(id);
+  }
+
+  @Post(':id/users')
+  assignFacilityUsers(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { userIds: number[] }
+  ) {
+    return this.facilitiesService.assignFacilityUsers(id, body?.userIds || []);
+  }
 }

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { AssetTree } from '../../../components/4m/AssetTree';
+import { AssetTree, canDragNode } from '../../../components/4m/AssetTree';
 import type { TreeNodeData } from '../../../components/4m/AssetTree';
 import { AssetDetails } from '../../../components/4m/AssetDetails';
+import { MoveAssetModal } from '../../../components/4m/MoveAssetModal';
+import { GiveAccessModal } from '../../../components/4m/GiveAccessModal';
 import { api } from '../../../lib/api';
 import { Skeleton } from '../../../components/shared/ui/Skeleton';
-import { X, ArrowRight, FolderInput, Loader2, AlertCircle, Building2, Building, Cpu } from 'lucide-react';
+import { X, ArrowRight, FolderInput, Loader2, AlertCircle, Building2, Building, Cpu, CheckCircle2, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../store';
@@ -21,6 +23,42 @@ export function AssetsManagement() {
   const [loading, setLoading] = useState(true);
   const [pendingMove, setPendingMove] = useState<{ source: TreeNodeData; target: TreeNodeData } | null>(null);
   const [isMoving, setIsMoving] = useState(false);
+  const [moveModalNode, setMoveModalNode] = useState<TreeNodeData | null>(null);
+  const [giveAccessTarget, setGiveAccessTarget] = useState<{
+    id: number | string;
+    name: string;
+    code?: string;
+    category?: string;
+    type: 'facility' | 'machine' | 'mainFacility';
+  } | null>(null);
+
+  const handleOpenGiveAccess = (node: TreeNodeData) => {
+    const raw = node.originalData || {};
+    let targetType: 'facility' | 'machine' | 'mainFacility' = 'facility';
+    let targetId: number | string = raw.id || node.id;
+    let targetName = node.name;
+    let targetCode = raw.machineCode || raw.facilityCode || raw.mainFacilityCode || raw.code || '';
+    let targetCategory = raw.category || raw.machineCategory || '';
+
+    if (node.type === 'device') {
+      targetType = 'machine';
+      targetId = raw.id || node.id;
+    } else if (node.type === 'mainFacility' || node.type === 'society') {
+      targetType = 'mainFacility';
+      targetId = raw.id || node.id;
+    } else {
+      targetType = 'facility';
+      targetId = raw.id || node.id;
+    }
+
+    setGiveAccessTarget({
+      id: targetId,
+      name: targetName,
+      code: targetCode,
+      category: targetCategory,
+      type: targetType,
+    });
+  };
 
   const canManageAssets = ['SUPER_ADMIN', 'SOCIETY_ADMIN', 'BUILDING_ADMIN'].includes(user?.role as string);
 
@@ -269,6 +307,20 @@ export function AssetsManagement() {
         }
       });
 
+      // Attach direct Root Machines to Main Facilities (if machine has no sub-facility)
+      mainFacNodes.forEach((mfNode) => {
+        rootMachines.forEach((macNode) => {
+          if (!macNode.originalData.facilityId && !macNode.originalData.buildingId) {
+            const mfIdStr = String(mfNode.originalData.id);
+            if (macNode.originalData.company === mfIdStr || macNode.originalData.company === mfNode.originalData.mainFacilityName) {
+              if (!mfNode.children!.some(c => c.id === macNode.id)) {
+                mfNode.children!.push(macNode);
+              }
+            }
+          }
+        });
+      });
+
       // Add main facilities to tree
       finalTree.push(...mainFacNodes);
 
@@ -315,13 +367,17 @@ export function AssetsManagement() {
       // 1. Moving Machine / Device
       if (source.type === 'device') {
         const machineId = source.originalData.id;
-        let targetType: 'facility' | 'building' | 'machine' | 'device';
+        let targetType: 'facility' | 'mainFacility' | 'building' | 'society' | 'machine' | 'device';
         const targetId = target.originalData.id;
 
         if (target.type === 'facility') {
           targetType = 'facility';
+        } else if (target.type === 'mainFacility') {
+          targetType = 'mainFacility';
         } else if (target.type === 'building') {
           targetType = 'building';
+        } else if (target.type === 'society') {
+          targetType = 'society';
         } else if (target.type === 'device') {
           targetType = 'machine';
         } else {
@@ -331,7 +387,7 @@ export function AssetsManagement() {
         }
 
         await api.patch(`/machines/${machineId}/move`, { targetType, targetId });
-        toast.success(`Successfully moved "${source.name}" to "${target.name}"`);
+        toast.success(`Successfully moved "${source.name}" to "${target.name}" with all details intact!`);
       } 
       // 2. Moving Facility
       else if (source.type === 'facility') {
@@ -383,13 +439,49 @@ export function AssetsManagement() {
               Drag &amp; drop any facility or machine to reassign location • Click any asset to view details
             </p>
           </div>
-          {canManageAssets && (
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 border border-green-200 text-green-700 text-xs font-semibold rounded-full shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-              Drag &amp; Drop Reassignment Active
+          <div className="flex items-center gap-2.5">
+            {canManageAssets && selectedNode && canDragNode(selectedNode, canManageAssets) && (
+              <button
+                type="button"
+                onClick={() => setMoveModalNode(selectedNode)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-semibold rounded-xl shadow-2xs transition-colors cursor-pointer"
+                title={`Move "${selectedNode.name}" to another location`}
+              >
+                <FolderInput className="w-3.5 h-3.5" />
+                <span>Move Selected Asset</span>
+              </button>
+            )}
+            {canManageAssets && (
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 border border-green-200 text-green-700 text-xs font-semibold rounded-full shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                Drag &amp; Drop Reassignment Active
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Quick Access Info Banner */}
+        <div className="px-5 py-2.5 bg-gradient-to-r from-emerald-50/80 via-teal-50/50 to-slate-50 border-b border-gray-100 flex items-center justify-between text-xs text-emerald-900">
+          <div className="flex items-center gap-2">
+            <span className="p-1 bg-emerald-100 text-emerald-700 rounded-md shrink-0">
+              <Shield size={13} />
             </span>
+            <span>
+              <strong>Give Access:</strong> Click the <span className="font-semibold text-emerald-700 bg-emerald-100/90 px-1.5 py-0.5 rounded border border-emerald-200">Access</span> button on any facility or machine node below to assign authorized users.
+            </span>
+          </div>
+          {selectedNode && (
+            <button
+              type="button"
+              onClick={() => handleOpenGiveAccess(selectedNode)}
+              className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-100 hover:bg-emerald-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shrink-0 ml-2"
+            >
+              <Shield size={12} />
+              <span>Give Access to {selectedNode.name}</span>
+            </button>
           )}
         </div>
+
         <div className="flex-1 overflow-hidden p-2">
           {loading ? (
             <div className="p-4 space-y-4">
@@ -428,6 +520,14 @@ export function AssetsManagement() {
                 }
                 setPendingMove({ source, target });
               }}
+              onMove={(node) => {
+                if (!canManageAssets) {
+                  toast.error('You do not have permission to reassign assets.');
+                  return;
+                }
+                setMoveModalNode(node);
+              }}
+              onGiveAccess={handleOpenGiveAccess}
             />
           )}
         </div>
@@ -525,9 +625,15 @@ export function AssetsManagement() {
               )}
 
               {pendingMove.source.type === 'device' && (
-                <p className="text-xs text-gray-500">
-                  This machine's facility and location relations will be updated in the database. IoT sensor bindings will remain intact.
-                </p>
+                <div className="flex items-start gap-2.5 p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-emerald-900 mb-0.5">All Machine Details Will Be Maintained</p>
+                    <p className="text-emerald-800 text-[11px] leading-relaxed">
+                      Specifications, uploaded manuals, maintenance schedules, work orders, checkpoints, and IoT MAC ID telemetry bindings will be safely preserved under the new location.
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
 
@@ -584,10 +690,45 @@ export function AssetsManagement() {
               <X size={18} className="text-gray-700" />
             </button>
             <div className="flex-1 overflow-hidden">
-              <AssetDetails node={detailsNode} />
+              <AssetDetails 
+                node={detailsNode} 
+                onRefresh={fetchData}
+                onMoveNode={(node) => {
+                  setDetailsNode(null);
+                  setMoveModalNode(node);
+                }}
+                onGiveAccess={handleOpenGiveAccess}
+              />
             </div>
           </div>
         </div>
+      )}
+
+      {/* Direct Move Asset Modal */}
+      <MoveAssetModal
+        isOpen={!!moveModalNode}
+        sourceNode={moveModalNode}
+        onClose={() => setMoveModalNode(null)}
+        onSuccess={() => {
+          setMoveModalNode(null);
+          fetchData();
+        }}
+      />
+
+      {/* Give Access Modal for Any Selected Facility or Machine */}
+      {giveAccessTarget && (
+        <GiveAccessModal
+          isOpen={!!giveAccessTarget}
+          onClose={() => setGiveAccessTarget(null)}
+          targetType={giveAccessTarget.type}
+          targetId={giveAccessTarget.id}
+          targetName={giveAccessTarget.name}
+          targetCode={giveAccessTarget.code}
+          targetCategory={giveAccessTarget.category}
+          onSuccess={() => {
+            fetchData();
+          }}
+        />
       )}
     </div>
   );

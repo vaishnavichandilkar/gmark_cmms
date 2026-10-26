@@ -1,4 +1,4 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { CreateMainFacilityDto } from './dto/create-main-facility.dto';
 import { CodeSequenceService } from '../../../common/services/code-sequence.service';
@@ -41,8 +41,21 @@ export class MainFacilitiesService {
   }
 
   async findAll(currentUser?: any) {
-    const effectiveAdminId = currentUser?.adminId || currentUser?.userId;
+    const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+    const effectiveAdminId = isSuperAdmin ? null : (currentUser?.adminId || currentUser?.userId);
     const whereClause: any = effectiveAdminId ? { adminId: effectiveAdminId } : {};
+
+    if (currentUser?.mainFacilityId) {
+      whereClause.id = currentUser.mainFacilityId;
+    } else if (currentUser?.facilityId) {
+      const fac = await this.prisma.facility.findUnique({
+        where: { id: currentUser.facilityId },
+        select: { mainFacilityId: true },
+      });
+      if (fac?.mainFacilityId) {
+        whereClause.id = fac.mainFacilityId;
+      }
+    }
 
     return this.prisma.mainFacility.findMany({
       where: whereClause,
@@ -71,6 +84,81 @@ export class MainFacilitiesService {
   async remove(id: number) {
     return this.prisma.mainFacility.delete({
       where: { id },
+    });
+  }
+
+  async getMainFacilityUsers(mainFacilityId: number) {
+    const mainFacility = await this.prisma.mainFacility.findUnique({
+      where: { id: mainFacilityId },
+      include: {
+        users: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+            designation: true,
+            employeeId: true,
+            employee: {
+              select: {
+                id: true,
+                fullName: true,
+                employeeCode: true,
+                department: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!mainFacility) {
+      throw new NotFoundException(`Main Facility #${mainFacilityId} not found`);
+    }
+    return mainFacility.users || [];
+  }
+
+  async assignMainFacilityUsers(mainFacilityId: number, userIds: number[]) {
+    const mainFacility = await this.prisma.mainFacility.findUnique({
+      where: { id: mainFacilityId },
+    });
+    if (!mainFacility) {
+      throw new NotFoundException(`Main Facility #${mainFacilityId} not found`);
+    }
+
+    const targetUserIds = Array.isArray(userIds) ? userIds.map(Number) : [];
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Unassign users currently assigned directly to this mainFacility who are not in targetUserIds
+      await tx.user.updateMany({
+        where: {
+          mainFacilityId: mainFacilityId,
+          facilityId: null,
+          id: { notIn: targetUserIds },
+        },
+        data: {
+          mainFacilityId: null,
+        },
+      });
+
+      // 2. Assign target users to this mainFacility
+      if (targetUserIds.length > 0) {
+        await tx.user.updateMany({
+          where: {
+            id: { in: targetUserIds },
+          },
+          data: {
+            mainFacilityId: mainFacilityId,
+          },
+        });
+      }
+
+      return {
+        success: true,
+        mainFacilityId,
+        assignedUserCount: targetUserIds.length,
+      };
     });
   }
 }

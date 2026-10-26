@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   console.log('Clearing existing data...');
-  await prisma.$executeRawUnsafe(`TRUNCATE TABLE "DeviceRegisterValue", "RegisterDefinition", "Device", "Building", "DeviceState", "DeviceSnapshot", "Society", "User", "UserBuilding", "AuditLog", "SparePartMaster", "Supplier", "WorkOrder", "WorkOrderMedia", "WorkOrderSparePart", "WorkOrderRevision", "MaintenanceSchedule", "MaintenanceScheduleTask", "MaintenanceScheduleSpare", "MaintenanceScheduleLog", "CheckpointMaster", "UserCheckpoint", "MachineCheckpoint", "MachineDocument", "MachineSpecification", "Machine", "Facility", "MainFacility", "Employee", "CodeSequence", "Designation", "Permission", "UserPermission", "PostalCode", "Registration", "DeviceAlert", "RegisterAlertConfig" CASCADE;`);
+  await prisma.$executeRawUnsafe(`TRUNCATE TABLE "DeviceRegisterValue", "RegisterDefinition", "Device", "Building", "DeviceState", "DeviceSnapshot", "Society", "User", "UserBuilding", "AuditLog", "SparePartMaster", "Supplier", "WorkOrder", "WorkOrderMedia", "WorkOrderSparePart", "WorkOrderRevision", "MaintenanceSchedule", "MaintenanceScheduleTask", "MaintenanceScheduleSpare", "MaintenanceScheduleLog", "CheckpointMaster", "UserCheckpoint", "MachineCheckpoint", "MachineDocument", "MachineSpecification", "Machine", "Facility", "MainFacility", "Employee", "CodeSequence", "Designation", "Permission", "UserPermission", "PostalCode", "Registration", "DeviceAlert", "RegisterAlertConfig", "MachineOption" CASCADE;`);
 
   console.log('Seeding societies...');
   await prisma.society.createMany({

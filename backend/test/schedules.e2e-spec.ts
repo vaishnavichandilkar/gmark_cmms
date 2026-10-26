@@ -40,12 +40,15 @@ describe('Maintenance Schedules (E2E Integration Automation Tests)', () => {
     }
     testMachineId = machine.id;
 
+    const adminUser = await prisma.user.findFirst({ where: { email: 'superadmin@hypn.com' } });
+    const adminId = adminUser ? adminUser.id : 1;
+
     // Generate valid JWT token using test secret
     authToken = jwt.sign(
       {
-        userId: 29,
+        userId: adminId,
         email: 'superadmin@hypn.com',
-        role: 'SUPERADMIN',
+        role: 'SUPER_ADMIN',
       },
       'HYPN_ACCESS_SECRET_KEY_2026',
       { expiresIn: '1h' },

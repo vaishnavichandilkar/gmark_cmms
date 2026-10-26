@@ -62,23 +62,82 @@ export class EmployeesService {
   }
 
   async findAll(currentUser?: any) {
+    const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
     const effectiveAdminId = currentUser?.adminId || currentUser?.userId;
-    const whereClause: any = effectiveAdminId ? { adminId: effectiveAdminId } : {};
+    const whereClause: any = isSuperAdmin
+      ? {}
+      : effectiveAdminId ? { adminId: effectiveAdminId } : {};
 
-    return this.prisma.employee.findMany({
+    const employees = await this.prisma.employee.findMany({
       where: whereClause,
+      include: {
+        users: {
+          select: {
+            id: true,
+            username: true,
+            role: true,
+            designation: true,
+          }
+        }
+      },
       orderBy: { createdAt: 'desc' }
+    });
+
+    return employees.map((emp) => {
+      const user = emp.users && emp.users.length > 0 ? emp.users[0] : null;
+      let role = '';
+      if (user) {
+        if (user.role === 'SUPER_ADMIN') {
+          role = 'Admin';
+        } else if (user.designation) {
+          role = user.designation;
+        } else if (user.role) {
+          role = user.role.replace(/_/g, ' ').toLowerCase();
+        }
+      }
+      return {
+        ...emp,
+        role: role || 'Staff',
+        userRole: user?.role,
+        userDesignation: user?.designation,
+      };
     });
   }
 
   async findOne(id: number) {
     const employee = await this.prisma.employee.findUnique({
       where: { id },
+      include: {
+        users: {
+          select: {
+            id: true,
+            username: true,
+            role: true,
+            designation: true,
+          }
+        }
+      }
     });
     if (!employee) {
       throw new ConflictException('Employee not found');
     }
-    return employee;
+    const user = employee.users && employee.users.length > 0 ? employee.users[0] : null;
+    let role = '';
+    if (user) {
+      if (user.role === 'SUPER_ADMIN') {
+        role = 'Admin';
+      } else if (user.designation) {
+        role = user.designation;
+      } else if (user.role) {
+        role = user.role.replace(/_/g, ' ').toLowerCase();
+      }
+    }
+    return {
+      ...employee,
+      role: role || 'Staff',
+      userRole: user?.role,
+      userDesignation: user?.designation,
+    };
   }
 
   async update(id: number, updateEmployeeDto: any, currentUser?: any) {

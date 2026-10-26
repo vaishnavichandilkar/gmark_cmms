@@ -5,6 +5,9 @@ import {
   Image as ImageIcon, QrCode, Plus, Trash2, FileText, Search,
   Eye, Pencil, Maximize2, Loader2, X, ZoomIn, ZoomOut, RotateCw
 } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../../../store';
+import { hasSupplierTabPermission } from '../../../utils/permissions';
 import { toast } from 'react-hot-toast';
 import { supplierService, type Supplier } from '../../../services/supplierService';
 import { spareService } from '../../../services/spareService';
@@ -22,12 +25,19 @@ export const AddSupplierPage: React.FC = () => {
   const { id } = useParams();
   const isEditMode = Boolean(id);
 
-  const [step, setStep] = useState<1 | 2>(isEditMode ? 2 : 1);
-  const [activeTab, setActiveTab] = useState<TabType>('General');
+  const currentUser = useSelector((state: RootState) => state.auth.user);
+  const permittedTabs = SUPPLIER_TABS.filter(tab => hasSupplierTabPermission(currentUser, tab, 'view'));
+  const supplierTabs = permittedTabs.length > 0 ? permittedTabs : SUPPLIER_TABS;
+
+  const [activeTab, setActiveTab] = useState<TabType>(supplierTabs[0] || 'General');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const supplierTabs = SUPPLIER_TABS;
+  useEffect(() => {
+    if (supplierTabs.length > 0 && !supplierTabs.includes(activeTab)) {
+      setActiveTab(supplierTabs[0]);
+    }
+  }, [supplierTabs, activeTab]);
 
 
   // Form State matching all screenshots
@@ -90,7 +100,6 @@ export const AddSupplierPage: React.FC = () => {
   const saveDraft = (overrideData?: any) => {
     const dataToSave = {
       formData: overrideData || formData,
-      step,
       activeTab,
       localPreviewUrl,
     };
@@ -101,14 +110,33 @@ export const AddSupplierPage: React.FC = () => {
     try {
       const all = await spareService.getAll();
       const currentName = (formData.name || '').trim().toLowerCase();
+      const currentId = id ? String(id) : '';
 
-      // Find spares where suppliersList has this supplier name
+      // Find spares where suppliersList explicitly has this supplier name or ID
       const linked = all.filter((s) =>
-        s.suppliersList?.some((sup) => sup.name?.trim().toLowerCase() === currentName)
+        s.suppliersList?.some((sup) => 
+          (currentName && sup.name?.trim().toLowerCase() === currentName) ||
+          (currentId && String(sup.id) === currentId)
+        )
       );
 
-      // Prioritize spares specifically linked to this supplier; if none, show all catalog spares
-      let list = linked.length > 0 ? linked : all;
+      // Check localStorage for spares explicitly added to this supplier
+      let localSpares: any[] = [];
+      if (id) {
+        try {
+          const raw = localStorage.getItem(`supplier_${id}_spares`);
+          if (raw) localSpares = JSON.parse(raw);
+        } catch {}
+      }
+
+      // DO NOT FALL BACK TO all CATALOG SPARES!
+      // Only include spares that are specifically linked to this supplier
+      let list: any[] = [...linked];
+      for (const loc of localSpares) {
+        if (!list.some(s => s.id === loc.id || (s.partCode && s.partCode === loc.partCode) || (s.partName && s.partName === loc.partName))) {
+          list.push(loc);
+        }
+      }
 
       if (extraSpare) {
         const exists = list.some((s) => s.id === extraSpare.id || s.partCode === extraSpare.partCode);
@@ -121,6 +149,23 @@ export const AddSupplierPage: React.FC = () => {
     } catch (err) {
       console.warn('Failed to load spares', err);
     }
+  };
+
+  const handleNavigateToCreateSpare = () => {
+    saveDraft({
+      ...formData,
+      __newSpareDraft: newSpareForm,
+      __isAddSpareModalOpen: true,
+    });
+    setIsSparePickerOpen(false);
+    setIsAddSpareModalOpen(false);
+    navigate('/spares/new', {
+      state: {
+        returnUrl: location.pathname,
+        returnTab: 'Spares',
+        tab: 'General',
+      }
+    });
   };
 
   const handleAddSpareRecord = () => {
@@ -136,9 +181,36 @@ export const AddSupplierPage: React.FC = () => {
       inHandQuantity: newSpareForm.inHandQuantity || 0,
       atSourceQuantity: newSpareForm.atSourceQuantity || 0,
       minimumQuantity: newSpareForm.minimumQuantity || 0,
-      totalStock: newSpareForm.totalStock || 0,
+      totalStock: (Number(newSpareForm.inHandQuantity) || 0) + (Number(newSpareForm.atSourceQuantity) || 0) || newSpareForm.totalStock || 0,
     };
-    setSupplierSpares([...supplierSpares, newRecord]);
+    const updated = [...supplierSpares, newRecord];
+    setSupplierSpares(updated);
+    if (id) {
+      localStorage.setItem(`supplier_${id}_spares`, JSON.stringify(updated));
+    }
+
+    // Bidirectional sync: link this supplier inside that spare's suppliersList
+    spareService.getAll().then((allSpares) => {
+      const match = allSpares.find((s) =>
+        s.partName?.trim().toLowerCase() === newRecord.partName.trim().toLowerCase() ||
+        (s.partCode && s.partCode.trim().toLowerCase() === newRecord.partName.trim().toLowerCase())
+      );
+      if (match) {
+        const curSuppliers = Array.isArray(match.suppliersList) ? [...match.suppliersList] : [];
+        const supName = (formData.name || '').trim();
+        if (supName && !curSuppliers.some((sup) => sup.name?.trim().toLowerCase() === supName.toLowerCase())) {
+          curSuppliers.push({
+            id: id ? String(id) : Date.now().toString(),
+            name: supName,
+            businessCategory: formData.categoriesList?.[0] || formData.businessCategory || 'Supplier',
+            reorderDays: 7,
+            vendorPrice: Number(match.rate) || Number(match.unitCost) || 0,
+          });
+          spareService.update(match.id, { suppliersList: curSuppliers }).catch(console.warn);
+        }
+      }
+    }).catch(console.warn);
+
     setIsAddSpareModalOpen(false);
     setNewSpareForm({ name: '', location: '', inHandQuantity: '' as any, atSourceQuantity: '' as any, minimumQuantity: '' as any, totalStock: 0 });
     toast.success('Spare part added to supplier catalog');
@@ -149,8 +221,27 @@ export const AddSupplierPage: React.FC = () => {
       toast.error('Select at least one spare part to delete');
       return;
     }
-    setSupplierSpares(supplierSpares.filter((s) => !selectedSpareIds.includes(s.id)));
+    const toDelete = supplierSpares.filter((s) => selectedSpareIds.includes(s.id));
+    const remaining = supplierSpares.filter((s) => !selectedSpareIds.includes(s.id));
+    setSupplierSpares(remaining);
+    if (id) {
+      localStorage.setItem(`supplier_${id}_spares`, JSON.stringify(remaining));
+    }
     setSelectedSpareIds([]);
+
+    // Remove this supplier from deleted spares in Spare Management
+    spareService.getAll().then((allSpares) => {
+      const supName = (formData.name || '').trim().toLowerCase();
+      for (const d of toDelete) {
+        const dName = (d.partName || d.name || '').trim().toLowerCase();
+        const match = allSpares.find((s) => s.partName?.trim().toLowerCase() === dName || s.id === d.id);
+        if (match && Array.isArray(match.suppliersList)) {
+          const updatedSuppliers = match.suppliersList.filter((sup) => sup.name?.trim().toLowerCase() !== supName);
+          spareService.update(match.id, { suppliersList: updatedSuppliers }).catch(console.warn);
+        }
+      }
+    }).catch(console.warn);
+
     toast.success('Deleted selected spare parts');
   };
 
@@ -158,7 +249,13 @@ export const AddSupplierPage: React.FC = () => {
   const [docName, setDocName] = useState('');
   const [docType, setDocType] = useState('File');
   const [selectedDocIds, setSelectedDocIds] = useState<number[]>([]);
+  const [docSearchQuery, setDocSearchQuery] = useState('');
   const [isAddDocModalOpen, setIsAddDocModalOpen] = useState(false);
+
+  const filteredDocs = supplierDocuments.filter((d) =>
+    (d.name || '').toLowerCase().includes(docSearchQuery.toLowerCase()) ||
+    (d.type || '').toLowerCase().includes(docSearchQuery.toLowerCase())
+  );
 
   const handleDeleteSelectedDocs = () => {
     if (selectedDocIds.length === 0) {
@@ -171,43 +268,57 @@ export const AddSupplierPage: React.FC = () => {
   };
 
   useEffect(() => {
-    // If not in edit mode, restore any saved draft from sessionStorage
-    if (!isEditMode) {
-      const saved = sessionStorage.getItem('supplier_page_draft');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (parsed.formData) {
-            setFormData((prev) => ({ ...prev, ...parsed.formData }));
+    // Restore any saved draft from sessionStorage
+    const saved = sessionStorage.getItem('supplier_page_draft');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.formData) {
+          const { __newSpareDraft, __isAddSpareModalOpen, ...restFormData } = parsed.formData;
+          setFormData((prev) => ({ ...prev, ...restFormData }));
+          if (__newSpareDraft) {
+            setNewSpareForm((prev) => ({ ...prev, ...__newSpareDraft }));
           }
-          if (parsed.step) {
-            setStep(parsed.step);
-          }
-          if (parsed.activeTab) {
-            setActiveTab(parsed.activeTab);
-          }
-          if (parsed.localPreviewUrl) {
-            setLocalPreviewUrl(parsed.localPreviewUrl);
-          }
-        } catch (e) {
-          console.warn('Failed to restore draft', e);
         }
+        if (parsed.activeTab) {
+          setActiveTab(parsed.activeTab);
+        }
+        if (parsed.localPreviewUrl) {
+          setLocalPreviewUrl(parsed.localPreviewUrl);
+        }
+      } catch (e) {
+        console.warn('Failed to restore draft', e);
       }
     }
 
     const stateObj = location.state as any;
     if (stateObj?.tab) {
-      setStep(2);
       setActiveTab(stateObj.tab as TabType);
     }
 
     if (stateObj?.newSpare) {
+      const createdSpare = stateObj.newSpare;
+      const spareName = createdSpare.partName || createdSpare.name || '';
+      const spareLocation = createdSpare.location || createdSpare.stockLocation || 'Main Store';
+
       setSupplierSpares((prev) => {
-        const exists = prev.some((s) => s.id === stateObj.newSpare.id || s.partCode === stateObj.newSpare.partCode);
+        const exists = prev.some((s) => s.id === createdSpare.id || s.partCode === createdSpare.partCode);
         if (exists) return prev;
-        return [stateObj.newSpare, ...prev];
+        return [createdSpare, ...prev];
       });
-      loadSpares(stateObj.newSpare);
+      loadSpares(createdSpare);
+
+      // Re-open Add Spare modal and pre-fill newly created spare
+      setNewSpareForm((prev) => ({
+        ...prev,
+        name: spareName,
+        location: spareLocation || prev.location || 'Main Store',
+        minimumQuantity: createdSpare.minQuantity ?? createdSpare.minimumQuantity ?? prev.minimumQuantity ?? '',
+        inHandQuantity: createdSpare.inHandQuantity ?? prev.inHandQuantity ?? '',
+        atSourceQuantity: createdSpare.atSourceQuantity ?? prev.atSourceQuantity ?? '',
+      }));
+      setIsAddSpareModalOpen(true);
+      toast.success(`Spare "${spareName}" created! You can now adjust quantities and click Save.`);
     } else {
       loadSpares();
     }
@@ -336,7 +447,7 @@ export const AddSupplierPage: React.FC = () => {
     const currentImage = localPreviewUrl || formData.logoUrl;
 
     return (
-      <div className="w-full bg-white rounded-3xl border border-gray-200/80 shadow-md p-6 space-y-4 flex flex-col text-left">
+      <div className="w-full bg-white rounded-2xl border border-slate-200/90 shadow-xs p-5 space-y-4 flex flex-col text-left">
         {/* Upload Dropzone matching Spare Management Screenshot */}
         <div className="space-y-3">
           <div
@@ -531,40 +642,37 @@ export const AddSupplierPage: React.FC = () => {
     };
   };
 
-  const handleNextStep = async () => {
-    if (!formData.name?.trim()) {
+  const handleNextTab = () => {
+    if (activeTab === 'General' && !formData.name?.trim()) {
       toast.error('Supplier Name is required');
       return;
     }
-
     saveDraft();
-
-    if (isEditMode && id) {
-      try {
-        const payload = buildPayload();
-        await supplierService.updateSupplier(Number(id), payload);
-        toast.success('Supplier details saved');
-      } catch (err) {
-        console.warn('Failed to update supplier on server', err);
-      }
+    const curIdx = supplierTabs.indexOf(activeTab);
+    if (curIdx < supplierTabs.length - 1) {
+      setActiveTab(supplierTabs[curIdx + 1]);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      toast.success('Step 1 complete, proceed with tabs or Save');
+      handleSubmit();
     }
-
-    setStep(2);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-
-  const handleStep2Back = () => {
+  const handlePrevTab = () => {
     saveDraft();
     const curIdx = supplierTabs.indexOf(activeTab);
     if (curIdx > 0) {
       setActiveTab(supplierTabs[curIdx - 1]);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      setStep(1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const targetReturnUrl = (location.state as any)?.returnUrl || sessionStorage.getItem('addSupplierReturnUrl');
+      const targetReturnTab = (location.state as any)?.returnTab || sessionStorage.getItem('addSupplierReturnTab') || 'Suppliers';
+      if (targetReturnUrl) {
+        sessionStorage.removeItem('addSupplierReturnUrl');
+        sessionStorage.removeItem('addSupplierReturnTab');
+        navigate(targetReturnUrl, { state: { tab: targetReturnTab } });
+      } else {
+        navigate('/suppliers');
+      }
     }
   };
 
@@ -572,7 +680,7 @@ export const AddSupplierPage: React.FC = () => {
     if (e) e.preventDefault();
     if (!formData.name?.trim()) {
       toast.error('Supplier Name is required');
-      setStep(1);
+      setActiveTab('General');
       return;
     }
 
@@ -619,55 +727,62 @@ export const AddSupplierPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
-      {/* Top Breadcrumb & Controls Bar matching Screenshot 3 */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <div className="text-xs font-semibold text-gray-400 mb-1">
-            Pages / Suppliers / New Supplier {step === 2 ? `/ ${activeTab}` : ''}
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                const targetReturnUrl = (location.state as any)?.returnUrl || sessionStorage.getItem('addSupplierReturnUrl');
-                const targetReturnTab = (location.state as any)?.returnTab || sessionStorage.getItem('addSupplierReturnTab') || 'Suppliers';
-                if (step === 2) {
-                  setStep(1);
-                } else if (targetReturnUrl) {
-                  sessionStorage.removeItem('addSupplierReturnUrl');
-                  sessionStorage.removeItem('addSupplierReturnTab');
-                  navigate(targetReturnUrl, { state: { tab: targetReturnTab } });
-                } else {
-                  navigate('/suppliers');
-                }
-              }}
-              className="text-emerald-950 hover:text-emerald-800 transition-colors p-1 rounded-full hover:bg-gray-100 cursor-pointer"
-            >
-              <ArrowLeft size={24} strokeWidth={2.5} />
-            </button>
-            <h1 className="text-2xl font-bold text-emerald-950 tracking-tight">
-              {isEditMode ? `Edit Supplier S${step}` : `New Supplier S${step}`}
-            </h1>
+    <div className="space-y-4">
+      {/* Top Breadcrumb & Controls Bar */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              const targetReturnUrl = (location.state as any)?.returnUrl || sessionStorage.getItem('addSupplierReturnUrl');
+              const targetReturnTab = (location.state as any)?.returnTab || sessionStorage.getItem('addSupplierReturnTab') || 'Suppliers';
+              if (targetReturnUrl) {
+                sessionStorage.removeItem('addSupplierReturnUrl');
+                sessionStorage.removeItem('addSupplierReturnTab');
+                navigate(targetReturnUrl, { state: { tab: targetReturnTab } });
+              } else {
+                navigate('/suppliers');
+              }
+            }}
+            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+            title="Go Back"
+          >
+            <ArrowLeft size={18} className="stroke-[2.5]" />
+          </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                {isEditMode ? (formData.name || 'Edit Supplier') : 'Add Supplier'}
+              </h1>
+              {formData.supplierCode && (
+                <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                  {formData.supplierCode}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500">Centralized profile, contact credentials, catalog spares, and locations</p>
           </div>
         </div>
 
-        {/* Action icons top right matching Screenshot 3 */}
+        {/* Action icons top right */}
         <div className="flex items-center gap-2">
           {/* Map Button */}
           <button
-            onClick={() => setActiveTab('Location')}
-            className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-semibold transition-all border border-gray-200 cursor-pointer"
+            onClick={() => {
+              setActiveTab('Location');
+            }}
+            className="flex items-center gap-1.5 h-[38px] px-3.5 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold border border-slate-300 transition-all shadow-xs cursor-pointer"
           >
-            <MapPin size={18} className="text-red-500 fill-red-500" />
+            <MapPin size={16} className="text-rose-500 fill-rose-500" />
             <span>Map</span>
           </button>
 
           {/* Print Button */}
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-semibold transition-all border border-gray-200 cursor-pointer"
+            className="flex items-center gap-1.5 h-[38px] px-3.5 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold border border-slate-300 transition-all shadow-xs cursor-pointer"
           >
-            <Printer size={18} />
+            <Printer size={16} className="text-slate-500" />
             <span>Print</span>
           </button>
 
@@ -677,238 +792,184 @@ export const AddSupplierPage: React.FC = () => {
               if (isEditMode && id) fetchSupplierDetails(Number(id));
               else fetchNextCode();
             }}
-            className="p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 transition-all cursor-pointer"
+            className="h-[38px] w-[38px] bg-white hover:bg-slate-50 text-slate-700 rounded-lg border border-slate-300 flex items-center justify-center transition-all shadow-xs cursor-pointer"
             title="Refresh"
           >
-            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-          </button>
-
-          {/* Filter Button */}
-          <button
-            className="p-2.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all cursor-pointer shadow-xs"
-            title="Filter Options"
-          >
-            <Filter size={18} />
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
       </div>
 
-      {step === 1 ? (
-        /* STEP 1 (S1) - Basic Info & Logo Entry */
-        <div className="bg-white rounded-3xl border border-gray-200/80 shadow-md p-6 md:p-10">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-            {/* Left Profile Card matching Spare Management Screenshot */}
-            <div className="md:col-span-4">
-              {renderProfileCard(true)}
-            </div>
-
-            {/* Right Fields Form */}
-            <div className="md:col-span-8 space-y-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                {/* Supplier Name */}
-                <div className="flex-1 w-full">
-                  <label className="block text-xs font-bold text-gray-800 mb-1.5">
-                    Supplier Name
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name || ''}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Supplier Name"
-                    className="w-full border border-gray-400 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all placeholder-gray-400"
-                  />
-                </div>
-
-                {/* QR Code Placeholder */}
-                <div className="flex flex-col items-center justify-center p-2 text-gray-400 border border-gray-200 rounded-xl bg-gray-50 shrink-0 w-24 h-24">
-                  <QrCode size={32} className="text-gray-600 mb-1" />
-                  <span className="text-[10px] font-bold text-gray-600">QR Code</span>
-                </div>
-              </div>
-
-              {/* Change Status Dropdown */}
-              <div className="w-full sm:w-1/2">
-                <label className="block text-xs font-bold text-gray-800 mb-1.5">
-                  Change Status
-                </label>
-                <div className="relative">
-                  <select
-                    value={formData.status || 'ACTIVE'}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full border border-gray-400 rounded-2xl px-4 py-3 text-sm font-bold text-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white appearance-none cursor-pointer pr-10"
-                  >
-                    <option value="ACTIVE" className="text-emerald-600 font-bold">Active</option>
-                    <option value="INACTIVE" className="text-gray-600 font-bold">Inactive</option>
-                  </select>
-                  <ChevronDown size={18} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
-                </div>
-              </div>
-
-              {/* Business Description */}
-              <div>
-                <label className="block text-xs font-bold text-gray-800 mb-1.5">
-                  Business Description
-                </label>
-                <textarea
-                  rows={3}
-                  value={formData.businessDescription || ''}
-                  onChange={(e) => setFormData({ ...formData, businessDescription: e.target.value })}
-                  placeholder="Description"
-                  className="w-full border border-gray-400 rounded-2xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all resize-none placeholder-gray-400"
-                />
-              </div>
-
-              {/* Business Category & Vendor Code */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Business Category Dropdown */}
-                <div className="relative">
-                  <label className="block text-xs font-bold text-gray-800 mb-1.5">
-                    Business Category
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
-                    className="w-full border border-gray-400 rounded-2xl px-4 py-3 text-sm font-medium text-gray-700 bg-white flex items-center justify-between cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  >
-                    <span className="truncate">
-                      {formData.categoriesList && formData.categoriesList.length > 0
-                        ? formData.categoriesList.join(', ')
-                        : 'Select'}
-                    </span>
-                    <ChevronDown size={18} className="text-gray-600 shrink-0 ml-2" />
-                  </button>
-
-                  {/* Multiselect Popup */}
-                  {isCategoryDropdownOpen && (
-                    <div className="absolute left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-200 p-3 z-30 space-y-2">
-                      <div className="text-xs font-bold text-gray-800 px-2 py-1 border-b border-gray-100">
-                        Business Category
-                      </div>
-                      {categoryOptions.map((cat) => {
-                        const isSelected = (formData.categoriesList || []).includes(cat);
-                        return (
-                          <div
-                            key={cat}
-                            onClick={() => handleCategoryToggle(cat)}
-                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-gray-300 hover:bg-emerald-50/50 cursor-pointer transition-colors"
-                          >
-                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                              isSelected ? 'border-sky-500 bg-sky-500' : 'border-gray-400'
-                            }`}>
-                              {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
-                            </div>
-                            <span className="text-sm font-medium text-gray-700">{cat}</span>
-                          </div>
-                        );
-                      })}
-                      <div className="pt-2 text-right">
-                        <button
-                          type="button"
-                          onClick={() => setIsCategoryDropdownOpen(false)}
-                          className="text-xs font-bold text-emerald-600 hover:underline px-2 py-1"
-                        >
-                          Done
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Vendor Code */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-800 mb-1.5">
-                    Vendor Code
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.supplierCode || ''}
-                    onChange={(e) => setFormData({ ...formData, supplierCode: e.target.value })}
-                    placeholder="Select"
-                    className="w-full border border-gray-400 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-gray-400"
-                  />
-                </div>
-              </div>
-
-              {/* Bottom Action Bar matching Spare Management */}
-              <div className="pt-8 flex justify-between items-center border-t border-gray-100 mt-6">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const targetReturnUrl = (location.state as any)?.returnUrl || sessionStorage.getItem('addSupplierReturnUrl');
-                    const targetReturnTab = (location.state as any)?.returnTab || sessionStorage.getItem('addSupplierReturnTab') || 'Suppliers';
-                    if (targetReturnUrl) {
-                      sessionStorage.removeItem('addSupplierReturnUrl');
-                      sessionStorage.removeItem('addSupplierReturnTab');
-                      navigate(targetReturnUrl, { state: { tab: targetReturnTab } });
-                    } else {
-                      navigate('/suppliers');
-                    }
-                  }}
-                  className="px-8 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold text-sm transition-colors shadow-sm cursor-pointer"
-                >
-                  Back
-                </button>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => handleSubmit()}
-                    disabled={submitting}
-                    className="px-8 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg font-semibold text-sm transition-colors shadow-sm cursor-pointer disabled:opacity-50"
-                  >
-                    {submitting ? 'Saving...' : 'Save Supplier'}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleNextStep}
-                    className="px-10 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors shadow-sm flex items-center gap-2 cursor-pointer"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+      {/* Unified Tabbed Layout matching Machine & Spare Management */}
+      <div className="flex flex-col lg:flex-row gap-5 items-start w-full">
+        {/* Left Profile Card */}
+        <div className="w-full lg:w-64 shrink-0">
+          {renderProfileCard()}
         </div>
-      ) : (
-        /* STEP 2 (S2) - TABBED VIEW MATCHING SCREENSHOT 3 */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left Sidebar Summary Card matching Spare Management Screenshot */}
-          <div className="lg:col-span-4">
-            {renderProfileCard(false)}
+
+        {/* Right Main Tabbed Container matching Machine Management */}
+        <div className="flex-1 w-full bg-white rounded-xl border border-slate-200/90 shadow-xs overflow-hidden min-h-[550px] flex flex-col">
+          {/* Top Tabs Bar */}
+          <div className="flex overflow-x-auto border-b border-slate-200 bg-slate-50/70 p-1.5 gap-1">
+            {(['General', 'Location', 'Spares', 'Documents', 'Log'] as TabType[]).map((tab) => {
+              const isActive = activeTab === tab;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                    isActive
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                  }`}
+                >
+                  {tab}
+                </button>
+              );
+            })}
           </div>
 
-          {/* Right Main Tabbed Container matching Screenshot 3 */}
-          <div className="lg:col-span-8 bg-white rounded-3xl border border-gray-200/80 shadow-md overflow-hidden min-h-[520px] flex flex-col">
-            {/* Top 5 Tabs Bar matching Screenshot 3 */}
-            <div className="flex items-center border-b border-gray-200 bg-gray-100/60 overflow-x-auto">
-              {(['General', 'Location', 'Spares', 'Documents', 'Log'] as TabType[]).map((tab) => {
-                const isActive = activeTab === tab;
-                return (
-                  <button
-                    key={tab}
-                    type="button"
-                    onClick={() => setActiveTab(tab)}
-                    className={`px-8 py-3.5 text-sm font-bold transition-all cursor-pointer border-r border-gray-200/80 shrink-0 ${
-                      isActive
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'bg-gray-100 hover:bg-gray-200/70 text-gray-700'
-                    }`}
-                  >
-                    {tab}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Tab Contents */}
-            <div className="p-6 md:p-8 flex-1">
-              {/* TAB 1: GENERAL (Contact details matching Screenshot 3) */}
-              {activeTab === 'General' && (
+          {/* Tab Contents */}
+          <div className="p-6 md:p-8 flex-1">
+            {/* TAB 1: GENERAL (Merged Basic Details + Contact & Compliance) */}
+            {activeTab === 'General' && (
+              <div className="space-y-6">
+                {/* Basic Details Section */}
                 <div className="space-y-6">
+                  <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                    {/* Supplier Name */}
+                    <div className="flex-1 w-full">
+                      <label className="block text-xs font-bold text-gray-800 mb-1.5">
+                        Supplier Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.name || ''}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="Supplier Name"
+                        className="w-full border border-gray-400 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all placeholder-gray-400"
+                      />
+                    </div>
+
+                    {/* QR Code Placeholder */}
+                    <div className="flex flex-col items-center justify-center p-2 text-gray-400 border border-gray-200 rounded-xl bg-gray-50 shrink-0 w-24 h-24">
+                      <QrCode size={32} className="text-gray-600 mb-1" />
+                      <span className="text-[10px] font-bold text-gray-600">QR Code</span>
+                      {formData.supplierCode && (
+                        <span className="text-[9px] font-mono text-gray-400">{formData.supplierCode}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Change Status Dropdown */}
+                  <div className="w-full sm:w-1/2">
+                    <label className="block text-xs font-bold text-gray-800 mb-1.5">
+                      Change Status
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={formData.status || 'ACTIVE'}
+                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                        className="w-full border border-gray-400 rounded-2xl px-4 py-3 text-sm font-bold text-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white appearance-none cursor-pointer pr-10"
+                      >
+                        <option value="ACTIVE" className="text-emerald-600 font-bold">Active</option>
+                        <option value="INACTIVE" className="text-gray-600 font-bold">Inactive</option>
+                      </select>
+                      <ChevronDown size={18} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  {/* Business Description */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-800 mb-1.5">
+                      Business Description
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={formData.businessDescription || ''}
+                      onChange={(e) => setFormData({ ...formData, businessDescription: e.target.value })}
+                      placeholder="Description"
+                      className="w-full border border-gray-400 rounded-2xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all resize-none placeholder-gray-400"
+                    />
+                  </div>
+
+                  {/* Business Category & Vendor Code */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Business Category Dropdown */}
+                    <div className="relative">
+                      <label className="block text-xs font-bold text-gray-800 mb-1.5">
+                        Business Category
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+                        className="w-full border border-gray-400 rounded-2xl px-4 py-3 text-sm font-medium text-gray-700 bg-white flex items-center justify-between cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      >
+                        <span className="truncate">
+                          {formData.categoriesList && formData.categoriesList.length > 0
+                            ? formData.categoriesList.join(', ')
+                            : 'Select'}
+                        </span>
+                        <ChevronDown size={18} className="text-gray-600 shrink-0 ml-2" />
+                      </button>
+
+                      {/* Multiselect Popup */}
+                      {isCategoryDropdownOpen && (
+                        <div className="absolute left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-200 p-3 z-30 space-y-2">
+                          <div className="text-xs font-bold text-gray-800 px-2 py-1 border-b border-gray-100">
+                            Business Category
+                          </div>
+                          {categoryOptions.map((cat) => {
+                            const isSelected = (formData.categoriesList || []).includes(cat);
+                            return (
+                              <div
+                                key={cat}
+                                onClick={() => handleCategoryToggle(cat)}
+                                className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-gray-300 hover:bg-emerald-50/50 cursor-pointer transition-colors"
+                              >
+                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                  isSelected ? 'border-sky-500 bg-sky-500' : 'border-gray-400'
+                                }`}>
+                                  {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                                </div>
+                                <span className="text-sm font-medium text-gray-700">{cat}</span>
+                              </div>
+                            );
+                          })}
+                          <div className="pt-2 text-right">
+                            <button
+                              type="button"
+                              onClick={() => setIsCategoryDropdownOpen(false)}
+                              className="text-xs font-bold text-emerald-600 hover:underline px-2 py-1"
+                            >
+                              Done
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Vendor Code */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-800 mb-1.5">
+                        Vendor Code
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.supplierCode || ''}
+                        onChange={(e) => setFormData({ ...formData, supplierCode: e.target.value })}
+                        placeholder="Select"
+                        className="w-full border border-gray-400 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-gray-400"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contact Details Section */}
+                <div className="pt-6 border-t border-gray-100 space-y-6">
                   <h4 className="text-xs font-bold text-gray-400 tracking-wide uppercase">
-                    Contact
+                    Contact Details
                   </h4>
 
                   {/* Row 1: Primary Contact, Phone, Fax */}
@@ -957,9 +1018,9 @@ export const AddSupplierPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Row 2: Web Site, Primary Currency */}
+                  {/* Row 2: Web Site, Primary Currency, GST Number */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="sm:col-span-2">
+                    <div>
                       <label className="block text-xs font-bold text-gray-800 mb-1.5">
                         Web Site
                       </label>
@@ -991,6 +1052,19 @@ export const AddSupplierPage: React.FC = () => {
                         <ChevronDown size={18} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
                       </div>
                     </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-800 mb-1.5">
+                        GST Number
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.gstNumber || ''}
+                        onChange={(e) => setFormData({ ...formData, gstNumber: e.target.value })}
+                        placeholder="GST Number"
+                        className="w-full border border-gray-400 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-gray-400"
+                      />
+                    </div>
                   </div>
 
                   {/* Row 3: Primary Email, Secondary Email */}
@@ -1016,7 +1090,7 @@ export const AddSupplierPage: React.FC = () => {
                         type="email"
                         value={formData.secondaryEmail || ''}
                         onChange={(e) => setFormData({ ...formData, secondaryEmail: e.target.value })}
-                        placeholder="email.1@gmail.com"
+                        placeholder="email.2@gmail.com"
                         className="w-full border border-gray-400 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-gray-400"
                       />
                     </div>
@@ -1036,7 +1110,8 @@ export const AddSupplierPage: React.FC = () => {
                     />
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
               {/* TAB 2: LOCATION MATCHING SCREENSHOT */}
               {activeTab === 'Location' && (
@@ -1134,64 +1209,47 @@ export const AddSupplierPage: React.FC = () => {
               {/* TAB 3: SPARES MATCHING SCREENSHOT 5 */}
               {activeTab === 'Spares' && (
                 <div className="space-y-4">
-                  {/* Top Toolbar Bar matching Screenshot 5 */}
-                  <div className="flex flex-col sm:flex-row justify-end items-center gap-3">
-                    {/* Search Input Box */}
-                    <div className="relative w-full sm:w-64">
+                  {/* Top Toolbar matching Machine Management */}
+                  <div className="flex justify-end items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewSpareForm({ name: '', location: '', inHandQuantity: '' as any, atSourceQuantity: '' as any, minimumQuantity: '' as any, totalStock: 0 });
+                        setIsAddSpareModalOpen(true);
+                      }}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-all shadow-xs cursor-pointer"
+                    >
+                      <Plus size={16} className="stroke-[3]" /> Add Spare
+                    </button>
+
+                    <div className="relative">
+                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                       <input
                         type="text"
                         value={spareSearchQuery}
                         onChange={(e) => setSpareSearchQuery(e.target.value)}
                         placeholder="Search"
-                        className="w-full bg-gray-100 border border-gray-200 rounded-2xl pl-4 pr-10 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-gray-400"
+                        className="pl-9 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 w-64"
                       />
-                      <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-sky-600 stroke-[2.5]" />
                     </div>
 
-                    {/* + Add Button */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        saveDraft();
-                        navigate('/spares/new', {
-                          state: {
-                            returnUrl: isEditMode && id ? `/suppliers/edit/${id}` : '/suppliers/new',
-                            returnTab: 'Spares',
-                            supplierId: id || (formData as any).id,
-                            supplierName: formData.name,
-                            supplierCategory: formData.categoriesList?.[0] || formData.businessCategory || 'Supplier',
-                            vendorCode: formData.supplierCode
-                          }
-                        });
-                      }}
-                      className="flex items-center gap-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-4 py-2 rounded-2xl text-xs transition-all cursor-pointer shadow-2xs"
-                      title="Go to Spare Management"
-                    >
-                      <Plus size={16} strokeWidth={2.5} className="text-sky-600" />
-                      <span>Add</span>
-                    </button>
-
-                    {/* 🗑 Delete Icon Button */}
-                    <button
-                      type="button"
-                      onClick={handleDeleteSelectedSpares}
-                      disabled={selectedSpareIds.length === 0}
-                      className={`p-2 rounded-2xl border transition-all cursor-pointer ${
-                        selectedSpareIds.length > 0
-                          ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100 shadow-2xs'
-                          : 'bg-gray-200 border-gray-300 text-gray-400 cursor-not-allowed'
-                      }`}
-                      title="Delete Selected Spares"
-                    >
-                      <Trash2 size={16} strokeWidth={2} />
-                    </button>
+                    {selectedSpareIds.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleDeleteSelectedSpares}
+                        className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl flex items-center justify-center transition-colors cursor-pointer"
+                        title="Delete Selected Spares"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                   </div>
 
-                  {/* Spares Table matching Screenshot 5 */}
-                  <div className="overflow-x-auto border border-gray-200 rounded-2xl shadow-xs">
+                  {/* Spares Table */}
+                  <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-xs">
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
-                        <tr className="bg-gray-200/80 text-gray-700 font-bold uppercase border-b border-gray-200">
+                        <tr className="bg-slate-50/90 text-slate-600 font-semibold text-xs border-b border-slate-200 uppercase tracking-wider">
                           <th className="p-3 w-10 text-center">
                             <input
                               type="checkbox"
@@ -1200,7 +1258,7 @@ export const AddSupplierPage: React.FC = () => {
                                 if (e.target.checked) setSelectedSpareIds(supplierSpares.map((s) => s.id));
                                 else setSelectedSpareIds([]);
                               }}
-                              className="w-3.5 h-3.5 text-emerald-600 rounded-xs border-gray-300 focus:ring-emerald-500 cursor-pointer"
+                              className="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
                             />
                           </th>
                           <th className="p-3 text-center">No.</th>
@@ -1212,7 +1270,7 @@ export const AddSupplierPage: React.FC = () => {
                           <th className="p-3 text-center">Total Stock</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100 text-gray-600">
+                      <tbody className="divide-y divide-slate-100 text-slate-700">
                         {filteredSparesList.length === 0 ? (
                           <tr>
                             <td colSpan={8} className="text-center py-10 text-gray-400 font-medium">
@@ -1220,30 +1278,21 @@ export const AddSupplierPage: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  saveDraft();
-                                  navigate('/spares/new', {
-                                    state: {
-                                      returnUrl: isEditMode && id ? `/suppliers/edit/${id}` : '/suppliers/new',
-                                      returnTab: 'Spares',
-                                      supplierId: id || (formData as any).id,
-                                      supplierName: formData.name,
-                                      supplierCategory: formData.categoriesList?.[0] || formData.businessCategory || 'Supplier',
-                                      vendorCode: formData.supplierCode
-                                    }
-                                  });
+                                  setNewSpareForm({ name: '', location: '', inHandQuantity: '' as any, atSourceQuantity: '' as any, minimumQuantity: '' as any, totalStock: 0 });
+                                  setIsAddSpareModalOpen(true);
                                 }}
                                 className="text-emerald-600 font-bold hover:underline cursor-pointer"
                               >
-                                "+ Add"
+                                "+ Add Spare"
                               </button>{' '}
-                              to open Spare Management.
+                              to add a spare.
                             </td>
                           </tr>
                         ) : (
                           filteredSparesList.map((item, index) => {
                             const isSelected = selectedSpareIds.includes(item.id);
                             return (
-                              <tr key={item.id} className={`hover:bg-emerald-50/30 transition-colors ${isSelected ? 'bg-emerald-50/60' : ''}`}>
+                              <tr key={item.id} className={`hover:bg-blue-50/40 transition-colors ${isSelected ? 'bg-blue-50/60' : ''}`}>
                                 <td className="p-3 text-center">
                                   <input
                                     type="checkbox"
@@ -1319,23 +1368,42 @@ export const AddSupplierPage: React.FC = () => {
                         {/* Spare Name & Minimum Quantity */}
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-xs font-bold text-gray-800 mb-1.5">
-                              Spare Name
-                            </label>
-                            <div className="relative flex items-center">
-                              <input
-                                type="text"
-                                readOnly
-                                value={newSpareForm.name || ''}
-                                onClick={() => setIsSparePickerOpen(true)}
-                                placeholder="Select Spare"
-                                className="w-full border border-gray-400 rounded-2xl px-4 py-3 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white cursor-pointer pr-10"
-                              />
-                              <ChevronDown
-                                size={18}
-                                onClick={() => setIsSparePickerOpen(true)}
-                                className="absolute right-3.5 text-gray-600 cursor-pointer pointer-events-none"
-                              />
+                            <div className="flex items-center justify-between mb-1.5">
+                              <label className="block text-xs font-bold text-gray-800">
+                                Spare Name
+                              </label>
+                              <button
+                                type="button"
+                                onClick={handleNavigateToCreateSpare}
+                                className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer hover:underline"
+                              >
+                                <Plus size={13} className="stroke-[2.5]" /> Add Spare
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="relative flex-1">
+                                <input
+                                  type="text"
+                                  readOnly
+                                  value={newSpareForm.name || ''}
+                                  onClick={() => setIsSparePickerOpen(true)}
+                                  placeholder="Select Spare"
+                                  className="w-full border border-gray-400 rounded-2xl px-4 py-3 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white cursor-pointer pr-10"
+                                />
+                                <ChevronDown
+                                  size={18}
+                                  onClick={() => setIsSparePickerOpen(true)}
+                                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-600 cursor-pointer pointer-events-none"
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={handleNavigateToCreateSpare}
+                                title="Add spare in Spare Management"
+                                className="h-[46px] px-3.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-2xl text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                              >
+                                <Plus size={15} className="stroke-[3]" /> Add
+                              </button>
                             </div>
                           </div>
 
@@ -1422,48 +1490,53 @@ export const AddSupplierPage: React.FC = () => {
               {/* TAB 4: DOCUMENTS MATCHING SCREENSHOT 7 */}
               {activeTab === 'Documents' && (
                 <div className="space-y-4">
-                  {/* Top Toolbar Bar matching Screenshot 7 */}
-                  <div className="flex flex-col sm:flex-row justify-end items-center gap-3">
-                    {/* + Add Button */}
+                  {/* Top Toolbar matching Machine Management */}
+                  <div className="flex justify-end items-center gap-3">
                     <button
                       type="button"
                       onClick={() => setIsAddDocModalOpen(true)}
-                      className="flex items-center gap-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-4 py-2 rounded-2xl text-xs transition-all cursor-pointer shadow-2xs"
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold text-sm rounded-xl flex items-center gap-2 transition-all shadow-xs cursor-pointer"
                     >
-                      <Plus size={16} strokeWidth={2.5} className="text-sky-600" />
-                      <span>Add</span>
+                      <Plus size={16} className="stroke-[3]" /> Add Document
                     </button>
 
-                    {/* 🗑 Delete Icon Button */}
-                    <button
-                      type="button"
-                      onClick={handleDeleteSelectedDocs}
-                      disabled={selectedDocIds.length === 0}
-                      className={`p-2 rounded-2xl border transition-all cursor-pointer ${
-                        selectedDocIds.length > 0
-                          ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100 shadow-2xs'
-                          : 'bg-gray-200 border-gray-300 text-gray-400 cursor-not-allowed'
-                      }`}
-                      title="Delete Selected Documents"
-                    >
-                      <Trash2 size={16} strokeWidth={2} />
-                    </button>
+                    <div className="relative">
+                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search"
+                        value={docSearchQuery}
+                        onChange={(e) => setDocSearchQuery(e.target.value)}
+                        className="pl-9 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 w-64"
+                      />
+                    </div>
+
+                    {selectedDocIds.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleDeleteSelectedDocs}
+                        className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl flex items-center justify-center transition-colors cursor-pointer"
+                        title="Delete Selected Documents"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                   </div>
 
                   {/* Documents Table List */}
-                  <div className="overflow-x-auto border border-gray-200 rounded-2xl shadow-xs">
+                  <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-xs">
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
-                        <tr className="bg-gray-200/80 text-gray-700 font-bold uppercase border-b border-gray-200">
+                        <tr className="bg-slate-50/90 text-slate-600 font-semibold text-xs border-b border-slate-200 uppercase tracking-wider">
                           <th className="p-3 w-10 text-center">
                             <input
                               type="checkbox"
-                              checked={supplierDocuments.length > 0 && selectedDocIds.length === supplierDocuments.length}
+                              checked={filteredDocs.length > 0 && selectedDocIds.length === filteredDocs.length}
                               onChange={(e) => {
-                                if (e.target.checked) setSelectedDocIds(supplierDocuments.map((d) => d.id));
+                                if (e.target.checked) setSelectedDocIds(filteredDocs.map((d) => d.id));
                                 else setSelectedDocIds([]);
                               }}
-                              className="w-3.5 h-3.5 text-emerald-600 rounded-xs border-gray-300 focus:ring-emerald-500 cursor-pointer"
+                              className="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
                             />
                           </th>
                           <th className="p-3 text-center">No.</th>
@@ -1473,18 +1546,18 @@ export const AddSupplierPage: React.FC = () => {
                           <th className="p-3 text-center">Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100 text-gray-600">
-                        {supplierDocuments.length === 0 ? (
+                      <tbody className="divide-y divide-slate-100 text-slate-700">
+                        {filteredDocs.length === 0 ? (
                           <tr>
-                            <td colSpan={6} className="text-center py-10 text-gray-400 font-medium">
-                              No documents uploaded. Click "+ Add" to upload documents.
+                            <td colSpan={6} className="text-center py-10 text-slate-400 font-medium">
+                              No documents found.
                             </td>
                           </tr>
                         ) : (
-                          supplierDocuments.map((doc, index) => {
+                          filteredDocs.map((doc, index) => {
                             const isSelected = selectedDocIds.includes(doc.id);
                             return (
-                              <tr key={doc.id} className={`hover:bg-emerald-50/30 transition-colors ${isSelected ? 'bg-emerald-50/60' : ''}`}>
+                              <tr key={doc.id} className={`hover:bg-blue-50/40 transition-colors ${isSelected ? 'bg-blue-50/60' : ''}`}>
                                 <td className="p-3 text-center">
                                   <input
                                     type="checkbox"
@@ -1599,22 +1672,22 @@ export const AddSupplierPage: React.FC = () => {
                     Audit Log & Activity History
                   </h4>
 
-                  <div className="overflow-x-auto border border-gray-200 rounded-2xl">
-                    <table className="w-full text-left border-collapse text-sm">
+                  <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-xs">
+                    <table className="w-full text-left border-collapse text-xs">
                       <thead>
-                        <tr className="bg-gray-100 text-gray-700 text-xs font-bold uppercase border-b border-gray-200">
+                        <tr className="bg-slate-50/90 text-slate-600 font-semibold text-xs border-b border-slate-200 uppercase tracking-wider">
                           <th className="p-3">Action</th>
                           <th className="p-3">Date & Time</th>
                           <th className="p-3">User</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100 text-xs text-gray-700">
-                        <tr>
+                      <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+                        <tr className="hover:bg-blue-50/40 transition-colors">
                           <td className="p-3 font-semibold text-emerald-700">Created Supplier Record</td>
                           <td className="p-3">{new Date().toLocaleDateString()}</td>
                           <td className="p-3 font-medium">Admin User</td>
                         </tr>
-                        <tr>
+                        <tr className="hover:bg-blue-50/40 transition-colors">
                           <td className="p-3 font-semibold text-blue-700">Updated Status to Active</td>
                           <td className="p-3">{new Date().toLocaleDateString()}</td>
                           <td className="p-3 font-medium">Admin User</td>
@@ -1626,30 +1699,37 @@ export const AddSupplierPage: React.FC = () => {
               )}
             </div>
 
-            {/* BOTTOM NAVIGATION / ACTION BAR (Same as Spare Management) */}
-            <div className="flex justify-between items-center w-full px-6 py-4 border-t border-gray-200 bg-gray-50/60 mt-auto">
+            {/* BOTTOM NAVIGATION / ACTION BAR */}
+            <div className="flex justify-between items-center w-full px-6 py-4 border-t border-slate-200 bg-slate-50/70 mt-auto">
               <button
                 type="button"
-                onClick={handleStep2Back}
+                onClick={handlePrevTab}
                 className="px-8 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold text-sm transition-colors shadow-sm cursor-pointer"
               >
                 Back
               </button>
 
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => handleSubmit()}
                   disabled={submitting}
-                  className="px-10 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+                  className="px-8 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg font-semibold text-sm transition-colors shadow-sm cursor-pointer disabled:opacity-50"
                 >
-                  {submitting ? 'Saving...' : 'Save'}
+                  {submitting ? 'Saving...' : 'Save Supplier'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleNextTab}
+                  className="px-10 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors shadow-sm flex items-center gap-2 cursor-pointer"
+                >
+                  Next
                 </button>
               </div>
             </div>
           </div>
         </div>
-      )}
       {/* Select Location Picker Modal matching Screenshot 8 */}
       <SelectLocationPickerModal
         isOpen={isLocationPickerOpen}
@@ -1663,6 +1743,7 @@ export const AddSupplierPage: React.FC = () => {
       <SelectSparePickerModal
         isOpen={isSparePickerOpen}
         onClose={() => setIsSparePickerOpen(false)}
+        onAddNewSpare={handleNavigateToCreateSpare}
         onSelectSpare={(spr) => {
           setNewSpareForm((prev) => ({ ...prev, name: spr.spareName, location: spr.location || prev.location }));
         }}

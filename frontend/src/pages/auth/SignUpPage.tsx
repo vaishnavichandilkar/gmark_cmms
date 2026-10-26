@@ -62,6 +62,13 @@ export function SignUpPage() {
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isStepTransitioning, setIsStepTransitioning] = useState(false);
+
+  // Clear errors when switching between steps so new step starts fresh without red highlights
+  useEffect(() => {
+    setFieldErrors({});
+    setGlobalError(null);
+  }, [currentStep]);
 
   // Post Sign-Up Package Selection Modal States
   const [showPackageModal, setShowPackageModal] = useState(false);
@@ -179,31 +186,42 @@ export function SignUpPage() {
   };
 
   const handleNextStep = () => {
+    if (isStepTransitioning) return;
     setGlobalError(null);
     if (currentStep === 1) {
       if (validateStep1()) {
+        setIsStepTransitioning(true);
+        setFieldErrors({});
         setCurrentStep(2);
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => setIsStepTransitioning(false), 300);
       }
     } else if (currentStep === 2) {
       if (validateStep2()) {
+        setIsStepTransitioning(true);
+        setFieldErrors({});
         setCurrentStep(3);
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => setIsStepTransitioning(false), 300);
       }
     }
   };
 
   const handlePrevStep = () => {
+    if (isStepTransitioning) return;
     setGlobalError(null);
     setFieldErrors({});
     if (currentStep > 1) {
+      setIsStepTransitioning(true);
       setCurrentStep((prev) => (prev - 1) as 1 | 2 | 3);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => setIsStepTransitioning(false), 300);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isStepTransitioning) return;
     setGlobalError(null);
 
     if (currentStep === 1) {
@@ -215,7 +233,16 @@ export function SignUpPage() {
       return;
     }
 
-    if (!validateStep1() || !validateStep2() || !validateStep3()) {
+    // Step 3 submission: Validate previous steps first without turning Step 3 red if an earlier step was invalid
+    if (!validateStep1()) {
+      setCurrentStep(1);
+      return;
+    }
+    if (!validateStep2()) {
+      setCurrentStep(2);
+      return;
+    }
+    if (!validateStep3()) {
       return;
     }
 
@@ -444,6 +471,8 @@ export function SignUpPage() {
                     type="button"
                     onClick={() => {
                       if (step.number < currentStep) {
+                        setFieldErrors({});
+                        setGlobalError(null);
                         setCurrentStep(step.number as 1 | 2 | 3);
                       }
                     }}
@@ -896,17 +925,20 @@ export function SignUpPage() {
 
               {currentStep < 3 ? (
                 <button
+                  key="btn-next-step"
                   type="button"
                   onClick={handleNextStep}
-                  className="px-5 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold text-xs sm:text-sm transition-all focus:outline-none focus:ring-2 focus:ring-green-500/50 shadow flex items-center gap-1.5 cursor-pointer ml-auto"
+                  disabled={isStepTransitioning}
+                  className="px-5 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold text-xs sm:text-sm transition-all focus:outline-none focus:ring-2 focus:ring-green-500/50 shadow flex items-center gap-1.5 cursor-pointer ml-auto disabled:opacity-50"
                 >
                   <span>{currentStep === 1 ? 'Next: Address' : 'Next: Personal Details'}</span>
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               ) : (
                 <button
+                  key="btn-submit-form"
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || isStepTransitioning}
                   className="w-full sm:w-[200px] py-2.5 px-5 rounded-lg bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold text-xs sm:text-sm transition-all focus:outline-none focus:ring-2 focus:ring-green-500/50 shadow disabled:opacity-60 flex items-center justify-center gap-1.5 cursor-pointer shrink-0 ml-auto"
                 >
                   {loading ? (

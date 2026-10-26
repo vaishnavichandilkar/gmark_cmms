@@ -63,22 +63,6 @@ export class SchedulesService implements OnModuleInit {
           completedBy: 'Rajesh Kumar (Sr. Tech)',
           notes: 'Bi-monthly preventive pump shaft alignment and bearing vibration check',
           notifyUsers: JSON.stringify(['engineer@gmark.com', 'tech@gmark.com']),
-          tasks: {
-            create: [
-              {
-                description: 'Inspect pump mechanical seal grease and oil level',
-                taskType: 'INSPECTION',
-                frequency: 'MONTHLY',
-                standardValue: 'ISO VG 46 Level 75%',
-              },
-              {
-                description: 'Verify emergency stop button & guard safety interlocks',
-                taskType: 'CALIBRATION',
-                frequency: 'MONTHLY',
-                standardValue: 'Pass / Zero Faults',
-              },
-            ],
-          },
           logs: {
             create: [
               {
@@ -106,17 +90,6 @@ export class SchedulesService implements OnModuleInit {
           nextRunDate: new Date(Date.now() + 86400000 * 30),
           completedBy: 'Anil Verma (Vibration Engineer)',
           notes: 'Predictive thermography & 3-axis vibration spectrum diagnostic schedule',
-          tasks: {
-            create: [
-              {
-                description: 'Measure motor bearing vibration spectrum (0.1 - 3.5 mm/s RMS)',
-                taskType: 'INSPECTION',
-                frequency: 'QUARTERLY',
-                toleranceMin: 0.1,
-                toleranceMax: 3.5,
-              },
-            ],
-          },
           logs: {
             create: [
               {
@@ -392,8 +365,23 @@ export class SchedulesService implements OnModuleInit {
 
     // Generate WO from schedule
     const year = new Date().getFullYear();
-    const count = await this.prisma.workOrder.count();
-    const woNumber = `WO-${year}-${(count + 1).toString().padStart(4, '0')}`;
+    const prefix = `WO-${year}-`;
+    const lastWO = await this.prisma.workOrder.findFirst({
+      where: { woNumber: { startsWith: prefix } },
+      orderBy: { woNumber: 'desc' },
+      select: { woNumber: true },
+    });
+    let nextNum = 1;
+    if (lastWO?.woNumber) {
+      const match = lastWO.woNumber.match(/WO-\d{4}-(\d+)/);
+      if (match && match[1]) {
+        nextNum = parseInt(match[1], 10) + 1;
+      }
+    }
+    while (await this.prisma.workOrder.findUnique({ where: { woNumber: `WO-${year}-${nextNum.toString().padStart(4, '0')}` } })) {
+      nextNum++;
+    }
+    const woNumber = `WO-${year}-${nextNum.toString().padStart(4, '0')}`;
 
     const workOrder = await this.prisma.workOrder.create({
       data: {
