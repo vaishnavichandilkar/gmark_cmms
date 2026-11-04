@@ -7,7 +7,7 @@ import { MoveAssetModal } from '../../../components/4m/MoveAssetModal';
 import { GiveAccessModal } from '../../../components/4m/GiveAccessModal';
 import { api } from '../../../lib/api';
 import { Skeleton } from '../../../components/shared/ui/Skeleton';
-import { X, ArrowRight, FolderInput, Loader2, AlertCircle, Building2, Building, Cpu, CheckCircle2, Shield, ChevronsDown, ChevronsUp } from 'lucide-react';
+import { X, ArrowRight, FolderInput, Loader2, AlertCircle, Building2, Building, Cpu, CheckCircle2, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../store';
@@ -479,29 +479,6 @@ export function AssetsManagement() {
             </p>
           </div>
           <div className="flex items-center gap-2.5">
-            {/* Expand / Collapse All Controls */}
-            <div className="flex items-center bg-gray-50 p-1 rounded-xl border border-gray-200/80 shadow-2xs">
-              <button
-                type="button"
-                onClick={handleExpandAll}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-gray-700 hover:text-gray-900 hover:bg-white rounded-lg transition-all cursor-pointer shadow-2xs"
-                title="Expand all assets in the tree"
-              >
-                <ChevronsDown className="w-3.5 h-3.5 text-gray-500" />
-                <span>Expand All</span>
-              </button>
-              <div className="w-[1px] h-3.5 bg-gray-200 mx-0.5" />
-              <button
-                type="button"
-                onClick={handleCollapseAll}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-gray-700 hover:text-gray-900 hover:bg-white rounded-lg transition-all cursor-pointer shadow-2xs"
-                title="Collapse all assets in the tree"
-              >
-                <ChevronsUp className="w-3.5 h-3.5 text-gray-500" />
-                <span>Collapse All</span>
-              </button>
-            </div>
-
             {canManageAssets && selectedNode && canDragNode(selectedNode, canManageAssets) && (
               <button
                 type="button"
