@@ -1,14 +1,11 @@
 import { type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ChevronRight, Home, Building2, CheckCircle2 } from 'lucide-react';
-import { useSelector } from 'react-redux';
+import { ChevronRight, Home } from 'lucide-react';
 import { FloatingNavbar } from '../components/shared/FloatingNavbar';
-import type { RootState } from '../store';
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useSelector((state: RootState) => state.auth);
   
   // Clean Fiix breadcrumb logic based on pathname
   const getBreadcrumbs = () => {
@@ -97,26 +94,6 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             })}
           </div>
 
-          {/* Right Header Badges & Context */}
-          <div className="hidden sm:flex items-center gap-2.5 shrink-0">
-            {/* System Status Pill */}
-            <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/70 rounded-full text-[10px] font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>CMMS Online</span>
-            </div>
-
-            {/* User Quick Info */}
-            {user && (
-              <div className="flex items-center gap-1.5 pl-2.5 border-l border-slate-200 text-xs text-slate-600">
-                <span className="font-semibold text-slate-800">
-                  {user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.username}
-                </span>
-                <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/60 rounded">
-                  {user.role === 'SUPER_ADMIN' ? 'Admin' : (user.designation || user.employee?.designation || user.role || 'User')}
-                </span>
-              </div>
-            )}
-          </div>
         </header>
 
         {/* Scrollable Workspace */}
