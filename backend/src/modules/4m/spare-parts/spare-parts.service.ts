@@ -43,7 +43,8 @@ export class SparePartsService {
   }
 
   async getAllSpareParts(currentUser?: any) {
-    const effectiveAdminId = currentUser?.adminId || currentUser?.userId;
+    const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+    const effectiveAdminId = isSuperAdmin ? null : (currentUser?.adminId || currentUser?.userId);
     const where: any = effectiveAdminId
       ? { OR: [{ adminId: effectiveAdminId }, { adminId: null }] }
       : {};

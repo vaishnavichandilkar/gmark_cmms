@@ -102,7 +102,7 @@ export function WorkOrderManagement() {
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
 
   // Modals state
   const [showScannerModal, setShowScannerModal] = useState(false);
@@ -144,13 +144,16 @@ export function WorkOrderManagement() {
       }
 
       if (techData && Array.isArray(techData)) {
+        const isSuperAdmin = user?.role === 'SUPER_ADMIN';
         const effectiveAdminId = user?.adminId || user?.id || user?.userId;
-        const myUsers = techData.filter((u: any) =>
-          u.adminId === effectiveAdminId ||
-          u.id === effectiveAdminId ||
-          u.id === user?.id ||
-          u.id === user?.userId
-        );
+        const myUsers = isSuperAdmin
+          ? techData
+          : techData.filter((u: any) =>
+              u.adminId === effectiveAdminId ||
+              u.id === effectiveAdminId ||
+              u.id === user?.id ||
+              u.id === user?.userId
+            );
         setTechniciansList(myUsers);
       }
     } catch (err) {

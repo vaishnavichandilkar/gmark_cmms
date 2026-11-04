@@ -46,6 +46,8 @@ export function FloatingNavbar() {
 
   if (!isAuthenticated || !user) return null;
 
+  const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'SOCIETY_ADMIN' || (user.designation && user.designation.toLowerCase().includes('admin'));
+
   const handleLogoutConfirm = () => {
     setIsModalOpen(false);
     dispatch(logout());
@@ -178,11 +180,17 @@ export function FloatingNavbar() {
       if (fmPerm && fmPerm.canView) return true;
       return true;
     }
-    if (!perm && moduleId === 'assets') {
+    if (moduleId === 'assets') {
+      if (perm && perm.canView) return true;
+      const hasAnyAssetAccess = user.permissions.some(
+        (p: any) => p.moduleId?.startsWith('asset_') && p.canView
+      );
+      if (hasAnyAssetAccess) return true;
       const mmPerm = user.permissions.find((p: any) => p.moduleId === 'machine_management');
       if (mmPerm && mmPerm.canView) return true;
       const fmPerm = user.permissions.find((p: any) => p.moduleId === 'facility_management');
       if (fmPerm && fmPerm.canView) return true;
+      return false;
     }
     return perm ? !!perm.canView : false;
   };
@@ -425,16 +433,18 @@ export function FloatingNavbar() {
                         </div>
                       </div>
                       <div className="p-1 space-y-0.5">
-                        <button 
-                          onClick={() => {
-                            setIsProfilePopupOpen(false);
-                            setIsChangePasswordModalOpen(true);
-                          }}
-                          className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-emerald-600 rounded-md transition-colors cursor-pointer"
-                        >
-                          <Key size={13} className="text-slate-400" />
-                          Change Password
-                        </button>
+                        {isAdmin && (
+                          <button 
+                            onClick={() => {
+                              setIsProfilePopupOpen(false);
+                              setIsChangePasswordModalOpen(true);
+                            }}
+                            className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-emerald-600 rounded-md transition-colors cursor-pointer"
+                          >
+                            <Key size={13} className="text-slate-400" />
+                            Change Password
+                          </button>
+                        )}
                         <button 
                           onClick={() => {
                             setIsProfilePopupOpen(false);
@@ -536,7 +546,7 @@ export function FloatingNavbar() {
                         {user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.username || 'Admin User'}
                       </span>
                       <span className="text-[9px] text-slate-500 uppercase tracking-wider font-medium truncate">
-                        {user.role === 'SUPER_ADMIN' ? 'Admin' : (user.role || 'User')}
+                        {user.role === 'SUPER_ADMIN' ? 'Admin' : (user.designation || user.employee?.designation || user.role || 'User')}
                       </span>
                     </div>
                   </div>
@@ -554,17 +564,19 @@ export function FloatingNavbar() {
                       className="overflow-hidden"
                     >
                       <div className="flex flex-col gap-1 mt-2 bg-white rounded-lg border border-slate-200 p-1.5 shadow-xs">
-                        <button 
-                          onClick={() => {
-                            setIsProfilePopupOpen(false);
-                            setIsMobileMenuOpen(false);
-                            setIsChangePasswordModalOpen(true);
-                          }}
-                          className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-emerald-600 rounded-md transition-colors"
-                        >
-                          <Key size={14} />
-                          Change Password
-                        </button>
+                        {isAdmin && (
+                          <button 
+                            onClick={() => {
+                              setIsProfilePopupOpen(false);
+                              setIsMobileMenuOpen(false);
+                              setIsChangePasswordModalOpen(true);
+                            }}
+                            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-emerald-600 rounded-md transition-colors"
+                          >
+                            <Key size={14} />
+                            Change Password
+                          </button>
+                        )}
                         <button 
                           onClick={() => {
                             setIsProfilePopupOpen(false);

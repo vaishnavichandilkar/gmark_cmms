@@ -45,7 +45,7 @@ export function NotificationBell({ isExpanded }: { isExpanded: boolean }) {
         console.error('Failed to load initial active alerts:', err);
       });
 
-    socket = io('http://localhost:3001', {
+    socket = io('http://localhost:3002', {
       auth: { token: accessToken },
       transports: ['websocket'],
     });

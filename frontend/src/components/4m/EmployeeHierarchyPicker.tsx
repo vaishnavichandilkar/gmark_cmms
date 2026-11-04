@@ -54,7 +54,7 @@ export function EmployeeHierarchyPicker({
 
       employees.forEach((emp: any) => {
         const deptName = emp.department || 'Unassigned Department';
-        const desigName = emp.designation || emp.role || 'Unassigned Designation';
+        const desigName = emp.userDesignation || (emp.role && emp.role !== 'Staff' ? emp.role : '') || emp.designation || 'Unassigned Designation';
 
         // 1. Create or get Department Node
         if (!deptMap[deptName]) {

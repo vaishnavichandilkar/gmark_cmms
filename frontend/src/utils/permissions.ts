@@ -108,12 +108,18 @@ export const hasPermission = (user: any, moduleId: string, action: ActionType): 
     if (fmPerm) return hasPermission(user, 'facility_management', action);
   }
 
-  // Convenience fallback: if checking assets but user only has machine_management or facility_management permission
-  if (!perm && moduleId === 'assets') {
+  // Special check for 'assets' module:
+  if (moduleId === 'assets' && action === 'view') {
+    if (perm && perm.canView) return true;
+    const hasAnyAssetAccess = user.permissions.some(
+      (p: any) => p.moduleId?.startsWith('asset_') && p.canView
+    );
+    if (hasAnyAssetAccess) return true;
     const mmPerm = user.permissions.find((p: any) => p.moduleId === 'machine_management');
-    if (mmPerm) return hasPermission(user, 'machine_management', action);
+    if (mmPerm && mmPerm.canView) return true;
     const fmPerm = user.permissions.find((p: any) => p.moduleId === 'facility_management');
-    if (fmPerm) return hasPermission(user, 'facility_management', action);
+    if (fmPerm && fmPerm.canView) return true;
+    return false;
   }
 
   // If the user has no permissions entry for this module, deny access
@@ -164,5 +170,138 @@ export const hasSupplierTabPermission = (user: any, tabName: string, action: Act
 
 export const hasScheduleTabPermission = (user: any, tabName: string, action: ActionType = 'view'): boolean => {
   return hasTabPermission(user, tabName, action, 'schedule');
+};
+
+export const hasAssetPermission = (
+  user: any,
+  asset: {
+    id: number | string;
+    type?: 'machine' | 'facility' | 'mainFacility' | 'device';
+    facilityId?: number | null;
+    mainFacilityId?: number | null;
+    parentFacilityId?: number | null;
+    facility?: { mainFacilityId?: number | null } | null;
+    deviceId?: string | null;
+    mainFacilityCode?: string;
+    mainFacilityName?: string;
+    facilityCode?: string;
+    facilityName?: string;
+    machineCode?: string;
+  },
+  action: ActionType = 'view'
+): boolean => {
+  if (!user) return false;
+  if (user.role === 'SUPER_ADMIN') return true;
+  if (!user.permissions || !Array.isArray(user.permissions)) return false;
+
+  const actionKey = action === 'view' ? 'canView'
+    : action === 'create' ? 'canCreate'
+    : action === 'edit' ? 'canEdit'
+    : action === 'delete' ? 'canDelete'
+    : action === 'import' ? 'canImport'
+    : action === 'export' ? 'canExport'
+    : 'canPrint';
+
+  // Check if user has ANY asset-level permissions configured
+  const hasGranularAssetPerms = user.permissions.some((p: any) => p.moduleId?.startsWith('asset_'));
+
+  const isMainFacility = asset.type === 'mainFacility' || (!!(asset as any).mainFacilityCode && !(asset as any).facilityCode);
+  const isFacility = asset.type === 'facility' || (!!(asset as any).facilityCode && !(asset as any).machineCode);
+
+  // If no granular asset permissions exist in user's permissions, fallback to general module permission
+  if (!hasGranularAssetPerms) {
+    if (isMainFacility) {
+      return hasPermission(user, 'master_main_facility', action) || hasPermission(user, 'facility_management', action);
+    }
+    if (isFacility) {
+      return hasPermission(user, 'facility_management', action);
+    }
+    return hasPermission(user, 'machine_management', action);
+  }
+
+  // 1. Main Facility
+  if (isMainFacility) {
+    const mfPerm = user.permissions.find((p: any) => p.moduleId === `asset_mf_${asset.id}`);
+    if (mfPerm?.canView) return !!mfPerm[actionKey];
+    if (user.mainFacilityId && Number(user.mainFacilityId) === Number(asset.id)) return true;
+  } else if (isFacility) {
+    // 2. Sub-Facility
+    const facPerm = user.permissions.find((p: any) => p.moduleId === `asset_fac_${asset.id}`);
+    if (facPerm?.canView) return !!facPerm[actionKey];
+
+    if (user.facilityId && Number(user.facilityId) === Number(asset.id)) return true;
+
+    if (asset.parentFacilityId) {
+      const parentPerm = user.permissions.find((p: any) => p.moduleId === `asset_fac_${asset.parentFacilityId}`);
+      if (parentPerm?.canView) return !!parentPerm[actionKey];
+      if (user.facilityId && Number(user.facilityId) === Number(asset.parentFacilityId)) return true;
+    }
+
+    const mainFacId = asset.mainFacilityId || asset.facility?.mainFacilityId;
+    if (mainFacId) {
+      const mfPerm = user.permissions.find((p: any) => p.moduleId === `asset_mf_${mainFacId}`);
+      if (mfPerm?.canView) return !!mfPerm[actionKey];
+      if (user.mainFacilityId && Number(user.mainFacilityId) === Number(mainFacId)) return true;
+    }
+  } else {
+    // 3. Machine / Device
+    const macPerm = user.permissions.find((p: any) => p.moduleId === `asset_mac_${asset.id}`);
+    if (macPerm?.canView) {
+      return !!macPerm[actionKey];
+    }
+
+    if (asset.deviceId) {
+      const devPerm = user.permissions.find((p: any) => p.moduleId === `asset_dev_${asset.deviceId}` || p.moduleId === `asset_dev_${asset.id}`);
+      if (devPerm?.canView) {
+        return !!devPerm[actionKey];
+      }
+    }
+
+    if (user.deviceId && (user.deviceId === asset.deviceId || user.deviceId === String(asset.id))) {
+      return true;
+    }
+
+    // Check parent facility permission: asset_fac_${facilityId} or user facilityId match
+    if (asset.facilityId) {
+      const facPerm = user.permissions.find((p: any) => p.moduleId === `asset_fac_${asset.facilityId}`);
+      if (facPerm?.canView) {
+        return !!facPerm[actionKey];
+      }
+      if (user.facilityId && Number(user.facilityId) === Number(asset.facilityId)) {
+        return true;
+      }
+    }
+
+    // Check parent facility's parent permission if available on object
+    if (asset.facility?.parentFacilityId) {
+      const parentFacPerm = user.permissions.find((p: any) => p.moduleId === `asset_fac_${asset.facility.parentFacilityId}`);
+      if (parentFacPerm?.canView) {
+        return !!parentFacPerm[actionKey];
+      }
+      if (user.facilityId && Number(user.facilityId) === Number(asset.facility.parentFacilityId)) {
+        return true;
+      }
+    }
+
+    // Check parent main facility permission: asset_mf_${mainFacilityId}
+    const mainFacId = asset.mainFacilityId || asset.facility?.mainFacilityId;
+    if (mainFacId) {
+      const mfPerm = user.permissions.find((p: any) => p.moduleId === `asset_mf_${mainFacId}`);
+      if (mfPerm?.canView) {
+        return !!mfPerm[actionKey];
+      }
+      if (user.mainFacilityId && Number(user.mainFacilityId) === Number(mainFacId)) {
+        return true;
+      }
+    }
+  }
+
+  // Fallback to global assets permission if defined
+  const assetsPerm = user.permissions.find((p: any) => p.moduleId === 'assets');
+  if (assetsPerm?.canView) {
+    return !!assetsPerm[actionKey];
+  }
+
+  return false;
 };
 

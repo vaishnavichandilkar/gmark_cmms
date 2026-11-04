@@ -270,6 +270,10 @@ export class SchedulesService implements OnModuleInit {
         },
       });
 
+      if (this.prisma.userCheckpoint && validatedTasks && validatedTasks.length > 0) {
+        await this.syncTasksToMachineCheckpoints(dto.machineId, dto.scheduleType || 'PREVENTIVE', validatedTasks, effectiveAdminId);
+      }
+
       return schedule;
     } catch (err: any) {
       this.logger.error(`Failed to create maintenance schedule: ${err.message}`, err.stack);
@@ -279,7 +283,8 @@ export class SchedulesService implements OnModuleInit {
 
   async getSchedules(query: { type?: string; search?: string; machineId?: number }, user?: any) {
     const where: any = {};
-    const effectiveAdminId = user?.adminId || user?.userId;
+    const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+    const effectiveAdminId = isSuperAdmin ? null : (user?.adminId || user?.userId);
 
     if (effectiveAdminId) {
       where.adminId = effectiveAdminId;
@@ -449,6 +454,7 @@ export class SchedulesService implements OnModuleInit {
     const authorName = user
       ? (`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || user.email || 'System User')
       : 'Maintenance Engineer';
+    const effectiveAdminId = user?.adminId || user?.userId || existing.adminId || null;
 
     // Normalize priority if provided
     let priorityVal: WorkOrderPriority | undefined = undefined;
@@ -573,6 +579,11 @@ export class SchedulesService implements OnModuleInit {
         },
       });
 
+      if (this.prisma.userCheckpoint && validatedTasks && validatedTasks.length > 0) {
+        const targetMachineId = dto.machineId ? Number(dto.machineId) : existing.machineId;
+        await this.syncTasksToMachineCheckpoints(targetMachineId, dto.scheduleType || existing.scheduleType, validatedTasks, effectiveAdminId);
+      }
+
       return updated;
     } catch (err: any) {
       this.logger.error(`Failed to update maintenance schedule #${id}: ${err.message}`, err.stack);
@@ -598,5 +609,95 @@ export class SchedulesService implements OnModuleInit {
     });
 
     return { success: true, message: `Schedule #${id} deleted successfully` };
+  }
+
+  private async syncTasksToMachineCheckpoints(
+    machineId: number,
+    scheduleType: string,
+    tasks: any[],
+    effectiveAdminId?: number | null,
+  ) {
+    if (!this.prisma.userCheckpoint || !tasks || !Array.isArray(tasks) || tasks.length === 0) return;
+    const mid = Number(machineId);
+
+    for (const t of tasks) {
+      const cleanDesc = (t.description || '').trim();
+      if (!cleanDesc) continue;
+
+      try {
+        const cpType = scheduleType === 'PREDICTIVE' ? 'PREDICTIVE' : 'PREVENTIVE';
+        const cat = this.mapTaskTypeToCategory(t.taskType);
+
+        // 1. Ensure CheckpointMaster exists
+        let master = await this.prisma.checkpointMaster.findFirst({
+          where: {
+            description: { equals: cleanDesc, mode: 'insensitive' },
+            checkpointType: cpType,
+            ...(effectiveAdminId ? { adminId: effectiveAdminId } : {}),
+          },
+        });
+
+        if (!master) {
+          const typePrefix = cpType.substring(0, 4).toUpperCase();
+          const count = await this.prisma.checkpointMaster.count();
+          let nextNum = count + 1;
+          let nextCode = `CHK-${typePrefix}-${nextNum.toString().padStart(3, '0')}`;
+          while (await this.prisma.checkpointMaster.findUnique({ where: { code: nextCode } })) {
+            nextNum++;
+            nextCode = `CHK-${typePrefix}-${nextNum.toString().padStart(3, '0')}`;
+          }
+
+          master = await this.prisma.checkpointMaster.create({
+            data: {
+              code: nextCode,
+              adminId: effectiveAdminId || null,
+              checkpointType: cpType,
+              description: cleanDesc,
+              frequency: t.frequency || 'MONTHLY',
+              standardValue: t.standardValue || null,
+              minValue: (t.toleranceMin !== undefined && t.toleranceMin !== null) ? Number(t.toleranceMin) : null,
+              maxValue: (t.toleranceMax !== undefined && t.toleranceMax !== null) ? Number(t.toleranceMax) : null,
+              category: cat,
+            },
+          });
+        }
+
+        // 2. Ensure UserCheckpoint exists for this machine
+        const existingUserCp = await this.prisma.userCheckpoint.findFirst({
+          where: {
+            machineId: mid,
+            description: { equals: cleanDesc, mode: 'insensitive' },
+          },
+        });
+
+        if (!existingUserCp) {
+          await this.prisma.userCheckpoint.create({
+            data: {
+              checkpointMasterId: master.id,
+              machineId: mid,
+              checkpointType: cpType,
+              description: cleanDesc,
+              frequency: t.frequency || 'MONTHLY',
+              standardValue: t.standardValue || master.standardValue,
+              minValue: (t.toleranceMin !== undefined && t.toleranceMin !== null) ? Number(t.toleranceMin) : master.minValue,
+              maxValue: (t.toleranceMax !== undefined && t.toleranceMax !== null) ? Number(t.toleranceMax) : master.maxValue,
+            },
+          });
+        }
+      } catch (err: any) {
+        this.logger.warn(`Failed to sync task "${cleanDesc}" to machine #${mid}: ${err.message}`);
+      }
+    }
+  }
+
+  private mapTaskTypeToCategory(taskType?: string): string {
+    if (!taskType) return 'Safety & Mechanical';
+    const upper = taskType.toUpperCase();
+    if (upper === 'CLEANING') return 'Cleaning & Servicing';
+    if (upper === 'LUBRICATION') return 'Lubrication & Oil';
+    if (upper === 'REPLACEMENT') return 'Parts & Replacement';
+    if (upper === 'CALIBRATION') return 'Calibration & Testing';
+    if (upper === 'INSPECTION') return 'Safety & Mechanical';
+    return taskType.charAt(0).toUpperCase() + taskType.slice(1).toLowerCase();
   }
 }

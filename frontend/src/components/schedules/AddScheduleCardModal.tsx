@@ -20,6 +20,7 @@ import { toast } from 'react-hot-toast';
 import { scheduleService } from '../../services/scheduleService';
 import { SpareSelectionTable } from './SpareSelectionTable';
 import { CheckpointMasterModal } from '../checkpoints/CheckpointMasterModal';
+import { CustomDatePicker } from '../shared/CustomDatePicker';
 
 interface AddScheduleCardModalProps {
   isOpen: boolean;
@@ -347,11 +348,10 @@ export function AddScheduleCardModal({
                   <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Start Date <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="date"
+                  <CustomDatePicker
+                    name="startDate"
                     value={startDate}
-                    onChange={e => setStartDate(e.target.value)}
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-all"
+                    onChange={(e: any) => setStartDate(e.target.value)}
                   />
                 </div>
 

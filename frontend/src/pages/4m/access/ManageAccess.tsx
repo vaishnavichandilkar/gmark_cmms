@@ -14,7 +14,7 @@ import { api } from '../../../lib/api';
 
 const MANAGE_ACCESS_COLUMNS: ColumnDefinition[] = [
   { id: 'no', label: 'No.', category: 'General', defaultVisible: false },
-  { id: 'roleName', label: 'Software Role Name', category: 'General', required: true, defaultVisible: true },
+  { id: 'roleName', label: 'Role Name', category: 'General', required: true, defaultVisible: true },
   { id: 'totalUsers', label: 'Total Users', category: 'General', defaultVisible: true },
   { id: 'users', label: 'Assigned Users', category: 'General', defaultVisible: false },
   { id: 'status', label: 'Status', category: 'Status', defaultVisible: true },
@@ -69,7 +69,7 @@ export function ManageAccess() {
   } | null>(null);
   
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -257,7 +257,7 @@ export function ManageAccess() {
   const handleExport = (format: 'pdf' | 'excel') => {
     const columnMap: { id: string; label: string; getValue: (role: any, idx: number) => string }[] = [
       { id: 'no', label: 'No.', getValue: (_r, idx) => (idx + 1).toString() },
-      { id: 'roleName', label: 'Software Role Name', getValue: role => role.roleName || '-' },
+      { id: 'roleName', label: 'Role Name', getValue: role => role.roleName || '-' },
       { id: 'totalUsers', label: 'Total Users', getValue: role => (role.totalUsers || 0).toString() },
       { id: 'users', label: 'Assigned Users', getValue: role => (role.users || []).map((u: any) => u.name).join(', ') || 'None' },
       { id: 'status', label: 'Status', getValue: role => role.isActive ? 'Active' : 'Inactive' },
@@ -266,7 +266,7 @@ export function ManageAccess() {
     const activeCols = columnMap.filter(c => visibleColumns.includes(c.id));
     const headers = activeCols.map(c => c.label);
     const rows = filteredRoles.map((role, idx) => activeCols.map(c => c.getValue(role, idx)));
-    exportData(headers, rows, 'Software_Role_List', 'Manage Access List', format);
+    exportData(headers, rows, 'Role_List', 'Manage Access List', format);
   };
 
   const handlePrint = () => {
@@ -278,10 +278,10 @@ export function ManageAccess() {
       {/* Search & Actions Toolbar in One Row */}
       <TableActions
         title="Manage Access"
-        subtitle="Configure software roles and module permissions"
+        subtitle="Configure roles and module permissions"
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
-        searchPlaceholder="Search software roles..."
+        searchPlaceholder="Search roles..."
         onExport={canExport ? handleExport : undefined}
         onPrint={canPrint ? handlePrint : undefined}
         columnCustomizer={
@@ -305,7 +305,7 @@ export function ManageAccess() {
               className="flex items-center justify-center gap-1.5 h-9 px-3.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer whitespace-nowrap"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Add Software Role</span>
+              <span>Add Role</span>
             </button>
           )
         }
@@ -331,7 +331,7 @@ export function ManageAccess() {
                 {visibleColumns.includes('roleName') && (
                   <th className="px-6 py-3.5 whitespace-nowrap text-left select-none">
                     <div className="flex items-center gap-1.5">
-                      <span>Software Role Name</span>
+                      <span>Role Name</span>
                       <button
                         type="button"
                         onClick={(e) => {
@@ -339,7 +339,7 @@ export function ManageAccess() {
                           handleSort('roleName');
                         }}
                         className="p-0.5 rounded hover:bg-slate-200/60 transition-colors cursor-pointer"
-                        title="Sort by Software Role Name"
+                        title="Sort by Role Name"
                       >
                         {sortConfig?.key === 'roleName' ? (
                           sortConfig.direction === 'asc' ? <ArrowUp size={13} className="text-blue-600" /> : <ArrowDown size={13} className="text-blue-600" />
@@ -641,12 +641,12 @@ export function ManageAccess() {
                         <Shield className="w-6 h-6 text-gray-400" />
                       </div>
                       <p className="text-base font-medium text-gray-900 mb-1">
-                        {hasActiveColumnFilters ? 'No software roles match your column filters' : 'No software roles found'}
+                        {hasActiveColumnFilters ? 'No roles match your column filters' : 'No roles found'}
                       </p>
                       <p className="text-sm text-gray-500 max-w-sm mb-4">
                         {hasActiveColumnFilters
                           ? 'Try modifying or clearing your column filter values to view results.'
-                          : 'Get started by creating a new software role.'}
+                          : 'Get started by creating a new role.'}
                       </p>
                       {hasActiveColumnFilters && (
                         <button
@@ -682,8 +682,8 @@ export function ManageAccess() {
 
       <DeleteConfirmModal 
         isOpen={deleteModalOpen}
-        title="Delete Software Role"
-        message="Are you sure you want to delete this software role? Users assigned to this software role may lose access."
+        title="Delete Role"
+        message="Are you sure you want to delete this role? Users assigned to this role may lose access."
         onClose={() => {
           setDeleteModalOpen(false);
           setRoleToDelete(null);

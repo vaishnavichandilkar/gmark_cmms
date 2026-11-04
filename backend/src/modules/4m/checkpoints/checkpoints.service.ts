@@ -72,7 +72,8 @@ export class CheckpointsService implements OnModuleInit {
   }
 
   async getMasterCheckpoints(search?: string, type?: string, currentUser?: any) {
-    const effectiveAdminId = currentUser?.adminId || currentUser?.userId;
+    const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+    const effectiveAdminId = isSuperAdmin ? null : (currentUser?.adminId || currentUser?.userId);
     const where: any = {};
     if (type) {
       where.checkpointType = type;
@@ -113,12 +114,13 @@ export class CheckpointsService implements OnModuleInit {
   }, currentUser?: any) {
     const cleanDesc = dto.description.trim();
     const effectiveAdminId = currentUser?.adminId || currentUser?.userId || null;
+    const cpType = dto.checkpointType || 'PREVENTIVE';
 
     // Check if checkpoint already exists in Master Database
     let master = await this.prisma.checkpointMaster.findFirst({
       where: {
         description: { equals: cleanDesc, mode: 'insensitive' },
-        checkpointType: dto.checkpointType,
+        checkpointType: cpType,
         ...(effectiveAdminId ? { adminId: effectiveAdminId } : {}),
       },
     });
@@ -126,20 +128,25 @@ export class CheckpointsService implements OnModuleInit {
     let isNewMasterCreated = false;
 
     if (!master) {
-      const year = new Date().getFullYear();
+      const typePrefix = cpType.substring(0, 4).toUpperCase();
       const count = await this.prisma.checkpointMaster.count();
-      const nextCode = `CHK-${dto.checkpointType.substring(0, 4)}-${(count + 1).toString().padStart(3, '0')}`;
+      let nextNum = count + 1;
+      let nextCode = `CHK-${typePrefix}-${nextNum.toString().padStart(3, '0')}`;
+      while (await this.prisma.checkpointMaster.findUnique({ where: { code: nextCode } })) {
+        nextNum++;
+        nextCode = `CHK-${typePrefix}-${nextNum.toString().padStart(3, '0')}`;
+      }
 
       master = await this.prisma.checkpointMaster.create({
         data: {
           code: nextCode,
           adminId: effectiveAdminId,
-          checkpointType: dto.checkpointType || 'PREVENTIVE',
+          checkpointType: cpType,
           description: cleanDesc,
           frequency: dto.frequency || 'MONTHLY',
           standardValue: dto.standardValue || null,
-          minValue: dto.minValue !== undefined ? Number(dto.minValue) : null,
-          maxValue: dto.maxValue !== undefined ? Number(dto.maxValue) : null,
+          minValue: dto.minValue !== undefined && dto.minValue !== null ? Number(dto.minValue) : null,
+          maxValue: dto.maxValue !== undefined && dto.maxValue !== null ? Number(dto.maxValue) : null,
           unit: dto.unit || null,
           category: dto.category || 'General',
         },
@@ -147,24 +154,37 @@ export class CheckpointsService implements OnModuleInit {
       isNewMasterCreated = true;
     }
 
-    // Save/link to User Database (UserCheckpoint table)
-    const userCheckpoint = await this.prisma.userCheckpoint.create({
-      data: {
-        checkpointMasterId: master.id,
+    // Check if userCheckpoint already exists to prevent duplicate entries
+    let userCheckpoint = await this.prisma.userCheckpoint.findFirst({
+      where: {
         machineId: Number(dto.machineId),
-        userId: dto.userId ? Number(dto.userId) : null,
-        checkpointType: dto.checkpointType,
-        description: cleanDesc,
-        frequency: dto.frequency,
-        standardValue: dto.standardValue || master.standardValue,
-        minValue: dto.minValue !== undefined ? Number(dto.minValue) : master.minValue,
-        maxValue: dto.maxValue !== undefined ? Number(dto.maxValue) : master.maxValue,
+        description: { equals: cleanDesc, mode: 'insensitive' },
       },
       include: {
         checkpointMaster: true,
         machine: true,
       },
     });
+
+    if (!userCheckpoint) {
+      userCheckpoint = await this.prisma.userCheckpoint.create({
+        data: {
+          checkpointMasterId: master.id,
+          machineId: Number(dto.machineId),
+          userId: dto.userId ? Number(dto.userId) : null,
+          checkpointType: cpType,
+          description: cleanDesc,
+          frequency: dto.frequency,
+          standardValue: dto.standardValue || master.standardValue,
+          minValue: dto.minValue !== undefined && dto.minValue !== null ? Number(dto.minValue) : master.minValue,
+          maxValue: dto.maxValue !== undefined && dto.maxValue !== null ? Number(dto.maxValue) : master.maxValue,
+        },
+        include: {
+          checkpointMaster: true,
+          machine: true,
+        },
+      });
+    }
 
     return {
       userCheckpoint,
@@ -174,15 +194,93 @@ export class CheckpointsService implements OnModuleInit {
     };
   }
 
+  mapTaskTypeToCategory(taskType?: string): string {
+    if (!taskType) return 'Safety & Mechanical';
+    const upper = taskType.toUpperCase();
+    if (upper === 'CLEANING') return 'Cleaning & Servicing';
+    if (upper === 'LUBRICATION') return 'Lubrication & Oil';
+    if (upper === 'REPLACEMENT') return 'Parts & Replacement';
+    if (upper === 'CALIBRATION') return 'Calibration & Testing';
+    if (upper === 'INSPECTION') return 'Safety & Mechanical';
+    return taskType.charAt(0).toUpperCase() + taskType.slice(1).toLowerCase();
+  }
+
   async getUserCheckpointsByMachine(machineId: number) {
+    const mid = Number(machineId);
+
+    // 1. Fetch existing userCheckpoints for this machine
+    const existingUserCps = await this.prisma.userCheckpoint.findMany({
+      where: { machineId: mid },
+      include: { checkpointMaster: true },
+    });
+
+    const existingDescSet = new Set(
+      existingUserCps.map(uc => (uc.description || '').trim().toLowerCase())
+    );
+
+    // 2. Find all schedules for this machine with their tasks
+    const schedules = await this.prisma.maintenanceSchedule.findMany({
+      where: { machineId: mid },
+      include: {
+        tasks: {
+          include: {
+            checkpointMaster: true,
+          },
+        },
+      },
+    });
+
+    // 3. For any task in schedules that isn't already in UserCheckpoint, auto-sync it
+    for (const sch of schedules) {
+      if (!sch.tasks || sch.tasks.length === 0) continue;
+      for (const t of sch.tasks) {
+        const descClean = (t.description || '').trim();
+        if (!descClean) continue;
+        if (existingDescSet.has(descClean.toLowerCase())) continue;
+
+        try {
+          const type = sch.scheduleType === 'PREDICTIVE' ? 'PREDICTIVE' : 'PREVENTIVE';
+          const cat = this.mapTaskTypeToCategory(t.taskType);
+          const freq = t.frequency || sch.frequency || 'MONTHLY';
+          await this.createCheckpointWithDualDatabase({
+            machineId: mid,
+            checkpointType: type,
+            description: descClean,
+            frequency: freq,
+            standardValue: t.standardValue || undefined,
+            minValue: (t.toleranceMin !== null && t.toleranceMin !== undefined) ? t.toleranceMin : undefined,
+            maxValue: (t.toleranceMax !== null && t.toleranceMax !== undefined) ? t.toleranceMax : undefined,
+            category: cat,
+          });
+          existingDescSet.add(descClean.toLowerCase());
+        } catch (syncErr) {
+          console.warn(`Failed to auto-sync schedule task "${descClean}" to machine #${mid}:`, syncErr);
+        }
+      }
+    }
+
+    // 4. Return all userCheckpoints for this machine ordered by createdAt desc
     return this.prisma.userCheckpoint.findMany({
-      where: { machineId: Number(machineId) },
+      where: { machineId: mid },
       include: { checkpointMaster: true },
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async removeUserCheckpoint(id: number) {
+    const existing = await this.prisma.userCheckpoint.findUnique({
+      where: { id: Number(id) },
+    });
+
+    if (existing) {
+      await this.prisma.maintenanceScheduleTask.deleteMany({
+        where: {
+          schedule: { machineId: existing.machineId },
+          description: { equals: existing.description, mode: 'insensitive' },
+        },
+      }).catch(err => console.warn('Could not remove schedule task on checkpoint delete', err));
+    }
+
     return this.prisma.userCheckpoint.delete({
       where: { id: Number(id) },
     });

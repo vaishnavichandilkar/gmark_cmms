@@ -32,7 +32,7 @@ export function AddEmployee() {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(false);
   const [error, setError] = useState('');
-  const [reportingOptions, setReportingOptions] = useState<string[]>(['Admin']);
+  const [reportingOptions, setReportingOptions] = useState<string[]>([]);
   
   const salaryInputRef = useRef<HTMLInputElement>(null);
   const [shouldFocusSalary, setShouldFocusSalary] = useState(false);
@@ -85,11 +85,13 @@ export function AddEmployee() {
       const allEmployees = response.data || [];
       const availableEmployees = allEmployees.filter((emp: any) => !id || emp.id.toString() !== id.toString());
       
-      const options = Array.from(new Set([
-        'Admin',
-        ...availableEmployees.map((emp: any) => emp.employeeCode ? `${emp.fullName} (${emp.employeeCode})` : emp.fullName)
-      ]));
-      setReportingOptions(options);
+      const empList = availableEmployees.map((emp: any) => 
+        emp.employeeCode ? `${emp.fullName} (${emp.employeeCode})` : emp.fullName
+      );
+
+      // Only show 'Admin' if no employees exist in the system
+      const options = empList.length > 0 ? empList : ['Admin'];
+      setReportingOptions(Array.from(new Set(options)));
     } catch (err) {
       console.error('Failed to fetch reporting employees:', err);
     }
@@ -222,16 +224,45 @@ export function AddEmployee() {
   return (
     <div className="sm:p-6 pb-10 w-full h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center mb-6">
-        <button 
-          onClick={() => navigate(-1)} 
-          className="text-gray-600 hover:text-gray-900 mr-2 focus:outline-none"
-        >
-          <ChevronLeft size={24} />
-        </button>
-        <h1 className="text-2xl font-bold text-gray-800">
-          {id ? (isViewMode ? 'View Employee' : 'Edit Employee') : 'Add Employee'}
-        </h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div className="flex items-center">
+          <button 
+            type="button"
+            onClick={() => navigate(-1)} 
+            className="text-gray-600 hover:text-gray-900 mr-2 focus:outline-none cursor-pointer"
+          >
+            <ChevronLeft size={24} />
+          </button>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
+            {id ? (isViewMode ? 'View Employee' : 'Edit Employee') : 'Add Employee'}
+          </h1>
+        </div>
+
+        {/* Top Actions */}
+        <div className="flex items-center gap-2.5">
+          <button 
+            type="button" 
+            onClick={() => navigate(-1)}
+            disabled={loading}
+            className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+          >
+            Back
+          </button>
+          {!isViewMode && (
+            <button 
+              type="button" 
+              onClick={handleSave}
+              disabled={loading}
+              className="flex items-center justify-center gap-1.5 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-xs disabled:opacity-70 min-w-[80px] cursor-pointer"
+            >
+              {loading ? (
+                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                'Save'
+              )}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Form Container */}
@@ -529,41 +560,7 @@ export function AddEmployee() {
           </div>
         )}
 
-        {/* Buttons */}
-        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-10">
-          {isViewMode ? (
-            <button 
-              type="button" 
-              onClick={() => navigate(-1)}
-              className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
-            >
-              Back
-            </button>
-          ) : (
-            <>
-              <button 
-                type="button" 
-                onClick={() => navigate(-1)}
-                disabled={loading}
-                className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button 
-                type="button" 
-                onClick={handleSave}
-                disabled={loading}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-sm font-semibold transition-all shadow-xs disabled:opacity-70 min-w-[100px]"
-              >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  'Save'
-                )}
-              </button>
-            </>
-          )}
-        </div>
+
 
       </div>
     </div>

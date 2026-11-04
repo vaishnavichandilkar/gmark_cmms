@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { CmmsDashboardView } from './CmmsDashboardView';
 import { 
   Wrench, 
   Boxes, 
@@ -67,13 +68,34 @@ const getCurrentDateParts = () => {
 
 export function DashboardPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, buildingIds } = useSelector((state: RootState) => state.auth);
+
+  const tabParam = searchParams.get('tab');
 
   // Tab State: 'iot' | 'cmms'
   const [activeTab, setActiveTab] = useState<'iot' | 'cmms'>(() => {
+    if (tabParam === 'cmms') return 'cmms';
+    if (tabParam === 'iot') return 'iot';
     if (user?.moduleAccess === 'CMMS') return 'cmms';
     return 'iot';
   });
+
+  useEffect(() => {
+    if (tabParam === 'cmms' || tabParam === 'iot') {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
+
+  const handleTabSwitch = (tab: 'iot' | 'cmms') => {
+    setActiveTab(tab);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', tab);
+      return next;
+    }, { replace: true });
+  };
+
 
   useEffect(() => {
     if (user?.moduleAccess === 'CMMS') {
@@ -228,6 +250,14 @@ export function DashboardPage() {
       }
 
       if (mainFacilities.length > 0) {
+        if (activeTab === 'cmms' || user?.role === 'SUPER_ADMIN') {
+          // In CMMS or Super Admin mode, show all plant assets by default without artificial restriction
+          setSelectedMainFacilityIds([]);
+          setSelectedFacilityIds([]);
+          setSelectedMachineIds([]);
+          hasInitialized.current = true;
+          return;
+        }
         const firstMf = mainFacilities[0];
         setSelectedMainFacilityIds([`mf_${firstMf.id}`]);
         const childFacs = facilities.filter(f => f.mainFacilityId === firstMf.id);
@@ -239,7 +269,7 @@ export function DashboardPage() {
         hasInitialized.current = true;
       }
     }
-  }, [machines, devices, facilities, mainFacilities, savedDefault, user]);
+  }, [machines, devices, facilities, mainFacilities, savedDefault, user, activeTab]);
 
   // Prompt to save logic
   useEffect(() => {
@@ -702,10 +732,10 @@ export function DashboardPage() {
           {(user?.moduleAccess === 'BOTH' || user?.moduleAccess === 'IOT' || !user?.moduleAccess) && (
             <button
               type="button"
-              onClick={() => setActiveTab('iot')}
+              onClick={() => handleTabSwitch('iot')}
               className={`flex items-center gap-2.5 px-6 py-2.5 rounded-xl font-extrabold text-sm transition-all duration-200 cursor-pointer ${
                 activeTab === 'iot'
-                  ? 'bg-blue-600 text-white shadow-xs border border-blue-600'
+                  ? 'bg-emerald-600 text-white shadow-xs border border-emerald-600'
                   : 'bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 border border-slate-200 shadow-xs'
               }`}
             >
@@ -717,10 +747,10 @@ export function DashboardPage() {
           {(user?.moduleAccess === 'BOTH' || user?.moduleAccess === 'CMMS' || !user?.moduleAccess) && (
             <button
               type="button"
-              onClick={() => setActiveTab('cmms')}
+              onClick={() => handleTabSwitch('cmms')}
               className={`flex items-center gap-2.5 px-6 py-2.5 rounded-xl font-extrabold text-sm transition-all duration-200 cursor-pointer ${
                 activeTab === 'cmms'
-                  ? 'bg-blue-600 text-white shadow-xs border border-blue-600'
+                  ? 'bg-emerald-600 text-white shadow-xs border border-emerald-600'
                   : 'bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 border border-slate-200 shadow-xs'
               }`}
             >
@@ -730,10 +760,10 @@ export function DashboardPage() {
           )}
         </div>
 
-        {/* Live Status Indicator */}
-        <div className="md:absolute md:right-0 flex items-center gap-2 text-xs font-bold text-slate-600 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-xs">
-          <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
-          <span>Active: {activeTab === 'iot' ? 'IoT SCADA Telemetry' : 'CMMS Maintenance'}</span>
+        {/* Live Status Indicator with Friendly Label */}
+        <div className="md:absolute md:right-0 flex items-center gap-2 text-xs font-bold text-slate-700 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-xs">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span>{activeTab === 'iot' ? 'Equipment Monitoring Status: Live' : 'Maintenance Module Active'}</span>
         </div>
       </div>
 
@@ -970,545 +1000,37 @@ export function DashboardPage() {
       )}
 
       {/* ========================================================================================= */}
-      {/* TAB 2: ENTERPRISE TPM & IATF 16949 CMMS DASHBOARD VIEW */}
+      {/* TAB 2: ENTERPRISE PRODUCTION-READY CMMS DASHBOARD VIEW */}
       {/* ========================================================================================= */}
       {activeTab === 'cmms' && (
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="flex flex-col w-full gap-8 pb-16"
+          className="flex flex-col w-full"
         >
-          {/* IATF 16949 Compliant Global Filter & Date Control Bar */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
-            
-            {/* Filter Title & Quick Ranges */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 text-slate-800 font-extrabold text-sm border-r border-slate-200 pr-3">
-                <SlidersHorizontal className="w-4 h-4 text-blue-600" />
-                <span>CMMS Filters</span>
-              </div>
-
-              {/* Preset Range Buttons */}
-              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-                {[
-                  { id: 'TODAY', label: 'Today' },
-                  { id: 'THIS_WEEK', label: 'This Week' },
-                  { id: 'THIS_MONTH', label: 'This Month' },
-                  { id: 'CURRENT_YEAR', label: 'Current Year' }
-                ].map((preset) => (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    onClick={() => {
-                      setFilterPreset(preset.id);
-                      const curr = getCurrentDateParts();
-                      if (preset.id === 'TODAY') {
-                        setFilterDay(curr.day);
-                        setFilterMonth(curr.month);
-                        setFilterYear(curr.year);
-                      } else if (preset.id === 'THIS_WEEK') {
-                        setFilterDay(curr.day);
-                        setFilterMonth(curr.month);
-                        setFilterYear(curr.year);
-                      } else if (preset.id === 'THIS_MONTH') {
-                        setFilterMonth(curr.month);
-                        setFilterYear(curr.year);
-                      } else if (preset.id === 'CURRENT_YEAR') {
-                        setFilterYear(curr.year);
-                      }
-                    }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      filterPreset === preset.id
-                        ? 'bg-white text-blue-700 shadow-xs border border-slate-200'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Separate Date Controls (Day, Month, Year) & Scope Selectors */}
-            <div className="flex flex-wrap items-center gap-3">
-              
-              {/* Separate Day / Month / Year Dropdowns */}
-              <div className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
-                <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider px-2">Date</span>
-                
-                {/* Day Select */}
-                <select
-                  value={filterDay}
-                  onChange={(e) => { setFilterDay(e.target.value); setFilterPreset('CUSTOM'); }}
-                  className="bg-white text-slate-800 text-xs font-mono font-bold px-2.5 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-                >
-                  {Array.from({ length: 31 }, (_, i) => {
-                    const d = (i + 1).toString().padStart(2, '0');
-                    return <option key={d} value={d}>{d}</option>;
-                  })}
-                </select>
-
-                {/* Month Select */}
-                <select
-                  value={filterMonth}
-                  onChange={(e) => { setFilterMonth(e.target.value); setFilterPreset('CUSTOM'); }}
-                  className="bg-white text-slate-800 text-xs font-bold px-2.5 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-                >
-                  {['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'].map((m) => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
-
-                {/* Year Select */}
-                <select
-                  value={filterYear}
-                  onChange={(e) => { setFilterYear(e.target.value); setFilterPreset('CUSTOM'); }}
-                  className="bg-white text-slate-800 text-xs font-mono font-bold px-2.5 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-                >
-                  {['2024', '2025', '2026', '2027'].map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Criticality Filter */}
-              <select
-                value={filterCriticality}
-                onChange={(e) => setFilterCriticality(e.target.value)}
-                className="bg-slate-50 text-slate-800 text-xs font-bold px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-              >
-                <option value="ALL">All Criticality</option>
-                <option value="A">Class A — Critical</option>
-                <option value="B">Class B — Important</option>
-                <option value="C">Class C — General</option>
-              </select>
-
-              {/* Maintenance Strategy Filter */}
-              <select
-                value={filterMaintType}
-                onChange={(e) => setFilterMaintType(e.target.value)}
-                className="bg-slate-50 text-slate-800 text-xs font-bold px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-              >
-                <option value="ALL">All Strategies</option>
-                <option value="PREVENTIVE">Preventive (PM)</option>
-                <option value="BREAKDOWN">Breakdown (BD)</option>
-                <option value="PREDICTIVE">Predictive (PdM)</option>
-                <option value="AUTONOMOUS">Autonomous (AM)</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Section: My System Modules Overview */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm">
-            <div className="flex items-center justify-between pb-4 mb-5 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <Boxes className="w-5 h-5 text-blue-600" />
-                <h3 className="text-base font-extrabold text-slate-900">My Modules Operational Hub</h3>
-              </div>
-              <span className="text-xs text-slate-400 font-medium">Real-time status across active system modules</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              
-              {/* Module 1: Work Orders */}
-              <Link to="/work-orders" className="bg-slate-50/70 hover:bg-blue-50/40 p-4 rounded-xl border border-slate-200/80 hover:border-blue-300 transition-all group">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-extrabold text-slate-700 group-hover:text-blue-700">Work Orders</span>
-                  <div className="p-2 rounded-lg bg-blue-100 text-blue-700 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                    <ClipboardList className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="text-2xl font-black text-slate-900 mb-1">{cmmsMetrics.totalWO} Active WOs</div>
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-600">
-                  <span>{cmmsMetrics.pendingApproval} Pending</span>
-                  <span>•</span>
-                  <span className="text-blue-600">{cmmsMetrics.inProgress} In Progress</span>
-                </div>
-              </Link>
-
-              {/* Module 2: Schedule Maintenance */}
-              <Link to="/schedules" className="bg-slate-50/70 hover:bg-blue-50/40 p-4 rounded-xl border border-slate-200/80 hover:border-blue-300 transition-all group">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-extrabold text-slate-700 group-hover:text-blue-700">Schedule Maintenance</span>
-                  <div className="p-2 rounded-lg bg-purple-100 text-purple-700 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                    <Calendar className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="text-2xl font-black text-slate-900 mb-1">{cmmsMetrics.totalSchedules} PM Policies</div>
-                <div className="text-[11px] font-bold text-purple-600">
-                  {cmmsMetrics.activeSchedules} Active Policies
-                </div>
-              </Link>
-
-              {/* Module 3: Spares Management */}
-              <Link to="/spares" className="bg-slate-50/70 hover:bg-blue-50/40 p-4 rounded-xl border border-slate-200/80 hover:border-blue-300 transition-all group">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-extrabold text-slate-700 group-hover:text-blue-700">Spares Management</span>
-                  <div className="p-2 rounded-lg bg-emerald-100 text-emerald-700 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                    <Package className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="text-2xl font-black text-slate-900 mb-1">{cmmsMetrics.totalSpares} Inventory Items</div>
-                <div className="text-[11px] font-bold text-rose-600 flex items-center gap-1">
-                  {cmmsMetrics.lowStockSpares.length > 0 ? (
-                    <span>⚠️ {cmmsMetrics.lowStockSpares.length} Low Stock Alert</span>
-                  ) : (
-                    <span className="text-emerald-600">Stock Levels Healthy</span>
-                  )}
-                </div>
-              </Link>
-
-              {/* Module 4: Suppliers Management */}
-              <Link to="/suppliers" className="bg-slate-50/70 hover:bg-blue-50/40 p-4 rounded-xl border border-slate-200/80 hover:border-blue-300 transition-all group">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-extrabold text-slate-700 group-hover:text-blue-700">Suppliers Management</span>
-                  <div className="p-2 rounded-lg bg-amber-100 text-amber-700 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                    <Briefcase className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="text-2xl font-black text-slate-900 mb-1">{cmmsMetrics.totalSuppliers} Vendors</div>
-                <div className="text-[11px] font-bold text-amber-600">
-                  Registered Supplier Master
-                </div>
-              </Link>
-
-              {/* Module 5: Machine Management */}
-              <Link to="/machine-management" className="bg-slate-50/70 hover:bg-blue-50/40 p-4 rounded-xl border border-slate-200/80 hover:border-blue-300 transition-all group">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-extrabold text-slate-700 group-hover:text-blue-700">Machine Management</span>
-                  <div className="p-2 rounded-lg bg-cyan-100 text-cyan-700 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                    <Cpu className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="text-2xl font-black text-slate-900 mb-1">{cmmsMetrics.totalMachines} Machines</div>
-                <div className="text-[11px] font-bold text-red-600">
-                  {cmmsMetrics.breakdownCategoryWO} Active Breakdowns
-                </div>
-              </Link>
-
-              {/* Module 6: Facility Management */}
-              <Link to="/facility-management" className="bg-slate-50/70 hover:bg-blue-50/40 p-4 rounded-xl border border-slate-200/80 hover:border-blue-300 transition-all group">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-extrabold text-slate-700 group-hover:text-blue-700">Facility Management</span>
-                  <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                    <Building2 className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="text-2xl font-black text-slate-900 mb-1">{mainFacilities.length} Facilities</div>
-                <div className="text-[11px] font-bold text-indigo-600">
-                  {facilities.length} Sub-Facilities / Lines
-                </div>
-              </Link>
-
-              {/* Module 7: Employee Master */}
-              <Link to="/master/employee" className="bg-slate-50/70 hover:bg-blue-50/40 p-4 rounded-xl border border-slate-200/80 hover:border-blue-300 transition-all group">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-extrabold text-slate-700 group-hover:text-blue-700">Employee Master</span>
-                  <div className="p-2 rounded-lg bg-rose-100 text-rose-700 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                    <Users className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="text-2xl font-black text-slate-900 mb-1">{cmmsMetrics.totalEmployees} Staff</div>
-                <div className="text-[11px] font-bold text-rose-600">
-                  Maintenance Technicians
-                </div>
-              </Link>
-
-              {/* Module 8: All Assets Catalog */}
-              <Link to="/assets" className="bg-slate-50/70 hover:bg-blue-50/40 p-4 rounded-xl border border-slate-200/80 hover:border-blue-300 transition-all group">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-extrabold text-slate-700 group-hover:text-blue-700">All Assets Catalog</span>
-                  <div className="p-2 rounded-lg bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                    <Boxes className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="text-2xl font-black text-slate-900 mb-1">{machines.length + devices.length} Total Assets</div>
-                <div className="text-[11px] font-bold text-blue-600">
-                  Full Asset & SCADA Registry
-                </div>
-              </Link>
-
-            </div>
-          </div>
-
-          {/* Quick Hub Navigation Bar */}
-          <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-blue-950 p-6 rounded-2xl text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
-            <div>
-              <div className="flex items-center gap-2 text-blue-400 font-bold text-xs uppercase tracking-wider mb-1">
-                <TrendingUp className="w-4 h-4" /> CMMS Operations Quick Hub
-              </div>
-              <h3 className="text-xl font-extrabold text-white">Direct Module Navigation</h3>
-              <p className="text-xs text-slate-300 mt-1">Jump directly to any active module in your manufacturing system</p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Link
-                to="/work-orders"
-                className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-all flex items-center gap-1.5 shadow-md"
-              >
-                <Plus className="w-3.5 h-3.5" /> Work Orders
-              </Link>
-              <Link
-                to="/schedules"
-                className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs border border-white/20 transition-all flex items-center gap-1.5"
-              >
-                <Calendar className="w-3.5 h-3.5" /> Schedules
-              </Link>
-              <Link
-                to="/spares"
-                className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs border border-white/20 transition-all flex items-center gap-1.5"
-              >
-                <Package className="w-3.5 h-3.5" /> Spares
-              </Link>
-              <Link
-                to="/suppliers"
-                className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs border border-white/20 transition-all flex items-center gap-1.5"
-              >
-                <Briefcase className="w-3.5 h-3.5" /> Suppliers
-              </Link>
-              <Link
-                to="/machine-management"
-                className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs border border-white/20 transition-all flex items-center gap-1.5"
-              >
-                <Cpu className="w-3.5 h-3.5" /> Machines
-              </Link>
-              <Link
-                to="/facility-management"
-                className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs border border-white/20 transition-all flex items-center gap-1.5"
-              >
-                <Building2 className="w-3.5 h-3.5" /> Facilities
-              </Link>
-              <Link
-                to="/master/employee"
-                className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs border border-white/20 transition-all flex items-center gap-1.5"
-              >
-                <Users className="w-3.5 h-3.5" /> Employees
-              </Link>
-            </div>
-          </div>
-
-          {/* TPM Six Big Losses Analysis Panel */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            
-            {/* Six Big Loss Breakdown (7 cols) */}
-            <div className="lg:col-span-7 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between pb-4 mb-5 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <PieChart className="w-5 h-5 text-emerald-600" />
-                    <h3 className="text-base font-bold text-slate-900">TPM Six Big Loss Analysis</h3>
-                  </div>
-                  <span className="text-xs text-slate-400 font-medium">OEE Loss Categorization</span>
-                </div>
-
-                <div className="space-y-4">
-                  {cmmsMetrics.sixBigLosses.map((loss, idx) => (
-                    <div key={idx}>
-                      <div className="flex items-center justify-between text-xs font-bold text-slate-700 mb-1.5">
-                        <span className="flex items-center gap-2 text-slate-800">
-                          <span className={`w-2.5 h-2.5 rounded-full ${loss.color}`} />
-                          {loss.name}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-slate-400 font-medium">{loss.hours}</span>
-                          <span className="text-slate-900 font-extrabold">{loss.pct}%</span>
-                        </div>
-                      </div>
-                      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                        <div
-                          className={`${loss.color} h-full rounded-full transition-all duration-500`}
-                          style={{ width: `${loss.pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="pt-4 mt-6 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                <span>Total Cumulative Loss: <strong className="text-slate-800">{cmmsMetrics.breakdownDowntimeHours} Hours</strong></span>
-                <span className="text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
-                  Target Loss Reduction: 15%
-                </span>
-              </div>
-            </div>
-
-            {/* TPM 6 Pillars Operational Status (5 cols) */}
-            <div className="lg:col-span-5 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
-              <div className="flex items-center justify-between pb-4 mb-5 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <Award className="w-5 h-5 text-blue-600" />
-                  <h3 className="text-base font-bold text-slate-900">TPM 6 Pillars Status</h3>
-                </div>
-                <span className="text-xs text-slate-400 font-medium">Pillar Adherence</span>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3">
-                {cmmsMetrics.tpmPillars.map((pillar) => (
-                  <div key={pillar.id} className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-bold text-slate-800">{pillar.name}</div>
-                      <div className="text-[11px] text-slate-500 mt-0.5 font-medium">{pillar.lead}</div>
-                    </div>
-                    <div className="text-right">
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                        {pillar.progress}%
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-          </div>
-
-          {/* Bad Actor Equipment Analysis Table (IATF 16949 Traceability) */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-            <div className="p-6 pb-4 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">Bad Actor Equipment Analysis (Reliability Ranking)</h3>
-                <p className="text-xs text-slate-500">Assets ranked by failure frequency, unplanned downtime, repair costs, and 5-Why RCA status</p>
-              </div>
-              <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
-                IATF 16949 Compliant Traceability
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50/70 border-b border-slate-200/70 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                    <th className="py-3 px-6">Equipment Code & Name</th>
-                    <th className="py-3 px-6">Criticality</th>
-                    <th className="py-3 px-6">Failures</th>
-                    <th className="py-3 px-6">Downtime</th>
-                    <th className="py-3 px-6">MTTR</th>
-                    <th className="py-3 px-6">Repair Cost</th>
-                    <th className="py-3 px-6">Repeat Failure</th>
-                    <th className="py-3 px-6 text-right">RCA 5-Why Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
-                  {cmmsMetrics.badActors.length > 0 ? (
-                    cmmsMetrics.badActors.map((actor) => (
-                      <tr key={actor.id} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="py-3.5 px-6">
-                          <div className="font-bold text-slate-900">{actor.name}</div>
-                          <div className="text-[11px] font-mono text-slate-400">{actor.code}</div>
-                        </td>
-                        <td className="py-3.5 px-6">
-                          <span className={`px-2.5 py-1 rounded-md border text-[11px] font-bold ${actor.criticalityClass}`}>
-                            {actor.criticality}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-6 font-bold text-slate-900">{actor.failures} Events</td>
-                        <td className="py-3.5 px-6 font-bold text-red-600">{actor.downtime}</td>
-                        <td className="py-3.5 px-6 font-mono text-slate-800">{actor.mttr}</td>
-                        <td className="py-3.5 px-6 font-mono font-bold text-slate-900">{actor.cost}</td>
-                        <td className="py-3.5 px-6">
-                          {actor.repeat ? (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-red-100 text-red-800 border border-red-200 flex items-center gap-1 w-fit">
-                              <AlertTriangle className="w-3 h-3" /> Flagged Repeat
-                            </span>
-                          ) : (
-                            <span className="text-slate-400">Normal</span>
-                          )}
-                        </td>
-                        <td className="py-3.5 px-6 text-right font-bold text-emerald-700">
-                          {actor.rcaStatus}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={8} className="py-8 text-center text-xs text-slate-500 font-medium">
-                        No equipment breakdown or bad actor records found
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Recent Work Orders Table Panel */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-            <div className="p-6 pb-4 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">Recent Work Orders</h3>
-                <p className="text-xs text-slate-500">Latest active maintenance requests across facilities</p>
-              </div>
-              <Link 
-                to="/work-orders" 
-                className="text-xs font-bold text-green-600 hover:underline flex items-center gap-1"
-              >
-                View All Work Orders <ChevronRight className="w-4 h-4" />
-              </Link>
-            </div>
-
-            {cmmsLoading ? (
-              <div className="p-8 text-center text-xs text-slate-400 font-medium">Loading work orders...</div>
-            ) : filteredWorkOrders.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/70 border-b border-slate-200/70 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                      <th className="py-3 px-6">WO Number</th>
-                      <th className="py-3 px-6">Machine</th>
-                      <th className="py-3 px-6">Problem Description</th>
-                      <th className="py-3 px-6">Priority</th>
-                      <th className="py-3 px-6">Status</th>
-                      <th className="py-3 px-6 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
-                    {filteredWorkOrders.slice(0, 5).map((wo) => {
-                      const priorityColor = 
-                        wo.priority === 'CRITICAL' ? 'bg-red-50 text-red-600 border-red-200' :
-                        wo.priority === 'HIGH' ? 'bg-orange-50 text-orange-600 border-orange-200' :
-                        wo.priority === 'MEDIUM' ? 'bg-amber-50 text-amber-600 border-amber-200' :
-                        'bg-slate-100 text-slate-600 border-slate-200';
-
-                      const statusColor = 
-                        wo.status === 'COMPLETED' || wo.status === 'CLOSED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                        wo.status === 'IN_PROGRESS' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                        wo.status === 'PENDING_APPROVAL' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                        'bg-slate-100 text-slate-700 border-slate-200';
-
-                      return (
-                        <tr key={wo.id} className="hover:bg-slate-50/60 transition-colors">
-                          <td className="py-3.5 px-6 font-bold text-slate-900 font-mono">{wo.woNumber}</td>
-                          <td className="py-3.5 px-6 font-semibold text-slate-800">{wo.machine?.name || 'Machine'}</td>
-                          <td className="py-3.5 px-6 text-slate-600 max-w-xs truncate">{wo.problemDescription}</td>
-                          <td className="py-3.5 px-6">
-                            <span className={`px-2.5 py-1 rounded-md border text-[11px] font-bold ${priorityColor}`}>
-                              {wo.priority}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-6">
-                            <span className={`px-2.5 py-1 rounded-md border text-[11px] font-bold ${statusColor}`}>
-                              {wo.status?.replace('_', ' ')}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-6 text-right">
-                            <Link
-                              to={`/work-orders?id=${wo.id}`}
-                              className="text-xs font-bold text-green-600 hover:text-green-700 hover:underline"
-                            >
-                              Details
-                            </Link>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="p-8 text-center text-xs text-slate-500 font-medium">No work orders recorded yet</div>
-            )}
-          </div>
+          <CmmsDashboardView
+            user={user}
+            machines={machines}
+            facilities={facilities}
+            mainFacilities={mainFacilities}
+            buildings={buildings}
+            devices={devices}
+            selectedMainFacilityIds={selectedMainFacilityIds}
+            selectedFacilityIds={selectedFacilityIds}
+            selectedMachineIds={selectedMachineIds}
+            setSelectedMainFacilityIds={setSelectedMainFacilityIds}
+            setSelectedFacilityIds={setSelectedFacilityIds}
+            setSelectedMachineIds={setSelectedMachineIds}
+            combinedMainOptions={combinedMainOptions}
+            combinedSubOptions={combinedSubOptions}
+            filteredMachines={filteredMachines}
+            onRefreshScopeData={() => {
+              api.get('/machines').then(res => setMachines(Array.isArray(res.data) ? res.data : [])).catch(console.error);
+              api.get('/facilities').then(res => setFacilities(Array.isArray(res.data) ? res.data : [])).catch(console.error);
+              api.get('/main-facilities').then(res => setMainFacilities(Array.isArray(res.data) ? res.data : [])).catch(console.error);
+            }}
+          />
         </motion.div>
       )}
 

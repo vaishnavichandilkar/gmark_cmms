@@ -15,7 +15,7 @@ import { ColumnCustomizer } from '../../../components/shared/ColumnCustomizer';
 import type { ColumnDefinition } from '../../../components/shared/ColumnCustomizer';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../store';
-import { hasPermission } from '../../../utils/permissions';
+import { hasPermission, hasAssetPermission } from '../../../utils/permissions';
 
 const MAIN_FACILITY_COLUMNS: ColumnDefinition[] = [
   { id: 'no', label: 'No.', category: 'General', defaultVisible: false },
@@ -52,6 +52,11 @@ export function MainFacilityMaster() {
   const navigate = useNavigate();
 
   const [facilities, setFacilities] = useState<any[]>([]);
+
+  const permittedFacilities = useMemo(() => {
+    return facilities.filter(f => hasAssetPermission(user, f, 'view'));
+  }, [facilities, user]);
+
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -99,7 +104,7 @@ export function MainFacilityMaster() {
   } | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -246,22 +251,22 @@ export function MainFacilityMaster() {
 
   const uniqueCategories = useMemo(() => {
     const list = new Set<string>();
-    facilities.forEach(f => {
+    permittedFacilities.forEach(f => {
       if (f.category) list.add(f.category);
     });
     return Array.from(list).sort((a, b) => a.localeCompare(b));
-  }, [facilities]);
+  }, [permittedFacilities]);
 
   const uniqueStatuses = useMemo(() => {
     const list = new Set<string>();
-    facilities.forEach(f => {
+    permittedFacilities.forEach(f => {
       if (f.status) list.add(f.status);
     });
     return Array.from(list).sort((a, b) => a.localeCompare(b));
-  }, [facilities]);
+  }, [permittedFacilities]);
 
   const filteredFacilities = useMemo(() => {
-    let result = facilities.filter(facility => {
+    let result = permittedFacilities.filter(facility => {
       // 1. Filter by Search Query
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -1266,8 +1271,14 @@ export function MainFacilityMaster() {
                 currentFacilities.map((facility, index) => (
                   <tr 
                     key={index} 
-                    onClick={() => navigate(`/master/main-facility/view/${facility.id}`)}
-                    className="hover:bg-gray-50/50 transition-colors group cursor-pointer text-xs sm:text-sm"
+                    onClick={() => {
+                      const canEditFacility = canEdit && hasAssetPermission(user, facility, 'edit');
+                      const canViewFacility = hasAssetPermission(user, facility, 'view');
+                      if (canEditFacility || canViewFacility) {
+                        navigate(canEditFacility ? `/master/main-facility/edit/${facility.id}` : `/master/main-facility/view/${facility.id}`);
+                      }
+                    }}
+                    className={`hover:bg-gray-50/50 transition-colors group text-xs sm:text-sm ${((canEdit && hasAssetPermission(user, facility, 'edit')) || hasAssetPermission(user, facility, 'view')) ? 'cursor-pointer' : ''}`}
                   >
                     {visibleColumns.includes('no') && (
                       <td className="px-3.5 py-3 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">
@@ -1326,13 +1337,15 @@ export function MainFacilityMaster() {
                     {visibleColumns.includes('actions') && (
                       <td className="px-3.5 py-3 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); navigate(`/master/main-facility/view/${facility.id}`); }}
-                            className="text-gray-500 hover:text-blue-600 p-1.5 rounded-md hover:bg-blue-50 transition-colors" title="View"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          {canEdit && (
+                          {hasAssetPermission(user, facility, 'view') && (!canEdit || !hasAssetPermission(user, facility, 'edit')) && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); navigate(`/master/main-facility/view/${facility.id}`); }}
+                              className="text-gray-500 hover:text-blue-600 p-1.5 rounded-md hover:bg-blue-50 transition-colors" title="View"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          )}
+                          {canEdit && hasAssetPermission(user, facility, 'edit') && (
                             <button
                               onClick={(e) => { e.stopPropagation(); navigate(`/master/main-facility/edit/${facility.id}`); }}
                               className="text-gray-500 hover:text-green-600 p-1.5 rounded-md hover:bg-green-50 transition-colors" title="Edit"
@@ -1340,7 +1353,7 @@ export function MainFacilityMaster() {
                               <Pencil className="w-4 h-4" />
                             </button>
                           )}
-                          {canDelete && (
+                          {canDelete && hasAssetPermission(user, facility, 'delete') && (
                             <button
                               onClick={(e) => { e.stopPropagation(); confirmDelete(facility.id); }}
                               className="text-gray-500 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors" title="Delete"

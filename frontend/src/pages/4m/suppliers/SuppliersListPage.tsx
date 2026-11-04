@@ -112,7 +112,7 @@ export const SuppliersListPage: React.FC = () => {
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
 
   // Modal states
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);

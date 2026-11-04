@@ -546,6 +546,113 @@ export function AddMachine() {
     });
   };
 
+  const handleOpenSpare = async (spare: any) => {
+    let targetSpareId = catalogSpares.find(
+      s => (spare.id && String(s.id) === String(spare.id)) ||
+           (spare.partCode && s.partCode && s.partCode.toLowerCase() === spare.partCode.toLowerCase()) ||
+           (spare.partName && (s.partName || s.name) && (s.partName || s.name).trim().toLowerCase() === spare.partName.trim().toLowerCase())
+    )?.id;
+
+    if (!targetSpareId && spare.id && !isNaN(Number(spare.id))) {
+      targetSpareId = spare.id;
+    }
+
+    if (!targetSpareId) {
+      try {
+        const allSpares = await spareService.getAll();
+        const found = allSpares.find(s => 
+          (spare.id && String(s.id) === String(spare.id)) ||
+          (spare.partCode && s.partCode && s.partCode.toLowerCase() === spare.partCode.toLowerCase()) ||
+          (spare.partName && (s.partName || (s as any).name) && (s.partName || (s as any).name).trim().toLowerCase() === spare.partName.trim().toLowerCase())
+        );
+        if (found) {
+          targetSpareId = found.id;
+        }
+      } catch (e) {
+        console.warn('Fallback spare search failed:', e);
+      }
+    }
+
+    if (!targetSpareId) {
+      toast.error(`Unable to locate spare "${spare.partName || 'part'}"`);
+      return;
+    }
+
+    try {
+      sessionStorage.setItem('add_machine_draft', JSON.stringify({
+        formData,
+        pendingSpares,
+        pendingSpecifications,
+        pendingPurchases,
+        pendingDocuments,
+        pendingMacId,
+        pendingMachineType,
+        activeTab: 'Spares',
+      }));
+    } catch (_) {}
+
+    navigate(`/spares/edit/${targetSpareId}`, {
+      state: {
+        returnUrl: location.pathname,
+        returnTab: 'Spares',
+        tab: 'General',
+        machineName: formData.name || 'New Machine'
+      }
+    });
+  };
+
+  const handleOpenSupplier = async (purchase: any) => {
+    let targetSupplierId = suppliers.find(
+      s => (purchase.supplierId && String(s.id) === String(purchase.supplierId)) ||
+           (purchase.supplierName && s.name && s.name.trim().toLowerCase() === purchase.supplierName.trim().toLowerCase())
+    )?.id;
+
+    if (!targetSupplierId && purchase.supplierId && !isNaN(Number(purchase.supplierId))) {
+      targetSupplierId = purchase.supplierId;
+    }
+
+    if (!targetSupplierId) {
+      try {
+        const allSuppliers = await supplierService.getAll();
+        const found = allSuppliers.find(s => 
+          (purchase.supplierId && String(s.id) === String(purchase.supplierId)) ||
+          (purchase.supplierName && s.name && s.name.trim().toLowerCase() === purchase.supplierName.trim().toLowerCase())
+        );
+        if (found) {
+          targetSupplierId = found.id;
+        }
+      } catch (e) {
+        console.warn('Fallback supplier search failed:', e);
+      }
+    }
+
+    if (!targetSupplierId) {
+      toast.error(`Unable to locate supplier "${purchase.supplierName || 'details'}"`);
+      return;
+    }
+
+    try {
+      sessionStorage.setItem('add_machine_draft', JSON.stringify({
+        formData,
+        pendingSpares,
+        pendingSpecifications,
+        pendingPurchases,
+        pendingDocuments,
+        pendingMacId,
+        pendingMachineType,
+        activeTab: 'Purchase',
+      }));
+    } catch (_) {}
+
+    navigate(`/suppliers/edit/${targetSupplierId}`, {
+      state: {
+        returnUrl: location.pathname,
+        returnTab: 'Purchase',
+        machineName: formData.name || 'New Machine'
+      }
+    });
+  };
+
   const handleSelectSpareName = (val: string) => {
     setSpareModalName(val);
     const found = catalogSpares.find(s => (s.partName || s.name) === val || String(s.id) === val);
@@ -929,7 +1036,7 @@ export function AddMachine() {
       } else if (doc.content) {
         const fullUrl = doc.content.startsWith('http') || doc.content.startsWith('data:')
           ? doc.content
-          : `http://localhost:3001${doc.content.startsWith('/') ? doc.content : `/${doc.content}`}`;
+          : `http://localhost:3002${doc.content.startsWith('/') ? doc.content : `/${doc.content}`}`;
         window.open(fullUrl, '_blank');
       } else {
         toast.error('File content unavailable');
@@ -1077,7 +1184,7 @@ export function AddMachine() {
             disabled={loading} 
             className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-lg font-semibold text-xs transition-colors shadow-xs disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
           >
-            {loading ? 'Saving...' : 'Save Machine'}
+            {loading ? 'Saving...' : 'Save'}
           </button>
         </div>
       </div>
@@ -1358,8 +1465,14 @@ export function AddMachine() {
                         const rate = spare.rate !== undefined ? Number(spare.rate) : spare.unitCost ? Number(spare.unitCost) : 0;
                         const total = qty * rate;
                         return (
-                          <tr key={spare.id || index} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
-                            <td className="px-4 py-3"><input type="checkbox" className="rounded border-gray-300" /></td>
+                          <tr 
+                            key={spare.id || index} 
+                            onClick={() => handleOpenSpare(spare)}
+                            className="border-t border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer group"
+                          >
+                            <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                              <input type="checkbox" className="rounded border-gray-300 cursor-pointer" />
+                            </td>
                             <td className="px-4 py-3 text-sm text-gray-500">{index + 1}</td>
                             <td className="px-4 py-3 text-sm font-semibold text-gray-900">{spare.partName}</td>
                             <td className="px-4 py-3 text-sm text-gray-600">{spare.category || '-'}</td>
@@ -1367,14 +1480,25 @@ export function AddMachine() {
                             <td className="px-4 py-3 text-sm text-center font-medium text-gray-800">{qty}</td>
                             <td className="px-4 py-3 text-sm text-right font-medium text-gray-800">₹{rate.toFixed(2)}</td>
                             <td className="px-4 py-3 text-sm text-right font-bold text-gray-900">₹{total.toFixed(2)}</td>
-                            <td className="px-4 py-3 text-center">
-                              <button
-                                onClick={() => setPendingSpares(prev => prev.filter(s => s.id !== spare.id))}
-                                className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
-                                title="Remove Spare"
-                              >
-                                <Trash2 size={16} />
-                              </button>
+                            <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenSpare(spare)}
+                                  className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
+                                  title="View Spare Details"
+                                >
+                                  <Eye size={16} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setPendingSpares(prev => prev.filter(s => s.id !== spare.id))}
+                                  className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
+                                  title="Remove Spare"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1515,21 +1639,37 @@ export function AddMachine() {
                       </tr>
                     ) : (
                       filteredPurchases.map((item, idx) => (
-                        <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50/50">
-                          <td className="px-4 py-3"><input type="checkbox" className="rounded border-gray-300" /></td>
+                        <tr 
+                          key={item.id} 
+                          onClick={() => handleOpenSupplier(item)}
+                          className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
+                        >
+                          <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                            <input type="checkbox" className="rounded border-gray-300 cursor-pointer" />
+                          </td>
                           <td className="px-4 py-3 text-xs text-gray-700 font-medium">{idx + 1}</td>
                           <td className="px-4 py-3 text-xs font-semibold text-gray-900">{item.supplierName}</td>
                           <td className="px-4 py-3 text-xs text-gray-600">{item.email}</td>
                           <td className="px-4 py-3 text-xs text-gray-600">{item.contactNumber}</td>
-                          <td className="px-4 py-3 text-center">
-                            <button
-                              type="button"
-                              onClick={() => setPendingPurchases(prev => prev.filter(p => p.id !== item.id))}
-                              className="text-red-500 hover:text-red-700 p-1 cursor-pointer"
-                              title="Delete"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                          <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenSupplier(item)}
+                                className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
+                                title="View Supplier Details"
+                              >
+                                <Eye size={15} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPendingPurchases(prev => prev.filter(p => p.id !== item.id))}
+                                className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
+                                title="Delete"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -2270,7 +2410,7 @@ export function AddMachine() {
                   onClick={handleSaveSpareModal}
                   className="px-10 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors shadow-xs cursor-pointer"
                 >
-                  Save Spare
+                  Save
                 </button>
               </div>
             </div>
@@ -2634,7 +2774,7 @@ export function AddMachine() {
                   }} 
                   className="px-10 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors shadow-xs cursor-pointer"
                 >
-                  Save System
+                  Save
                 </button>
               </div>
             </div>
@@ -2723,20 +2863,18 @@ export function AddMachine() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Target Start Date</label>
-                  <input
-                    type="date"
+                  <CustomDatePicker
+                    name="estimatedStartDate"
                     value={woForm.estimatedStartDate}
-                    onChange={(e) => setWoForm(prev => ({ ...prev, estimatedStartDate: e.target.value }))}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-800"
+                    onChange={(e: any) => setWoForm(prev => ({ ...prev, estimatedStartDate: e.target.value }))}
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Target End Date</label>
-                  <input
-                    type="date"
+                  <CustomDatePicker
+                    name="estimatedEndDate"
                     value={woForm.estimatedEndDate}
-                    onChange={(e) => setWoForm(prev => ({ ...prev, estimatedEndDate: e.target.value }))}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-800"
+                    onChange={(e: any) => setWoForm(prev => ({ ...prev, estimatedEndDate: e.target.value }))}
                   />
                 </div>
               </div>
@@ -3129,11 +3267,10 @@ export function AddMachine() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Start Date</label>
-                  <input
-                    type="date"
+                  <CustomDatePicker
+                    name="startDate"
                     value={scheduleForm.startDate}
-                    onChange={(e) => setScheduleForm(prev => ({ ...prev, startDate: e.target.value }))}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-800"
+                    onChange={(e: any) => setScheduleForm(prev => ({ ...prev, startDate: e.target.value }))}
                   />
                 </div>
                 <div>

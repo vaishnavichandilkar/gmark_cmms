@@ -206,7 +206,7 @@ export function DeviceLiveMonitor() {
     if (!deviceId) return;
 
     const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-    const socket: Socket = io('http://localhost:3001', {
+    const socket: Socket = io('http://localhost:3002', {
       transports: ['websocket'],
       auth: { token },
     });

@@ -104,7 +104,7 @@ export function ScheduleMaintenanceDashboard() {
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
 
   const [schedules, setSchedules] = useState<MaintenanceSchedule[]>([]);
   const [machinesList, setMachinesList] = useState<any[]>([]);

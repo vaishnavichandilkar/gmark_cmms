@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, UseGuards, Query } from '@nestjs/common';
 import { MainFacilitiesService } from './main-facilities.service';
 import { CreateMainFacilityDto } from './dto/create-main-facility.dto';
 import { UpdateMainFacilityDto } from './dto/update-main-facility.dto';
@@ -21,13 +21,13 @@ export class MainFacilitiesController {
   }
 
   @Get()
-  findAll(@CurrentUser() currentUser: any) {
-    return this.mainFacilitiesService.findAll(currentUser);
+  findAll(@CurrentUser() currentUser: any, @Query('includeAll') includeAll?: string) {
+    return this.mainFacilitiesService.findAll(currentUser, includeAll === 'true');
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.mainFacilitiesService.findOne(+id);
+  findOne(@Param('id') id: string, @CurrentUser() currentUser: any) {
+    return this.mainFacilitiesService.findOne(+id, currentUser);
   }
 
   @Patch(':id')

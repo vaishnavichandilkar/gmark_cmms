@@ -108,7 +108,7 @@ export function UserManagement() {
   } | null>(null);
   
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -226,17 +226,17 @@ export function UserManagement() {
     const list = new Set<string>();
     users.forEach(u => {
       const rep = u.employee?.reportingTo || u.reportingTo;
-      if (rep) list.add(rep);
+      if (rep) list.add(String(rep).trim());
     });
-    return Array.from(list).sort((a, b) => a.localeCompare(b));
+    return Array.from(list).filter(Boolean).sort((a, b) => a.localeCompare(b));
   }, [users]);
 
   const uniqueDepartments = useMemo(() => {
     const list = new Set<string>();
     users.forEach(u => {
-      if (u.employee?.department) list.add(u.employee.department);
+      if (u.employee?.department) list.add(String(u.employee.department).trim());
     });
-    return Array.from(list).sort((a, b) => a.localeCompare(b));
+    return Array.from(list).filter(Boolean).sort((a, b) => a.localeCompare(b));
   }, [users]);
 
   // Dynamic Filters for Customize Filters modal

@@ -112,7 +112,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                   {user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.username}
                 </span>
                 <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/60 rounded">
-                  {user.role === 'SUPER_ADMIN' ? 'Admin' : (user.role || 'User')}
+                  {user.role === 'SUPER_ADMIN' ? 'Admin' : (user.designation || user.employee?.designation || user.role || 'User')}
                 </span>
               </div>
             )}

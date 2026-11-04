@@ -20,6 +20,7 @@ import toast from 'react-hot-toast';
 import { machineSpareSync } from '../../../utils/machineSpareSync';
 import { navigateToDeviceDashboard } from '../../../utils/deviceRoutes';
 import { BoosterDashboard } from '../../scada/templates/booster/BoosterDashboard';
+import { TechnicianWOViewModal } from '../../../components/work-orders/TechnicianWOViewModal';
 
 export function EditMachine() {
   const navigate = useNavigate();
@@ -29,6 +30,120 @@ export function EditMachine() {
   
   const [activeTab, setActiveTab] = useState(location.state?.tab || 'General');
   const [saving, setSaving] = useState(false);
+  const returnUrl = (location.state as any)?.returnUrl;
+  const returnTab = (location.state as any)?.returnTab;
+
+  const handleBack = () => {
+    if (returnUrl) {
+      navigate(returnUrl, { state: { tab: returnTab, spareTab: returnTab } });
+    } else {
+      navigate(-1);
+    }
+  };
+
+  const handleOpenSpare = async (spare: any) => {
+    // 1. Try finding in catalogSpares
+    let targetSpareId = catalogSpares.find(
+      s => (spare.id && String(s.id) === String(spare.id)) ||
+           (spare.partCode && s.partCode && s.partCode.toLowerCase() === spare.partCode.toLowerCase()) ||
+           (spare.partName && (s.partName || s.name) && (s.partName || s.name).trim().toLowerCase() === spare.partName.trim().toLowerCase())
+    )?.id;
+
+    // 2. If not found and spare.id is numeric, use spare.id
+    if (!targetSpareId && spare.id && !isNaN(Number(spare.id))) {
+      targetSpareId = spare.id;
+    }
+
+    // 3. Fallback: query spareService directly
+    if (!targetSpareId) {
+      try {
+        const allSpares = await spareService.getAll();
+        const found = allSpares.find(s => 
+          (spare.id && String(s.id) === String(spare.id)) ||
+          (spare.partCode && s.partCode && s.partCode.toLowerCase() === spare.partCode.toLowerCase()) ||
+          (spare.partName && (s.partName || (s as any).name) && (s.partName || (s as any).name).trim().toLowerCase() === spare.partName.trim().toLowerCase())
+        );
+        if (found) {
+          targetSpareId = found.id;
+        }
+      } catch (e) {
+        console.warn('Fallback spare search failed:', e);
+      }
+    }
+
+    if (!targetSpareId) {
+      toast.error(`Unable to locate spare "${spare.partName || 'part'}"`);
+      return;
+    }
+
+    navigate(`/spares/edit/${targetSpareId}`, {
+      state: {
+        returnUrl: location.pathname,
+        returnTab: 'Spares',
+        tab: 'General',
+        machineId: id,
+        machineName: formData.name || 'Machine'
+      }
+    });
+  };
+
+  const [selectedWOForView, setSelectedWOForView] = useState<any>(null);
+  const [showWOViewModal, setShowWOViewModal] = useState(false);
+
+  const handleOpenWorkOrder = (wo: any) => {
+    setSelectedWOForView(wo);
+    setShowWOViewModal(true);
+  };
+
+  const handleOpenSchedule = (sch: any) => {
+    navigate(`/schedules/edit/${sch.id}`, {
+      state: {
+        returnUrl: location.pathname,
+        returnTab: 'Schedule Maintenance',
+        machineId: id,
+        machineName: formData.name || 'Machine'
+      }
+    });
+  };
+
+  const handleOpenSupplier = async (purchase: any) => {
+    let targetSupplierId = suppliers.find(
+      s => (purchase.supplierId && String(s.id) === String(purchase.supplierId)) ||
+           (purchase.supplierName && s.name && s.name.trim().toLowerCase() === purchase.supplierName.trim().toLowerCase())
+    )?.id;
+
+    if (!targetSupplierId && purchase.supplierId && !isNaN(Number(purchase.supplierId))) {
+      targetSupplierId = purchase.supplierId;
+    }
+
+    if (!targetSupplierId) {
+      try {
+        const allSuppliers = await supplierService.getAll();
+        const found = allSuppliers.find(s => 
+          (purchase.supplierId && String(s.id) === String(purchase.supplierId)) ||
+          (purchase.supplierName && s.name && s.name.trim().toLowerCase() === purchase.supplierName.trim().toLowerCase())
+        );
+        if (found) {
+          targetSupplierId = found.id;
+        }
+      } catch (e) {
+        console.warn('Fallback supplier search failed:', e);
+      }
+    }
+
+    if (!targetSupplierId) {
+      toast.error(`Unable to locate supplier "${purchase.supplierName || 'details'}"`);
+      return;
+    }
+
+    navigate(`/suppliers/edit/${targetSupplierId}`, {
+      state: {
+        returnUrl: location.pathname,
+        returnTab: 'Purchase',
+        machineName: formData.name || 'Machine'
+      }
+    });
+  };
   
   const [machineSpares, setMachineSpares] = useState<any[]>(() => {
     try {
@@ -455,6 +570,12 @@ export function EditMachine() {
       fetchDocuments();
     } else if (activeTab === 'Specification' && id) {
       fetchSpecifications();
+    } else if (activeTab === 'Checklist' && id) {
+      fetchCheckpoints();
+    } else if (activeTab === 'Schedule Maintenance' && id) {
+      fetchSchedules();
+    } else if (activeTab === 'WO' && id) {
+      fetchWorkOrders();
     }
   }, [activeTab, id]);
 
@@ -858,7 +979,7 @@ export function EditMachine() {
       if (doc.content) {
         const fullUrl = doc.content.startsWith('http') || doc.content.startsWith('data:')
           ? doc.content
-          : `http://localhost:3001${doc.content.startsWith('/') ? doc.content : `/${doc.content}`}`;
+          : `http://localhost:3002${doc.content.startsWith('/') ? doc.content : `/${doc.content}`}`;
         window.open(fullUrl, '_blank');
       } else {
         toast.error('File URL is not available');
@@ -1225,13 +1346,23 @@ export function EditMachine() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
             className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
             title="Go Back"
           >
             <ArrowLeft size={18} className="stroke-[2.5]" />
           </button>
           <div>
+            {returnUrl && (
+              <div className="text-xs text-slate-500 mb-0.5 flex items-center gap-1">
+                <span 
+                  onClick={handleBack} 
+                  className="text-blue-600 font-medium hover:underline cursor-pointer"
+                >
+                  {(location.state as any)?.spareName ? `← Back to ${(location.state as any).spareName} (${returnTab || 'Spare'})` : '← Back'}
+                </span>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                 {formData.name || 'Edit Machine'}
@@ -1248,9 +1379,14 @@ export function EditMachine() {
 
         {/* Top Actions */}
         <div className="flex items-center gap-2.5">
+          {!canEditCurrentTab && permittedTabs.length > 0 && (
+            <div className="text-xs font-semibold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
+              Read-only mode ({activeTab})
+            </div>
+          )}
           <button 
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
             className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
           >
             Back
@@ -1610,8 +1746,14 @@ export function EditMachine() {
                         const rate = spare.rate !== undefined && spare.rate !== null ? Number(spare.rate) : spare.unitCost ? Number(spare.unitCost) : 0;
                         const total = spare.total !== undefined ? Number(spare.total) : qty * rate;
                         return (
-                          <tr key={spare.id || index} className="hover:bg-blue-50/40 transition-colors">
-                            <td className="px-4 py-3"><input type="checkbox" className="rounded border-slate-300 text-blue-600" /></td>
+                          <tr 
+                            key={spare.id || index} 
+                            onClick={() => handleOpenSpare(spare)}
+                            className="hover:bg-slate-50 transition-colors cursor-pointer"
+                          >
+                            <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                              <input type="checkbox" className="rounded border-slate-300 text-blue-600 cursor-pointer" />
+                            </td>
                             <td className="px-4 py-3 text-sm text-slate-500">{index + 1}</td>
                             <td className="px-4 py-3 text-sm font-semibold text-slate-900">{spare.partName}</td>
                             <td className="px-4 py-3 text-sm text-slate-600">{spare.category || '-'}</td>
@@ -1619,19 +1761,30 @@ export function EditMachine() {
                             <td className="px-4 py-3 text-sm text-center font-medium text-slate-800">{qty}</td>
                             <td className="px-4 py-3 text-sm text-right font-medium text-slate-800">₹{rate.toFixed(2)}</td>
                             <td className="px-4 py-3 text-sm text-right font-bold text-slate-900">₹{total.toFixed(2)}</td>
-                            <td className="px-4 py-3 text-center">
-                              <button
-                                onClick={() => {
-                                  setMachineSpares(prev => prev.filter(s => s.id !== spare.id));
-                                  if (id) {
-                                    machineSpareSync.onSpareRemovedFromMachine(id, spare);
-                                  }
-                                }}
-                                className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
-                                title="Remove Spare"
-                              >
-                                <Trash2 size={16} />
-                              </button>
+                            <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenSpare(spare)}
+                                  className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
+                                  title="View Spare Details"
+                                >
+                                  <Eye size={16} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setMachineSpares(prev => prev.filter(s => s.id !== spare.id));
+                                    if (id) {
+                                      machineSpareSync.onSpareRemovedFromMachine(id, spare);
+                                    }
+                                  }}
+                                  className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
+                                  title="Remove Spare"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1768,21 +1921,37 @@ export function EditMachine() {
                       </tr>
                     ) : (
                       filteredPurchases.map((item, idx) => (
-                        <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                          <td className="px-4 py-3"><input type="checkbox" className="rounded border-slate-300" /></td>
+                        <tr 
+                          key={item.id} 
+                          onClick={() => handleOpenSupplier(item)}
+                          className="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer"
+                        >
+                          <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                            <input type="checkbox" className="rounded border-slate-300 cursor-pointer" />
+                          </td>
                           <td className="px-4 py-3 text-xs text-slate-700 font-medium">{idx + 1}</td>
                           <td className="px-4 py-3 text-xs font-semibold text-slate-900">{item.supplierName}</td>
                           <td className="px-4 py-3 text-xs text-slate-600">{item.email}</td>
                           <td className="px-4 py-3 text-xs text-slate-600">{item.contactNumber}</td>
-                          <td className="px-4 py-3 text-center">
-                            <button
-                              type="button"
-                              onClick={() => setPurchases(prev => prev.filter(p => p.id !== item.id))}
-                              className="text-red-500 hover:text-red-700 p-1 cursor-pointer"
-                              title="Delete"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                          <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenSupplier(item)}
+                                className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
+                                title="View Supplier Details"
+                              >
+                                <Eye size={15} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPurchases(prev => prev.filter(p => p.id !== item.id))}
+                                className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
+                                title="Delete"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -2097,7 +2266,11 @@ export function EditMachine() {
                             REJECTED: 'bg-red-50 text-red-700 border-red-200',
                           };
                           return (
-                            <tr key={wo.id} className="hover:bg-slate-50/60 transition-colors">
+                            <tr 
+                              key={wo.id} 
+                              onClick={() => handleOpenWorkOrder(wo)}
+                              className="hover:bg-slate-50 transition-colors cursor-pointer"
+                            >
                               <td className="px-4 py-3 font-medium text-slate-500">{idx + 1}</td>
                               <td className="px-4 py-3 font-mono font-bold text-blue-600">{wo.woNumber}</td>
                               <td className="px-4 py-3 font-semibold text-slate-800 max-w-[280px] truncate">
@@ -2119,10 +2292,10 @@ export function EditMachine() {
                               <td className="px-4 py-3 text-slate-500 font-mono text-[11px]">
                                 {wo.estimatedStartDate ? new Date(wo.estimatedStartDate).toLocaleDateString() : 'Immediate'}
                               </td>
-                              <td className="px-4 py-3 text-center">
+                              <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                                 <button
                                   type="button"
-                                  onClick={() => navigate('/work-orders')}
+                                  onClick={() => handleOpenWorkOrder(wo)}
                                   className="p-1 text-slate-400 hover:text-blue-600 transition-colors cursor-pointer"
                                   title="View Work Order"
                                 >
@@ -2422,7 +2595,11 @@ export function EditMachine() {
                           (sch.notes || '').toLowerCase().includes(scheduleSearchQuery.toLowerCase())
                         )
                         .map((sch, idx) => (
-                          <tr key={sch.id} className="hover:bg-slate-50/60 transition-colors">
+                          <tr 
+                            key={sch.id} 
+                            onClick={() => handleOpenSchedule(sch)}
+                            className="hover:bg-slate-50 transition-colors cursor-pointer"
+                          >
                             <td className="px-4 py-3 font-medium text-slate-500">{idx + 1}</td>
                             <td className="px-4 py-3 font-mono font-bold text-slate-800">{sch.scheduleCode}</td>
                             <td className="px-4 py-3">
@@ -2446,12 +2623,12 @@ export function EditMachine() {
                             </td>
                             <td className="px-4 py-3 text-slate-600 font-medium">±{sch.prePlanToleranceDays || 1} Days</td>
                             <td className="px-4 py-3 text-slate-600 font-mono text-[11px]">{sch.triggerTime || '09:00'}</td>
-                            <td className="px-4 py-3 text-center">
+                            <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                               <button
                                 type="button"
-                                onClick={() => navigate('/schedules')}
+                                onClick={() => handleOpenSchedule(sch)}
                                 className="p-1 text-slate-400 hover:text-blue-600 transition-colors cursor-pointer"
-                                title="View in Schedules Dashboard"
+                                title="Edit Schedule Maintenance"
                               >
                                 <Eye size={15} />
                               </button>
@@ -2472,28 +2649,7 @@ export function EditMachine() {
       </div>
       </div>
 
-      <div className="flex justify-end items-center gap-3 w-full border-t border-slate-200/90 pt-5 mt-4">
-        {!canEditCurrentTab && permittedTabs.length > 0 && (
-          <div className="mr-auto text-xs font-semibold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
-            Read-only mode for {activeTab} tab
-          </div>
-        )}
-        <button 
-          onClick={() => navigate(-1)}
-          className="px-5 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
-        >
-          Back
-        </button>
-        {canEditCurrentTab && (
-          <button 
-            onClick={handleSave}
-            disabled={saving}
-            className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs disabled:opacity-50 cursor-pointer"
-          >
-            {saving ? 'Saving...' : 'Save'}
-          </button>
-        )}
-      </div>
+
 
       {/* Locations Modal */}
       {isLocationModalOpen && (
@@ -2759,7 +2915,7 @@ export function EditMachine() {
                   onClick={handleSaveSpareModal}
                   className="px-10 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-lg font-semibold text-sm transition-colors shadow-xs cursor-pointer"
                 >
-                  Save Spare
+                  Save
                 </button>
               </div>
             </div>
@@ -3348,20 +3504,18 @@ export function EditMachine() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Target Start Date</label>
-                  <input
-                    type="date"
+                  <CustomDatePicker
+                    name="estimatedStartDate"
                     value={woForm.estimatedStartDate}
-                    onChange={(e) => setWoForm(prev => ({ ...prev, estimatedStartDate: e.target.value }))}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-800"
+                    onChange={(e: any) => setWoForm(prev => ({ ...prev, estimatedStartDate: e.target.value }))}
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Target End Date</label>
-                  <input
-                    type="date"
+                  <CustomDatePicker
+                    name="estimatedEndDate"
                     value={woForm.estimatedEndDate}
-                    onChange={(e) => setWoForm(prev => ({ ...prev, estimatedEndDate: e.target.value }))}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-800"
+                    onChange={(e: any) => setWoForm(prev => ({ ...prev, estimatedEndDate: e.target.value }))}
                   />
                 </div>
               </div>
@@ -3688,11 +3842,10 @@ export function EditMachine() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Start Date</label>
-                  <input
-                    type="date"
+                  <CustomDatePicker
+                    name="startDate"
                     value={scheduleForm.startDate}
-                    onChange={(e) => setScheduleForm(prev => ({ ...prev, startDate: e.target.value }))}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-800"
+                    onChange={(e: any) => setScheduleForm(prev => ({ ...prev, startDate: e.target.value }))}
                   />
                 </div>
                 <div>
@@ -3745,6 +3898,13 @@ export function EditMachine() {
         </div>
       )}
 
+      {/* Technician WO View Modal */}
+      <TechnicianWOViewModal
+        isOpen={showWOViewModal}
+        onClose={() => setShowWOViewModal(false)}
+        workOrder={selectedWOForView}
+        onSuccess={fetchWorkOrders}
+      />
     </div>
   );
 }

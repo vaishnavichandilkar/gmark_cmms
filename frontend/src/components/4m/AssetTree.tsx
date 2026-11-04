@@ -10,7 +10,8 @@ import {
   User, 
   GripVertical, 
   FolderInput,
-  Shield 
+  Shield,
+  Lock 
 } from 'lucide-react';
 
 export interface TreeNodeData {
@@ -31,6 +32,7 @@ interface AssetTreeProps {
   onDropNode?: (source: TreeNodeData, target: TreeNodeData) => void;
   onMove?: (node: TreeNodeData) => void;
   onGiveAccess?: (node: TreeNodeData) => void;
+  isNodeAccessible?: (node: TreeNodeData) => boolean;
 }
 
 // Helper: Check if targetId is a descendant of parentNode

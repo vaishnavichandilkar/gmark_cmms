@@ -503,7 +503,7 @@ export function AddUser() {
         if (roleStr.includes('BUILDING')) return 'BUILDING_ADMIN';
         if (roleStr.includes('SOCIETY')) return 'SOCIETY_ADMIN';
         if (roleStr.includes('ADMIN')) return 'SOCIETY_ADMIN';
-        if (roleStr.includes('OPERATOR') || roleStr.includes('SUPERVISOR')) return 'OPERATOR';
+        if (roleStr.includes('OPERATOR') || roleStr.includes('SUPERVISOR') || roleStr.includes('TECHNICIAN') || roleStr.includes('ENGINEER') || roleStr.includes('MAINTENANCE') || roleStr.includes('WORKER')) return 'OPERATOR';
         if (roleStr.includes('MANAGER')) return 'BUILDING_ADMIN';
         return 'VIEWER';
       };
@@ -638,12 +638,11 @@ export function AddUser() {
   }));
 
   const getReportingOptionsForEmp = (currentEmpId?: string) => {
-    return Array.from(new Set([
-      'Admin',
-      ...effectiveEmployees
-        .filter(emp => !currentEmpId || emp.id.toString() !== currentEmpId.toString())
-        .map(emp => emp.employeeCode ? `${emp.fullName} (${emp.employeeCode})` : emp.fullName)
-    ]));
+    const list = effectiveEmployees
+      .filter(emp => !currentEmpId || emp.id.toString() !== currentEmpId.toString())
+      .map(emp => emp.employeeCode ? `${emp.fullName} (${emp.employeeCode})` : emp.fullName);
+
+    return list.length > 0 ? Array.from(new Set(list)) : ['Admin'];
   };
 
   const selectedEmployeesList = effectiveEmployees.filter(emp => selectedEmpIds.includes(emp.id.toString()));
@@ -662,28 +661,54 @@ export function AddUser() {
   return (
     <div className="sm:p-6 pb-10 w-full h-full flex flex-col overflow-y-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div className="flex items-center">
           <button 
+            type="button"
             onClick={() => navigate(-1)} 
-            className="text-gray-600 hover:text-gray-900 mr-2 focus:outline-none"
+            className="text-gray-600 hover:text-gray-900 mr-2 focus:outline-none cursor-pointer"
           >
             <ChevronLeft size={24} />
           </button>
-          <h1 className="text-2xl font-bold text-gray-800">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
             {id ? (isViewMode ? 'View User' : 'Edit User') : 'Add User'}
           </h1>
         </div>
 
-        {isViewMode && (
-          <button
-            onClick={() => navigate(`/user-management/edit/${id}`)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-lg text-sm font-semibold transition-all shadow-xs"
+        {/* Top Actions */}
+        <div className="flex items-center gap-2.5">
+          <button 
+            type="button" 
+            onClick={() => navigate(-1)}
+            disabled={loading}
+            className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs transition-all shadow-xs disabled:opacity-50 cursor-pointer"
           >
-            <Pencil size={16} />
-            Edit User
+            Back
           </button>
-        )}
+          {isViewMode ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/user-management/edit/${id}`)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer"
+            >
+              <Pencil size={14} />
+              <span>Edit User</span>
+            </button>
+          ) : (
+            <button 
+              type="button" 
+              onClick={handleSave}
+              disabled={loading}
+              className="flex items-center justify-center gap-1.5 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-xs disabled:opacity-70 min-w-[80px] cursor-pointer"
+            >
+              {loading ? (
+                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                'Save'
+              )}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Form Container */}
@@ -1149,41 +1174,7 @@ export function AddUser() {
           </div>
         )}
 
-        {/* Buttons */}
-        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-10 border-t border-gray-100 pt-6">
-          {isViewMode ? (
-            <button 
-              type="button" 
-              onClick={() => navigate(-1)}
-              className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
-            >
-              Back
-            </button>
-          ) : (
-            <>
-              <button 
-                type="button" 
-                onClick={() => navigate(-1)}
-                disabled={loading}
-                className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button 
-                type="button" 
-                onClick={handleSave}
-                disabled={loading}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-sm font-semibold transition-all shadow-xs disabled:opacity-70 min-w-[100px]"
-              >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  'Save'
-                )}
-              </button>
-            </>
-          )}
-        </div>
+
 
       </div>
     </div>

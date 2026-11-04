@@ -3,7 +3,8 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { 
   ChevronLeft, Printer, RotateCw, SlidersHorizontal, Plus, 
   Trash2, Search, QrCode, Save, ArrowLeft, Eye, X, ChevronDown, Calendar,
-  Upload, Loader2, Image as ImageIcon, Pencil, Maximize2, Download, ZoomIn, ZoomOut
+  Upload, Loader2, Image as ImageIcon, Pencil, Maximize2, Download, ZoomIn, ZoomOut,
+  ExternalLink
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../store';
@@ -15,6 +16,7 @@ import {
 } from '../../../services/spareService';
 import { supplierService } from '../../../services/supplierService';
 import { machineSpareSync } from '../../../utils/machineSpareSync';
+import { CustomDatePicker } from '../../../components/shared/CustomDatePicker';
 import toast from 'react-hot-toast';
 
 type TabType = 'General' | 'Stock' | 'Machines List' | 'Specification' | 'Warranties' | 'Suppliers' | 'Documents' | 'Log';
@@ -442,8 +444,8 @@ export function SpareDetailsPage() {
     if (!url) return '';
     if (url.startsWith('data:') || url.startsWith('blob:')) return url;
     if (url.startsWith('http://') || url.startsWith('https://')) {
-      if (url.includes(':3001/uploads/')) {
-        return url.replace(/^http:\/\/(localhost|127\.0\.0\.1):3001/, '');
+      if (url.includes(':3001/uploads/') || url.includes(':3002/uploads/')) {
+        return url.replace(/^http:\/\/(localhost|127\.0\.0\.1):(3001|3002)/, '');
       }
       return url;
     }
@@ -783,6 +785,75 @@ export function SpareDetailsPage() {
     toast.success('Deleted selected machine entries');
   };
 
+  const handleDeleteSingleMachine = (mId: string | number) => {
+    machineSpareSync.onMachineRemovedFromSpare(id || formData.id || formData.partName || '', mId);
+    setFormData(prev => ({
+      ...prev,
+      machinesList: (prev.machinesList || []).filter(m => String(m.id) !== String(mId))
+    }));
+    setSelectedMachineIds(prev => prev.filter(x => x !== String(mId)));
+    toast.success('Machine entry removed');
+  };
+
+  const handleOpenMachine = async (item: MachineUsage) => {
+    try {
+      sessionStorage.setItem('spare_details_draft', JSON.stringify({
+        formData,
+        activeTab: 'Machines List',
+        newMachineForm,
+        returnUrl: location.pathname,
+        parentReturnUrl: returnUrl,
+      }));
+    } catch (err) {
+      console.error('Failed to save spare details draft:', err);
+    }
+
+    // 1. Try finding in availableMachinesList
+    let targetId = availableMachinesList.find(
+      m => String(m.id) === String(item.id) ||
+           m.machineName.trim().toLowerCase() === item.name.trim().toLowerCase() ||
+           m.code?.toLowerCase() === item.name.trim().toLowerCase()
+    )?.id;
+
+    // 2. If item.id is valid id, use item.id
+    if (!targetId && item.id && !isNaN(Number(item.id))) {
+      targetId = String(item.id);
+    }
+
+    // 3. Fallback: fetch machines directly if not found
+    if (!targetId) {
+      try {
+        const res = await api.get('/machines');
+        const list = Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
+        const found = list.find((m: any) => 
+          String(m.id) === String(item.id) ||
+          (m.name || m.machineName || '').trim().toLowerCase() === item.name.trim().toLowerCase() ||
+          (m.machineCode || m.assetCode || '').toLowerCase() === item.name.trim().toLowerCase()
+        );
+        if (found) {
+          targetId = String(found.id);
+        }
+      } catch (e) {
+        console.warn('Fallback machine search failed:', e);
+      }
+    }
+
+    if (!targetId) {
+      toast.error(`Unable to locate machine "${item.name}"`);
+      return;
+    }
+
+    navigate(`/machine-management/edit/${targetId}`, {
+      state: {
+        returnUrl: location.pathname,
+        returnTab: 'Machines List',
+        tab: 'General',
+        spareId: id || formData.id,
+        spareName: formData.partName || 'Spare'
+      }
+    });
+  };
+
   const handleGoToAddMachine = () => {
     try {
       sessionStorage.setItem('spare_details_draft', JSON.stringify({
@@ -1012,6 +1083,87 @@ export function SpareDetailsPage() {
     toast.success('Deleted selected suppliers');
   };
 
+  const handleDeleteSingleSupplier = (sId: string | number) => {
+    try {
+      const storageKey = `supplier_${sId}_spares`;
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const list = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          const spareId = id || formData.id;
+          const spareName = formData.partName?.toLowerCase();
+          const filtered = list.filter((s: any) => String(s.id) !== String(spareId) && s.partName?.toLowerCase() !== spareName);
+          localStorage.setItem(storageKey, JSON.stringify(filtered));
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to remove spare from supplier:', e);
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      suppliersList: (prev.suppliersList || []).filter(s => String(s.id) !== String(sId))
+    }));
+    setSelectedSupplierIds(prev => prev.filter(x => x !== String(sId)));
+    toast.success('Supplier entry removed');
+  };
+
+  const handleOpenSupplier = async (item: SupplierItem) => {
+    try {
+      sessionStorage.setItem('spare_details_draft', JSON.stringify({
+        formData,
+        activeTab: 'Suppliers',
+        newMachineForm,
+        newSupplier,
+        returnUrl: location.pathname,
+        parentReturnUrl: returnUrl,
+      }));
+    } catch (err) {
+      console.error('Failed to save spare details draft:', err);
+    }
+
+    // 1. Try finding in availableSuppliersList
+    let targetId = availableSuppliersList.find(
+      s => String(s.id) === String(item.id) ||
+           s.name.trim().toLowerCase() === item.name.trim().toLowerCase()
+    )?.id;
+
+    // 2. If item.id is valid id
+    if (!targetId && item.id && !isNaN(Number(item.id))) {
+      targetId = String(item.id);
+    }
+
+    // 3. Fallback: fetch suppliers directly
+    if (!targetId) {
+      try {
+        const allSuppliers = await supplierService.getAll();
+        const found = allSuppliers.find(s => 
+          String(s.id) === String(item.id) ||
+          (s.name || (s as any).supplierName || '').trim().toLowerCase() === item.name.trim().toLowerCase()
+        );
+        if (found) {
+          targetId = String(found.id);
+        }
+      } catch (e) {
+        console.warn('Fallback supplier search failed:', e);
+      }
+    }
+
+    if (!targetId) {
+      toast.error(`Unable to locate supplier "${item.name}"`);
+      return;
+    }
+
+    navigate(`/suppliers/edit/${targetId}`, {
+      state: {
+        returnUrl: location.pathname,
+        returnTab: 'Suppliers',
+        spareId: id || formData.id,
+        spareName: formData.partName || 'Spare'
+      }
+    });
+  };
+
   // Document Handlers (Aligned with Machine Management)
   const handleOpenUpload = (type: 'File' | 'Link' | 'Note') => {
     setEditingDoc(null);
@@ -1039,7 +1191,7 @@ export function SpareDetailsPage() {
       } else if (doc.content) {
         const fullUrl = doc.content.startsWith('http') || doc.content.startsWith('data:') || doc.content.startsWith('blob:')
           ? doc.content
-          : `http://localhost:3001${doc.content.startsWith('/') ? doc.content : `/${doc.content}`}`;
+          : `http://localhost:3002${doc.content.startsWith('/') ? doc.content : `/${doc.content}`}`;
         window.open(fullUrl, '_blank');
       } else {
         toast.error('File content unavailable');
@@ -1190,10 +1342,24 @@ export function SpareDetailsPage() {
     <div className="space-y-4">
       {/* Breadcrumb matching Figma Screen 2 & Screen 4 */}
       <div className="text-xs text-gray-500 font-medium flex items-center gap-1.5 pt-1">
-        <span className="hover:text-gray-800 cursor-pointer" onClick={() => navigate('/spares')}>Pages</span>
-        <span>/</span>
-        <span className="hover:text-gray-800 cursor-pointer" onClick={() => navigate('/spares')}>Spares</span>
-        <span>/</span>
+        {returnUrl ? (
+          <>
+            <span 
+              className="hover:text-blue-700 cursor-pointer text-blue-600 font-medium hover:underline" 
+              onClick={() => navigate(returnUrl, { state: { tab: returnTab, spareTab: returnTab } })}
+            >
+              {(location.state as any)?.machineName ? `${(location.state as any).machineName} (${returnTab})` : 'Back to Machine'}
+            </span>
+            <span>/</span>
+          </>
+        ) : (
+          <>
+            <span className="hover:text-gray-800 cursor-pointer" onClick={() => navigate('/spares')}>Pages</span>
+            <span>/</span>
+            <span className="hover:text-gray-800 cursor-pointer" onClick={() => navigate('/spares')}>Spares</span>
+            <span>/</span>
+          </>
+        )}
         <span className="text-gray-700">{isEditMode ? (formData.partName || 'Spare') : 'Add Spare'}</span>
         <span>/</span>
         <span className="text-emerald-700 font-semibold">{activeTab}</span>
@@ -1205,7 +1371,7 @@ export function SpareDetailsPage() {
         {/* Left Side: Back Arrow + Spare Name Header */}
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => returnUrl ? navigate(returnUrl, { state: { tab: returnTab } }) : navigate('/spares')}
+            onClick={() => returnUrl ? navigate(returnUrl, { state: { tab: returnTab, spareTab: returnTab } }) : navigate('/spares')}
             className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
             title="Back to Spares List"
           >
@@ -1229,6 +1395,15 @@ export function SpareDetailsPage() {
         {/* Right Side Header Action Buttons */}
         <div className="flex items-center gap-2">
           <button
+            type="button"
+            onClick={() => handleSave()}
+            disabled={loading}
+            className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+          >
+            {loading ? 'Saving...' : 'Save'}
+          </button>
+
+          <button
             onClick={() => window.print()}
             className="flex items-center gap-1.5 h-[38px] px-3.5 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold border border-slate-300 transition-all shadow-xs cursor-pointer"
           >
@@ -1237,18 +1412,11 @@ export function SpareDetailsPage() {
           </button>
 
           <button
-            onClick={() => id && loadSpareDetails(Number(id))}
-            className="h-[38px] w-[38px] bg-white hover:bg-slate-50 text-slate-700 rounded-lg border border-slate-300 flex items-center justify-center transition-all shadow-xs cursor-pointer"
-            title="Refresh"
+            type="button"
+            onClick={handleBack}
+            className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
           >
-            <RotateCw className="w-3.5 h-3.5 stroke-[2.2]" />
-          </button>
-
-          <button
-            className="h-[38px] w-[38px] bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center transition-all shadow-xs cursor-pointer"
-            title="Options"
-          >
-            <ChevronDown className="w-4 h-4 stroke-[2.5]" />
+            Back
           </button>
         </div>
       </div>
@@ -1300,8 +1468,8 @@ export function SpareDetailsPage() {
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           onError={(e) => {
                             const target = e.currentTarget;
-                            if (currentImage && !target.src.includes(':3001') && !target.src.startsWith('data:')) {
-                              target.src = `http://localhost:3001${currentImage.startsWith('/') ? currentImage : `/${currentImage}`}`;
+                            if (currentImage && !target.src.includes(':3002') && !target.src.startsWith('data:')) {
+                              target.src = `http://localhost:3002${currentImage.startsWith('/') ? currentImage : `/${currentImage}`}`;
                             }
                           }}
                         />
@@ -1428,26 +1596,7 @@ export function SpareDetailsPage() {
               <div className="text-xs text-slate-400 font-semibold">Spare Sub-Category</div>
               <div className="font-bold text-slate-900">{formData.subCategory || 'Spare Sub-Category'}</div>
             </div>
-
-            {/* Left Sidebar Action Buttons matching Figma Screen 1 */}
-            <div className="pt-3 space-y-2">
-              <button
-                type="button"
-                onClick={() => handleSave()}
-                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors shadow-xs cursor-pointer text-center"
-              >
-                Save
-              </button>
-              <button
-                type="button"
-                onClick={handleBack}
-                className="w-full py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl text-xs transition-colors shadow-xs cursor-pointer text-center"
-              >
-                Back
-              </button>
-            </div>
           </div>
-
         </div>
 
         {/* RIGHT CONTENT AREA WITH MULTI-TABS */}
@@ -1821,12 +1970,13 @@ export function SpareDetailsPage() {
                         <th className="py-2.5 px-4">Quantity Used in M/C</th>
                         <th className="py-2.5 px-4">Rate</th>
                         <th className="py-2.5 px-4">Total</th>
+                        <th className="py-2.5 px-4 text-center">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 text-xs text-gray-700">
                       {filteredMachinesList.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="py-8 text-center text-gray-400 font-medium">
+                          <td colSpan={8} className="py-8 text-center text-gray-400 font-medium">
                             No machine entries added.
                           </td>
                         </tr>
@@ -1834,8 +1984,12 @@ export function SpareDetailsPage() {
                         filteredMachinesList.map((item, idx) => {
                           const isSelected = selectedMachineIds.includes(String(item.id));
                           return (
-                            <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                              <td className="py-3 px-4 text-center">
+                            <tr 
+                              key={item.id} 
+                              onClick={() => handleOpenMachine(item)}
+                              className="hover:bg-gray-50 transition-colors cursor-pointer"
+                            >
+                              <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
                                 <input
                                   type="checkbox"
                                   checked={isSelected}
@@ -1845,7 +1999,7 @@ export function SpareDetailsPage() {
                                       prev.includes(strId) ? prev.filter(x => x !== strId) : [...prev, strId]
                                     );
                                   }}
-                                  className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300"
+                                  className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300 cursor-pointer"
                                 />
                               </td>
                               <td className="py-3 px-4 font-medium text-gray-500">{idx + 1}</td>
@@ -1854,6 +2008,26 @@ export function SpareDetailsPage() {
                               <td className="py-3 px-4 text-gray-700">{item.quantityUsed}</td>
                               <td className="py-3 px-4 text-gray-700">₹ {item.rate.toLocaleString()}</td>
                               <td className="py-3 px-4 font-bold text-gray-800">₹ {item.total.toLocaleString()}</td>
+                              <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenMachine(item)}
+                                    className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
+                                    title={`Open ${item.name} details`}
+                                  >
+                                    <Eye size={15} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteSingleMachine(item.id)}
+                                    className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
+                                    title="Delete Machine Entry"
+                                  >
+                                    <Trash2 size={15} />
+                                  </button>
+                                </div>
+                              </td>
                             </tr>
                           );
                         })
@@ -2098,12 +2272,13 @@ export function SpareDetailsPage() {
                         <th className="py-2.5 px-4">Business Category</th>
                         <th className="py-2.5 px-4">No. of Days For Reorder Delivery</th>
                         <th className="py-2.5 px-4">Vendor Price</th>
+                        <th className="py-2.5 px-4 text-center">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 text-xs text-gray-700">
                       {filteredSuppliersList.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center text-gray-400 font-medium">
+                          <td colSpan={7} className="py-8 text-center text-gray-400 font-medium">
                             No supplier entries found. Click{" "}
                             <button
                               type="button"
@@ -2124,8 +2299,12 @@ export function SpareDetailsPage() {
                         filteredSuppliersList.map((item, idx) => {
                           const isSelected = selectedSupplierIds.includes(String(item.id));
                           return (
-                            <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                              <td className="py-3 px-4 text-center">
+                            <tr 
+                              key={item.id} 
+                              onClick={() => handleOpenSupplier(item)}
+                              className="hover:bg-gray-50 transition-colors cursor-pointer"
+                            >
+                              <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
                                 <input
                                   type="checkbox"
                                   checked={isSelected}
@@ -2135,7 +2314,7 @@ export function SpareDetailsPage() {
                                       prev.includes(strId) ? prev.filter(x => x !== strId) : [...prev, strId]
                                     );
                                   }}
-                                  className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300"
+                                  className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300 cursor-pointer"
                                 />
                               </td>
                               <td className="py-3 px-4 font-medium text-gray-500">{idx + 1}</td>
@@ -2143,6 +2322,26 @@ export function SpareDetailsPage() {
                               <td className="py-3 px-4 text-gray-700">{item.businessCategory}</td>
                               <td className="py-3 px-4 text-gray-700">{item.reorderDays}</td>
                               <td className="py-3 px-4 font-bold text-gray-800">₹ {item.vendorPrice.toLocaleString()}</td>
+                              <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenSupplier(item)}
+                                    className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
+                                    title={`Open ${item.name} details`}
+                                  >
+                                    <Eye size={15} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteSingleSupplier(item.id)}
+                                    className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
+                                    title="Delete Supplier Entry"
+                                  >
+                                    <Trash2 size={15} />
+                                  </button>
+                                </div>
+                              </td>
                             </tr>
                           );
                         })
@@ -2406,28 +2605,6 @@ export function SpareDetailsPage() {
               </div>
             )}
 
-          </div>
-
-          {/* BOTTOM NAVIGATION / ACTION BAR (Same as Machine Management) */}
-          <div className="flex justify-between items-center w-full px-6 py-4 border-t border-gray-200 bg-gray-50/60 mt-auto">
-            <button
-              type="button"
-              onClick={handleBack}
-              className="px-8 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold text-sm transition-colors shadow-sm cursor-pointer"
-            >
-              Back
-            </button>
-
-            <div className="flex items-center gap-4">
-              <button
-                type="button"
-                onClick={() => handleSave(false)}
-                disabled={loading}
-                className="px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs disabled:opacity-50 cursor-pointer"
-              >
-                {loading ? 'Saving...' : 'Save Spare'}
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -3299,66 +3476,20 @@ export function SpareDetailsPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block font-bold text-gray-800 mb-1.5">Start Date</label>
-                  <div className="relative">
-                    <input
-                      ref={startDateInputRef}
-                      type="date"
-                      value={newWarranty.startDate}
-                      onChange={(e) => setNewWarranty(prev => ({ ...prev, startDate: e.target.value }))}
-                      onClick={(e) => {
-                        try {
-                          e.currentTarget.showPicker?.();
-                        } catch {}
-                      }}
-                      className="w-full pl-4 pr-10 py-3 border border-gray-400 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 text-sm font-medium bg-white cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        try {
-                          startDateInputRef.current?.showPicker?.();
-                        } catch {
-                          startDateInputRef.current?.focus();
-                        }
-                      }}
-                      className="p-1 absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-emerald-600 transition-colors cursor-pointer"
-                      title="Open calendar"
-                    >
-                      <Calendar className="w-4 h-4 pointer-events-none" />
-                    </button>
-                  </div>
+                  <CustomDatePicker
+                    name="startDate"
+                    value={newWarranty.startDate}
+                    onChange={(e: any) => setNewWarranty(prev => ({ ...prev, startDate: e.target.value }))}
+                  />
                 </div>
 
                 <div>
                   <label className="block font-bold text-gray-800 mb-1.5">Expiry Date</label>
-                  <div className="relative">
-                    <input
-                      ref={expiryDateInputRef}
-                      type="date"
-                      value={newWarranty.expiryDate}
-                      onChange={(e) => setNewWarranty(prev => ({ ...prev, expiryDate: e.target.value }))}
-                      onClick={(e) => {
-                        try {
-                          e.currentTarget.showPicker?.();
-                        } catch {}
-                      }}
-                      className="w-full pl-4 pr-10 py-3 border border-gray-400 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 text-sm font-medium bg-white cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        try {
-                          expiryDateInputRef.current?.showPicker?.();
-                        } catch {
-                          expiryDateInputRef.current?.focus();
-                        }
-                      }}
-                      className="p-1 absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-emerald-600 transition-colors cursor-pointer"
-                      title="Open calendar"
-                    >
-                      <Calendar className="w-4 h-4 pointer-events-none" />
-                    </button>
-                  </div>
+                  <CustomDatePicker
+                    name="expiryDate"
+                    value={newWarranty.expiryDate}
+                    onChange={(e: any) => setNewWarranty(prev => ({ ...prev, expiryDate: e.target.value }))}
+                  />
                 </div>
 
                 <div>
@@ -3688,8 +3819,8 @@ export function SpareDetailsPage() {
                     className="max-h-[55vh] max-w-full object-contain rounded-lg shadow-2xl"
                     onError={(e) => {
                       const target = e.currentTarget;
-                      if (modalImg && !target.src.includes(':3001') && !target.src.startsWith('data:')) {
-                        target.src = `http://localhost:3001${modalImg.startsWith('/') ? modalImg : `/${modalImg}`}`;
+                      if (modalImg && !target.src.includes(':3002') && !target.src.startsWith('data:')) {
+                        target.src = `http://localhost:3002${modalImg.startsWith('/') ? modalImg : `/${modalImg}`}`;
                       }
                     }}
                   />

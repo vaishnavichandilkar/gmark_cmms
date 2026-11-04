@@ -153,7 +153,7 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
       })
       .catch(console.error);
 
-    const socket = io('http://localhost:3001', {
+    const socket = io('http://localhost:3002', {
       auth: { token: accessToken },
     });
 

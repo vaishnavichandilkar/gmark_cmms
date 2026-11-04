@@ -2,7 +2,7 @@ import axios from 'axios';
 import { store } from '../store';
 import { updateAccessToken, logout } from '../store/slices/authSlice';
 
-const API_BASE_URL = 'http://localhost:3001'; // Backend URL
+export const API_BASE_URL = 'http://localhost:3002'; // Backend URL
 
 export const api = axios.create({
   baseURL: API_BASE_URL,

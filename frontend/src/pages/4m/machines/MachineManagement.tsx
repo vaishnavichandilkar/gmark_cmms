@@ -10,7 +10,7 @@ import { exportData } from '../../../utils/exportUtils';
 import toast from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../store';
-import { hasPermission } from '../../../utils/permissions';
+import { hasPermission, hasAssetPermission } from '../../../utils/permissions';
 import { MoveMachineModal } from '../../../components/4m/MoveMachineModal';
 import { ColumnCustomizer, type ColumnDefinition } from '../../../components/shared/ColumnCustomizer';
 import { GiveAccessModal } from '../../../components/4m/GiveAccessModal';
@@ -95,6 +95,11 @@ export function MachineManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
   const [machines, setMachines] = useState<Device[]>([]);
+
+  const permittedMachines = useMemo(() => {
+    return machines.filter(m => hasAssetPermission(user, m, 'view'));
+  }, [machines, user]);
+
   const [loading, setLoading] = useState(true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [machineToDelete, setMachineToDelete] = useState<string | null>(null);
@@ -161,7 +166,7 @@ export function MachineManagement() {
   } | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -204,35 +209,35 @@ export function MachineManagement() {
   // Extract unique values for dropdown filters
   const uniqueFacilities = useMemo(() => {
     const list = new Set<string>();
-    machines.forEach(m => {
+    permittedMachines.forEach(m => {
       if (m.company) list.add(m.company);
     });
     return Array.from(list).sort((a, b) => a.localeCompare(b));
-  }, [machines]);
+  }, [permittedMachines]);
 
   const uniqueSubFacilities = useMemo(() => {
     const list = new Set<string>();
-    machines.forEach(m => {
+    permittedMachines.forEach(m => {
       if (m.building) list.add(m.building);
     });
     return Array.from(list).sort((a, b) => a.localeCompare(b));
-  }, [machines]);
+  }, [permittedMachines]);
 
   const uniqueCategories = useMemo(() => {
     const list = new Set<string>();
-    machines.forEach(m => {
+    permittedMachines.forEach(m => {
       if (m.machineCategory) list.add(m.machineCategory);
     });
     return Array.from(list).sort((a, b) => a.localeCompare(b));
-  }, [machines]);
+  }, [permittedMachines]);
 
   const uniqueSubCategories = useMemo(() => {
     const list = new Set<string>();
-    machines.forEach(m => {
+    permittedMachines.forEach(m => {
       if (m.machineSubCategory) list.add(m.machineSubCategory);
     });
     return Array.from(list).sort((a, b) => a.localeCompare(b));
-  }, [machines]);
+  }, [permittedMachines]);
 
   const handleColumnFilterChange = (key: keyof typeof columnFilters, value: string) => {
     setColumnFilters(prev => ({
@@ -329,21 +334,21 @@ export function MachineManagement() {
 
   const uniqueCompanies = useMemo(() => {
     const list = new Set<string>();
-    machines.forEach(m => { if (m.company) list.add(m.company); });
+    permittedMachines.forEach(m => { if (m.company) list.add(m.company); });
     return Array.from(list).sort();
-  }, [machines]);
+  }, [permittedMachines]);
 
   const uniqueBuildings = useMemo(() => {
     const list = new Set<string>();
-    machines.forEach(m => { if (m.building) list.add(m.building); });
+    permittedMachines.forEach(m => { if (m.building) list.add(m.building); });
     return Array.from(list).sort();
-  }, [machines]);
+  }, [permittedMachines]);
 
   const uniqueMakes = useMemo(() => {
     const list = new Set<string>();
-    machines.forEach(m => { if (m.make) list.add(m.make); });
+    permittedMachines.forEach(m => { if (m.make) list.add(m.make); });
     return Array.from(list).sort();
-  }, [machines]);
+  }, [permittedMachines]);
 
   const filterOptions: FilterOption[] = useMemo(() => [
     ...(uniqueCompanies.length > 0 ? [{
@@ -379,7 +384,7 @@ export function MachineManagement() {
   ], [uniqueCompanies, uniqueCategories, uniqueSubCategories, uniqueBuildings, uniqueMakes]);
 
   const filteredMachines = useMemo(() => {
-    return machines.filter(machine => {
+    return permittedMachines.filter(machine => {
       // 1. Global Search
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
@@ -1435,9 +1440,11 @@ export function MachineManagement() {
                 currentMachines.map((machine, index) => (
                   <tr 
                     key={machine.id || index} 
-                    className={`hover:bg-blue-50/40 transition-colors group ${(canEdit || canView) ? 'cursor-pointer' : ''}`}
+                    className={`hover:bg-blue-50/40 transition-colors group ${((canEdit && hasAssetPermission(user, machine, 'edit')) || (canView && hasAssetPermission(user, machine, 'view'))) ? 'cursor-pointer' : ''}`}
                     onClick={() => {
-                      if (canEdit || canView) navigate(`/machine-management/edit/${machine.id}`, { state: { tab: 'General' } });
+                      if ((canEdit && hasAssetPermission(user, machine, 'edit')) || (canView && hasAssetPermission(user, machine, 'view'))) {
+                        navigate(`/machine-management/edit/${machine.id}`, { state: { tab: 'General' } });
+                      }
                     }}
                   >
                     {/* General Details */}
@@ -1590,7 +1597,7 @@ export function MachineManagement() {
                     {visibleColumns.includes('action') && (
                       <td className="px-3.5 py-2.5 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {!canEdit && canView && (
+                          {(!canEdit || !hasAssetPermission(user, machine, 'edit')) && (canView && hasAssetPermission(user, machine, 'view')) && (
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1601,7 +1608,7 @@ export function MachineManagement() {
                               <Eye className="w-4 h-4" />
                             </button>
                           )}
-                          {canEdit && (
+                          {canEdit && hasAssetPermission(user, machine, 'edit') && (
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1627,7 +1634,7 @@ export function MachineManagement() {
                           >
                             <Shield className="w-4 h-4" />
                           </button>
-                          {canEdit && (
+                          {canEdit && hasAssetPermission(user, machine, 'edit') && (
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1640,7 +1647,7 @@ export function MachineManagement() {
                               <FolderInput className="w-4 h-4" />
                             </button>
                           )}
-                          {canDelete && (
+                          {canDelete && hasAssetPermission(user, machine, 'delete') && (
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();

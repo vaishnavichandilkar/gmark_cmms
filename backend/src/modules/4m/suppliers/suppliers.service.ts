@@ -27,7 +27,8 @@ export class SuppliersService {
 
   async findAll(query?: { search?: string }, currentUser?: any) {
     const { search } = query || {};
-    const effectiveAdminId = currentUser?.adminId || currentUser?.userId;
+    const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+    const effectiveAdminId = isSuperAdmin ? null : (currentUser?.adminId || currentUser?.userId);
 
     const whereCondition: any = search
       ? {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useParams, useLocation } from 'react-router-dom';
 import {
   ChevronLeft,
   Package,
@@ -22,14 +22,27 @@ import { scheduleService } from '../../../services/scheduleService';
 import { api } from '../../../lib/api';
 import { SpareSelectionTable } from '../../../components/schedules/SpareSelectionTable';
 import { CheckpointMasterModal } from '../../../components/checkpoints/CheckpointMasterModal';
+import { CustomDatePicker } from '../../../components/shared/CustomDatePicker';
 
 export function AddSchedulePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { id } = useParams<{ id: string }>();
   const isEditMode = Boolean(id);
   const [scheduleCode, setScheduleCode] = useState('');
   const targetMachineId = searchParams.get('machineId');
+
+  const returnUrl = (location.state as any)?.returnUrl;
+  const returnTab = (location.state as any)?.returnTab || 'Schedule Maintenance';
+
+  const handleBack = () => {
+    if (returnUrl) {
+      navigate(returnUrl, { state: { tab: returnTab } });
+    } else {
+      navigate('/schedules');
+    }
+  };
 
   const currentUser = useSelector((state: RootState) => state.auth.user);
   const allTabs = [
@@ -220,8 +233,8 @@ export function AddSchedulePage() {
     toast.success('Check point removed');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!selectedMachineId || !selectedMachine) {
       toast.error('Machine association is required');
       setActiveSubTab('GENERAL');
@@ -256,7 +269,11 @@ export function AddSchedulePage() {
         const res = await scheduleService.createSchedule(payload);
         toast.success(`Maintenance Schedule ${res.scheduleCode || 'SCH-2026-XXXX'} saved successfully!`);
       }
-      navigate('/schedules');
+      if (returnUrl) {
+        navigate(returnUrl, { state: { tab: returnTab } });
+      } else {
+        navigate('/schedules');
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.message || `Failed to ${isEditMode ? 'update' : 'save'} maintenance schedule.`);
     } finally {
@@ -276,33 +293,71 @@ export function AddSchedulePage() {
     <div className="sm:p-6 pb-10 w-full h-full flex flex-col overflow-y-auto bg-gray-50/50">
       {/* Breadcrumbs */}
       <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 mb-2">
-        <span className="cursor-pointer hover:text-gray-800" onClick={() => navigate('/')}>Dashboard</span>
-        <span>&gt;</span>
-        <span className="cursor-pointer hover:text-gray-800" onClick={() => navigate('/schedules')}>Schedules</span>
-        <span>&gt;</span>
+        {returnUrl ? (
+          <>
+            <span className="cursor-pointer text-blue-600 hover:underline" onClick={handleBack}>
+              {(location.state as any)?.machineName ? `Back to ${(location.state as any).machineName}` : 'Back'}
+            </span>
+            <span>&gt;</span>
+          </>
+        ) : (
+          <>
+            <span className="cursor-pointer hover:text-gray-800" onClick={() => navigate('/')}>Dashboard</span>
+            <span>&gt;</span>
+            <span className="cursor-pointer hover:text-gray-800" onClick={() => navigate('/schedules')}>Schedules</span>
+            <span>&gt;</span>
+          </>
+        )}
         <span className="text-gray-900 font-bold">{isEditMode ? 'Edit' : 'New'}</span>
       </div>
 
       {/* Header */}
-      <div className="flex items-center mb-6">
-        <button
-          onClick={() => navigate('/schedules')}
-          className="text-gray-800 hover:text-gray-900 mr-2 focus:outline-none cursor-pointer flex items-center justify-center p-1 rounded-lg hover:bg-gray-100 transition-colors"
-        >
-          <ChevronLeft size={22} className="stroke-[2.5]" />
-        </button>
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-              {isEditMode ? 'Edit Schedule Maintenance' : 'Add Schedule Maintenance'}
-            </h1>
-            {scheduleCode && (
-              <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                {scheduleCode}
-              </span>
-            )}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div className="flex items-center">
+          <button
+            type="button"
+            onClick={handleBack}
+            className="text-gray-800 hover:text-gray-900 mr-2 focus:outline-none cursor-pointer flex items-center justify-center p-1 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <ChevronLeft size={22} className="stroke-[2.5]" />
+          </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+                {isEditMode ? 'Edit Schedule Maintenance' : 'Add Schedule Maintenance'}
+              </h1>
+              {scheduleCode && (
+                <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  {scheduleCode}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500">Configure machine maintenance frequency, tolerance, tasks and notifications</p>
           </div>
-          <p className="text-xs text-slate-500">Configure machine maintenance frequency, tolerance, tasks and notifications</p>
+        </div>
+
+        {/* Top Actions */}
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={handleBack}
+            disabled={isSubmitting}
+            className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+          >
+            Back
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSubmit()}
+            disabled={isSubmitting}
+            className="flex items-center justify-center gap-1.5 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-xs disabled:opacity-70 min-w-[90px] cursor-pointer"
+          >
+            {isSubmitting ? (
+              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              isEditMode ? 'Update' : 'Save'
+            )}
+          </button>
         </div>
       </div>
 
@@ -437,11 +492,10 @@ export function AddSchedulePage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Start Date <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="date"
+                  <CustomDatePicker
+                    name="startDate"
                     value={startDate}
-                    onChange={e => setStartDate(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 outline-none focus:border-green-500 transition-all"
+                    onChange={(e: any) => setStartDate(e.target.value)}
                   />
                 </div>
 
@@ -828,28 +882,7 @@ export function AddSchedulePage() {
             </div>
           )}
 
-          {/* Footer Buttons */}
-          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-10 border-t border-gray-100 pt-6">
-            <button
-              type="button"
-              onClick={() => navigate('/schedules')}
-              disabled={isSubmitting}
-              className="w-full sm:w-auto px-6 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg text-xs font-bold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-xs font-bold transition-all shadow-xs disabled:opacity-70 min-w-[90px] cursor-pointer"
-            >
-              {isSubmitting ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                isEditMode ? 'Update' : 'Save'
-              )}
-            </button>
-          </div>
+
         </form>
       </div>
 

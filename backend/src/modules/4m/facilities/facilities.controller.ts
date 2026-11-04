@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, Put, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, Put, UseGuards, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { FacilitiesService } from './facilities.service';
 import { JwtAuthGuard } from '../../core/auth/guards/jwt-auth.guard';
@@ -17,8 +17,8 @@ export class FacilitiesController {
   }
 
   @Get()
-  findAll(@CurrentUser() currentUser: any) {
-    return this.facilitiesService.findAll(currentUser);
+  findAll(@CurrentUser() currentUser: any, @Query('includeAll') includeAll?: string) {
+    return this.facilitiesService.findAll(currentUser, includeAll === 'true');
   }
   @Get('next-code')
   getNextFacilityCode() {
@@ -26,8 +26,8 @@ export class FacilitiesController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.facilitiesService.findOne(id);
+  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() currentUser: any) {
+    return this.facilitiesService.findOne(id, currentUser);
   }
 
   @Put(':id')

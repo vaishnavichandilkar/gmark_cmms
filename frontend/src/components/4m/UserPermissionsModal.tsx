@@ -6,7 +6,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../../store';
 import { setUser } from '../../store/slices/authSlice';
 import { FacilityHierarchyPicker } from './FacilityHierarchyPicker';
-import { buildFlattenedAssets, type FlattenedAssetItem } from '../../pages/4m/access/AddRole';
+import { buildFlattenedAssets, getDescendantAssetIds, type FlattenedAssetItem } from '../../pages/4m/access/AddRole';
 
 export interface SubModuleItem {
   id: string;
@@ -605,6 +605,30 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
         };
       }
 
+      // If toggling a facility or main facility, cascade action to all its descendant facilities and machines
+      if (moduleId.startsWith('asset_fac_') || moduleId.startsWith('asset_mf_')) {
+        const descendantIds = getDescendantAssetIds(moduleId, flattenedAssets);
+        descendantIds.forEach(dId => {
+          if (!next[dId]) {
+            next[dId] = { view: false, create: false, edit: false, delete: false, import: false, export: false, print: false };
+          }
+          if (isActionAllowed(dId, action)) {
+            next[dId] = {
+              ...next[dId],
+              [action]: checked,
+            };
+            if (checked && action !== 'view') {
+              next[dId].view = true;
+            }
+            if (!checked && action === 'view') {
+              ['create', 'edit', 'delete', 'import', 'export', 'print'].forEach(act => {
+                next[dId][act] = false;
+              });
+            }
+          }
+        });
+      }
+
       // If parent assets module is toggled, cascade that action to all flattened assets
       if (moduleId === 'assets') {
         flattenedAssets.forEach(a => {
@@ -749,6 +773,12 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
       // If toggling parent assets, cascade to all asset sub-rows
       if (moduleId === 'assets') {
         flattenedAssets.forEach(a => updateMod(a.id));
+      }
+
+      // If toggling a facility or main facility, cascade to all descendant facilities and machines
+      if (moduleId.startsWith('asset_fac_') || moduleId.startsWith('asset_mf_')) {
+        const descendantIds = getDescendantAssetIds(moduleId, flattenedAssets);
+        descendantIds.forEach(dId => updateMod(dId));
       }
 
       return next;
@@ -929,19 +959,19 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
                 </div>
               </div>
 
-              <div className="overflow-x-auto rounded-lg border border-gray-200">
-              <table className="w-full text-left">
-                <thead className="bg-gray-50 border-b border-gray-200">
+              <div className="overflow-auto max-h-[calc(85vh-200px)] min-h-[380px] rounded-lg border border-gray-200 bg-white shadow-2xs relative">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-20 shadow-xs">
                   <tr>
-                    <th className="px-4 py-3 text-xs font-bold text-gray-700 uppercase tracking-wider">Module</th>
-                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">View</th>
-                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Create</th>
-                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Edit</th>
-                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Delete</th>
-                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Import</th>
-                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Export</th>
-                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Print</th>
-                    <th className="px-3 py-3 text-xs font-bold text-gray-700 text-center border-l border-gray-200 uppercase tracking-wider w-28">Select All</th>
+                    <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-4 py-3 text-xs font-bold text-gray-700 uppercase tracking-wider">Module</th>
+                    <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">View</th>
+                    <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Create</th>
+                    <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Edit</th>
+                    <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Delete</th>
+                    <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Import</th>
+                    <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Export</th>
+                    <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Print</th>
+                    <th className="sticky top-0 z-20 bg-gray-100 border-b border-l border-gray-200 px-3 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-28">Select All</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">

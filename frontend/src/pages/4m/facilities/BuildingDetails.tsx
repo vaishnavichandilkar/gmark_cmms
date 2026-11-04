@@ -101,7 +101,7 @@ export function BuildingDetails() {
   useEffect(() => {
     // Connect WebSocket for live updates with JWT Auth token
     const token = localStorage.getItem('token');
-    const socket = io('http://localhost:3001', {
+    const socket = io('http://localhost:3002', {
       auth: { token },
     });
 

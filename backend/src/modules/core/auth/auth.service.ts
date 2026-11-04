@@ -3,11 +3,13 @@ import {
   UnauthorizedException,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { validatePasswordStrength } from './utils/password.validator';
+import { validateGSTIN } from '../../../common/validators/is-gstin.validator';
 
 import {
   LoginDto,
@@ -104,9 +106,9 @@ export class AuthService {
       throw new BadRequestException('Please enter a valid GST number.');
     }
 
-    const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
-    if (!gstRegex.test(gstNumber)) {
-      throw new BadRequestException('Please enter a valid GST number.');
+    const gstValidation = validateGSTIN(gstNumber);
+    if (!gstValidation.isValid) {
+      throw new BadRequestException(gstValidation.error || 'Please enter a valid GST number.');
     }
 
     if (!address) {
@@ -723,6 +725,29 @@ export class AuthService {
       });
     }
 
+    // If the user has view access to ANY individual asset (asset_mac_*, asset_fac_*, asset_mf_*),
+    // automatically enable canView on the root 'assets' module so they can access the asset hierarchy
+    const hasAnyAssetPerm = mergedPermissions.some(
+      (p) => p.moduleId?.startsWith('asset_') && p.canView
+    );
+    if (hasAnyAssetPerm) {
+      const assetsIdx = mergedPermissions.findIndex((p) => p.moduleId === 'assets');
+      if (assetsIdx >= 0) {
+        mergedPermissions[assetsIdx].canView = true;
+      } else {
+        mergedPermissions.push({
+          moduleId: 'assets',
+          canView: true,
+          canCreate: false,
+          canEdit: false,
+          canDelete: false,
+          canImport: false,
+          canExport: false,
+          canPrint: false,
+        });
+      }
+    }
+
     return mergedPermissions;
   }
 
@@ -783,6 +808,11 @@ export class AuthService {
 
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'SOCIETY_ADMIN' || (user.designation && user.designation.toLowerCase().includes('admin'));
+    if (!isAdmin) {
+      throw new ForbiddenException('Only administrators can change passwords.');
     }
 
     const isCurrentPasswordValid = await bcrypt.compare(

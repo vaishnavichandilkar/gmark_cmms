@@ -101,7 +101,7 @@ export function EmployeeMaster() {
   } | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -152,25 +152,25 @@ export function EmployeeMaster() {
   const uniqueDepartments = useMemo(() => {
     const list = new Set<string>();
     employees.forEach(e => {
-      if (e.department) list.add(e.department);
+      if (e.department) list.add(String(e.department).trim());
     });
-    return Array.from(list).sort((a, b) => a.localeCompare(b));
+    return Array.from(list).filter(Boolean).sort((a, b) => a.localeCompare(b));
   }, [employees]);
 
   const uniqueDesignations = useMemo(() => {
     const list = new Set<string>();
     employees.forEach(e => {
-      if (e.designation) list.add(e.designation);
+      if (e.designation) list.add(String(e.designation).trim());
     });
-    return Array.from(list).sort((a, b) => a.localeCompare(b));
+    return Array.from(list).filter(Boolean).sort((a, b) => a.localeCompare(b));
   }, [employees]);
 
   const uniqueReportingTo = useMemo(() => {
     const list = new Set<string>();
     employees.forEach(e => {
-      if (e.reportingTo) list.add(e.reportingTo);
+      if (e.reportingTo) list.add(String(e.reportingTo).trim());
     });
-    return Array.from(list).sort((a, b) => a.localeCompare(b));
+    return Array.from(list).filter(Boolean).sort((a, b) => a.localeCompare(b));
   }, [employees]);
 
   const filteredEmployees = useMemo(() => {
@@ -232,9 +232,11 @@ export function EmployeeMaster() {
   const uniqueSalaryPayouts = useMemo(() => {
     const list = new Set<string>();
     employees.forEach(e => {
-      if (e.salaryPayout) list.add(e.salaryPayout);
+      if (e.salaryPayout !== null && e.salaryPayout !== undefined && e.salaryPayout !== '') {
+        list.add(String(e.salaryPayout).trim());
+      }
     });
-    return Array.from(list).sort((a, b) => a.localeCompare(b));
+    return Array.from(list).filter(Boolean).sort((a, b) => Number(a) - Number(b));
   }, [employees]);
 
   // Dynamic Filters for Customize Filters modal

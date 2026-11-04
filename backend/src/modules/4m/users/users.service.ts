@@ -179,6 +179,13 @@ export class UsersService {
       });
     }
 
+    if (data.employeeId && data.designation) {
+      await this.prisma.employee.update({
+        where: { id: data.employeeId },
+        data: { designation: data.designation },
+      }).catch(() => {});
+    }
+
     return this.findOne(user.id);
   }
 
@@ -273,6 +280,14 @@ export class UsersService {
           })),
         });
       }
+    }
+
+    const targetEmpId = data.employeeId || existingUser.employeeId;
+    if (targetEmpId && data.designation) {
+      await this.prisma.employee.update({
+        where: { id: targetEmpId },
+        data: { designation: data.designation },
+      }).catch(() => {});
     }
 
     return this.findOne(id);

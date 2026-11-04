@@ -32,7 +32,8 @@ export class MachinesService {
       where: { id: jwtUser.userId },
       include: { employee: true }
     }) || jwtUser;
-    const effectiveAdminId = jwtUser?.adminId || user?.adminId || user?.id || null;
+    const isSuperAdmin = jwtUser?.role === 'SUPER_ADMIN' || user?.role === 'SUPER_ADMIN';
+    const effectiveAdminId = isSuperAdmin ? null : (jwtUser?.adminId || user?.adminId || user?.id || null);
 
     // 1. Fetch options from MachineOption table
     const storedOptions = await (this.prisma as any).machineOption.findMany({
@@ -118,53 +119,173 @@ export class MachinesService {
     }
   }
 
-  async getAllMachines(jwtUser: any) {
+  private async getUserAssetPermissions(user: any, effectiveAdminId: number | null) {
+    if (!user || user.role === 'SUPER_ADMIN') {
+      return { isSuperAdmin: true, hasAssetPerms: false, permsMap: new Map<string, any>() };
+    }
+
+    const userPermissions = await this.prisma.userPermission.findMany({
+      where: { userId: user.id },
+    });
+
+    let desigPermissions: any[] = [];
+    const userDesignationName = user.designation || user.employee?.designation;
+    if (userDesignationName) {
+      const designation = await this.prisma.designation.findFirst({
+        where: {
+          name: { equals: userDesignationName.trim(), mode: 'insensitive' },
+          ...(effectiveAdminId ? { adminId: effectiveAdminId } : {}),
+        },
+        include: { permissions: true },
+      });
+      if (designation?.permissions) {
+        desigPermissions = designation.permissions;
+      }
+    }
+
+    const permsMap = new Map<string, any>();
+    desigPermissions.forEach((p) => permsMap.set(p.moduleId, p));
+    userPermissions.forEach((p) => permsMap.set(p.moduleId, p));
+
+    const hasAssetPerms = Array.from(permsMap.keys()).some((k) => k.startsWith('asset_'));
+
+    return { isSuperAdmin: false, hasAssetPerms, permsMap };
+  }
+
+  private canViewMachine(
+    machine: any,
+    permsMap: Map<string, any>,
+    facMap?: Map<number, any>,
+    currentUser?: any,
+  ): boolean {
+    // 1. Root assets permission
+    if (permsMap.get('assets')?.canView) {
+      return true;
+    }
+
+    // 2. Direct machine or device explicit grant
+    if (permsMap.get(`asset_mac_${machine.id}`)?.canView) {
+      return true;
+    }
+    if (machine.deviceId && (permsMap.get(`asset_dev_${machine.deviceId}`)?.canView || permsMap.get(`asset_dev_${machine.id}`)?.canView)) {
+      return true;
+    }
+    if (currentUser?.deviceId && (currentUser.deviceId === machine.deviceId || currentUser.deviceId === String(machine.id))) {
+      return true;
+    }
+
+    // 3. Facility inheritance (direct facility and all ancestor facilities)
+    if (machine.facilityId) {
+      let currId: number | null = Number(machine.facilityId);
+      while (currId) {
+        if (permsMap.get(`asset_fac_${currId}`)?.canView) {
+          return true;
+        }
+        if (currentUser?.facilityId && Number(currentUser.facilityId) === currId) {
+          return true;
+        }
+        const parentFac = facMap?.get(currId);
+        currId = parentFac?.parentFacilityId ? Number(parentFac.parentFacilityId) : null;
+      }
+    }
+
+    // 4. Main Facility inheritance
+    const mainFacId = machine.facility?.mainFacilityId || machine.mainFacilityId || (machine.facilityId && facMap ? facMap.get(Number(machine.facilityId))?.mainFacilityId : null);
+    if (mainFacId) {
+      const numMfId = Number(mainFacId);
+      if (permsMap.get(`asset_mf_${numMfId}`)?.canView) {
+        return true;
+      }
+      if (currentUser?.mainFacilityId && Number(currentUser.mainFacilityId) === numMfId) {
+        return true;
+      }
+    }
+
+    // 5. Parent Machine inheritance (if machine is a sub-machine)
+    if (machine.parentMachineId && permsMap.get(`asset_mac_${machine.parentMachineId}`)?.canView) {
+      return true;
+    }
+
+    return false;
+  }
+
+  async getAllMachines(jwtUser: any, includeAll: boolean = false) {
     // Fetch latest user data from DB to ensure we have mainFacilityId which might be missing in older JWTs
     const user = await this.prisma.user.findUnique({ 
       where: { id: jwtUser.userId },
       include: { employee: true }
     }) || jwtUser;
 
-    const effectiveAdminId = jwtUser?.adminId || user?.adminId || user?.id;
+    const isSuperAdmin = jwtUser?.role === 'SUPER_ADMIN' || user?.role === 'SUPER_ADMIN';
+    const effectiveAdminId = isSuperAdmin ? null : (jwtUser?.adminId || user?.adminId || user?.id);
     let whereClause: any = {};
 
     if (effectiveAdminId) {
-      whereClause.adminId = effectiveAdminId;
+      whereClause.OR = [
+        { adminId: effectiveAdminId },
+        { adminId: null },
+        { facility: { adminId: effectiveAdminId } },
+        { building: { adminId: effectiveAdminId } },
+      ];
     }
 
-    if (user.deviceId) {
-      whereClause.deviceId = user.deviceId;
-    } else if (user.facilityId) {
-      const childFacilities = await this.prisma.facility.findMany({
-        where: { parentFacilityId: user.facilityId },
-        select: { id: true },
-      });
-      const facilityIds = [user.facilityId, ...childFacilities.map(f => f.id)];
-      whereClause.facilityId = { in: facilityIds };
-    } else if (user.mainFacilityId) {
-      whereClause.facility = { mainFacilityId: user.mainFacilityId };
-    } else if (user.role === 'SOCIETY_ADMIN') {
-      if (user.societyId) {
-        whereClause.building = { societyId: user.societyId };
-      }
-    } else if (user.role !== 'SUPER_ADMIN') {
-      const orConditions: any[] = [];
-      if (user.employee) {
-        orConditions.push({ machineOwner: user.employee.fullName });
-        orConditions.push({ maintenanceHead: user.employee.fullName });
-      }
-      if (jwtUser.buildingIds && jwtUser.buildingIds.length > 0) {
-        orConditions.push({ buildingId: { in: jwtUser.buildingIds } });
-      }
-      if (orConditions.length > 0) {
-        whereClause.OR = orConditions;
+    const { hasAssetPerms, permsMap } = await this.getUserAssetPermissions(user, effectiveAdminId);
+
+    // Fetch all facilities for hierarchy lookup and recursive inheritance
+    const allFacs = await this.prisma.facility.findMany({
+      select: { id: true, parentFacilityId: true, mainFacilityId: true },
+    });
+    const facMap = new Map<number, any>(allFacs.map((f) => [f.id, f]));
+
+    if (!isSuperAdmin && !includeAll) {
+      if (hasAssetPerms) {
+        // Handled via post-filtering with canViewMachine
+      } else if (user.deviceId) {
+        whereClause.deviceId = user.deviceId;
+      } else if (user.facilityId) {
+        // Collect all descendant facilities recursively
+        const targetFacId = Number(user.facilityId);
+        const allowedFacilityIds = new Set<number>([targetFacId]);
+        let added = true;
+        while (added) {
+          added = false;
+          allFacs.forEach((f) => {
+            if (f.parentFacilityId && allowedFacilityIds.has(Number(f.parentFacilityId)) && !allowedFacilityIds.has(Number(f.id))) {
+              allowedFacilityIds.add(Number(f.id));
+              added = true;
+            }
+          });
+        }
+        whereClause.facilityId = { in: Array.from(allowedFacilityIds) };
+      } else if (user.mainFacilityId) {
+        whereClause.facility = { mainFacilityId: user.mainFacilityId };
+      } else if (user.role === 'SOCIETY_ADMIN') {
+        if (user.societyId) {
+          whereClause.building = { societyId: user.societyId };
+        }
+      } else {
+        const orConditions: any[] = [];
+        if (user.employee) {
+          orConditions.push({ machineOwner: user.employee.fullName });
+          orConditions.push({ maintenanceHead: user.employee.fullName });
+        }
+        if (jwtUser.buildingIds && jwtUser.buildingIds.length > 0) {
+          orConditions.push({ buildingId: { in: jwtUser.buildingIds } });
+        }
+        if (orConditions.length > 0) {
+          whereClause.OR = orConditions;
+        }
       }
     }
 
-    const machines = await this.prisma.machine.findMany({
+    let machines = await this.prisma.machine.findMany({
       where: whereClause,
       include: { building: true, facility: true },
     });
+
+    if (!isSuperAdmin && hasAssetPerms && !includeAll) {
+      machines = machines.filter(m => this.canViewMachine(m, permsMap, facMap, user));
+    }
 
     const now = new Date();
 
@@ -223,10 +344,20 @@ export class MachinesService {
       where: { id: jwtUser.userId },
       include: { employee: true }
     }) || jwtUser;
+
+    const isSuperAdmin = jwtUser?.role === 'SUPER_ADMIN' || user?.role === 'SUPER_ADMIN';
+    const effectiveAdminId = isSuperAdmin ? null : (jwtUser?.adminId || user?.adminId || user?.id);
+    const { hasAssetPerms, permsMap } = await this.getUserAssetPermissions(user, effectiveAdminId);
     let whereClause: any = { id };
 
-    if (user.role !== 'SUPER_ADMIN') {
-      if (user.deviceId) {
+    if (effectiveAdminId) {
+      whereClause.adminId = effectiveAdminId;
+    }
+
+    if (!isSuperAdmin) {
+      if (hasAssetPerms) {
+        // Will be verified below using canViewMachine
+      } else if (user.deviceId) {
         whereClause.deviceId = user.deviceId;
       } else if (user.facilityId) {
         const childFacilities = await this.prisma.facility.findMany({
@@ -264,7 +395,7 @@ export class MachinesService {
       include: { building: true, facility: true },
     });
 
-    if (!machine) {
+    if (!machine || (!isSuperAdmin && hasAssetPerms && !this.canViewMachine(machine, permsMap))) {
       throw new NotFoundException(`Machine with ID ${id} not found`);
     }
 

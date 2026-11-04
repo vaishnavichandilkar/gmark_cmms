@@ -11,6 +11,7 @@ import { hasFacilityTabPermission } from '../../../utils/permissions';
 import { GiveAccessPromptModal } from '../../../components/4m/GiveAccessPromptModal';
 import { GiveAccessModal } from '../../../components/4m/GiveAccessModal';
 import toast from 'react-hot-toast';
+import { fetchLocationByPincode } from '../../../utils/pincodeService';
 
 const tabs = ['General', 'Document'];
 
@@ -38,6 +39,7 @@ export function AddFacility() {
 
   const [isUploadMenuOpen, setIsUploadMenuOpen] = useState(false);
   const [_uploadModalType, setUploadModalType] = useState<string | null>(null);
+  const [facilityDocuments, setFacilityDocuments] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     mainFacilityId: '',
@@ -110,28 +112,32 @@ export function AddFacility() {
   }, [id]);
 
   useEffect(() => {
-    const fetchPostalCodeDetails = async () => {
-      if (formData.postalCode && formData.postalCode.length === 6 && formData.isLocationPart === 'false' && !isViewMode) {
+    const pin = (formData.postalCode || '').trim().replace(/\D/g, '');
+    if (pin.length === 6 && formData.isLocationPart === 'false' && !isViewMode) {
+      let isCurrent = true;
+      const fetchPostalCodeDetails = async () => {
         try {
-          const response = await api.get(`/postal-codes/${formData.postalCode}`);
-          if (response.data) {
+          const loc = await fetchLocationByPincode(pin);
+          if (loc && isCurrent) {
             setFormData(prev => ({
               ...prev,
-              city: response.data.city,
-              state: response.data.state,
-              country: response.data.country || 'India',
+              city: loc.city,
+              state: loc.state,
+              country: loc.country || 'India',
             }));
             // Clear any errors related to these fields
-            setErrors(prev => ({ ...prev, city: '', state: '', country: '' }));
+            setErrors(prev => ({ ...prev, city: '', state: '', country: '', postalCode: '' }));
           }
         } catch (error) {
           console.error('Failed to fetch postal code details', error);
-          // Optional: handle not found
         }
-      }
-    };
+      };
 
-    fetchPostalCodeDetails();
+      fetchPostalCodeDetails();
+      return () => {
+        isCurrent = false;
+      };
+    }
   }, [formData.postalCode, formData.isLocationPart, isViewMode]);
 
   const fetchMainFacilities = async () => {
@@ -200,6 +206,9 @@ export function AddFacility() {
         notes: data.notes || '',
         parentFacilityIdType: initialParentFacilityIdType
       });
+      if (Array.isArray(data.documents)) {
+        setFacilityDocuments(data.documents);
+      }
     } catch (error) {
       console.error('Failed to fetch facility:', error);
       setGlobalError('Failed to load facility details.');
@@ -920,26 +929,36 @@ export function AddFacility() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {[1, 2, 3, 4, 5, 6].map((num) => (
-                    <tr key={num} className="hover:bg-gray-50/60 transition-colors">
-                      <td className="px-3 py-2 text-center"><input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 text-green-500 focus:ring-green-500 cursor-pointer" /></td>
-                      <td className="px-3 py-2 text-xs text-gray-500">{num}</td>
-                      <td className="px-3 py-2 text-xs font-medium text-gray-800">Facility Name</td>
-                      <td className="px-3 py-2 text-xs text-gray-700">Spare Name</td>
-                      <td className="px-3 py-2 text-xs text-gray-700">Spare Name</td>
-                      <td className="px-3 py-2 text-xs text-gray-700 text-center">
-                        <div className="flex justify-center">
-                          {!isViewMode && (canCreateDocument || canDeleteDocument) ? (
-                            <button type="button" className="text-gray-400 hover:text-gray-800 transition-colors p-1 cursor-pointer">
-                              <Edit size={14} />
-                            </button>
-                          ) : (
-                            <span className="text-gray-300">-</span>
-                          )}
-                        </div>
+                  {facilityDocuments.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-sm font-medium text-gray-500 bg-white">
+                        No documents added yet.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    facilityDocuments.map((doc, index) => (
+                      <tr key={doc.id || index} className="hover:bg-gray-50/60 transition-colors">
+                        <td className="px-3 py-2 text-center">
+                          <input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 text-green-500 focus:ring-green-500 cursor-pointer" />
+                        </td>
+                        <td className="px-3 py-2 text-xs text-gray-500">{index + 1}</td>
+                        <td className="px-3 py-2 text-xs font-medium text-gray-800">{doc.name || formData.facilityName || '-'}</td>
+                        <td className="px-3 py-2 text-xs text-gray-700">{doc.type || '-'}</td>
+                        <td className="px-3 py-2 text-xs text-gray-700">{doc.details || doc.url || '-'}</td>
+                        <td className="px-3 py-2 text-xs text-gray-700 text-center">
+                          <div className="flex justify-center">
+                            {!isViewMode && (canCreateDocument || canDeleteDocument) ? (
+                              <button type="button" className="text-gray-400 hover:text-gray-800 transition-colors p-1 cursor-pointer">
+                                <Edit size={14} />
+                              </button>
+                            ) : (
+                              <span className="text-gray-300">-</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

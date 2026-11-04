@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { ChevronLeft, Shield, CheckCircle2, XCircle, ChevronDown, ChevronRight, Layers, User, Users, X, Plus, Trash2, Search, Sliders, Globe, Building, Building2, Cpu } from 'lucide-react';
+import { ChevronLeft, Shield, CheckCircle2, XCircle, ChevronDown, ChevronRight, Layers, User, Users, X, Plus, Trash2, Search, Sliders, Globe, Building, Building2, Cpu, Pencil } from 'lucide-react';
 import { api } from '../../../lib/api';
 import toast from 'react-hot-toast';
 
@@ -238,6 +238,21 @@ export function buildFlattenedAssets(
   return result;
 }
 
+export const getDescendantAssetIds = (rootId: string, items: FlattenedAssetItem[]): string[] => {
+  const result: string[] = [];
+  const queue = [rootId];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    items.forEach(item => {
+      if (item.parentId === current) {
+        result.push(item.id);
+        queue.push(item.id);
+      }
+    });
+  }
+  return result;
+};
+
 const isActionAllowed = (moduleId: string, action: string) => {
   if (moduleId === 'dashboard' && action !== 'view') return false;
   if (['manage_access', 'user_management', 'facility_management', 'machine_management', 'assets'].includes(moduleId) && action === 'import') return false;
@@ -319,6 +334,7 @@ export function AddRole() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [designationUsers, setDesignationUsers] = useState<any[]>([]);
+  const [allDesignations, setAllDesignations] = useState<any[]>([]);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
   const [flattenedAssets, setFlattenedAssets] = useState<FlattenedAssetItem[]>([]);
   const [collapsedAssetIds, setCollapsedAssetIds] = useState<Record<string, boolean>>({});
@@ -424,9 +440,10 @@ export function AddRole() {
     const loadAll = async () => {
       try {
         setLoading(true);
-        const [empRes, userRes, desigRes, mainFacRes, facRes, machRes, devRes] = await Promise.allSettled([
+        const [empRes, userRes, allDesigRes, desigRes, mainFacRes, facRes, machRes, devRes] = await Promise.allSettled([
           api.get('/employees'),
           api.get('/users'),
+          api.get('/designations'),
           id ? api.get(`/designations/${id}`) : Promise.resolve(null),
           api.get('/main-facilities'),
           api.get('/facilities'),
@@ -436,8 +453,10 @@ export function AddRole() {
 
         const fetchedEmployees = empRes.status === 'fulfilled' ? (empRes.value?.data || []) : [];
         const fetchedUsers = userRes.status === 'fulfilled' ? (userRes.value?.data || []) : [];
+        const fetchedAllDesignations = allDesigRes.status === 'fulfilled' && Array.isArray(allDesigRes.value?.data) ? allDesigRes.value.data : [];
         setEmployees(fetchedEmployees);
         setUsers(fetchedUsers);
+        setAllDesignations(fetchedAllDesignations);
 
         const mainFacilities = mainFacRes.status === 'fulfilled' && Array.isArray(mainFacRes.value?.data) ? mainFacRes.value.data : [];
         const facilities = facRes.status === 'fulfilled' && Array.isArray(facRes.value?.data) ? facRes.value.data : [];
@@ -836,6 +855,30 @@ export function AddRole() {
         };
       }
 
+      // If toggling a facility or main facility, cascade action to all its descendant facilities and machines
+      if (moduleId.startsWith('asset_fac_') || moduleId.startsWith('asset_mf_')) {
+        const descendantIds = getDescendantAssetIds(moduleId, flattenedAssets);
+        descendantIds.forEach(dId => {
+          if (!next[dId]) {
+            next[dId] = { view: false, create: false, edit: false, delete: false, import: false, export: false, print: false };
+          }
+          if (isActionAllowed(dId, action)) {
+            next[dId] = {
+              ...next[dId],
+              [action]: checked,
+            };
+            if (checked && action !== 'view') {
+              next[dId].view = true;
+            }
+            if (!checked && action === 'view') {
+              ['create', 'edit', 'delete', 'import', 'export', 'print'].forEach(act => {
+                next[dId][act] = false;
+              });
+            }
+          }
+        });
+      }
+
       // If parent assets module is toggled, cascade that action to all flattened assets
       if (moduleId === 'assets') {
         flattenedAssets.forEach(a => {
@@ -983,6 +1026,12 @@ export function AddRole() {
         flattenedAssets.forEach(a => updateMod(a.id));
       }
 
+      // If toggling a facility or main facility, cascade to all descendant facilities and machines
+      if (moduleId.startsWith('asset_fac_') || moduleId.startsWith('asset_mf_')) {
+        const descendantIds = getDescendantAssetIds(moduleId, flattenedAssets);
+        descendantIds.forEach(dId => updateMod(dId));
+      }
+
       return next;
     });
   };
@@ -1024,8 +1073,8 @@ export function AddRole() {
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e && e.preventDefault) e.preventDefault();
     try {
       const payloadPermissions = Object.entries(permissions).map(([moduleId, perms]) => ({
         moduleId,
@@ -1061,7 +1110,7 @@ export function AddRole() {
           if (roleStr.includes('BUILDING')) return 'BUILDING_ADMIN';
           if (roleStr.includes('SOCIETY')) return 'SOCIETY_ADMIN';
           if (roleStr.includes('ADMIN')) return 'SOCIETY_ADMIN';
-          if (roleStr.includes('OPERATOR') || roleStr.includes('SUPERVISOR')) return 'OPERATOR';
+          if (roleStr.includes('OPERATOR') || roleStr.includes('SUPERVISOR') || roleStr.includes('TECHNICIAN') || roleStr.includes('ENGINEER') || roleStr.includes('MAINTENANCE') || roleStr.includes('WORKER')) return 'OPERATOR';
           if (roleStr.includes('MANAGER')) return 'BUILDING_ADMIN';
           return 'VIEWER';
         };
@@ -1110,7 +1159,7 @@ export function AddRole() {
           }
 
           // Sync designation in Employee record as well
-          await api.put(`/employees/${empIdStr}`, { designation: formData.roleName }).catch(() => {});
+          await api.patch(`/employees/${empIdStr}`, { designation: formData.roleName }).catch(() => {});
         }
 
         // Unassign designation from users who were unselected
@@ -1120,15 +1169,16 @@ export function AddRole() {
         for (const prevUser of previouslyAssignedUsers) {
           if (prevUser.employeeId && !selectedEmployeeIds.includes(prevUser.employeeId.toString())) {
             await api.put(`/users/${prevUser.id}`, { designation: null }).catch(() => {});
+            await api.patch(`/employees/${prevUser.employeeId}`, { designation: 'Staff' }).catch(() => {});
           }
         }
       }
 
-      toast.success(selectedEmployeeIds.length > 0 ? 'Software Role and User(s) saved successfully!' : 'Software Role saved successfully!');
+      toast.success(selectedEmployeeIds.length > 0 ? 'Role and User(s) saved successfully!' : 'Role saved successfully!');
       navigate(returnUrl || '/manage-access');
     } catch (err) {
-      console.error('Failed to save software role', err);
-      toast.error('Failed to save software role.');
+      console.error('Failed to save role', err);
+      toast.error('Failed to save role.');
     }
   };
 
@@ -1186,55 +1236,113 @@ export function AddRole() {
     });
   }, [selectedEmployeeIds, employees, designationUsers, users, formData.roleName]);
 
+  // Helper to determine if an employee already has a role assigned
+  const hasAssignedRole = (empIdStr: string, emp?: any) => {
+    // 1. If currently selected for this role in the UI, they are assigned
+    if (selectedEmployeeIds.includes(empIdStr)) return true;
+
+    // 2. Check all designations / roles in the system
+    for (const desig of allDesignations) {
+      // When in edit mode, ignore the current role being edited
+      if (id && desig.id?.toString() === id.toString()) continue;
+
+      const assignedIds: string[] = desig.assignedEmployeeIds || (desig.users || []).map((u: any) => u.employeeId?.toString()).filter(Boolean);
+      if (assignedIds.includes(empIdStr)) {
+        return true;
+      }
+      if (emp?.designation && desig.name && emp.designation.trim().toLowerCase() === desig.name.trim().toLowerCase()) {
+        return true;
+      }
+    }
+
+    // 3. Check users list
+    const linkedUser = users.find((u: any) => u.employeeId?.toString() === empIdStr || u.id?.toString() === empIdStr);
+    if (linkedUser) {
+      const uDesig = (linkedUser.designation || '').trim();
+      if (uDesig && !['staff', 'unassigned', 'none', ''].includes(uDesig.toLowerCase())) {
+        if (id && formData.roleName && uDesig.toLowerCase() === formData.roleName.trim().toLowerCase()) {
+          return false;
+        }
+        return true;
+      }
+      if (linkedUser.role && linkedUser.role !== 'VIEWER') {
+        return true;
+      }
+    }
+
+    // 4. Check employee record designation
+    if (emp && emp.designation) {
+      const empDesig = emp.designation.trim();
+      if (empDesig && !['staff', 'unassigned', 'none', ''].includes(empDesig.toLowerCase())) {
+        if (id && formData.roleName && empDesig.toLowerCase() === formData.roleName.trim().toLowerCase()) {
+          return false;
+        }
+        return true;
+      }
+    }
+
+    return false;
+  };
+
   const employeeOptions = useMemo(() => {
     const list: { label: string; value: string }[] = [];
     const seenValues = new Set<string>();
 
-    // 1. Add designation users so their names are guaranteed in options
-    for (const du of designationUsers) {
-      const val = du.employeeId?.toString() || du.id.toString();
-      if (!seenValues.has(val)) {
-        list.push({
-          label: `${du.name} (${du.employeeCode || 'EMP' + val} • Maintenance • ${formData.roleName})`,
-          value: val,
-        });
-        seenValues.add(val);
-      }
-    }
-
-    // 2. Add all employees
+    // Add only employees who do not currently have a role assigned
     for (const emp of employees) {
       const val = emp.id.toString();
       if (!seenValues.has(val)) {
-        const existingUser = users.find((u: any) => u.employeeId?.toString() === val);
-        const roleTag = existingUser?.designation || emp.designation || '';
-        list.push({
-          label: `${emp.fullName} (${emp.employeeCode || 'EMP' + val} • ${emp.department || 'General'}${roleTag ? ` • ${roleTag}` : ''})`,
-          value: val,
-        });
-        seenValues.add(val);
+        if (!hasAssignedRole(val, emp)) {
+          list.push({
+            label: `${emp.fullName} (${emp.employeeCode || 'EMP' + val} • ${emp.department || 'General'})`,
+            value: val,
+          });
+          seenValues.add(val);
+        }
       }
     }
 
-    // 3. Add any other users
+    // Add any standalone user who is not an employee and has no role assigned
     for (const u of users) {
       const val = u.employeeId?.toString() || u.id.toString();
       if (!seenValues.has(val)) {
-        const uName = (u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : u.username) || u.email;
-        list.push({
-          label: `${uName} (${u.employeeCode || 'EMP#' + u.id} • ${u.designation || 'Staff'})`,
-          value: val,
-        });
-        seenValues.add(val);
+        if (!hasAssignedRole(val, null)) {
+          const uName = (u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : u.username) || u.email;
+          list.push({
+            label: `${uName} (${u.employeeCode || 'EMP#' + u.id} • ${u.designation || 'Staff'})`,
+            value: val,
+          });
+          seenValues.add(val);
+        }
       }
     }
 
     return list;
-  }, [employees, designationUsers, users, formData.roleName]);
+  }, [employees, users, allDesignations, selectedEmployeeIds, id, formData.roleName]);
 
   const availableUnassignedEmployees = useMemo(() => {
     return employeeOptions.filter(opt => !selectedEmployeeIds.includes(opt.value));
   }, [employeeOptions, selectedEmployeeIds]);
+
+  const [isEmployeeDropdownOpen, setIsEmployeeDropdownOpen] = useState(false);
+  const [employeeDropdownSearch, setEmployeeDropdownSearch] = useState('');
+  const employeeDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (employeeDropdownRef.current && !employeeDropdownRef.current.contains(event.target as Node)) {
+        setIsEmployeeDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredDropdownEmployees = useMemo(() => {
+    if (!employeeDropdownSearch.trim()) return availableUnassignedEmployees;
+    const q = employeeDropdownSearch.toLowerCase().trim();
+    return availableUnassignedEmployees.filter(opt => opt.label.toLowerCase().includes(q));
+  }, [availableUnassignedEmployees, employeeDropdownSearch]);
 
   const [employeeTableSearch, setEmployeeTableSearch] = useState('');
   const filteredAssignedEmployees = useMemo(() => {
@@ -1251,43 +1359,88 @@ export function AddRole() {
   return (
     <div className="w-full sm:p-6 pb-10 min-h-screen">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <button 
-          onClick={() => navigate(returnUrl || '/manage-access')}
-          className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
-        >
-          <ChevronLeft className="w-6 h-6 text-gray-600" />
-        </button>
-        <h1 className="text-2xl font-bold text-gray-900">
-          {isViewMode ? 'View Software Role' : id ? 'Edit Software Role' : 'Add Software Role'}
-        </h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-4">
+          <button 
+            type="button"
+            onClick={() => navigate(returnUrl || '/manage-access')}
+            className="p-2 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer"
+            title="Go Back"
+          >
+            <ChevronLeft className="w-6 h-6 text-gray-600" />
+          </button>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+            {isViewMode ? 'View Role' : id ? 'Edit Role' : 'Add Role'}
+          </h1>
+        </div>
+
+        {/* Top Actions */}
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => navigate(returnUrl || '/manage-access')}
+            className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs transition-all shadow-xs cursor-pointer"
+          >
+            Back
+          </button>
+          {isViewMode ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/manage-access/edit/${id}`, { state: { returnUrl: location.state?.returnUrl || '/manage-access' } })}
+              className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer"
+            >
+              <Pencil size={14} />
+              <span>Edit Role</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleSubmit()}
+              disabled={loading}
+              className="flex items-center justify-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-xs disabled:opacity-70 min-w-[80px] cursor-pointer"
+            >
+              {loading ? 'Saving...' : 'Save'}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className={isViewMode ? "" : "bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden w-full"}>
         {loading ? (
           <div className="flex flex-col items-center justify-center p-16 bg-white rounded-2xl border border-gray-100 shadow-sm">
             <div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-gray-500 font-medium text-sm">Loading software role details...</p>
+            <p className="text-gray-500 font-medium text-sm">Loading role details...</p>
           </div>
         ) : isViewMode ? (
           <div className="space-y-8">
             {/* Header Card */}
-            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-6 sm:p-8 text-white shadow-lg flex flex-col sm:flex-row items-center gap-6">
-              <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md border-2 border-white/40 shadow-inner flex-shrink-0">
-                <Shield size={48} className="text-white" />
-              </div>
-              <div className="text-center sm:text-left">
-                <h2 className="text-3xl font-bold mb-2">{formData.roleName || 'Unknown Software Role'}</h2>
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-emerald-50 font-medium">
-                  <div className="flex items-center gap-1.5">
-                    {formData.isActive ? <CheckCircle2 size={18} className="text-green-300" /> : <CheckCircle2 size={18} className="text-gray-300" />}
-                    <span>{formData.isActive ? 'Active Software Role' : 'Inactive Software Role'}</span>
+            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-6 sm:p-8 text-white shadow-lg flex flex-col sm:flex-row items-center justify-between gap-6">
+              <div className="flex flex-col sm:flex-row items-center gap-6">
+                <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md border-2 border-white/40 shadow-inner flex-shrink-0">
+                  <Shield size={48} className="text-white" />
+                </div>
+                <div className="text-center sm:text-left">
+                  <h2 className="text-3xl font-bold mb-2">{formData.roleName || 'Unknown Role'}</h2>
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-emerald-50 font-medium">
+                    <div className="flex items-center gap-1.5">
+                      {formData.isActive ? <CheckCircle2 size={18} className="text-green-300" /> : <CheckCircle2 size={18} className="text-gray-300" />}
+                      <span>{formData.isActive ? 'Active Role' : 'Inactive Role'}</span>
+                    </div>
                   </div>
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={() => navigate(`/manage-access/edit/${id}`, { state: { returnUrl: location.state?.returnUrl || '/manage-access' } })}
+                className="px-4 py-2.5 bg-white/20 hover:bg-white/30 border border-white/30 rounded-xl text-sm font-semibold text-white flex items-center gap-2 transition-all shadow-sm active:scale-95 cursor-pointer backdrop-blur-xs shrink-0"
+              >
+                <Pencil size={16} />
+                <span>Edit Role</span>
+              </button>
             </div>
 
-            {/* Assigned Employees / Software Role Holders Card */}
+            {/* Assigned Employees / Role Holders Card */}
             <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
               <div className="flex items-center justify-between border-b pb-4 mb-4">
                 <div className="flex items-center gap-2.5">
@@ -1300,8 +1453,8 @@ export function AddRole() {
                     </h3>
                     <p className="text-xs text-gray-500">
                       {selectedEmployeesList.length === 1 
-                        ? '1 user currently assigned to this software role' 
-                        : `${selectedEmployeesList.length} users currently assigned to this software role`}
+                        ? '1 user currently assigned to this role' 
+                        : `${selectedEmployeesList.length} users currently assigned to this role`}
                     </p>
                   </div>
                 </div>
@@ -1339,7 +1492,7 @@ export function AddRole() {
                 </div>
               ) : (
                 <div className="p-4 bg-gray-50 rounded-xl text-center text-gray-400 text-sm italic">
-                  No employees or users currently assigned to this software role.
+                  No employees or users currently assigned to this role.
                 </div>
               )}
             </div>
@@ -1350,18 +1503,18 @@ export function AddRole() {
                 <Shield size={20} className="text-emerald-500" />
                 Module Permissions
               </h3>
-              <div className="overflow-x-auto rounded-lg border border-gray-100">
-                <table className="w-full text-left whitespace-nowrap">
-                  <thead className="bg-gray-50 border-b border-gray-100">
+              <div className="overflow-auto max-h-[calc(100vh-220px)] min-h-[380px] rounded-lg border border-gray-100 shadow-2xs relative">
+                <table className="w-full text-left whitespace-nowrap border-collapse">
+                  <thead className="bg-gray-50 border-b border-gray-100 sticky top-0 z-20 shadow-xs">
                     <tr>
-                      <th className="px-6 py-4 text-sm font-bold text-gray-700">Module</th>
-                      <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center">View</th>
-                      <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center">Create</th>
-                      <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center">Edit</th>
-                      <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center">Delete</th>
-                      <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center">Import</th>
-                      <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center">Export</th>
-                      <th className="px-6 py-4 text-sm font-bold text-gray-700 text-center">Print</th>
+                      <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-100 px-6 py-4 text-sm font-bold text-gray-700">Module</th>
+                      <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-100 px-6 py-4 text-sm font-bold text-gray-700 text-center">View</th>
+                      <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-100 px-6 py-4 text-sm font-bold text-gray-700 text-center">Create</th>
+                      <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-100 px-6 py-4 text-sm font-bold text-gray-700 text-center">Edit</th>
+                      <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-100 px-6 py-4 text-sm font-bold text-gray-700 text-center">Delete</th>
+                      <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-100 px-6 py-4 text-sm font-bold text-gray-700 text-center">Import</th>
+                      <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-100 px-6 py-4 text-sm font-bold text-gray-700 text-center">Export</th>
+                      <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-100 px-6 py-4 text-sm font-bold text-gray-700 text-center">Print</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
@@ -1525,37 +1678,12 @@ export function AddRole() {
                 </table>
               </div>
             </div>
-            <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-3 sm:gap-4 pt-4">
-              <button
-                type="button"
-                onClick={() => navigate(returnUrl || '/manage-access')}
-                className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 text-center"
-              >
-                Back
-              </button>
-            </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-4 sm:p-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6">Software Role Details</h3>
-          
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 mb-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Software Role Name <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  type="text" 
-                  value={formData.roleName}
-                  onChange={(e) => setFormData({...formData, roleName: e.target.value})}
-                  disabled={isViewMode}
-                  placeholder="e.g. Facility Admin"
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all border-gray-300 ${isViewMode ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
-                  required
-                />
-              </div>
-
-              <div className="flex items-center md:justify-end gap-3 md:mt-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-3 border-b border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900">Role Details</h3>
+              <div className="flex items-center gap-3">
                 <label className="text-sm font-medium text-gray-700">Status:</label>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input 
@@ -1572,8 +1700,116 @@ export function AddRole() {
                 </label>
               </div>
             </div>
+          
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 items-end mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Role Name <span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  value={formData.roleName}
+                  onChange={(e) => setFormData({...formData, roleName: e.target.value})}
+                  disabled={isViewMode}
+                  placeholder="e.g. Facility Admin"
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all border-gray-300 ${isViewMode ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+                  required
+                />
+              </div>
 
-            {/* Small Table: Employees assigned to this Software Role */}
+              {!isViewMode && (
+                <div className="relative" ref={employeeDropdownRef}>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Assign Employee to Role
+                  </label>
+                  
+                  <button
+                    type="button"
+                    onClick={() => setIsEmployeeDropdownOpen(!isEmployeeDropdownOpen)}
+                    className={`w-full px-4 py-2.5 text-sm bg-white border rounded-lg flex items-center justify-between text-left transition-all shadow-2xs cursor-pointer ${
+                      isEmployeeDropdownOpen 
+                        ? 'border-green-500 ring-2 ring-green-500/20' 
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <span className="text-gray-400 font-normal truncate">
+                      Select Employee
+                    </span>
+                    <ChevronDown size={16} className={`text-gray-400 shrink-0 ml-2 transition-transform duration-200 ${isEmployeeDropdownOpen ? 'rotate-180 text-green-600' : ''}`} />
+                  </button>
+
+                  {isEmployeeDropdownOpen && (
+                    <div className="absolute z-50 left-0 right-0 mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                      {availableUnassignedEmployees.length > 3 && (
+                        <div className="p-2 border-b border-gray-100 bg-gray-50/70">
+                          <div className="relative">
+                            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                            <input
+                              type="text"
+                              placeholder="Filter employee..."
+                              value={employeeDropdownSearch}
+                              onChange={(e) => setEmployeeDropdownSearch(e.target.value)}
+                              className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-500 text-gray-800 placeholder-gray-400"
+                              autoFocus
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="max-h-60 overflow-y-auto divide-y divide-gray-50">
+                        {filteredDropdownEmployees.length > 0 ? (
+                          filteredDropdownEmployees.map((opt) => (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => {
+                                if (!selectedEmployeeIds.includes(opt.value)) {
+                                  setSelectedEmployeeIds((prev: string[]) => [...prev, opt.value]);
+                                }
+                                setIsEmployeeDropdownOpen(false);
+                                setEmployeeDropdownSearch('');
+                              }}
+                              className="w-full px-3.5 py-2.5 text-left text-xs sm:text-sm text-gray-700 hover:bg-green-50/70 hover:text-green-900 transition-colors flex items-center justify-between group cursor-pointer"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-[10px] shrink-0">
+                                  {opt.label.charAt(0).toUpperCase()}
+                                </div>
+                                <span className="truncate font-medium">{opt.label}</span>
+                              </div>
+                              <Plus size={14} className="text-gray-300 group-hover:text-green-600 transition-colors shrink-0 ml-2" />
+                            </button>
+                          ))
+                        ) : (
+                          <div className="p-4 text-center text-xs text-gray-400">
+                            {availableUnassignedEmployees.length === 0 
+                              ? 'All available employees are assigned' 
+                              : 'No matching employees found'}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Add Employee Button at the bottom of the dropdown list */}
+                      <div className="p-2 border-t border-gray-200 bg-gray-50/90">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsEmployeeDropdownOpen(false);
+                            handleAddNewEmployeeRedirect();
+                          }}
+                          className="w-full py-2 px-3 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                        >
+                          <Plus size={14} />
+                          <span>Add Employee</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Small Table: Employees assigned to this Role */}
             <div className="mb-8 bg-slate-50/70 p-4 sm:p-5 rounded-xl border border-gray-200 shadow-2xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3.5">
                 <div className="flex items-center gap-2.5">
@@ -1590,43 +1826,10 @@ export function AddRole() {
                       </span>
                     </div>
                     <p className="text-xs text-gray-500">
-                      Employees listed in this table hold the {formData.roleName || 'selected'} software role
+                      Employees listed in this table hold the {formData.roleName || 'selected'} role
                     </p>
                   </div>
                 </div>
-
-                {!isViewMode && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    {/* Add/Assign Employee Selector */}
-                    <div className="min-w-[220px] max-w-xs">
-                      <select
-                        value=""
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val && !selectedEmployeeIds.includes(val)) {
-                            setSelectedEmployeeIds((prev: string[]) => [...prev, val]);
-                          }
-                        }}
-                        className="w-full px-3 py-1.5 text-xs bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-700 cursor-pointer shadow-2xs"
-                      >
-                        <option value="" disabled>+ Assign Employee to role...</option>
-                        {availableUnassignedEmployees.map(opt => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={handleAddNewEmployeeRedirect}
-                      className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors flex items-center gap-1 cursor-pointer whitespace-nowrap shadow-2xs"
-                      title="Add employee in Employee Master"
-                    >
-                      <Plus size={13} />
-                      <span>Add Employee</span>
-                    </button>
-                  </div>
-                )}
               </div>
 
               {/* Search filter if more than 3 employees */}
@@ -1718,7 +1921,7 @@ export function AddRole() {
                   <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                   <p className="text-xs font-semibold text-gray-700">No employees assigned to this role</p>
                   <p className="text-[11px] text-gray-400 mt-0.5">
-                    Use the "+ Assign Employee to role..." dropdown above to add employees to the "{formData.roleName || 'maintaince head'}" role.
+                    Select employees from the dropdown above to assign them to this role.
                   </p>
                 </div>
               )}
@@ -1729,7 +1932,7 @@ export function AddRole() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Module Permissions</h3>
-                <p className="text-sm text-gray-500 mt-1">Select the actions this software role can perform across modules.</p>
+                <p className="text-sm text-gray-500 mt-1">Select the actions this role can perform across modules.</p>
               </div>
               {!isViewMode && (
                 <button
@@ -1747,19 +1950,19 @@ export function AddRole() {
               )}
             </div>
 
-            <div className="overflow-x-auto rounded-lg border border-gray-200">
-              <table className="w-full text-left">
-                <thead className="bg-gray-50 border-b border-gray-200">
+            <div className="overflow-auto max-h-[calc(100vh-220px)] min-h-[380px] rounded-lg border border-gray-200 bg-white shadow-2xs relative">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-20 shadow-xs">
                   <tr>
-                    <th className="px-4 py-3 text-xs font-bold text-gray-700 uppercase tracking-wider">Module</th>
-                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">View</th>
-                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Create</th>
-                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Edit</th>
-                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Delete</th>
-                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Import</th>
-                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Export</th>
-                    <th className="px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Print</th>
-                    <th className="px-3 py-3 text-xs font-bold text-gray-700 text-center border-l border-gray-200 bg-gray-100/70 uppercase tracking-wider w-28">
+                    <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-4 py-3 text-xs font-bold text-gray-700 uppercase tracking-wider">Module</th>
+                    <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">View</th>
+                    <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Create</th>
+                    <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Edit</th>
+                    <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Delete</th>
+                    <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Import</th>
+                    <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Export</th>
+                    <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Print</th>
+                    <th className="sticky top-0 z-20 bg-gray-100 border-b border-l border-gray-200 px-3 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-28">
                       <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
                         <span>Select All</span>
                         {!isViewMode && (
@@ -1975,23 +2178,7 @@ export function AddRole() {
               </table>
             </div>
 
-            <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-3 sm:gap-4 mt-8 pt-6 border-t border-gray-100">
-              <button
-                type="button"
-                onClick={() => navigate(returnUrl || '/manage-access')}
-                className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 text-center"
-              >
-                Back
-              </button>
-              {!isViewMode && (
-                <button
-                  type="submit"
-                  className="w-full sm:w-auto flex justify-center px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors items-center gap-2 active:scale-95 shadow-xs"
-                >
-                  Save
-                </button>
-              )}
-            </div>
+
           </form>
         )}
       </div>

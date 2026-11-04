@@ -7,6 +7,7 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '../../../store';
 import { api } from '../../../lib/api';
 import toast from 'react-hot-toast';
+import { fetchLocationByPincode } from '../../../utils/pincodeService';
 
 export function AddMainFacility() {
   const navigate = useNavigate();
@@ -85,24 +86,29 @@ export function AddMainFacility() {
   };
 
   useEffect(() => {
-    if (formData.postalCode && formData.postalCode.length === 6 && !isViewMode) {
+    const pin = (formData.postalCode || '').trim().replace(/\D/g, '');
+    if (pin.length === 6 && !isViewMode) {
+      let isCurrent = true;
       const fetchLocationDetails = async () => {
         try {
-          const response = await api.get(`/postal-codes/${formData.postalCode}`);
-          if (response.data) {
+          const loc = await fetchLocationByPincode(pin);
+          if (loc && isCurrent) {
             setFormData(prev => ({
               ...prev,
-              city: response.data.city,
-              state: response.data.state,
-              country: response.data.country || 'India',
+              city: loc.city,
+              state: loc.state,
+              country: loc.country || 'India',
             }));
-            setErrors(prev => ({ ...prev, city: '', state: '', country: '' }));
+            setErrors(prev => ({ ...prev, city: '', state: '', country: '', postalCode: '' }));
           }
         } catch (error) {
           console.error('Failed to fetch postal code details', error);
         }
       };
       fetchLocationDetails();
+      return () => {
+        isCurrent = false;
+      };
     }
   }, [formData.postalCode, isViewMode]);
 
@@ -536,32 +542,6 @@ export function AddMainFacility() {
             rows={2.5}
             className={`w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all resize-none ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'bg-white text-gray-900'}`}
           ></textarea>
-        </div>
-
-        {/* Buttons */}
-        <div className="flex flex-col-reverse sm:flex-row justify-end gap-2.5 mt-8 border-t border-gray-100 pt-5">
-          <button 
-            type="button" 
-            onClick={() => navigate(-1)}
-            disabled={loading}
-            className="w-full sm:w-auto h-9 px-5 border border-gray-300 bg-white text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50 cursor-pointer shadow-xs"
-          >
-            Back
-          </button>
-          {!isViewMode && (
-            <button 
-              type="button" 
-              onClick={handleSave}
-              disabled={loading}
-              className="w-full sm:w-auto flex items-center justify-center gap-1.5 h-9 px-6 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-xs disabled:opacity-70 min-w-[90px] cursor-pointer"
-            >
-              {loading ? (
-                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                'Save'
-              )}
-            </button>
-          )}
         </div>
 
       </div>

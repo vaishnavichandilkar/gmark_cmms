@@ -7,7 +7,7 @@ interface TablePaginationProps {
   totalItems: number;
   startIndex?: number;
   endIndex?: number;
-  rowsPerPage: number;
+  rowsPerPage?: number;
   onPageChange: (page: number) => void;
   onRowsPerPageChange: (rows: number) => void;
 }
@@ -18,11 +18,11 @@ export function TablePagination({
   totalItems,
   startIndex: propStartIndex,
   endIndex: propEndIndex,
-  rowsPerPage,
+  rowsPerPage = 50,
   onPageChange,
   onRowsPerPageChange,
 }: TablePaginationProps) {
-  const totalPages = propTotalPages !== undefined ? propTotalPages : Math.ceil(totalItems / (rowsPerPage || 10));
+  const totalPages = propTotalPages !== undefined ? propTotalPages : Math.ceil(totalItems / (rowsPerPage || 50));
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -56,7 +56,7 @@ export function TablePagination({
 
           {isOpen && (
             <div className="absolute bottom-full left-0 mb-1.5 w-24 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-20">
-              {[5, 10, 20, 50].map((val) => (
+              {[5, 10, 20, 50, 100].map((val) => (
                 <div
                   key={val}
                   onClick={() => {

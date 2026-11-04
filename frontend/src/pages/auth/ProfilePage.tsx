@@ -13,6 +13,8 @@ export function ProfilePage() {
 
   if (!user) return null;
 
+  const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'SOCIETY_ADMIN' || (user.designation && user.designation.toLowerCase().includes('admin'));
+
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to log out?')) {
       dispatch(logout());
@@ -139,13 +141,15 @@ export function ProfilePage() {
 
               {/* Action Buttons */}
               <div className="w-full mt-8 pt-4 border-t border-white/5 space-y-3">
-                <button
-                  onClick={() => navigate('/change-password')}
-                  className="w-full py-3.5 px-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
-                >
-                  <Key size={16} />
-                  Change Password
-                </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => navigate('/change-password')}
+                    className="w-full py-3.5 px-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+                  >
+                    <Key size={16} />
+                    Change Password
+                  </button>
+                )}
 
                 <button
                   onClick={handleLogout}

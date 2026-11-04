@@ -35,7 +35,7 @@ import { exportData } from '../../../utils/exportUtils';
 import toast from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../store';
-import { hasPermission } from '../../../utils/permissions';
+import { hasPermission, hasAssetPermission } from '../../../utils/permissions';
 import { AssetTree, type TreeNodeData } from '../../../components/4m/AssetTree';
 import { AssetDetails } from '../../../components/4m/AssetDetails';
 import { ColumnCustomizer, type ColumnDefinition } from '../../../components/shared/ColumnCustomizer';
@@ -84,6 +84,11 @@ export function FacilityManagement() {
 
   const navigate = useNavigate();
   const [facilities, setFacilities] = useState<any[]>([]);
+
+  const permittedFacilities = useMemo(() => {
+    return facilities.filter(f => hasAssetPermission(user, f, 'view'));
+  }, [facilities, user]);
+
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
@@ -175,7 +180,7 @@ export function FacilityManagement() {
   const [facilityToDelete, setFacilityToDelete] = useState<number | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -213,7 +218,19 @@ export function FacilityManagement() {
 
       // Scoping by user access level if not SUPER_ADMIN
       if (user?.role !== 'SUPER_ADMIN') {
-        if (user?.deviceId) {
+        const hasAssetPerms = user?.permissions?.some((p: any) => p.moduleId?.startsWith('asset_'));
+        if (hasAssetPerms) {
+          rawMachines = rawMachines.filter((m: any) => hasAssetPermission(user, m, 'view'));
+          rawFacilities = rawFacilities.filter((f: any) => {
+            return hasAssetPermission(user, f, 'view') ||
+                   rawMachines.some((m: any) => m.facilityId === f.id);
+          });
+          mainFacilities = mainFacilities.filter((mf: any) => {
+            return hasAssetPermission(user, mf, 'view') ||
+                   rawFacilities.some((f: any) => f.mainFacilityId === mf.id) ||
+                   rawMachines.some((m: any) => m.mainFacilityId === mf.id || m.company === String(mf.id) || m.company === mf.mainFacilityName);
+          });
+        } else if (user?.deviceId) {
           rawMachines = rawMachines.filter((m: any) => m.deviceId === user.deviceId || m.id?.toString() === user.deviceId);
           rawFacilities = [];
           mainFacilities = [];
@@ -224,14 +241,14 @@ export function FacilityManagement() {
           while (added) {
             added = false;
             rawFacilities.forEach((f: any) => {
-              if (f.parentFacilityId && allowedIds.has(f.parentFacilityId) && !allowedIds.has(f.id)) {
-                allowedIds.add(f.id);
+              if (f.parentFacilityId && allowedIds.has(Number(f.parentFacilityId)) && !allowedIds.has(Number(f.id))) {
+                allowedIds.add(Number(f.id));
                 added = true;
               }
             });
           }
-          rawFacilities = rawFacilities.filter((f: any) => allowedIds.has(f.id));
-          rawMachines = rawMachines.filter((m: any) => m.facilityId && allowedIds.has(m.facilityId));
+          rawFacilities = rawFacilities.filter((f: any) => allowedIds.has(Number(f.id)));
+          rawMachines = rawMachines.filter((m: any) => m.facilityId && allowedIds.has(Number(m.facilityId)));
           mainFacilities = [];
         } else if (user?.mainFacilityId) {
           mainFacilities = mainFacilities.filter((mf: any) => mf.id === user.mainFacilityId);
@@ -288,7 +305,7 @@ export function FacilityManagement() {
         const node = facMap[fac.id];
         // Attach machines to sub-facility
         rootMachines.forEach((macNode) => {
-          if (macNode.originalData.facilityId === fac.id) {
+          if (Number(macNode.originalData.facilityId) === Number(fac.id)) {
             node.children!.push(macNode);
           }
         });
@@ -443,44 +460,44 @@ export function FacilityManagement() {
   // Extract unique options for dropdown filters
   const uniqueMainFacilities = useMemo(() => {
     const names = new Set<string>();
-    facilities.forEach(f => {
+    permittedFacilities.forEach(f => {
       const name = f.mainFacility?.mainFacilityName;
       if (name) names.add(name);
     });
     return Array.from(names).sort((a, b) => a.localeCompare(b));
-  }, [facilities]);
+  }, [permittedFacilities]);
 
   const uniqueCategories = useMemo(() => {
     const cats = new Set<string>();
-    facilities.forEach(f => {
+    permittedFacilities.forEach(f => {
       if (f.category) cats.add(f.category);
     });
     return Array.from(cats).sort((a, b) => a.localeCompare(b));
-  }, [facilities]);
+  }, [permittedFacilities]);
 
   const uniqueSubCategories = useMemo(() => {
     const subCats = new Set<string>();
-    facilities.forEach(f => {
+    permittedFacilities.forEach(f => {
       if (f.subCategory) subCats.add(f.subCategory);
     });
     return Array.from(subCats).sort((a, b) => a.localeCompare(b));
-  }, [facilities]);
+  }, [permittedFacilities]);
 
   const uniqueCities = useMemo(() => {
     const cities = new Set<string>();
-    facilities.forEach(f => {
+    permittedFacilities.forEach(f => {
       if (f.city) cities.add(f.city);
     });
     return Array.from(cities).sort((a, b) => a.localeCompare(b));
-  }, [facilities]);
+  }, [permittedFacilities]);
 
   const uniqueStates = useMemo(() => {
     const states = new Set<string>();
-    facilities.forEach(f => {
+    permittedFacilities.forEach(f => {
       if (f.state) states.add(f.state);
     });
     return Array.from(states).sort((a, b) => a.localeCompare(b));
-  }, [facilities]);
+  }, [permittedFacilities]);
 
 
   // Dynamic Filters for Customize Filters modal
@@ -563,7 +580,7 @@ export function FacilityManagement() {
 
   // Filtered and sorted facilities
   const filteredFacilities = useMemo(() => {
-    return facilities.filter(facility => {
+    return permittedFacilities.filter(facility => {
       // 1. Global Search
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
@@ -1858,8 +1875,14 @@ export function FacilityManagement() {
                 currentFacilities.map((facility, index) => (
                   <tr 
                     key={facility.id || index} 
-                    onClick={() => navigate(`/master/facility/view/${facility.id}`)}
-                    className="hover:bg-gray-50/50 transition-colors group cursor-pointer"
+                    onClick={() => {
+                      const canEditFacility = canEdit && hasAssetPermission(user, facility, 'edit');
+                      const canViewFacility = hasAssetPermission(user, facility, 'view');
+                      if (canEditFacility || canViewFacility) {
+                        navigate(canEditFacility ? `/master/facility/edit/${facility.id}` : `/master/facility/view/${facility.id}`);
+                      }
+                    }}
+                    className={`hover:bg-gray-50/50 transition-colors group ${((canEdit && hasAssetPermission(user, facility, 'edit')) || hasAssetPermission(user, facility, 'view')) ? 'cursor-pointer' : ''}`}
                   >
                     {/* Facility Code */}
                     {visibleColumns.includes('facilityCode') && (
@@ -2012,12 +2035,14 @@ export function FacilityManagement() {
                     {visibleColumns.includes('action') && (
                       <td className="px-3 py-2 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); navigate(`/master/facility/view/${facility.id}`); }}
-                            className="text-gray-400 hover:text-blue-600 p-1.5 rounded-md hover:bg-blue-50 transition-colors" title="View"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
+                          {hasAssetPermission(user, facility, 'view') && (!canEdit || !hasAssetPermission(user, facility, 'edit')) && (
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); navigate(`/master/facility/view/${facility.id}`); }}
+                              className="text-gray-400 hover:text-blue-600 p-1.5 rounded-md hover:bg-blue-50 transition-colors" title="View"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          )}
                           <button 
                             onClick={(e) => { 
                               e.stopPropagation(); 
@@ -2033,7 +2058,7 @@ export function FacilityManagement() {
                           >
                             <Shield className="w-4 h-4" />
                           </button>
-                          {canEdit && (
+                          {canEdit && hasAssetPermission(user, facility, 'edit') && (
                             <button 
                               onClick={(e) => { e.stopPropagation(); navigate(`/master/facility/edit/${facility.id}`); }}
                               className="text-gray-400 hover:text-green-600 p-1.5 rounded-md hover:bg-green-50 transition-colors" title="Edit"
@@ -2041,7 +2066,7 @@ export function FacilityManagement() {
                               <Pencil className="w-4 h-4" />
                             </button>
                           )}
-                          {canDelete && (
+                          {canDelete && hasAssetPermission(user, facility, 'delete') && (
                             <button 
                               onClick={(e) => { e.stopPropagation(); confirmDelete(facility.id); }}
                               className="text-gray-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors" title="Delete"

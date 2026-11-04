@@ -23,7 +23,92 @@ export class FacilitiesService {
     });
   }
 
-  async findAll(currentUser?: any) {
+  private async getUserAssetPermissions(user: any, effectiveAdminId: number | null) {
+    if (!user || user.role === 'SUPER_ADMIN') {
+      return { isSuperAdmin: true, hasAssetPerms: false, permsMap: new Map<string, any>() };
+    }
+
+    const userId = user.id || user.userId;
+    if (!userId) {
+      return { isSuperAdmin: false, hasAssetPerms: false, permsMap: new Map<string, any>() };
+    }
+
+    const userPermissions = await this.prisma.userPermission.findMany({
+      where: { userId },
+    });
+
+    let desigPermissions: any[] = [];
+    const dbUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { employee: true },
+    });
+    const userDesignationName = dbUser?.designation || dbUser?.employee?.designation;
+    if (userDesignationName) {
+      const designation = await this.prisma.designation.findFirst({
+        where: {
+          name: { equals: userDesignationName.trim(), mode: 'insensitive' },
+          ...(effectiveAdminId ? { adminId: effectiveAdminId } : {}),
+        },
+        include: { permissions: true },
+      });
+      if (designation?.permissions) {
+        desigPermissions = designation.permissions;
+      }
+    }
+
+    const permsMap = new Map<string, any>();
+    desigPermissions.forEach((p) => permsMap.set(p.moduleId, p));
+    userPermissions.forEach((p) => permsMap.set(p.moduleId, p));
+
+    const hasAssetPerms = Array.from(permsMap.keys()).some((k) => k.startsWith('asset_'));
+
+    return { isSuperAdmin: false, hasAssetPerms, permsMap };
+  }
+
+  private canViewFacility(
+    facility: any,
+    permsMap: Map<string, any>,
+    facMap?: Map<number, any>,
+    currentUser?: any,
+  ): boolean {
+    if (permsMap.get('assets')?.canView) {
+      return true;
+    }
+    const facPerm = permsMap.get(`asset_fac_${facility.id}`);
+    if (facPerm?.canView) {
+      return true;
+    }
+    if (currentUser?.facilityId && Number(currentUser.facilityId) === Number(facility.id)) {
+      return true;
+    }
+
+    // Walk up ancestor facilities
+    let currId: number | null = facility.parentFacilityId ? Number(facility.parentFacilityId) : null;
+    while (currId) {
+      if (permsMap.get(`asset_fac_${currId}`)?.canView) {
+        return true;
+      }
+      if (currentUser?.facilityId && Number(currentUser.facilityId) === currId) {
+        return true;
+      }
+      const parent = facMap?.get(currId);
+      currId = parent?.parentFacilityId ? Number(parent.parentFacilityId) : null;
+    }
+
+    const mainFacId = facility.mainFacilityId || facility.mainFacility?.id;
+    if (mainFacId) {
+      const numMfId = Number(mainFacId);
+      if (permsMap.get(`asset_mf_${numMfId}`)?.canView) {
+        return true;
+      }
+      if (currentUser?.mainFacilityId && Number(currentUser.mainFacilityId) === numMfId) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  async findAll(currentUser?: any, includeAll: boolean = false) {
     const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
     const effectiveAdminId = isSuperAdmin ? null : (currentUser?.adminId || currentUser?.userId);
     const whereClause: any = effectiveAdminId ? {
@@ -33,18 +118,33 @@ export class FacilitiesService {
       ]
     } : {};
 
-    if (currentUser?.facilityId) {
-      const childFacilities = await this.prisma.facility.findMany({
-        where: { parentFacilityId: currentUser.facilityId },
-        select: { id: true },
-      });
-      const facilityIds = [currentUser.facilityId, ...childFacilities.map(f => f.id)];
-      whereClause.id = { in: facilityIds };
-    } else if (currentUser?.mainFacilityId) {
-      whereClause.mainFacilityId = currentUser.mainFacilityId;
+    // Pre-fetch all facilities for hierarchy lookup and recursive inheritance
+    const allFacs = await this.prisma.facility.findMany({
+      select: { id: true, parentFacilityId: true, mainFacilityId: true },
+    });
+    const facMap = new Map<number, any>(allFacs.map((f) => [f.id, f]));
+
+    if (!includeAll) {
+      if (currentUser?.facilityId) {
+        const targetFacId = Number(currentUser.facilityId);
+        const allowedFacilityIds = new Set<number>([targetFacId]);
+        let added = true;
+        while (added) {
+          added = false;
+          allFacs.forEach((f) => {
+            if (f.parentFacilityId && allowedFacilityIds.has(Number(f.parentFacilityId)) && !allowedFacilityIds.has(Number(f.id))) {
+              allowedFacilityIds.add(Number(f.id));
+              added = true;
+            }
+          });
+        }
+        whereClause.id = { in: Array.from(allowedFacilityIds) };
+      } else if (currentUser?.mainFacilityId) {
+        whereClause.mainFacilityId = currentUser.mainFacilityId;
+      }
     }
 
-    return this.prisma.facility.findMany({
+    let facilities = await this.prisma.facility.findMany({
       where: whereClause,
       include: {
         mainFacility: true,
@@ -52,6 +152,13 @@ export class FacilitiesService {
       },
       orderBy: { createdAt: 'desc' }
     });
+
+    const { isSuperAdmin: noFilter, hasAssetPerms, permsMap } = await this.getUserAssetPermissions(currentUser, effectiveAdminId);
+    if (!noFilter && hasAssetPerms && !includeAll) {
+      facilities = facilities.filter(f => this.canViewFacility(f, permsMap, facMap, currentUser));
+    }
+
+    return facilities;
   }
 
   async getNextFacilityCode() {
@@ -59,14 +166,28 @@ export class FacilitiesService {
     return { nextCode };
   }
 
-  async findOne(id: number) {
-    return this.prisma.facility.findUnique({
+  async findOne(id: number, currentUser?: any) {
+    const facility = await this.prisma.facility.findUnique({
       where: { id },
       include: {
         mainFacility: true,
         parentFacility: true,
       }
     });
+
+    if (!facility) {
+      throw new NotFoundException(`Facility with ID ${id} not found`);
+    }
+
+    if (currentUser) {
+      const effectiveAdminId = currentUser.role === 'SUPER_ADMIN' ? null : (currentUser.adminId || currentUser.userId);
+      const { isSuperAdmin, hasAssetPerms, permsMap } = await this.getUserAssetPermissions(currentUser, effectiveAdminId);
+      if (!isSuperAdmin && hasAssetPerms && !this.canViewFacility(facility, permsMap)) {
+        throw new NotFoundException(`Facility with ID ${id} not found`);
+      }
+    }
+
+    return facility;
   }
 
   async update(id: number, updateDto: any) {
@@ -226,6 +347,14 @@ export class FacilitiesService {
 
     return this.prisma.$transaction(async (tx) => {
       // 1. Unassign users currently assigned to this facility who are not in targetUserIds
+      const removedUsers = await tx.user.findMany({
+        where: {
+          facilityId: facilityId,
+          id: { notIn: targetUserIds },
+        },
+        select: { id: true },
+      });
+
       await tx.user.updateMany({
         where: {
           facilityId: facilityId,
@@ -235,6 +364,15 @@ export class FacilitiesService {
           facilityId: null,
         },
       });
+
+      for (const u of removedUsers) {
+        await tx.userPermission.deleteMany({
+          where: {
+            userId: u.id,
+            moduleId: `asset_fac_${facilityId}`,
+          },
+        });
+      }
 
       // 2. Assign target users to this facility (and inherit mainFacilityId)
       if (targetUserIds.length > 0) {
@@ -247,6 +385,32 @@ export class FacilitiesService {
             mainFacilityId: facility.mainFacilityId || null,
           },
         });
+
+        // Ensure each assigned user has view permissions for this facility and root assets
+        for (const uId of targetUserIds) {
+          await tx.userPermission.upsert({
+            where: { userId_moduleId: { userId: uId, moduleId: 'assets' } },
+            create: { userId: uId, moduleId: 'assets', canView: true },
+            update: { canView: true },
+          });
+
+          await tx.userPermission.upsert({
+            where: { userId_moduleId: { userId: uId, moduleId: `asset_fac_${facilityId}` } },
+            create: {
+              userId: uId,
+              moduleId: `asset_fac_${facilityId}`,
+              canView: true,
+              canCreate: true,
+              canEdit: true,
+              canDelete: true,
+              canExport: true,
+              canPrint: true,
+            },
+            update: {
+              canView: true,
+            },
+          });
+        }
       }
 
       return {

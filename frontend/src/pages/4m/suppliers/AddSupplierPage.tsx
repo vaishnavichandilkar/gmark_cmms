@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { 
-  ArrowLeft, Printer, RefreshCw, Filter, MapPin, ChevronDown, Upload, 
+  ArrowLeft, Printer, Filter, MapPin, ChevronDown, Upload, 
   Image as ImageIcon, QrCode, Plus, Trash2, FileText, Search,
   Eye, Pencil, Maximize2, Loader2, X, ZoomIn, ZoomOut, RotateCw
 } from 'lucide-react';
@@ -14,6 +14,7 @@ import { spareService } from '../../../services/spareService';
 import { SelectLocationPickerModal } from '../../../components/4m/SelectLocationPickerModal';
 import { SelectSparePickerModal } from '../../../components/4m/SelectSparePickerModal';
 import { INDIAN_STATES } from '../../../constants/states';
+import { fetchLocationByPincode } from '../../../utils/pincodeService';
 
 type TabType = 'General' | 'Location' | 'Spares' | 'Documents' | 'Log';
 
@@ -82,6 +83,26 @@ export const AddSupplierPage: React.FC = () => {
   const [isAddSpareModalOpen, setIsAddSpareModalOpen] = useState(false);
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
   const [isSparePickerOpen, setIsSparePickerOpen] = useState(false);
+
+  useEffect(() => {
+    const pin = (formData.postalCode || '').trim().replace(/\D/g, '');
+    if (pin.length === 6) {
+      let isCurrent = true;
+      fetchLocationByPincode(pin).then(loc => {
+        if (loc && isCurrent) {
+          setFormData(prev => ({
+            ...prev,
+            city: loc.city,
+            state: loc.state,
+            country: loc.country || 'India',
+          }));
+        }
+      });
+      return () => {
+        isCurrent = false;
+      };
+    }
+  }, [formData.postalCode]);
   const [newSpareForm, setNewSpareForm] = useState({
     name: '',
     location: '',
@@ -243,6 +264,37 @@ export const AddSupplierPage: React.FC = () => {
     }).catch(console.warn);
 
     toast.success('Deleted selected spare parts');
+  };
+
+  const handleOpenSpare = async (item: any) => {
+    let targetSpareId = item.id;
+    if (!targetSpareId || isNaN(Number(targetSpareId))) {
+      try {
+        const allSpares = await spareService.getAll();
+        const found = allSpares.find(s => 
+          String(s.id) === String(item.id) ||
+          s.partName.trim().toLowerCase() === (item.partName || item.name || '').trim().toLowerCase() ||
+          (s.partCode && item.partCode && s.partCode.toLowerCase() === item.partCode.toLowerCase())
+        );
+        if (found) targetSpareId = found.id;
+      } catch (e) {
+        console.warn('Fallback spare search failed:', e);
+      }
+    }
+
+    if (!targetSpareId) {
+      toast.error(`Unable to locate spare "${item.partName || item.name || 'part'}"`);
+      return;
+    }
+
+    navigate(`/spares/edit/${targetSpareId}`, {
+      state: {
+        returnUrl: location.pathname,
+        returnTab: 'Spares',
+        supplierId: id,
+        supplierName: formData.name || 'Supplier'
+      }
+    });
   };
 
   const [supplierDocuments, setSupplierDocuments] = useState<any[]>([]);
@@ -764,8 +816,35 @@ export const AddSupplierPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Action icons top right */}
+        {/* Action controls top right */}
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const targetReturnUrl = (location.state as any)?.returnUrl || sessionStorage.getItem('addSupplierReturnUrl');
+              const targetReturnTab = (location.state as any)?.returnTab || sessionStorage.getItem('addSupplierReturnTab') || 'Suppliers';
+              if (targetReturnUrl) {
+                sessionStorage.removeItem('addSupplierReturnUrl');
+                sessionStorage.removeItem('addSupplierReturnTab');
+                navigate(targetReturnUrl, { state: { tab: targetReturnTab } });
+              } else {
+                navigate('/suppliers');
+              }
+            }}
+            className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
+          >
+            Back
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleSubmit()}
+            disabled={submitting}
+            className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-xs disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+          >
+            {submitting ? 'Saving...' : 'Save'}
+          </button>
+
           {/* Map Button */}
           <button
             onClick={() => {
@@ -784,18 +863,6 @@ export const AddSupplierPage: React.FC = () => {
           >
             <Printer size={16} className="text-slate-500" />
             <span>Print</span>
-          </button>
-
-          {/* Refresh Button */}
-          <button
-            onClick={() => {
-              if (isEditMode && id) fetchSupplierDetails(Number(id));
-              else fetchNextCode();
-            }}
-            className="h-[38px] w-[38px] bg-white hover:bg-slate-50 text-slate-700 rounded-lg border border-slate-300 flex items-center justify-center transition-all shadow-xs cursor-pointer"
-            title="Refresh"
-          >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
       </div>
@@ -1292,27 +1359,31 @@ export const AddSupplierPage: React.FC = () => {
                           filteredSparesList.map((item, index) => {
                             const isSelected = selectedSpareIds.includes(item.id);
                             return (
-                              <tr key={item.id} className={`hover:bg-blue-50/40 transition-colors ${isSelected ? 'bg-blue-50/60' : ''}`}>
-                                <td className="p-3 text-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={isSelected}
-                                    onChange={() => {
-                                      setSelectedSpareIds((prev) =>
-                                        prev.includes(item.id) ? prev.filter((i) => i !== item.id) : [...prev, item.id]
-                                      );
-                                    }}
-                                    className="w-3.5 h-3.5 text-emerald-600 rounded-xs border-gray-300 focus:ring-emerald-500 cursor-pointer"
-                                  />
-                                </td>
-                                <td className="p-3 text-center font-medium">{index + 1}</td>
-                                <td className="p-3 font-medium text-gray-700">{item.location || item.stockLocation || 'Main Store'}</td>
-                                <td className="p-3 font-semibold text-gray-800">{item.partName || item.name || 'Spare Name'}</td>
-                                <td className="p-3 text-center font-bold text-gray-700">{item.inHandQuantity ?? 0}</td>
-                                <td className="p-3 text-center font-bold text-gray-700">{item.atSourceQuantity ?? 0}</td>
-                                <td className="p-3 text-center font-bold text-gray-700">{item.minimumQuantity ?? 0}</td>
-                                <td className="p-3 text-center font-bold text-emerald-600">{item.totalStock ?? item.stockQuantity ?? 0}</td>
-                              </tr>
+                            <tr 
+                              key={item.id} 
+                              onClick={() => handleOpenSpare(item)}
+                              className="hover:bg-slate-50 transition-colors cursor-pointer"
+                            >
+                              <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => {
+                                    setSelectedSpareIds((prev) =>
+                                      prev.includes(item.id) ? prev.filter((i) => i !== item.id) : [...prev, item.id]
+                                    );
+                                  }}
+                                  className="w-3.5 h-3.5 text-emerald-600 rounded-xs border-gray-300 focus:ring-emerald-500 cursor-pointer"
+                                />
+                              </td>
+                              <td className="p-3 text-center font-medium">{index + 1}</td>
+                              <td className="p-3 font-medium text-gray-700">{item.location || item.stockLocation || 'Main Store'}</td>
+                              <td className="p-3 font-semibold text-gray-800">{item.partName || item.name || 'Spare Name'}</td>
+                              <td className="p-3 text-center font-bold text-gray-700">{item.inHandQuantity ?? 0}</td>
+                              <td className="p-3 text-center font-bold text-gray-700">{item.atSourceQuantity ?? 0}</td>
+                              <td className="p-3 text-center font-bold text-gray-700">{item.minimumQuantity ?? 0}</td>
+                              <td className="p-3 text-center font-bold text-emerald-600">{item.totalStock ?? item.stockQuantity ?? 0}</td>
+                            </tr>
                             );
                           })
                         )}
@@ -1697,36 +1768,6 @@ export const AddSupplierPage: React.FC = () => {
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* BOTTOM NAVIGATION / ACTION BAR */}
-            <div className="flex justify-between items-center w-full px-6 py-4 border-t border-slate-200 bg-slate-50/70 mt-auto">
-              <button
-                type="button"
-                onClick={handlePrevTab}
-                className="px-8 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold text-sm transition-colors shadow-sm cursor-pointer"
-              >
-                Back
-              </button>
-
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => handleSubmit()}
-                  disabled={submitting}
-                  className="px-8 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg font-semibold text-sm transition-colors shadow-sm cursor-pointer disabled:opacity-50"
-                >
-                  {submitting ? 'Saving...' : 'Save Supplier'}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleNextTab}
-                  className="px-10 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors shadow-sm flex items-center gap-2 cursor-pointer"
-                >
-                  Next
-                </button>
-              </div>
             </div>
           </div>
         </div>

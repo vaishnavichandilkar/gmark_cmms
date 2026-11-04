@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { workOrderService, type WorkOrder } from '../../services/workOrderService';
+import { CustomDatePicker } from '../shared/CustomDatePicker';
 
 interface ApproveRejectWOModalProps {
   isOpen: boolean;
@@ -316,20 +317,18 @@ export function ApproveRejectWOModal({
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-gray-700 block">Estimated Start Date</label>
-                      <input
-                        type="date"
+                      <CustomDatePicker
+                        name="estStartDate"
                         value={estStartDate}
-                        onChange={e => setEstStartDate(e.target.value)}
-                        className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-xs font-semibold outline-none focus:border-emerald-500"
+                        onChange={(e: any) => setEstStartDate(e.target.value)}
                       />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-gray-700 block">Estimated End Date</label>
-                      <input
-                        type="date"
+                      <CustomDatePicker
+                        name="estEndDate"
                         value={estEndDate}
-                        onChange={e => setEstEndDate(e.target.value)}
-                        className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-xs font-semibold outline-none focus:border-emerald-500"
+                        onChange={(e: any) => setEstEndDate(e.target.value)}
                       />
                     </div>
                   </div>

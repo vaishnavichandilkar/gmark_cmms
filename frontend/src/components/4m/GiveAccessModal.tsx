@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { X, Shield, Search, CheckCircle2, User, Users, Check, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import { X, Shield, Search, CheckCircle2, User, Users, Check, Loader2, Sparkles, AlertCircle, Cpu, Building, Building2, ChevronDown, ChevronRight, Layers } from 'lucide-react';
 import { api } from '../../lib/api';
 import toast from 'react-hot-toast';
 
@@ -48,6 +48,9 @@ export function GiveAccessModal({
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRoleFilter, setSelectedRoleFilter] = useState('');
+  const [childMachines, setChildMachines] = useState<any[]>([]);
+  const [childFacilities, setChildFacilities] = useState<any[]>([]);
+  const [isAssetsPreviewExpanded, setIsAssetsPreviewExpanded] = useState(true);
 
   useEffect(() => {
     if (!isOpen || !targetId) return;
@@ -57,20 +60,54 @@ export function GiveAccessModal({
       try {
         setLoading(true);
         const baseEndpoint = targetType === 'mainFacility' ? 'main-facilities' : targetType === 'facility' ? 'facilities' : 'machines';
-        const [usersRes, assignedRes] = await Promise.all([
+        const [usersRes, assignedRes, machinesRes, facilitiesRes] = await Promise.all([
           api.get('/users').catch(() => ({ data: [] })),
           api.get(`/${baseEndpoint}/${targetId}/users`).catch(() => ({ data: [] })),
+          (targetType === 'facility' || targetType === 'mainFacility') ? api.get('/machines?includeAll=true').catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+          (targetType === 'facility' || targetType === 'mainFacility') ? api.get('/facilities?includeAll=true').catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
         ]);
 
         if (!isMounted) return;
 
         const usersList: UserItem[] = Array.isArray(usersRes.data) ? usersRes.data : [];
         const assignedList: UserItem[] = Array.isArray(assignedRes.data) ? assignedRes.data : [];
+        const rawMacs: any[] = Array.isArray(machinesRes.data) ? machinesRes.data : [];
+        const rawFacs: any[] = Array.isArray(facilitiesRes.data) ? facilitiesRes.data : [];
 
         setAllUsers(usersList);
         const assignedIdSet = new Set<number>(assignedList.map((u) => u.id));
         setInitialAssignedIds(assignedIdSet);
         setSelectedUserIds(Array.from(assignedIdSet));
+
+        // Calculate machines and sub-facilities under this target
+        if (targetType === 'facility') {
+          const numTargetId = Number(targetId);
+          const descendantFacIds = new Set<number>([numTargetId]);
+          let added = true;
+          while (added) {
+            added = false;
+            rawFacs.forEach((f: any) => {
+              if (f.parentFacilityId && descendantFacIds.has(Number(f.parentFacilityId)) && !descendantFacIds.has(Number(f.id))) {
+                descendantFacIds.add(Number(f.id));
+                added = true;
+              }
+            });
+          }
+          const subFacs = rawFacs.filter((f: any) => descendantFacIds.has(Number(f.id)) && Number(f.id) !== numTargetId);
+          const subMacs = rawMacs.filter((m: any) => m.facilityId && descendantFacIds.has(Number(m.facilityId)));
+          setChildFacilities(subFacs);
+          setChildMachines(subMacs);
+        } else if (targetType === 'mainFacility') {
+          const numMfId = Number(targetId);
+          const subFacs = rawFacs.filter((f: any) => Number(f.mainFacilityId) === numMfId);
+          const facIds = new Set(subFacs.map((f: any) => Number(f.id)));
+          const subMacs = rawMacs.filter((m: any) => (m.facilityId && facIds.has(Number(m.facilityId))) || Number(m.mainFacilityId) === numMfId || m.company === String(numMfId) || m.company === targetName);
+          setChildFacilities(subFacs);
+          setChildMachines(subMacs);
+        } else {
+          setChildFacilities([]);
+          setChildMachines([]);
+        }
       } catch (err) {
         console.error('Failed to load users for access modal:', err);
         toast.error('Failed to load user access list');
@@ -213,6 +250,90 @@ export function GiveAccessModal({
             <X size={20} />
           </button>
         </div>
+
+        {/* Included Assets Preview Section (Machines & Sub-facilities) */}
+        {(targetType === 'facility' || targetType === 'mainFacility') && (
+          <div className="bg-emerald-50/40 border-b border-emerald-100/80 px-5 sm:px-6 py-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="p-1 bg-emerald-100 text-emerald-700 rounded-md shrink-0">
+                  <Layers size={13} />
+                </span>
+                <span className="text-xs font-bold text-slate-800">
+                  Included Assets Under {targetName}:
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-full border border-emerald-200">
+                  <Cpu size={12} className="text-emerald-600" />
+                  <span>{childMachines.length} {childMachines.length === 1 ? 'Machine' : 'Machines'}</span>
+                </span>
+                {childFacilities.length > 0 && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-800 bg-blue-100/80 px-2 py-0.5 rounded-full border border-blue-200">
+                    <Building size={12} className="text-blue-600" />
+                    <span>{childFacilities.length} {childFacilities.length === 1 ? 'Sub-facility' : 'Sub-facilities'}</span>
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAssetsPreviewExpanded(!isAssetsPreviewExpanded)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-emerald-100/50 transition-colors cursor-pointer shrink-0"
+                title={isAssetsPreviewExpanded ? 'Collapse assets preview' : 'Expand assets preview'}
+              >
+                {isAssetsPreviewExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              </button>
+            </div>
+
+            {isAssetsPreviewExpanded && (
+              <div className="mt-2.5 space-y-2 animate-in fade-in duration-150">
+                {childMachines.length === 0 && childFacilities.length === 0 ? (
+                  <p className="text-[11px] text-slate-500 italic">
+                    No machines or sub-facilities currently added under this facility.
+                  </p>
+                ) : (
+                  <>
+                    {childMachines.length > 0 && (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[11px] font-medium text-slate-500 mr-1">Machines:</span>
+                        {childMachines.map((m) => (
+                          <span
+                            key={m.id}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200/90 text-xs font-semibold text-slate-800 shadow-2xs"
+                          >
+                            <Cpu size={12} className="text-emerald-600 shrink-0" />
+                            <span>{m.name || m.machineCode}</span>
+                            {m.machineCode && m.machineCode !== m.name && (
+                              <span className="text-[10px] text-slate-400 font-mono">({m.machineCode})</span>
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {childFacilities.length > 0 && (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[11px] font-medium text-slate-500 mr-1">Sub-facilities:</span>
+                        {childFacilities.map((f) => (
+                          <span
+                            key={f.id}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200/90 text-xs font-semibold text-slate-800 shadow-2xs"
+                          >
+                            <Building size={12} className="text-blue-600 shrink-0" />
+                            <span>{f.facilityName}</span>
+                            {f.facilityCode && (
+                              <span className="text-[10px] text-slate-400 font-mono">({f.facilityCode})</span>
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-[10px] text-emerald-700 font-medium pt-0.5">
+                      ✓ Authorized users assigned below will automatically inherit access to monitor and manage all {childMachines.length} machines{childFacilities.length > 0 ? ` and ${childFacilities.length} sub-facilities` : ''}.
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Toolbar: Search, Role Filter, Select All */}
         <div className="p-4 sm:px-6 bg-slate-50/70 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">

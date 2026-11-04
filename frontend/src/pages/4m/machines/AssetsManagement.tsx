@@ -12,6 +12,7 @@ import toast from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../store';
 import { navigateToDeviceDashboard } from '../../../utils/deviceRoutes';
+import { hasAssetPermission } from '../../../utils/permissions';
 
 export function AssetsManagement() {
   const navigate = useNavigate();
@@ -108,6 +109,8 @@ export function AssetsManagement() {
       let facilities = Array.isArray(facilitiesRes.data) ? facilitiesRes.data : [];
 
       if (user?.role !== 'SUPER_ADMIN') {
+        const hasAssetPerms = user?.permissions?.some((p: any) => p.moduleId?.startsWith('asset_'));
+
         if (user?.deviceId) {
           // Device operator/assigned user (e.g. Mahendra Powar): only see their assigned device/machine
           machines = machines.filter((m: any) => m.deviceId === user.deviceId || m.id?.toString() === user.deviceId);
@@ -117,7 +120,7 @@ export function AssetsManagement() {
           societies = [];
           buildings = [];
         } else if (user?.facilityId) {
-          // Facility-assigned user (e.g. Shabaj Mujawar): only see their assigned facility and anything under it
+          // Facility-assigned user: only see their assigned facility and all sub-facilities & machines under it
           const targetFacilityId = Number(user.facilityId);
           const allowedFacilityIds = new Set<number>([targetFacilityId]);
 
@@ -125,19 +128,33 @@ export function AssetsManagement() {
           while (added) {
             added = false;
             facilities.forEach((f: any) => {
-              if (f.parentFacilityId && allowedFacilityIds.has(f.parentFacilityId) && !allowedFacilityIds.has(f.id)) {
-                allowedFacilityIds.add(f.id);
+              if (f.parentFacilityId && allowedFacilityIds.has(Number(f.parentFacilityId)) && !allowedFacilityIds.has(Number(f.id))) {
+                allowedFacilityIds.add(Number(f.id));
                 added = true;
               }
             });
           }
 
-          facilities = facilities.filter((f: any) => allowedFacilityIds.has(f.id));
-          machines = machines.filter((m: any) => m.facilityId && allowedFacilityIds.has(m.facilityId));
-          devices = devices.filter((d: any) => d.facilityId && allowedFacilityIds.has(d.facilityId));
+          facilities = facilities.filter((f: any) => allowedFacilityIds.has(Number(f.id)));
+          machines = machines.filter((m: any) => m.facilityId && allowedFacilityIds.has(Number(m.facilityId)));
+          devices = devices.filter((d: any) => d.facilityId && allowedFacilityIds.has(Number(d.facilityId)));
           mainFacilities = []; // Never show parent Main Facility (Nayabharat)
           societies = [];
           buildings = [];
+        } else if (hasAssetPerms) {
+          machines = machines.filter((m: any) => hasAssetPermission(user, m, 'view'));
+          facilities = facilities.filter((f: any) => {
+            return hasAssetPermission(user, f, 'view') ||
+                   machines.some((m: any) => Number(m.facilityId) === Number(f.id));
+          });
+          mainFacilities = mainFacilities.filter((mf: any) => {
+            return hasAssetPermission(user, mf, 'view') ||
+                   facilities.some((f: any) => Number(f.mainFacilityId) === Number(mf.id)) ||
+                   machines.some((m: any) => Number(m.mainFacilityId) === Number(mf.id) || m.company === String(mf.id) || m.company === mf.mainFacilityName);
+          });
+          societies = [];
+          buildings = [];
+          devices = [];
         } else if (user?.mainFacilityId) {
           mainFacilities = mainFacilities.filter((mf: any) => mf.id === user.mainFacilityId);
           // Only show facilities that belong to this main facility
@@ -153,18 +170,18 @@ export function AssetsManagement() {
           facilities = [];
         } else {
           // Operator/Viewer fallback: only show facilities/buildings where they actually have assigned machines/devices
-          const assignedFacilityIds = new Set(machines.map((m: any) => m.facilityId).filter(Boolean));
+          const assignedFacilityIds = new Set(machines.map((m: any) => m.facilityId).filter(Boolean).map(Number));
           const assignedBuildingIds = new Set([
             ...machines.map((m: any) => m.buildingId).filter(Boolean),
             ...devices.map((d: any) => d.buildingId).filter(Boolean),
           ]);
           
-          facilities = facilities.filter((f: any) => assignedFacilityIds.has(f.id));
+          facilities = facilities.filter((f: any) => assignedFacilityIds.has(Number(f.id)));
           buildings = buildings.filter((b: any) => assignedBuildingIds.has(b.id));
 
           // Retain mainFacilities that are parents to the retained facilities
-          const activeMainFacIds = new Set(facilities.map((f: any) => f.mainFacilityId).filter(Boolean));
-          mainFacilities = mainFacilities.filter((mf: any) => activeMainFacIds.has(mf.id));
+          const activeMainFacIds = new Set(facilities.map((f: any) => f.mainFacilityId).filter(Boolean).map(Number));
+          mainFacilities = mainFacilities.filter((mf: any) => activeMainFacIds.has(Number(mf.id)));
 
           // Retain societies that are parents to the retained buildings
           const activeSocIds = new Set(buildings.map((b: any) => b.societyId).filter(Boolean));
@@ -288,7 +305,7 @@ export function AssetsManagement() {
 
         // Attach Root Machines to Facilities
         rootMachines.forEach((macNode) => {
-          if (macNode.originalData.facilityId === fac.id) {
+          if (Number(macNode.originalData.facilityId) === Number(fac.id)) {
             node.children!.push(macNode);
           }
         });
@@ -511,7 +528,7 @@ export function AssetsManagement() {
                 setDetailsNode(node);
               }}
               selectedId={selectedNode?.id || null} 
-              defaultExpanded={false}
+              defaultExpanded={true}
               enableDragAndDrop={canManageAssets}
               onDropNode={(source, target) => {
                 if (!canManageAssets) {

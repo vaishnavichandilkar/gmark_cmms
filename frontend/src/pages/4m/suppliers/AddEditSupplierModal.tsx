@@ -4,6 +4,7 @@ import { ArrowLeft, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supplierService, type Supplier } from '../../../services/supplierService';
 import { INDIAN_STATES } from '../../../constants/states';
+import { fetchLocationByPincode } from '../../../utils/pincodeService';
 
 interface AddEditSupplierModalProps {
   isOpen: boolean;
@@ -60,6 +61,26 @@ export const AddEditSupplierModal: React.FC<AddEditSupplierModalProps> = ({
       });
     }
   }, [supplierToEdit, isOpen]);
+
+  useEffect(() => {
+    const pin = (formData.postalCode || '').trim().replace(/\D/g, '');
+    if (pin.length === 6) {
+      let isCurrent = true;
+      fetchLocationByPincode(pin).then(loc => {
+        if (loc && isCurrent) {
+          setFormData(prev => ({
+            ...prev,
+            city: loc.city,
+            state: loc.state,
+            country: loc.country || 'India',
+          }));
+        }
+      });
+      return () => {
+        isCurrent = false;
+      };
+    }
+  }, [formData.postalCode]);
 
   if (!isOpen) return null;
 
@@ -338,7 +359,7 @@ export const AddEditSupplierModal: React.FC<AddEditSupplierModalProps> = ({
                 disabled={isSubmitting}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-xl text-sm font-semibold shadow-xs transition-all disabled:opacity-50 cursor-pointer"
               >
-                {isSubmitting ? 'Saving...' : supplierToEdit ? 'Update Supplier' : 'Save Supplier'}
+                {isSubmitting ? 'Saving...' : supplierToEdit ? 'Update' : 'Save'}
               </button>
             </div>
           </form>

@@ -35,7 +35,7 @@ export function AlertToastManager() {
     if (!token) return;
 
     // Connect to websocket to listen for global alerts
-    socket = io('http://localhost:3001', {
+    socket = io('http://localhost:3002', {
       auth: { token },
       transports: ['websocket'],
     });

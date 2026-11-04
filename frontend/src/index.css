@@ -528,15 +528,7 @@ svg {
 }
 
 .react-datepicker__navigation {
-  top: 1.1rem !important;
-}
-
-.react-datepicker__navigation-icon::before {
-  border-color: #6b7280 !important;
-}
-
-.react-datepicker__navigation:hover .react-datepicker__navigation-icon::before {
-  border-color: #111827 !important;
+  display: none !important;
 }
 
 .react-datepicker-popper {

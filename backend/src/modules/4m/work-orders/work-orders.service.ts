@@ -104,7 +104,8 @@ export class WorkOrdersService {
     search?: string;
   }, user?: any) {
     const where: any = {};
-    const effectiveAdminId = user?.adminId || user?.userId;
+    const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+    const effectiveAdminId = isSuperAdmin ? null : (user?.adminId || user?.userId);
 
     if (effectiveAdminId) {
       where.adminId = effectiveAdminId;

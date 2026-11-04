@@ -29,6 +29,8 @@ import { useDispatch } from 'react-redux';
 import { setCredentials } from '../../store/slices/authSlice';
 import { api } from '../../lib/api';
 import Logo4M from '../../assets/4MLogo.png';
+import { validateGSTIN } from '../../utils/gstValidation';
+import { fetchLocationByPincode } from '../../utils/pincodeService';
 
 export function SignUpPage() {
   const navigate = useNavigate();
@@ -115,9 +117,9 @@ export function SignUpPage() {
     if (!trimmedGst) {
       errors.gstNumber = 'Please enter a valid GST number.';
     } else {
-      const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
-      if (!gstRegex.test(trimmedGst)) {
-        errors.gstNumber = 'Please enter a valid GST number.';
+      const gstValidation = validateGSTIN(trimmedGst);
+      if (!gstValidation.isValid) {
+        errors.gstNumber = gstValidation.error || 'Please enter a valid GST number.';
       }
     }
     setFieldErrors(errors);
@@ -192,6 +194,11 @@ export function SignUpPage() {
       if (validateStep1()) {
         setIsStepTransitioning(true);
         setFieldErrors({});
+        // Pre-fill State in Step 2 from validated GSTIN if state is empty
+        const gstResult = validateGSTIN(formData.gstNumber);
+        if (gstResult.isValid && gstResult.stateName && !formData.state) {
+          setFormData(prev => ({ ...prev, state: gstResult.stateName || prev.state }));
+        }
         setCurrentStep(2);
         window.scrollTo({ top: 0, behavior: 'smooth' });
         setTimeout(() => setIsStepTransitioning(false), 300);
@@ -352,34 +359,42 @@ export function SignUpPage() {
     }
   };
 
-  // Postal code auto-lookup for India PIN code
+  // Postal code auto-lookup for PIN code
   useEffect(() => {
-    const fetchLocation = async () => {
-      const pin = formData.postalCode.trim();
-      if (formData.country === 'India' && pin.length === 6 && /^\d+$/.test(pin)) {
+    const pin = (formData.postalCode || '').trim().replace(/\D/g, '');
+    if (pin.length === 6) {
+      let isCurrent = true;
+      const fetchLocation = async () => {
         try {
-          const response = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
-          const data = await response.json();
-          if (data && data[0] && data[0].Status === 'Success' && data[0].PostOffice && data[0].PostOffice.length > 0) {
-            const postOffice = data[0].PostOffice[0];
+          const loc = await fetchLocationByPincode(pin);
+          if (loc && isCurrent) {
             setFormData(prev => ({
               ...prev,
-              city: prev.city || postOffice.District || postOffice.Block || postOffice.Region || '',
-              state: prev.state || postOffice.State || ''
+              city: loc.city,
+              state: loc.state,
+              country: loc.country || 'India',
             }));
+            setFieldErrors(prev => {
+              const copy = { ...prev };
+              delete copy.postalCode;
+              delete copy.city;
+              delete copy.state;
+              delete copy.country;
+              return copy;
+            });
           }
         } catch (err) {
           console.error('Error fetching PIN location:', err);
         }
-      }
-    };
-    
-    const timeoutId = setTimeout(() => {
-      fetchLocation();
-    }, 400);
-    
-    return () => clearTimeout(timeoutId);
-  }, [formData.postalCode, formData.country]);
+      };
+      
+      const timeoutId = setTimeout(fetchLocation, 250);
+      return () => {
+        isCurrent = false;
+        clearTimeout(timeoutId);
+      };
+    }
+  }, [formData.postalCode]);
 
   const inputClasses = (hasError?: boolean) => 
     `w-full px-3.5 py-2 bg-white border ${
@@ -586,14 +601,40 @@ export function SignUpPage() {
                         maxLength={15}
                         value={formData.gstNumber}
                         onChange={handleChange}
-                        placeholder="Enter GST number (e.g. 27ABCDE1234F1Z5)"
+                        placeholder="Enter GST number (e.g. 27AAPFU0939F1ZV)"
                         className={`${inputWithIconClasses(!!fieldErrors.gstNumber)} uppercase tracking-wide font-mono text-xs sm:text-sm`}
                       />
                     </div>
                     {fieldErrors.gstNumber ? (
                       <p className="mt-1 text-[11px] text-red-500 font-semibold">{fieldErrors.gstNumber}</p>
                     ) : (
-                      <p className="mt-0.5 text-[10px] text-gray-400">15-character GSTIN format</p>
+                      (() => {
+                        const trimmed = formData.gstNumber.trim();
+                        if (trimmed.length === 15) {
+                          const result = validateGSTIN(trimmed);
+                          if (result.isValid) {
+                            return (
+                              <div className="mt-1 flex items-center gap-1.5 text-[11px] text-emerald-600 font-medium">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                <span>
+                                  Valid GSTIN: <strong>{result.stateName} ({result.stateCode})</strong> • {result.panEntityType}
+                                </span>
+                              </div>
+                            );
+                          } else {
+                            return (
+                              <p className="mt-1 text-[11px] text-amber-600 font-medium">
+                                ⚠ {result.error}
+                              </p>
+                            );
+                          }
+                        }
+                        return (
+                          <p className="mt-0.5 text-[10px] text-gray-400">
+                            15-character GSTIN format (State code + PAN + Entity + Z + Check digit)
+                          </p>
+                        );
+                      })()
                     )}
                   </div>
 

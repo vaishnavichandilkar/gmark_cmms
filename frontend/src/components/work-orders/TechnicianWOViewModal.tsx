@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { workOrderService, type WorkOrder } from '../../services/workOrderService';
+import { CustomDatePicker } from '../shared/CustomDatePicker';
 
 interface TechnicianWOViewModalProps {
   isOpen: boolean;
@@ -466,11 +467,10 @@ export function TechnicianWOViewModal({
 
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-amber-900 block">Proposed Updated Target End Date</label>
-                  <input
-                    type="date"
+                  <CustomDatePicker
+                    name="proposedEndDate"
                     value={proposedEndDate}
-                    onChange={e => setProposedEndDate(e.target.value)}
-                    className="w-full p-2.5 bg-white border border-amber-300 rounded-xl text-xs font-semibold outline-none focus:border-amber-500"
+                    onChange={(e: any) => setProposedEndDate(e.target.value)}
                   />
                 </div>
 

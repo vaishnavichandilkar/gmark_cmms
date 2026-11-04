@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Query,
   Param,
   Post,
   Put,
@@ -40,8 +41,8 @@ export class MachinesController {
   @Get()
   @ApiOperation({ summary: 'Get all machines' })
   @ApiResponse({ status: 200, description: 'Return all machines.' })
-  async getAllMachines(@CurrentUser() user: any) {
-    return this.machinesService.getAllMachines(user);
+  async getAllMachines(@CurrentUser() user: any, @Query('includeAll') includeAll?: string) {
+    return this.machinesService.getAllMachines(user, includeAll === 'true');
   }
 
   @Get('next-machine-code')

@@ -13,8 +13,10 @@ export function CreateWorkOrderPage() {
   const [selectedMachineId, setSelectedMachineId] = useState<number | string>('');
   const [selectedMachine, setSelectedMachine] = useState<any>(null);
   const [machinesList, setMachinesList] = useState<any[]>([]);
-  const [problemDescription, setProblemDescription] = useState('');
-  const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
+  const [problemDescription, setProblemDescription] = useState(searchParams.get('problem') || '');
+  const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>(
+    (searchParams.get('priority') as any) || 'MEDIUM'
+  );
 
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [mediaList, setMediaList] = useState<{ fileUrl: string; fileName: string; fileType: string }[]>([]);
@@ -50,23 +52,23 @@ export function CreateWorkOrderPage() {
     try {
       setLoading(true);
       const res = await api.get('/machines');
-      if (res.data && Array.isArray(res.data)) {
-        setMachinesList(res.data);
-        if (targetMachineId) {
-          const found = res.data.find(m => String(m.id) === String(targetMachineId));
-          if (found) {
-            setSelectedMachineId(found.id);
-            setSelectedMachine(found);
-            return;
-          }
+      const data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      setMachinesList(data);
+      if (targetMachineId) {
+        const found = data.find((m: any) => String(m.id) === String(targetMachineId));
+        if (found) {
+          setSelectedMachineId(found.id);
+          setSelectedMachine(found);
+          return;
         }
-        if (res.data.length > 0) {
-          setSelectedMachineId(res.data[0].id);
-          setSelectedMachine(res.data[0]);
-        }
+      }
+      if (data.length > 0) {
+        setSelectedMachineId(data[0].id);
+        setSelectedMachine(data[0]);
       }
     } catch (err) {
       console.error('Failed to fetch machines:', err);
+      toast.error('Failed to load machines list');
     } finally {
       setLoading(false);
     }
@@ -182,8 +184,8 @@ export function CreateWorkOrderPage() {
     return true;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!validateForm()) return;
 
     setIsSubmitting(true);
@@ -217,14 +219,41 @@ export function CreateWorkOrderPage() {
   return (
     <div className="sm:p-6 pb-10 w-full h-full flex flex-col overflow-y-auto">
       {/* Header */}
-      <div className="flex items-center mb-6">
-        <button
-          onClick={() => navigate('/work-orders')}
-          className="text-gray-600 hover:text-gray-900 mr-2 focus:outline-none"
-        >
-          <ChevronLeft size={24} />
-        </button>
-        <h1 className="text-2xl font-bold text-gray-800">Add Work Order</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div className="flex items-center">
+          <button
+            type="button"
+            onClick={() => navigate('/work-orders')}
+            className="text-gray-600 hover:text-gray-900 mr-2 focus:outline-none cursor-pointer"
+          >
+            <ChevronLeft size={24} />
+          </button>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Add Work Order</h1>
+        </div>
+
+        {/* Top Actions */}
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => navigate('/work-orders')}
+            disabled={isSubmitting}
+            className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+          >
+            Back
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSubmit()}
+            disabled={isSubmitting}
+            className="flex items-center justify-center gap-1.5 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-xs disabled:opacity-70 min-w-[80px] cursor-pointer"
+          >
+            {isSubmitting ? (
+              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              'Save'
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Form Card Container */}
@@ -244,7 +273,7 @@ export function CreateWorkOrderPage() {
                   validationErrors.machineId ? 'border-red-500 bg-red-50' : 'border-gray-300'
                 } rounded-lg bg-white text-gray-900 outline-none focus:border-green-500 transition-all`}
               >
-                <option value="">Select Machine</option>
+                <option value="">{machinesList.length === 0 ? 'No machines available' : 'Select Machine'}</option>
                 {machinesList.map(m => (
                   <option key={m.id} value={m.id}>
                     {m.name} ({m.machineCode || `ID-${m.id}`})
@@ -426,28 +455,7 @@ export function CreateWorkOrderPage() {
             )}
           </div>
 
-          {/* Buttons */}
-          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-10 border-t border-gray-100 pt-6">
-            <button
-              type="button"
-              onClick={() => navigate('/work-orders')}
-              disabled={isSubmitting}
-              className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 bg-white text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-sm font-bold transition-all shadow-sm disabled:opacity-70 min-w-[100px] cursor-pointer"
-            >
-              {isSubmitting ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                'Save'
-              )}
-            </button>
-          </div>
+
         </form>
       </div>
 

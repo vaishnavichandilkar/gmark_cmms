@@ -102,7 +102,7 @@ export function SparesListPage() {
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
 
   // Modal States
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -1366,7 +1366,7 @@ export function SparesListPage() {
                                 const resolved = img.startsWith('data:') || img.startsWith('blob:')
                                   ? img
                                   : img.startsWith('http://') || img.startsWith('https://')
-                                    ? (img.includes(':3001/uploads/') ? img.replace(/^http:\/\/(localhost|127\.0\.0\.1):3001/, '') : img)
+                                    ? (img.includes(':3001/uploads/') || img.includes(':3002/uploads/') ? img.replace(/^http:\/\/(localhost|127\.0\.0\.1):(3001|3002)/, '') : img)
                                     : (img.startsWith('/') ? img : `/${img}`);
                                 return (
                                   <img
@@ -1375,8 +1375,8 @@ export function SparesListPage() {
                                     className="w-8 h-8 rounded-lg object-cover border border-slate-200 shrink-0"
                                     onError={(e) => {
                                       const target = e.currentTarget;
-                                      if (img && !target.src.includes(':3001') && !target.src.startsWith('data:')) {
-                                        target.src = `http://localhost:3001${img.startsWith('/') ? img : `/${img}`}`;
+                                      if (img && !target.src.includes(':3002') && !target.src.startsWith('data:')) {
+                                        target.src = `http://localhost:3002${img.startsWith('/') ? img : `/${img}`}`;
                                       }
                                     }}
                                   />

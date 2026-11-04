@@ -13,6 +13,7 @@ import {
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
+import { IsGSTIN } from '../../../../common/validators/is-gstin.validator';
 
 export class CompanyDetailsDto {
   @ApiProperty({ example: 'ABC Industries' })
@@ -25,10 +26,10 @@ export class CompanyDetailsDto {
   @IsNotEmpty({ message: 'Please select business category.' })
   businessCategory: string;
 
-  @ApiProperty({ example: '27ABCDE1234F1Z5' })
+  @ApiProperty({ example: '27AAPFU0939F1ZV' })
   @IsString()
   @IsNotEmpty({ message: 'Please enter a valid GST number.' })
-  @Matches(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, { message: 'Please enter a valid GST number.' })
+  @IsGSTIN()
   gstNumber: string;
 
   @ApiProperty({ example: '123 Business Address' })

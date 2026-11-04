@@ -36,8 +36,8 @@ export function MachineImageCard({
     if (!url) return '';
     if (url.startsWith('data:') || url.startsWith('blob:')) return url;
     if (url.startsWith('http://') || url.startsWith('https://')) {
-      if (url.includes(':3001/uploads/')) {
-        return url.replace(/^http:\/\/(localhost|127\.0\.0\.1):3001/, '');
+      if (url.includes(':3001/uploads/') || url.includes(':3002/uploads/')) {
+        return url.replace(/^http:\/\/(localhost|127\.0\.0\.1):(3001|3002)/, '');
       }
       return url;
     }
@@ -133,8 +133,8 @@ export function MachineImageCard({
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   onError={(e) => {
                     const target = e.currentTarget;
-                    if (currentImage && !target.src.includes(':3001') && !target.src.startsWith('data:')) {
-                      target.src = `http://localhost:3001${currentImage.startsWith('/') ? currentImage : `/${currentImage}`}`;
+                    if (currentImage && !target.src.includes(':3002') && !target.src.startsWith('data:')) {
+                      target.src = `http://localhost:3002${currentImage.startsWith('/') ? currentImage : `/${currentImage}`}`;
                     }
                   }}
                 />
@@ -321,8 +321,8 @@ export function MachineImageCard({
                   className="max-h-[55vh] max-w-full object-contain rounded-lg shadow-2xl"
                   onError={(e) => {
                     const target = e.currentTarget;
-                    if (currentImage && !target.src.includes(':3001') && !target.src.startsWith('data:')) {
-                      target.src = `http://localhost:3001${currentImage.startsWith('/') ? currentImage : `/${currentImage}`}`;
+                    if (currentImage && !target.src.includes(':3002') && !target.src.startsWith('data:')) {
+                      target.src = `http://localhost:3002${currentImage.startsWith('/') ? currentImage : `/${currentImage}`}`;
                     }
                   }}
                 />
