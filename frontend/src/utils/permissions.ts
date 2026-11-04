@@ -273,12 +273,13 @@ export const hasAssetPermission = (
     }
 
     // Check parent facility's parent permission if available on object
-    if (asset.facility?.parentFacilityId) {
-      const parentFacPerm = user.permissions.find((p: any) => p.moduleId === `asset_fac_${asset.facility.parentFacilityId}`);
+    const facObj = asset.facility as any;
+    if (facObj?.parentFacilityId) {
+      const parentFacPerm = user.permissions.find((p: any) => p.moduleId === `asset_fac_${facObj.parentFacilityId}`);
       if (parentFacPerm?.canView) {
         return !!parentFacPerm[actionKey];
       }
-      if (user.facilityId && Number(user.facilityId) === Number(asset.facility.parentFacilityId)) {
+      if (user.facilityId && Number(user.facilityId) === Number(facObj.parentFacilityId)) {
         return true;
       }
     }

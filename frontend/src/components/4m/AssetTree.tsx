@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   ChevronRight, 
   ChevronDown, 
+  ChevronsDown,
+  ChevronsUp,
   Building, 
   Building2, 
   Cpu, 
@@ -33,7 +35,27 @@ interface AssetTreeProps {
   onMove?: (node: TreeNodeData) => void;
   onGiveAccess?: (node: TreeNodeData) => void;
   isNodeAccessible?: (node: TreeNodeData) => boolean;
+  expandedIds?: Set<string>;
+  onToggleExpand?: (nodeId: string) => void;
+  onExpandAll?: () => void;
+  onCollapseAll?: () => void;
+  showToolbar?: boolean;
 }
+
+// Helper: Collect all node IDs that have children
+export const getAllExpandableIds = (nodes: TreeNodeData[]): string[] => {
+  const ids: string[] = [];
+  const traverse = (items: TreeNodeData[]) => {
+    for (const item of items) {
+      if (item.children && item.children.length > 0) {
+        ids.push(item.id);
+        traverse(item.children);
+      }
+    }
+  };
+  traverse(nodes);
+  return ids;
+};
 
 // Helper: Check if targetId is a descendant of parentNode
 export const isDescendantNode = (parent: TreeNodeData, targetId: string): boolean => {
@@ -88,10 +110,78 @@ export const AssetTree = ({
   onDropNode,
   onMove,
   onGiveAccess,
+  expandedIds: propExpandedIds,
+  onToggleExpand: propOnToggleExpand,
+  onExpandAll: propOnExpandAll,
+  onCollapseAll: propOnCollapseAll,
+  showToolbar = false,
 }: AssetTreeProps) => {
   const [draggedNode, setDraggedNode] = useState<TreeNodeData | null>(null);
   const [dragOverNodeId, setDragOverNodeId] = useState<string | null>(null);
   const draggedNodeRef = useRef<TreeNodeData | null>(null);
+
+  const [internalExpandedIds, setInternalExpandedIds] = useState<Set<string>>(() => {
+    if (defaultExpanded) {
+      return new Set(getAllExpandableIds(data));
+    }
+    return new Set();
+  });
+
+  // Keep internal state updated if data changes and defaultExpanded is true
+  useEffect(() => {
+    if (propExpandedIds === undefined && defaultExpanded && data.length > 0) {
+      setInternalExpandedIds(new Set(getAllExpandableIds(data)));
+    }
+  }, [data, defaultExpanded, propExpandedIds]);
+
+  const expandedIds = propExpandedIds ?? internalExpandedIds;
+
+  const handleExpandAll = () => {
+    if (propOnExpandAll) {
+      propOnExpandAll();
+    } else {
+      setInternalExpandedIds(new Set(getAllExpandableIds(data)));
+    }
+  };
+
+  const handleCollapseAll = () => {
+    if (propOnCollapseAll) {
+      propOnCollapseAll();
+    } else {
+      setInternalExpandedIds(new Set());
+    }
+  };
+
+  const handleToggleExpand = (nodeId: string) => {
+    if (propOnToggleExpand) {
+      propOnToggleExpand(nodeId);
+    } else {
+      setInternalExpandedIds(prev => {
+        const next = new Set(prev);
+        if (next.has(nodeId)) {
+          next.delete(nodeId);
+        } else {
+          next.add(nodeId);
+        }
+        return next;
+      });
+    }
+  };
+
+  const handleExpandNode = (nodeId: string) => {
+    if (propOnToggleExpand) {
+      if (!expandedIds.has(nodeId)) {
+        propOnToggleExpand(nodeId);
+      }
+    } else {
+      setInternalExpandedIds(prev => {
+        if (prev.has(nodeId)) return prev;
+        const next = new Set(prev);
+        next.add(nodeId);
+        return next;
+      });
+    }
+  };
 
   const handleDragStartNode = (node: TreeNodeData, _e: React.DragEvent) => {
     draggedNodeRef.current = node;
@@ -117,7 +207,6 @@ export const AssetTree = ({
   };
 
   const handleDragLeaveNode = (node: TreeNodeData, e: React.DragEvent) => {
-    // Prevent clearing when moving over child elements of the row
     if (e.currentTarget && e.relatedTarget && e.currentTarget.contains(e.relatedTarget as Node)) {
       return;
     }
@@ -140,30 +229,62 @@ export const AssetTree = ({
   };
 
   return (
-    <div className="w-full bg-white h-full overflow-y-auto py-2">
-      {data.map(node => (
-        <TreeNode 
-          key={node.id} 
-          node={node} 
-          onSelect={onSelect} 
-          onDoubleClick={onDoubleClick} 
-          selectedId={selectedId} 
-          defaultExpanded={defaultExpanded}
-          enableDragAndDrop={enableDragAndDrop}
-          draggedNode={draggedNode}
-          dragOverNodeId={dragOverNodeId}
-          onDragStartNode={handleDragStartNode}
-          onDragEndNode={handleDragEndNode}
-          onDragOverNode={handleDragOverNode}
-          onDragLeaveNode={handleDragLeaveNode}
-          onDropOnNode={handleDropOnNode}
-          onMove={onMove}
-          onGiveAccess={onGiveAccess}
-        />
-      ))}
-      {data.length === 0 && (
-        <div className="p-4 text-sm text-gray-500 text-center">No assets found</div>
+    <div className="w-full bg-white h-full flex flex-col overflow-hidden">
+      {showToolbar && data.length > 0 && (
+        <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-100 bg-gray-50/70 shrink-0">
+          <span className="text-[11px] font-medium text-gray-500">
+            Hierarchy Navigation
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handleExpandAll}
+              className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium text-gray-600 hover:text-gray-900 bg-white hover:bg-gray-100 border border-gray-200 rounded shadow-2xs transition-colors cursor-pointer"
+              title="Expand all nodes"
+            >
+              <ChevronsDown className="w-3 h-3 text-gray-500" />
+              <span>Expand All</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleCollapseAll}
+              className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium text-gray-600 hover:text-gray-900 bg-white hover:bg-gray-100 border border-gray-200 rounded shadow-2xs transition-colors cursor-pointer"
+              title="Collapse all nodes"
+            >
+              <ChevronsUp className="w-3 h-3 text-gray-500" />
+              <span>Collapse All</span>
+            </button>
+          </div>
+        </div>
       )}
+
+      <div className="flex-1 overflow-y-auto py-2">
+        {data.map(node => (
+          <TreeNode 
+            key={node.id} 
+            node={node} 
+            onSelect={onSelect} 
+            onDoubleClick={onDoubleClick} 
+            selectedId={selectedId} 
+            enableDragAndDrop={enableDragAndDrop}
+            draggedNode={draggedNode}
+            dragOverNodeId={dragOverNodeId}
+            onDragStartNode={handleDragStartNode}
+            onDragEndNode={handleDragEndNode}
+            onDragOverNode={handleDragOverNode}
+            onDragLeaveNode={handleDragLeaveNode}
+            onDropOnNode={handleDropOnNode}
+            onMove={onMove}
+            onGiveAccess={onGiveAccess}
+            expandedIds={expandedIds}
+            onToggleExpand={handleToggleExpand}
+            onExpandNode={handleExpandNode}
+          />
+        ))}
+        {data.length === 0 && (
+          <div className="p-4 text-sm text-gray-500 text-center">No assets found</div>
+        )}
+      </div>
     </div>
   );
 };
@@ -174,7 +295,6 @@ interface TreeNodeProps {
   onDoubleClick?: (node: TreeNodeData) => void;
   selectedId: string | null;
   level?: number;
-  defaultExpanded?: boolean;
   enableDragAndDrop: boolean;
   draggedNode: TreeNodeData | null;
   dragOverNodeId: string | null;
@@ -185,6 +305,9 @@ interface TreeNodeProps {
   onDropOnNode: (targetNode: TreeNodeData, e: React.DragEvent) => void;
   onMove?: (node: TreeNodeData) => void;
   onGiveAccess?: (node: TreeNodeData) => void;
+  expandedIds: Set<string>;
+  onToggleExpand: (nodeId: string) => void;
+  onExpandNode: (nodeId: string) => void;
 }
 
 const TreeNode = ({ 
@@ -193,7 +316,6 @@ const TreeNode = ({
   onDoubleClick, 
   selectedId, 
   level = 0, 
-  defaultExpanded = false,
   enableDragAndDrop,
   draggedNode,
   dragOverNodeId,
@@ -204,10 +326,13 @@ const TreeNode = ({
   onDropOnNode,
   onMove,
   onGiveAccess,
+  expandedIds,
+  onToggleExpand,
+  onExpandNode,
 }: TreeNodeProps) => {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const isDraggingRef = useRef(false);
   const hasChildren = node.children && node.children.length > 0;
+  const isExpanded = expandedIds.has(node.id);
   const isSelected = selectedId === node.id;
   const canDrag = canDragNode(node, enableDragAndDrop);
   const isBeingDragged = draggedNode?.id === node.id;
@@ -218,11 +343,11 @@ const TreeNode = ({
   useEffect(() => {
     if (isOver && isTargetValid && hasChildren && !isExpanded) {
       const timer = setTimeout(() => {
-        setIsExpanded(true);
+        onExpandNode(node.id);
       }, 700);
       return () => clearTimeout(timer);
     }
-  }, [isOver, isTargetValid, hasChildren, isExpanded]);
+  }, [isOver, isTargetValid, hasChildren, isExpanded, onExpandNode, node.id]);
 
   const getIconConfig = () => {
     switch (node.type) {
@@ -250,7 +375,7 @@ const TreeNode = ({
     if (isDraggingRef.current) return;
     onSelect(node);
     if (hasChildren && !isExpanded) {
-      setIsExpanded(true);
+      onToggleExpand(node.id);
     }
   };
 
@@ -265,7 +390,7 @@ const TreeNode = ({
   const handleExpandToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (hasChildren) {
-      setIsExpanded(!isExpanded);
+      onToggleExpand(node.id);
     }
   };
 
@@ -351,11 +476,11 @@ const TreeNode = ({
             {node.name}
           </span>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {/* Visual drop target indicator */}
             {isOver && isTargetValid && (
-              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse shrink-0">
-                <FolderInput className="w-3.5 h-3.5" /> Move here
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full flex items-center gap-1 animate-pulse shrink-0">
+                <FolderInput className="w-3 h-3" /> Move here
               </span>
             )}
 
@@ -367,10 +492,10 @@ const TreeNode = ({
                   e.stopPropagation();
                   onGiveAccess(node);
                 }}
-                className="opacity-80 group-hover:opacity-100 hover:opacity-100 transition-all px-2 py-0.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md flex items-center gap-1 shadow-2xs shrink-0 cursor-pointer"
+                className="opacity-75 group-hover:opacity-100 hover:opacity-100 transition-all px-1.5 py-0 text-[9px] leading-tight font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded flex items-center gap-0.5 shadow-2xs shrink-0 cursor-pointer h-[18px]"
                 title={`Give user access to ${node.name}`}
               >
-                <Shield className="w-3 h-3 text-emerald-600" />
+                <Shield className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
                 <span>Access</span>
               </button>
             )}
@@ -383,16 +508,16 @@ const TreeNode = ({
                   e.stopPropagation();
                   onMove(node);
                 }}
-                className="opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity px-2 py-0.5 text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md flex items-center gap-1 shadow-2xs shrink-0 cursor-pointer"
+                className="opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity px-1.5 py-0 text-[9px] leading-tight font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded flex items-center gap-0.5 shadow-2xs shrink-0 cursor-pointer h-[18px]"
                 title={`Move / Reassign ${node.name}`}
               >
-                <FolderInput className="w-3 h-3 text-blue-600" />
+                <FolderInput className="w-2.5 h-2.5 text-blue-600 shrink-0" />
                 <span>Move</span>
               </button>
             )}
 
             {hasChildren && (
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors shrink-0 ${
+              <span className={`text-[10px] font-bold px-1.5 py-0 h-[18px] flex items-center rounded-full transition-colors shrink-0 ${
                 isSelected ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200 group-hover:text-gray-600'
               }`}>
                 {node.children!.length}
@@ -429,7 +554,6 @@ const TreeNode = ({
                     onDoubleClick={onDoubleClick} 
                     selectedId={selectedId} 
                     level={level + 1} 
-                    defaultExpanded={defaultExpanded}
                     enableDragAndDrop={enableDragAndDrop}
                     draggedNode={draggedNode}
                     dragOverNodeId={dragOverNodeId}
@@ -440,6 +564,9 @@ const TreeNode = ({
                     onDropOnNode={onDropOnNode}
                     onMove={onMove}
                     onGiveAccess={onGiveAccess}
+                    expandedIds={expandedIds}
+                    onToggleExpand={onToggleExpand}
+                    onExpandNode={onExpandNode}
                   />
                 </div>
               );
