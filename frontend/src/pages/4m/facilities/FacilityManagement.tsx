@@ -807,10 +807,6 @@ export function FacilityManagement() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 bg-green-50 border border-green-200 text-green-700 text-[10px] font-semibold rounded-full shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                Drag &amp; Drop Reassignment Active
-              </span>
               <button
                 type="button"
                 onClick={fetchTreeData}

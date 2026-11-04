@@ -513,12 +513,6 @@ export function AssetsManagement() {
                 <span>Move Selected Asset</span>
               </button>
             )}
-            {canManageAssets && (
-              <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 border border-green-200 text-green-700 text-xs font-semibold rounded-full shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                Drag &amp; Drop Reassignment Active
-              </span>
-            )}
           </div>
         </div>
 
