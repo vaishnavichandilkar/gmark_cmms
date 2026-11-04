@@ -550,29 +550,6 @@ export function MainFacilityMaster() {
                   </th>
                 )}
 
-                {visibleColumns.includes('category') && (
-                  <th className="px-3.5 py-3 whitespace-nowrap text-left select-none">
-                    <div className="flex items-center gap-1.5">
-                      <span>Category</span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSort('category');
-                        }}
-                        className="p-0.5 rounded hover:bg-slate-200/60 transition-colors cursor-pointer"
-                        title="Sort by Category"
-                      >
-                        {sortConfig?.key === 'category' ? (
-                          sortConfig.direction === 'asc' ? <ArrowUp size={13} className="text-blue-600" /> : <ArrowDown size={13} className="text-blue-600" />
-                        ) : (
-                          <ArrowUpDown size={12} className="text-gray-400 opacity-60" />
-                        )}
-                      </button>
-                    </div>
-                  </th>
-                )}
-
                 {visibleColumns.includes('gstNumber') && (
                   <th className="px-3.5 py-3 whitespace-nowrap text-left select-none">
                     <div className="flex items-center gap-1.5">
