@@ -523,7 +523,7 @@ export function AssetsManagement() {
               <Shield size={13} />
             </span>
             <span>
-              <strong>Give Access:</strong> Click the <span className="font-semibold text-emerald-700 bg-emerald-100/90 px-1.5 py-0.5 rounded border border-emerald-200">Access</span> button on any facility or machine node below to assign authorized users.
+              <strong>Give Access:</strong> Select any facility or machine node below to assign authorized users.
             </span>
           </div>
           {selectedNode && (

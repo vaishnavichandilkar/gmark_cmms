@@ -484,22 +484,6 @@ const TreeNode = ({
               </span>
             )}
 
-            {/* Direct Give Access Button */}
-            {onGiveAccess && ['mainFacility', 'facility', 'device', 'building', 'society'].includes(node.type) && !isOver && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onGiveAccess(node);
-                }}
-                className="opacity-75 group-hover:opacity-100 hover:opacity-100 transition-all px-1.5 py-0 text-[9px] leading-tight font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded flex items-center gap-0.5 shadow-2xs shrink-0 cursor-pointer h-[18px]"
-                title={`Give user access to ${node.name}`}
-              >
-                <Shield className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
-                <span>Access</span>
-              </button>
-            )}
-
             {/* Direct One-Click Move Button */}
             {canDrag && onMove && !isOver && (
               <button
