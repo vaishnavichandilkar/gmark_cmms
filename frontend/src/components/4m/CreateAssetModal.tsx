@@ -66,7 +66,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({ isOpen, onCl
           </button>
         </div>
 
-        {/* Modal Cards Grid: Facility, Machine, Sub Facility */}
+        {/* Modal Cards: ONLY Facility, Sub Facility, Machine */}
         <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
           {/* Card 1: Facility */}
           <button
@@ -74,9 +74,15 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({ isOpen, onCl
             onClick={handleSelectFacility}
             className="group flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-lg shadow-xs hover:shadow-md hover:border-emerald-500 hover:bg-emerald-50/20 transition-all text-left cursor-pointer"
           >
-            <div className="w-20 h-20 shrink-0 flex items-center justify-center p-1 bg-slate-50 border border-slate-100 rounded-lg group-hover:bg-emerald-50/60 group-hover:border-emerald-200 transition-all">
+            <div className="w-20 h-20 shrink-0 flex items-center justify-center p-2 bg-slate-50 border border-slate-100 rounded-lg group-hover:bg-emerald-50/60 group-hover:border-emerald-200 transition-all">
               {/* Isometric Factory Graphic */}
-              <svg width="68" height="68" viewBox="0 0 68 68" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg 
+                viewBox="0 0 68 68" 
+                className="!w-14 !h-14 shrink-0" 
+                style={{ width: '56px', height: '56px', minWidth: '56px', minHeight: '56px' }}
+                fill="none" 
+                xmlns="http://www.w3.org/2000/svg"
+              >
                 {/* Smokestacks */}
                 <rect x="22" y="6" width="5" height="18" fill="#D32F2F" rx="1.5" />
                 <rect x="23" y="6" width="3" height="4" fill="#B71C1C" />
@@ -113,73 +119,30 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({ isOpen, onCl
               </svg>
             </div>
             <div className="min-w-0">
-              <div className="text-base font-bold text-gray-900 group-hover:text-emerald-700 transition-colors leading-tight">
-                Locations<br />
-                <span className="text-sm font-semibold text-gray-600 group-hover:text-emerald-600">or Facilities</span>
+              <div className="text-base font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">
+                Facility
               </div>
-              <div className="text-[11px] text-gray-400 mt-1">Create top-level facility</div>
+              <div className="text-xs text-gray-500 mt-1">
+                Create top-level facility
+              </div>
             </div>
           </button>
 
-          {/* Card 2: Machine (Equipment or Machines) */}
-          <button
-            type="button"
-            onClick={handleSelectMachine}
-            className="group flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-lg shadow-xs hover:shadow-md hover:border-emerald-500 hover:bg-emerald-50/20 transition-all text-left cursor-pointer"
-          >
-            <div className="w-20 h-20 shrink-0 flex items-center justify-center p-1 bg-slate-50 border border-slate-100 rounded-lg group-hover:bg-emerald-50/60 group-hover:border-emerald-200 transition-all">
-              {/* Forklift Graphic */}
-              <svg width="68" height="68" viewBox="0 0 68 68" fill="none" xmlns="http://www.w3.org/2000/svg">
-                {/* Mast & Fork */}
-                <rect x="50" y="10" width="4" height="42" fill="#37474F" rx="1" />
-                <rect x="55" y="10" width="3" height="42" fill="#78909C" rx="1" />
-                <polygon points="48,46 66,46 66,50 48,50" fill="#263238" />
-                
-                {/* Forklift Body */}
-                <rect x="14" y="30" width="36" height="20" rx="4" fill="#FFB300" />
-                <rect x="14" y="32" width="36" height="4" fill="#FFA000" />
-                
-                {/* Operator Cabin / Cage */}
-                <polygon points="22,12 42,12 40,30 20,30" fill="#FF8F00" />
-                <polygon points="25,15 39,15 37,28 23,28" fill="#ECEFF1" />
-                <rect x="18" y="12" width="4" height="18" fill="#263238" />
-                <rect x="39" y="12" width="4" height="18" fill="#263238" />
-                <rect x="16" y="10" width="28" height="4" fill="#263238" rx="1.5" />
-                
-                {/* Steering */}
-                <rect x="26" y="22" width="5" height="7" rx="1" fill="#37474F" />
-                
-                {/* Wheels */}
-                <circle cx="22" cy="52" r="9" fill="#212121" />
-                <circle cx="22" cy="52" r="5" fill="#757575" />
-                <circle cx="22" cy="52" r="2" fill="#E0E0E0" />
-                
-                <circle cx="44" cy="52" r="9" fill="#212121" />
-                <circle cx="44" cy="52" r="5" fill="#757575" />
-                <circle cx="44" cy="52" r="2" fill="#E0E0E0" />
-                
-                {/* Base Shadow */}
-                <ellipse cx="34" cy="62" rx="28" ry="4" fill="#000000" fillOpacity="0.12" />
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <div className="text-base font-bold text-gray-900 group-hover:text-emerald-700 transition-colors leading-tight">
-                Equipment<br />
-                <span className="text-sm font-semibold text-gray-600 group-hover:text-emerald-600">or Machines</span>
-              </div>
-              <div className="text-[11px] text-gray-400 mt-1">Register machine / asset</div>
-            </div>
-          </button>
-
-          {/* Card 3: Sub Facility */}
+          {/* Card 2: Sub Facility */}
           <button
             type="button"
             onClick={handleSelectSubfacility}
             className="group flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-lg shadow-xs hover:shadow-md hover:border-emerald-500 hover:bg-emerald-50/20 transition-all text-left cursor-pointer"
           >
-            <div className="w-20 h-20 shrink-0 flex items-center justify-center p-1 bg-slate-50 border border-slate-100 rounded-lg group-hover:bg-emerald-50/60 group-hover:border-emerald-200 transition-all">
+            <div className="w-20 h-20 shrink-0 flex items-center justify-center p-2 bg-slate-50 border border-slate-100 rounded-lg group-hover:bg-emerald-50/60 group-hover:border-emerald-200 transition-all">
               {/* Subfacility Building Graphic */}
-              <svg width="68" height="68" viewBox="0 0 68 68" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg 
+                viewBox="0 0 68 68" 
+                className="!w-14 !h-14 shrink-0" 
+                style={{ width: '56px', height: '56px', minWidth: '56px', minHeight: '56px' }}
+                fill="none" 
+                xmlns="http://www.w3.org/2000/svg"
+              >
                 {/* Secondary Wing */}
                 <rect x="44" y="24" width="16" height="34" rx="2" fill="#0288D1" />
                 <polygon points="44,24 60,18 60,24" fill="#01579B" />
@@ -216,11 +179,69 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({ isOpen, onCl
               </svg>
             </div>
             <div className="min-w-0">
-              <div className="text-base font-bold text-gray-900 group-hover:text-emerald-700 transition-colors leading-tight">
-                Subfacilities<br />
-                <span className="text-sm font-semibold text-gray-600 group-hover:text-emerald-600">(Child Locations)</span>
+              <div className="text-base font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">
+                Sub Facility
               </div>
-              <div className="text-[11px] text-gray-400 mt-1">Under an existing parent facility</div>
+              <div className="text-xs text-gray-500 mt-1">
+                Under an existing parent facility
+              </div>
+            </div>
+          </button>
+
+          {/* Card 3: Machine */}
+          <button
+            type="button"
+            onClick={handleSelectMachine}
+            className="group flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-lg shadow-xs hover:shadow-md hover:border-emerald-500 hover:bg-emerald-50/20 transition-all text-left cursor-pointer"
+          >
+            <div className="w-20 h-20 shrink-0 flex items-center justify-center p-2 bg-slate-50 border border-slate-100 rounded-lg group-hover:bg-emerald-50/60 group-hover:border-emerald-200 transition-all">
+              {/* Forklift Graphic */}
+              <svg 
+                viewBox="0 0 68 68" 
+                className="!w-14 !h-14 shrink-0" 
+                style={{ width: '56px', height: '56px', minWidth: '56px', minHeight: '56px' }}
+                fill="none" 
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                {/* Mast & Fork */}
+                <rect x="50" y="10" width="4" height="42" fill="#37474F" rx="1" />
+                <rect x="55" y="10" width="3" height="42" fill="#78909C" rx="1" />
+                <polygon points="48,46 66,46 66,50 48,50" fill="#263238" />
+                
+                {/* Forklift Body */}
+                <rect x="14" y="30" width="36" height="20" rx="4" fill="#FFB300" />
+                <rect x="14" y="32" width="36" height="4" fill="#FFA000" />
+                
+                {/* Operator Cabin / Cage */}
+                <polygon points="22,12 42,12 40,30 20,30" fill="#FF8F00" />
+                <polygon points="25,15 39,15 37,28 23,28" fill="#ECEFF1" />
+                <rect x="18" y="12" width="4" height="18" fill="#263238" />
+                <rect x="39" y="12" width="4" height="18" fill="#263238" />
+                <rect x="16" y="10" width="28" height="4" fill="#263238" rx="1.5" />
+                
+                {/* Steering */}
+                <rect x="26" y="22" width="5" height="7" rx="1" fill="#37474F" />
+                
+                {/* Wheels */}
+                <circle cx="22" cy="52" r="9" fill="#212121" />
+                <circle cx="22" cy="52" r="5" fill="#757575" />
+                <circle cx="22" cy="52" r="2" fill="#E0E0E0" />
+                
+                <circle cx="44" cy="52" r="9" fill="#212121" />
+                <circle cx="44" cy="52" r="5" fill="#757575" />
+                <circle cx="44" cy="52" r="2" fill="#E0E0E0" />
+                
+                {/* Base Shadow */}
+                <ellipse cx="34" cy="62" rx="28" ry="4" fill="#000000" fillOpacity="0.12" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <div className="text-base font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">
+                Machine
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                Register machine / asset
+              </div>
             </div>
           </button>
         </div>
