@@ -98,7 +98,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
         {/* Scrollable Workspace */}
         <main className="flex-1 p-2.5 sm:p-4 overflow-y-auto bg-slate-50">
-          <div className="max-w-[1600px] mx-auto w-full">
+          <div className="w-full">
             {children}
           </div>
         </main>

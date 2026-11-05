@@ -614,10 +614,10 @@ export function AssetsManagement() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-64px)] bg-gray-50 -m-4 sm:-m-6 md:-m-8 p-4 sm:p-6 md:p-8">
+    <div className="w-full h-[calc(100vh-76px)] flex flex-col">
       {/* Tree Container */}
-      <div className="w-full max-w-5xl mx-auto bg-white border border-gray-200 rounded-2xl shadow-sm flex flex-col h-full overflow-hidden">
-        <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white shrink-0">
+      <div className="w-full bg-white border border-gray-200 rounded-xl shadow-xs flex flex-col h-full overflow-hidden">
+        <div className="p-4 sm:p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white shrink-0">
           <div>
             <h2 className="text-lg font-bold text-gray-900">All Assets</h2>
             <p className="text-xs text-gray-500 mt-0.5">
