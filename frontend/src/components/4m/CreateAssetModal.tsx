@@ -39,18 +39,13 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({ isOpen, onCl
     navigate('/machine-management/new', { state: { returnUrl: '/assets' } });
   };
 
-  const handleSelectTools = () => {
-    onClose();
-    navigate('/spares', { state: { returnUrl: '/assets' } });
-  };
-
   return (
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-[2px] p-4 animate-in fade-in duration-150"
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-lg shadow-2xl border border-gray-300 w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-150"
+        className="bg-white rounded-lg shadow-2xl border border-gray-300 w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-150"
         onClick={e => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -71,154 +66,161 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({ isOpen, onCl
           </button>
         </div>
 
-        {/* Modal Cards Grid */}
-        <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Card 1: Locations or Facilities */}
+        {/* Modal Cards Grid: Facility, Machine, Sub Facility */}
+        <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {/* Card 1: Facility */}
           <button
             type="button"
             onClick={handleSelectFacility}
-            className="group flex items-center gap-4 p-4 bg-white border border-gray-200/90 rounded-md shadow-xs hover:shadow-md hover:border-emerald-500 hover:bg-emerald-50/20 transition-all text-left cursor-pointer"
+            className="group flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-lg shadow-xs hover:shadow-md hover:border-emerald-500 hover:bg-emerald-50/20 transition-all text-left cursor-pointer"
           >
-            <div className="w-16 h-16 shrink-0 flex items-center justify-center p-1 group-hover:scale-105 transition-transform">
+            <div className="w-20 h-20 shrink-0 flex items-center justify-center p-1 bg-slate-50 border border-slate-100 rounded-lg group-hover:bg-emerald-50/60 group-hover:border-emerald-200 transition-all">
               {/* Isometric Factory Graphic */}
-              <svg viewBox="0 0 72 72" className="w-full h-full drop-shadow-sm" fill="none">
+              <svg width="68" height="68" viewBox="0 0 68 68" fill="none" xmlns="http://www.w3.org/2000/svg">
                 {/* Smokestacks */}
-                <rect x="22" y="10" width="4" height="14" fill="#d9534f" rx="1" />
-                <rect x="30" y="14" width="4" height="10" fill="#d9534f" rx="1" />
-                <rect x="38" y="8" width="4" height="16" fill="#d9534f" rx="1" />
-                {/* Main Building Left Face */}
-                <polygon points="12,38 38,24 38,58 12,50" fill="#c0392b" />
-                {/* Main Building Right Face */}
-                <polygon points="38,24 62,36 62,54 38,58" fill="#e74c3c" />
+                <rect x="22" y="6" width="5" height="18" fill="#D32F2F" rx="1.5" />
+                <rect x="23" y="6" width="3" height="4" fill="#B71C1C" />
+                <rect x="32" y="10" width="5" height="14" fill="#D32F2F" rx="1.5" />
+                <rect x="33" y="10" width="3" height="4" fill="#B71C1C" />
+                <rect x="42" y="4" width="5" height="20" fill="#D32F2F" rx="1.5" />
+                <rect x="43" y="4" width="3" height="4" fill="#B71C1C" />
+                
+                {/* Left Face */}
+                <polygon points="6,34 34,18 34,58 6,48" fill="#C62828" />
+                {/* Right Face */}
+                <polygon points="34,18 62,32 62,54 34,58" fill="#E53935" />
+                
                 {/* Sawtooth Roof Left */}
-                <polygon points="16,33 26,27 26,30 16,36" fill="#962d22" />
-                <polygon points="26,27 36,21 36,26 26,30" fill="#962d22" />
-                {/* Roof Top */}
-                <polygon points="12,38 38,24 62,36 36,50" fill="#7f8c8d" opacity="0.3" />
-                {/* Windows on side */}
-                <polygon points="42,38 48,41 48,46 42,43" fill="#ecf0f1" />
-                <polygon points="52,43 58,46 58,51 52,48" fill="#ecf0f1" />
-                <polygon points="18,42 24,39 24,44 18,47" fill="#f1c40f" opacity="0.8" />
-                <polygon points="28,37 34,34 34,39 28,42" fill="#f1c40f" opacity="0.8" />
+                <polygon points="10,30 22,23 22,28 10,35" fill="#8E0000" />
+                <polygon points="22,23 34,16 34,22 22,28" fill="#8E0000" />
+                
+                {/* Roof Flat Top Highlight */}
+                <polygon points="6,34 34,18 62,32 34,46" fill="#FFFFFF" fillOpacity="0.25" />
+                
+                {/* Windows Grid */}
+                <rect x="38" y="34" width="8" height="6" rx="1" fill="#FFF9C4" />
+                <rect x="50" y="39" width="8" height="6" rx="1" fill="#FFF9C4" />
+                <rect x="38" y="44" width="8" height="6" rx="1" fill="#FFF9C4" />
+                <rect x="50" y="48" width="8" height="4" rx="1" fill="#FFF9C4" />
+                
+                {/* Left Face Windows */}
+                <polygon points="12,38 20,34 20,40 12,44" fill="#FFE082" />
+                <polygon points="24,32 30,29 30,35 24,38" fill="#FFE082" />
+                <polygon points="12,45 20,41 20,47 12,50" fill="#FFE082" />
+                
+                {/* Base Ground Shadow */}
+                <ellipse cx="34" cy="60" rx="30" ry="5" fill="#000000" fillOpacity="0.12" />
               </svg>
             </div>
             <div className="min-w-0">
-              <div className="font-bold text-gray-800 text-[14px] leading-snug group-hover:text-emerald-700 transition-colors">
+              <div className="text-base font-bold text-gray-900 group-hover:text-emerald-700 transition-colors leading-tight">
                 Locations<br />
-                <span className="font-semibold text-gray-600 group-hover:text-emerald-600">or Facilities</span>
+                <span className="text-sm font-semibold text-gray-600 group-hover:text-emerald-600">or Facilities</span>
               </div>
               <div className="text-[11px] text-gray-400 mt-1">Create top-level facility</div>
             </div>
           </button>
 
-          {/* Card 2: Equipment or Machines */}
+          {/* Card 2: Machine (Equipment or Machines) */}
           <button
             type="button"
             onClick={handleSelectMachine}
-            className="group flex items-center gap-4 p-4 bg-white border border-gray-200/90 rounded-md shadow-xs hover:shadow-md hover:border-emerald-500 hover:bg-emerald-50/20 transition-all text-left cursor-pointer"
+            className="group flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-lg shadow-xs hover:shadow-md hover:border-emerald-500 hover:bg-emerald-50/20 transition-all text-left cursor-pointer"
           >
-            <div className="w-16 h-16 shrink-0 flex items-center justify-center p-1 group-hover:scale-105 transition-transform">
+            <div className="w-20 h-20 shrink-0 flex items-center justify-center p-1 bg-slate-50 border border-slate-100 rounded-lg group-hover:bg-emerald-50/60 group-hover:border-emerald-200 transition-all">
               {/* Forklift Graphic */}
-              <svg viewBox="0 0 72 72" className="w-full h-full drop-shadow-sm" fill="none">
-                {/* Mast and Fork */}
-                <rect x="54" y="16" width="3" height="34" fill="#34495e" />
-                <rect x="58" y="16" width="3" height="34" fill="#7f8c8d" />
-                <polygon points="52,46 68,46 68,49 52,49" fill="#2c3e50" />
+              <svg width="68" height="68" viewBox="0 0 68 68" fill="none" xmlns="http://www.w3.org/2000/svg">
+                {/* Mast & Fork */}
+                <rect x="50" y="10" width="4" height="42" fill="#37474F" rx="1" />
+                <rect x="55" y="10" width="3" height="42" fill="#78909C" rx="1" />
+                <polygon points="48,46 66,46 66,50 48,50" fill="#263238" />
+                
                 {/* Forklift Body */}
-                <rect x="18" y="32" width="34" height="18" rx="3" fill="#f39c12" />
-                {/* Cabin Roof & Pillars */}
-                <polygon points="26,18 44,18 42,32 24,32" fill="#e67e22" />
-                <polygon points="28,20 42,20 40,30 26,30" fill="#ecf0f1" />
-                <rect x="23" y="18" width="3" height="15" fill="#34495e" />
-                <rect x="43" y="18" width="3" height="15" fill="#34495e" />
-                <rect x="21" y="16" width="27" height="3" fill="#34495e" rx="1" />
+                <rect x="14" y="30" width="36" height="20" rx="4" fill="#FFB300" />
+                <rect x="14" y="32" width="36" height="4" fill="#FFA000" />
+                
+                {/* Operator Cabin / Cage */}
+                <polygon points="22,12 42,12 40,30 20,30" fill="#FF8F00" />
+                <polygon points="25,15 39,15 37,28 23,28" fill="#ECEFF1" />
+                <rect x="18" y="12" width="4" height="18" fill="#263238" />
+                <rect x="39" y="12" width="4" height="18" fill="#263238" />
+                <rect x="16" y="10" width="28" height="4" fill="#263238" rx="1.5" />
+                
+                {/* Steering */}
+                <rect x="26" y="22" width="5" height="7" rx="1" fill="#37474F" />
+                
                 {/* Wheels */}
-                <circle cx="26" cy="52" r="7" fill="#2c3e50" />
-                <circle cx="26" cy="52" r="3.5" fill="#95a5a6" />
-                <circle cx="48" cy="52" r="7" fill="#2c3e50" />
-                <circle cx="48" cy="52" r="3.5" fill="#95a5a6" />
+                <circle cx="22" cy="52" r="9" fill="#212121" />
+                <circle cx="22" cy="52" r="5" fill="#757575" />
+                <circle cx="22" cy="52" r="2" fill="#E0E0E0" />
+                
+                <circle cx="44" cy="52" r="9" fill="#212121" />
+                <circle cx="44" cy="52" r="5" fill="#757575" />
+                <circle cx="44" cy="52" r="2" fill="#E0E0E0" />
+                
+                {/* Base Shadow */}
+                <ellipse cx="34" cy="62" rx="28" ry="4" fill="#000000" fillOpacity="0.12" />
               </svg>
             </div>
             <div className="min-w-0">
-              <div className="font-bold text-gray-800 text-[14px] leading-snug group-hover:text-emerald-700 transition-colors">
+              <div className="text-base font-bold text-gray-900 group-hover:text-emerald-700 transition-colors leading-tight">
                 Equipment<br />
-                <span className="font-semibold text-gray-600 group-hover:text-emerald-600">or Machines</span>
+                <span className="text-sm font-semibold text-gray-600 group-hover:text-emerald-600">or Machines</span>
               </div>
               <div className="text-[11px] text-gray-400 mt-1">Register machine / asset</div>
             </div>
           </button>
 
-          {/* Card 3: Subfacilities */}
+          {/* Card 3: Sub Facility */}
           <button
             type="button"
             onClick={handleSelectSubfacility}
-            className="group flex items-center gap-4 p-4 bg-white border border-gray-200/90 rounded-md shadow-xs hover:shadow-md hover:border-emerald-500 hover:bg-emerald-50/20 transition-all text-left cursor-pointer"
+            className="group flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-lg shadow-xs hover:shadow-md hover:border-emerald-500 hover:bg-emerald-50/20 transition-all text-left cursor-pointer"
           >
-            <div className="w-16 h-16 shrink-0 flex items-center justify-center p-1 group-hover:scale-105 transition-transform">
+            <div className="w-20 h-20 shrink-0 flex items-center justify-center p-1 bg-slate-50 border border-slate-100 rounded-lg group-hover:bg-emerald-50/60 group-hover:border-emerald-200 transition-all">
               {/* Subfacility Building Graphic */}
-              <svg viewBox="0 0 72 72" className="w-full h-full drop-shadow-sm" fill="none">
+              <svg width="68" height="68" viewBox="0 0 68 68" fill="none" xmlns="http://www.w3.org/2000/svg">
+                {/* Secondary Wing */}
+                <rect x="44" y="24" width="16" height="34" rx="2" fill="#0288D1" />
+                <polygon points="44,24 60,18 60,24" fill="#01579B" />
+                <rect x="48" y="28" width="8" height="4" rx="1" fill="#E1F5FE" />
+                <rect x="48" y="36" width="8" height="4" rx="1" fill="#E1F5FE" />
+                <rect x="48" y="44" width="8" height="4" rx="1" fill="#E1F5FE" />
+                
                 {/* Main Building Body */}
-                <rect x="18" y="20" width="36" height="38" rx="2" fill="#3498db" />
-                <polygon points="18,20 36,10 54,20" fill="#2980b9" />
-                {/* Floors / Windows Grid */}
-                <rect x="23" y="24" width="6" height="6" rx="1" fill="#ecf0f1" />
-                <rect x="33" y="24" width="6" height="6" rx="1" fill="#ecf0f1" />
-                <rect x="43" y="24" width="6" height="6" rx="1" fill="#ecf0f1" />
-                <rect x="23" y="34" width="6" height="6" rx="1" fill="#ecf0f1" />
-                <rect x="33" y="34" width="6" height="6" rx="1" fill="#f1c40f" />
-                <rect x="43" y="34" width="6" height="6" rx="1" fill="#ecf0f1" />
-                <rect x="23" y="44" width="6" height="6" rx="1" fill="#ecf0f1" />
-                {/* Entrance Door */}
-                <rect x="33" y="46" width="6" height="12" rx="1" fill="#1b4f72" />
-                <rect x="43" y="44" width="6" height="6" rx="1" fill="#ecf0f1" />
-                {/* Connected side wing */}
-                <rect x="52" y="32" width="10" height="26" fill="#1f618d" rx="1" />
-                <rect x="55" y="36" width="4" height="4" fill="#ecf0f1" />
-                <rect x="55" y="44" width="4" height="4" fill="#ecf0f1" />
+                <rect x="12" y="14" width="34" height="44" rx="3" fill="#03A9F4" />
+                <polygon points="12,14 29,4 46,14" fill="#0288D1" />
+                <rect x="12" y="14" width="34" height="3" fill="#B3E5FC" />
+                
+                {/* Windows 3x4 Grid */}
+                <rect x="17" y="20" width="6" height="6" rx="1" fill="#FFFFFF" />
+                <rect x="26" y="20" width="6" height="6" rx="1" fill="#FFFFFF" />
+                <rect x="35" y="20" width="6" height="6" rx="1" fill="#FFFFFF" />
+                
+                <rect x="17" y="29" width="6" height="6" rx="1" fill="#FFF59D" />
+                <rect x="26" y="29" width="6" height="6" rx="1" fill="#FFFFFF" />
+                <rect x="35" y="29" width="6" height="6" rx="1" fill="#FFFFFF" />
+                
+                <rect x="17" y="38" width="6" height="6" rx="1" fill="#FFFFFF" />
+                <rect x="26" y="38" width="6" height="6" rx="1" fill="#FFF59D" />
+                <rect x="35" y="38" width="6" height="6" rx="1" fill="#FFFFFF" />
+                
+                {/* Entrance Canopy & Door */}
+                <rect x="23" y="47" width="12" height="11" rx="1" fill="#01579B" />
+                <rect x="26" y="49" width="3" height="9" fill="#81D4FA" />
+                <rect x="30" y="49" width="3" height="9" fill="#81D4FA" />
+                <rect x="21" y="46" width="16" height="2" fill="#E0E0E0" rx="0.5" />
+                
+                {/* Base Shadow */}
+                <ellipse cx="34" cy="60" rx="28" ry="4" fill="#000000" fillOpacity="0.12" />
               </svg>
             </div>
             <div className="min-w-0">
-              <div className="font-bold text-gray-800 text-[14px] leading-snug group-hover:text-emerald-700 transition-colors">
+              <div className="text-base font-bold text-gray-900 group-hover:text-emerald-700 transition-colors leading-tight">
                 Subfacilities<br />
-                <span className="font-semibold text-gray-600 group-hover:text-emerald-600">(Child Locations)</span>
+                <span className="text-sm font-semibold text-gray-600 group-hover:text-emerald-600">(Child Locations)</span>
               </div>
-              <div className="text-[11px] text-gray-400 mt-1">Under an existing facility</div>
-            </div>
-          </button>
-
-          {/* Card 4: Tools or Spares */}
-          <button
-            type="button"
-            onClick={handleSelectTools}
-            className="group flex items-center gap-4 p-4 bg-white border border-gray-200/90 rounded-md shadow-xs hover:shadow-md hover:border-emerald-500 hover:bg-emerald-50/20 transition-all text-left cursor-pointer"
-          >
-            <div className="w-16 h-16 shrink-0 flex items-center justify-center p-1 group-hover:scale-105 transition-transform">
-              {/* Tools Wrench & Screwdriver Graphic */}
-              <svg viewBox="0 0 72 72" className="w-full h-full drop-shadow-sm" fill="none">
-                {/* Crossed Screwdriver */}
-                <g transform="rotate(45 36 36)">
-                  <rect x="34" y="12" width="4" height="24" fill="#95a5a6" />
-                  <polygon points="32,12 40,12 36,8" fill="#7f8c8d" />
-                  <rect x="32" y="36" width="8" height="22" rx="2" fill="#e74c3c" />
-                  <rect x="34" y="38" width="4" height="18" fill="#c0392b" />
-                </g>
-                {/* Crossed Wrench */}
-                <g transform="rotate(-45 36 36)">
-                  <rect x="34" y="16" width="5" height="36" fill="#bdc3c7" rx="1" />
-                  {/* Wrench Top Open Head */}
-                  <path d="M30 18 C30 12 43 12 43 18 L39 22 L34 22 Z" fill="#7f8c8d" />
-                  {/* Wrench Bottom Ring */}
-                  <circle cx="36.5" cy="53" r="5" fill="#7f8c8d" />
-                  <circle cx="36.5" cy="53" r="2.5" fill="white" />
-                </g>
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <div className="font-bold text-gray-800 text-[14px] leading-snug group-hover:text-emerald-700 transition-colors">
-                Tools<br />
-                <span className="font-semibold text-gray-600 group-hover:text-emerald-600">& Spares</span>
-              </div>
-              <div className="text-[11px] text-gray-400 mt-1">Tools and spare parts</div>
+              <div className="text-[11px] text-gray-400 mt-1">Under an existing parent facility</div>
             </div>
           </button>
         </div>
@@ -228,13 +230,12 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({ isOpen, onCl
           <button
             type="button"
             onClick={() => {
-              // Informative help tip
               window.open('https://help.fiixsoftware.com', '_blank');
             }}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 hover:text-gray-900 border border-gray-200 bg-white rounded-md shadow-2xs hover:bg-gray-50 transition-colors cursor-pointer"
           >
             <HelpCircle className="w-3.5 h-3.5 text-gray-400" />
-            <span>Show Help</span>
+            <span>Show Video Help</span>
           </button>
 
           <button
