@@ -1353,16 +1353,6 @@ export function EditMachine() {
             <ArrowLeft size={18} className="stroke-[2.5]" />
           </button>
           <div>
-            {returnUrl && (
-              <div className="text-xs text-slate-500 mb-0.5 flex items-center gap-1">
-                <span 
-                  onClick={handleBack} 
-                  className="text-blue-600 font-medium hover:underline cursor-pointer"
-                >
-                  {(location.state as any)?.spareName ? `← Back to ${(location.state as any).spareName} (${returnTab || 'Spare'})` : '← Back'}
-                </span>
-              </div>
-            )}
             <div className="flex items-center gap-2">
               <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                 {formData.name || 'Edit Machine'}
