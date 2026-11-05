@@ -27,6 +27,7 @@ import { AddUser } from './pages/4m/users/AddUser';
 import { FacilityManagement } from './pages/4m/facilities/FacilityManagement';
 import { AddFacility } from './pages/4m/master/AddFacility';
 import { AssetsManagement } from './pages/4m/machines/AssetsManagement';
+import { CreateAssetPage } from './pages/4m/machines/CreateAssetPage';
 import { MachineManagement } from './pages/4m/machines/MachineManagement';
 import { AddMachine } from './pages/4m/machines/AddMachine';
 import { EditMachine } from './pages/4m/machines/EditMachine';
@@ -608,6 +609,16 @@ function App() {
               <ProtectedRoute moduleId="assets" action="view">
                 <DashboardLayout>
                   <AssetsManagement />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/assets/new"
+            element={
+              <ProtectedRoute moduleId="assets" action="create">
+                <DashboardLayout>
+                  <CreateAssetPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }

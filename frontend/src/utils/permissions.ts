@@ -109,17 +109,27 @@ export const hasPermission = (user: any, moduleId: string, action: ActionType): 
   }
 
   // Special check for 'assets' module:
-  if (moduleId === 'assets' && action === 'view') {
-    if (perm && perm.canView) return true;
-    const hasAnyAssetAccess = user.permissions.some(
-      (p: any) => p.moduleId?.startsWith('asset_') && p.canView
-    );
-    if (hasAnyAssetAccess) return true;
-    const mmPerm = user.permissions.find((p: any) => p.moduleId === 'machine_management');
-    if (mmPerm && mmPerm.canView) return true;
-    const fmPerm = user.permissions.find((p: any) => p.moduleId === 'facility_management');
-    if (fmPerm && fmPerm.canView) return true;
-    return false;
+  if (moduleId === 'assets') {
+    if (action === 'view') {
+      if (perm && perm.canView) return true;
+      const hasAnyAssetAccess = user.permissions.some(
+        (p: any) => p.moduleId?.startsWith('asset_') && p.canView
+      );
+      if (hasAnyAssetAccess) return true;
+      const mmPerm = user.permissions.find((p: any) => p.moduleId === 'machine_management');
+      if (mmPerm && mmPerm.canView) return true;
+      const fmPerm = user.permissions.find((p: any) => p.moduleId === 'facility_management');
+      if (fmPerm && fmPerm.canView) return true;
+      return false;
+    }
+    if (action === 'create') {
+      if (perm && perm.canCreate) return true;
+      const mmPerm = user.permissions.find((p: any) => p.moduleId === 'machine_management');
+      if (mmPerm && mmPerm.canCreate) return true;
+      const fmPerm = user.permissions.find((p: any) => p.moduleId === 'facility_management');
+      if (fmPerm && fmPerm.canCreate) return true;
+      return false;
+    }
   }
 
   // Allow viewing machine or facility details if user has asset view permissions or assets access

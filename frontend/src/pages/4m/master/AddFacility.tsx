@@ -15,13 +15,20 @@ import { fetchLocationByPincode } from '../../../utils/pincodeService';
 
 const tabs = ['General', 'Document'];
 
-export function AddFacility() {
+interface AddFacilityProps {
+  initialIsSubfacility?: boolean;
+  typeSelector?: React.ReactNode;
+}
+
+export function AddFacility({ initialIsSubfacility, typeSelector }: AddFacilityProps = {}) {
   const navigate = useNavigate();
   const { id } = useParams();
   const location = useLocation();
   const returnUrl = (location.state as any)?.returnUrl;
   const isViewMode = window.location.pathname.includes('/view/');
-  const isSubfacility = !!(location.state as any)?.isSubfacility || window.location.pathname.includes('/subfacility');
+  const isSubfacility = initialIsSubfacility !== undefined
+    ? initialIsSubfacility
+    : (!!(location.state as any)?.isSubfacility || window.location.pathname.includes('/subfacility'));
 
   const { user } = useSelector((state: RootState) => state.auth);
   const permittedTabs = tabs.filter(tab => hasFacilityTabPermission(user, tab, 'view'));
@@ -495,6 +502,13 @@ export function AddFacility() {
             </p>
           </div>
         </div>
+
+        {/* Type Selector (when rendered on unified Add Asset page) */}
+        {typeSelector && (
+          <div className="flex items-center justify-center my-2 sm:my-0">
+            {typeSelector}
+          </div>
+        )}
 
         {/* Top Actions */}
         <div className="flex items-center gap-2.5">
