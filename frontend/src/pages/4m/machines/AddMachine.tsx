@@ -22,11 +22,7 @@ import toast from 'react-hot-toast';
 
 const tabs = ['General', 'Specification', 'Spares', 'AMC', 'Purchase', 'Documents', 'IOT', 'WO', 'Checklist', 'Schedule Maintenance'];
 
-interface AddMachineProps {
-  typeSelector?: React.ReactNode;
-}
-
-export function AddMachine({ typeSelector }: AddMachineProps = {}) {
+export function AddMachine() {
   const navigate = useNavigate();
   const location = useLocation();
   const locationState = location.state as any;
@@ -1187,13 +1183,6 @@ export function AddMachine({ typeSelector }: AddMachineProps = {}) {
           </button>
           <h1 className="text-xl font-bold text-slate-900">Add Machine</h1>
         </div>
-
-        {/* Type Selector (when rendered on unified Add Asset page) */}
-        {typeSelector && (
-          <div className="flex items-center justify-center my-2 sm:my-0">
-            {typeSelector}
-          </div>
-        )}
 
         {/* Top Actions */}
         <div className="flex items-center gap-2.5">

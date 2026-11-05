@@ -662,7 +662,7 @@ export function AssetsManagement() {
                     role="menuitem"
                     onClick={() => {
                       setIsAddNewOpen(false);
-                      navigate('/assets/new?type=facility', { state: { returnUrl: '/assets' } });
+                      navigate('/master/facility/new', { state: { returnUrl: '/assets', isSubfacility: false } });
                     }}
                     className="w-full px-3.5 py-2.5 text-left text-xs font-semibold text-gray-700 hover:text-emerald-800 hover:bg-emerald-50/80 flex items-center gap-3 transition-colors cursor-pointer group"
                   >
@@ -683,7 +683,7 @@ export function AssetsManagement() {
                     role="menuitem"
                     onClick={() => {
                       setIsAddNewOpen(false);
-                      navigate('/assets/new?type=subfacility', { state: { returnUrl: '/assets', isSubfacility: true } });
+                      navigate('/master/subfacility/new', { state: { returnUrl: '/assets', isSubfacility: true } });
                     }}
                     className="w-full px-3.5 py-2.5 text-left text-xs font-semibold text-gray-700 hover:text-teal-800 hover:bg-teal-50/80 flex items-center gap-3 transition-colors cursor-pointer group"
                   >
@@ -706,7 +706,7 @@ export function AssetsManagement() {
                     role="menuitem"
                     onClick={() => {
                       setIsAddNewOpen(false);
-                      navigate('/assets/new?type=machine', { state: { returnUrl: '/assets' } });
+                      navigate('/machine-management/new', { state: { returnUrl: '/assets' } });
                     }}
                     className="w-full px-3.5 py-2.5 text-left text-xs font-semibold text-gray-700 hover:text-orange-800 hover:bg-orange-50/80 flex items-center gap-3 transition-colors cursor-pointer group"
                   >
