@@ -648,7 +648,7 @@ export function AssetsManagement() {
                 aria-haspopup="true"
               >
                 <Plus className="w-4 h-4 stroke-[2.5]" />
-                <span>+ Add New</span>
+                <span>Add New</span>
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isAddNewOpen ? 'rotate-180' : ''}`} />
               </button>
 
