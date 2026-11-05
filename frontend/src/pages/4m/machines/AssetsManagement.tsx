@@ -7,7 +7,7 @@ import { MoveAssetModal } from '../../../components/4m/MoveAssetModal';
 import { GiveAccessModal } from '../../../components/4m/GiveAccessModal';
 import { api } from '../../../lib/api';
 import { Skeleton } from '../../../components/shared/ui/Skeleton';
-import { X, ArrowRight, FolderInput, Loader2, AlertCircle, Building2, Building, Cpu, CheckCircle2, Shield } from 'lucide-react';
+import { X, ArrowRight, FolderInput, Loader2, AlertCircle, Building2, Building, Cpu, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../store';
@@ -555,28 +555,6 @@ export function AssetsManagement() {
               </button>
             )}
           </div>
-        </div>
-
-        {/* Quick Access Info Banner */}
-        <div className="px-5 py-2.5 bg-gradient-to-r from-emerald-50/80 via-teal-50/50 to-slate-50 border-b border-gray-100 flex items-center justify-between text-xs text-emerald-900">
-          <div className="flex items-center gap-2">
-            <span className="p-1 bg-emerald-100 text-emerald-700 rounded-md shrink-0">
-              <Shield size={13} />
-            </span>
-            <span>
-              <strong>Give Access:</strong> Select any facility or machine node below to assign authorized users.
-            </span>
-          </div>
-          {selectedNode && (
-            <button
-              type="button"
-              onClick={() => handleOpenGiveAccess(selectedNode)}
-              className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-100 hover:bg-emerald-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shrink-0 ml-2"
-            >
-              <Shield size={12} />
-              <span>Give Access to {selectedNode.name}</span>
-            </button>
-          )}
         </div>
 
         <div className="flex-1 overflow-hidden p-2">
