@@ -12,7 +12,7 @@ import toast from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../store';
 import { navigateToDeviceDashboard } from '../../../utils/deviceRoutes';
-import { hasAssetPermission } from '../../../utils/permissions';
+import { hasPermission, hasAssetPermission } from '../../../utils/permissions';
 
 export function AssetsManagement() {
   const navigate = useNavigate();
@@ -467,6 +467,70 @@ export function AssetsManagement() {
     }
   };
 
+  const handleNodeClick = (node: TreeNodeData) => {
+    setSelectedNode(node);
+
+    // 1. Machine / Device: Open full Machine Details (/machine-management/edit/:id)
+    if (node.type === 'device' || (node.type as string) === 'machine' || node.id.startsWith('mac-') || node.originalData?.machineCode) {
+      const machineId = node.originalData?.id || node.id.replace(/^(mac|dev)-/, '');
+      if (machineId) {
+        navigate(`/machine-management/edit/${machineId}`, {
+          state: { returnUrl: '/assets' }
+        });
+        return;
+      }
+    }
+
+    // 2. Facility / Sub-Facility: Open Facility Details
+    if (node.type === 'facility' || node.id.startsWith('fac-')) {
+      const facilityId = node.originalData?.id || node.id.replace(/^fac-/, '');
+      if (facilityId) {
+        const canEditFacility = hasPermission(user, 'facility_management', 'edit');
+        navigate(canEditFacility ? `/master/facility/edit/${facilityId}` : `/master/facility/view/${facilityId}`, {
+          state: { returnUrl: '/assets' }
+        });
+        return;
+      }
+    }
+
+    // 3. Main Facility: Open Main Facility Details
+    if (node.type === 'mainFacility' || node.id.startsWith('mf-')) {
+      const mainFacilityId = node.originalData?.id || node.id.replace(/^mf-/, '');
+      if (mainFacilityId) {
+        const canEditMainFacility = hasPermission(user, 'master_main_facility', 'edit') || hasPermission(user, 'facility_management', 'edit');
+        navigate(canEditMainFacility ? `/master/main-facility/edit/${mainFacilityId}` : `/master/main-facility/view/${mainFacilityId}`, {
+          state: { returnUrl: '/assets' }
+        });
+        return;
+      }
+    }
+
+    // 4. Building: Open Building Details
+    if (node.type === 'building' || node.id.startsWith('bldg-')) {
+      const buildingId = node.originalData?.id || node.id.replace(/^bldg-/, '');
+      if (buildingId) {
+        navigate(`/building/${buildingId}`, {
+          state: { returnUrl: '/assets' }
+        });
+        return;
+      }
+    }
+
+    // 5. Society: Open Society Overview
+    if (node.type === 'society' || node.id.startsWith('soc-')) {
+      const societyId = node.originalData?.id || node.id.replace(/^soc-/, '');
+      if (societyId) {
+        navigate(`/society/${societyId}`, {
+          state: { returnUrl: '/assets' }
+        });
+        return;
+      }
+    }
+
+    // Fallback: Open modal
+    setDetailsNode(node);
+  };
+
   return (
     <div className="flex h-[calc(100vh-64px)] bg-gray-50 -m-4 sm:-m-6 md:-m-8 p-4 sm:p-6 md:p-8">
       {/* Tree Container */}
@@ -528,21 +592,8 @@ export function AssetsManagement() {
           ) : (
             <AssetTree 
               data={treeData} 
-              onSelect={(node) => {
-                setSelectedNode(node);
-                if (['OPERATOR', 'VIEWER'].includes(user?.role as string) && node.type !== 'device') {
-                  return;
-                }
-                navigate('.', { replace: true, state: { ...location.state, detailId: node.id } });
-                setDetailsNode(node);
-              }} 
-              onDoubleClick={(node) => {
-                if (['OPERATOR', 'VIEWER'].includes(user?.role as string) && node.type !== 'device') {
-                  return;
-                }
-                navigate('.', { replace: true, state: { ...location.state, detailId: node.id } });
-                setDetailsNode(node);
-              }}
+              onSelect={handleNodeClick} 
+              onDoubleClick={handleNodeClick}
               selectedId={selectedNode?.id || null} 
               defaultExpanded={true}
               expandedIds={expandedIds}

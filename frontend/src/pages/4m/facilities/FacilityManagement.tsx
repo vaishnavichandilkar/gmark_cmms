@@ -733,6 +733,47 @@ export function FacilityManagement() {
     window.print();
   };
 
+  const handleTreeSelect = (node: TreeNodeData) => {
+    setSelectedNode(node);
+
+    // 1. Machine: Open Machine Details (/machine-management/edit/:id)
+    if (node.type === 'device' || (node.type as string) === 'machine' || node.id.startsWith('mac-') || node.originalData?.machineCode) {
+      const machineId = node.originalData?.id || node.id.replace(/^(mac|dev)-/, '');
+      if (machineId) {
+        navigate(`/machine-management/edit/${machineId}`, {
+          state: { returnUrl: location.pathname }
+        });
+        return;
+      }
+    }
+
+    // 2. Facility / Sub-facility: Open Facility Details (/master/facility/edit/:id)
+    if (node.type === 'facility' || node.id.startsWith('fac-')) {
+      const facilityId = node.originalData?.id || node.id.replace(/^fac-/, '');
+      if (facilityId) {
+        const canEditFacility = hasPermission(user, 'facility_management', 'edit');
+        navigate(canEditFacility ? `/master/facility/edit/${facilityId}` : `/master/facility/view/${facilityId}`, {
+          state: { returnUrl: location.pathname }
+        });
+        return;
+      }
+    }
+
+    // 3. Main Facility: Open Main Facility Details (/master/main-facility/edit/:id)
+    if (node.type === 'mainFacility' || node.id.startsWith('mf-')) {
+      const mainFacilityId = node.originalData?.id || node.id.replace(/^mf-/, '');
+      if (mainFacilityId) {
+        const canEditMainFacility = hasPermission(user, 'master_main_facility', 'edit') || hasPermission(user, 'facility_management', 'edit');
+        navigate(canEditMainFacility ? `/master/main-facility/edit/${mainFacilityId}` : `/master/main-facility/view/${mainFacilityId}`, {
+          state: { returnUrl: location.pathname }
+        });
+        return;
+      }
+    }
+
+    setDetailsNode(node);
+  };
+
   return (
     <div className="sm:p-2 md:p-4 bg-white min-h-screen">
       {/* Header Section (Tree View Only - Table View uses unified TableActions) */}
@@ -842,13 +883,8 @@ export function FacilityManagement() {
             ) : (
               <AssetTree 
                 data={treeData} 
-                onSelect={(node) => {
-                  setSelectedNode(node);
-                  setDetailsNode(node);
-                }} 
-                onDoubleClick={(node) => {
-                  setDetailsNode(node);
-                }}
+                onSelect={handleTreeSelect} 
+                onDoubleClick={handleTreeSelect}
                 selectedId={selectedNode?.id || null} 
                 defaultExpanded={true}
                 enableDragAndDrop={true}

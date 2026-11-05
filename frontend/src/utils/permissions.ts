@@ -122,6 +122,15 @@ export const hasPermission = (user: any, moduleId: string, action: ActionType): 
     return false;
   }
 
+  // Allow viewing machine or facility details if user has asset view permissions or assets access
+  if ((moduleId === 'machine_management' || moduleId === 'facility_management' || moduleId === 'master_main_facility') && action === 'view') {
+    if (perm && perm.canView) return true;
+    const hasAnyAssetAccess = user.permissions.some(
+      (p: any) => (p.moduleId?.startsWith('asset_') || p.moduleId === 'assets') && p.canView
+    );
+    if (hasAnyAssetAccess) return true;
+  }
+
   // If the user has no permissions entry for this module, deny access
   if (!perm) return false;
 
