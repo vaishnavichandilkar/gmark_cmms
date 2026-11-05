@@ -21,6 +21,7 @@ export function AddFacility() {
   const location = useLocation();
   const returnUrl = (location.state as any)?.returnUrl;
   const isViewMode = window.location.pathname.includes('/view/');
+  const isSubfacility = !!(location.state as any)?.isSubfacility || window.location.pathname.includes('/subfacility');
 
   const { user } = useSelector((state: RootState) => state.auth);
   const permittedTabs = tabs.filter(tab => hasFacilityTabPermission(user, tab, 'view'));
@@ -50,7 +51,7 @@ export function AddFacility() {
     description: '',
 
     // Step 2 Fields
-    isLocationPart: 'false',
+    isLocationPart: isSubfacility ? 'true' : 'false',
     parentFacilityId: '',
     address: '',
     country: 'India',
@@ -219,13 +220,31 @@ export function AddFacility() {
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
-    if (!formData.mainFacilityId) newErrors.mainFacilityId = 'Facility is required';
-    if (!formData.facilityCode) newErrors.facilityCode = 'Facility Code is required';
-    if (!formData.facilityName) newErrors.facilityName = 'Facility Name is required';
-    if (!formData.category) newErrors.category = 'Category is required';
-    if (!formData.description?.trim()) newErrors.description = 'Facility Description is required';
 
-    if (formData.isLocationPart === 'false') {
+    // Auto-derive mainFacilityId for subfacilities if parentFacilityId is chosen
+    let cleanMainFacilityId = (formData.mainFacilityId || '').toString().replace(/^(fac-|f-|mf-)/, '');
+    const cleanParentId = (formData.parentFacilityId || '').toString().replace(/^(fac-|f-|mf-)/, '');
+    if (!cleanMainFacilityId && cleanParentId) {
+      const parentFac = facilities.find(f => f.id.toString() === cleanParentId);
+      if (parentFac?.mainFacilityId) {
+        cleanMainFacilityId = parentFac.mainFacilityId.toString();
+        formData.mainFacilityId = cleanMainFacilityId;
+      } else {
+        const parentMf = mainFacilities.find(m => m.id.toString() === cleanParentId);
+        if (parentMf) {
+          cleanMainFacilityId = parentMf.id.toString();
+          formData.mainFacilityId = cleanMainFacilityId;
+        }
+      }
+    }
+
+    if (!cleanMainFacilityId && !isSubfacility) newErrors.mainFacilityId = 'Facility is required';
+    if (!formData.facilityCode) newErrors.facilityCode = `${isSubfacility ? 'Subfacility' : 'Facility'} Code is required`;
+    if (!formData.facilityName) newErrors.facilityName = `${isSubfacility ? 'Subfacility' : 'Facility'} Name is required`;
+    if (!formData.category) newErrors.category = 'Category is required';
+    if (!formData.description?.trim()) newErrors.description = `${isSubfacility ? 'Subfacility' : 'Facility'} Description is required`;
+
+    if (formData.isLocationPart === 'false' && !isSubfacility) {
       if (!formData.address) newErrors.address = 'Address is required';
       if (!formData.country) newErrors.country = 'Country is required';
       if (!formData.state) newErrors.state = 'State is required';
@@ -272,6 +291,7 @@ export function AddFacility() {
         if (type === 'mainFacility') {
           const parentFacility = mainFacilities.find(f => f.id.toString() === cleanId);
           if (parentFacility) {
+            newData.mainFacilityId = parentFacility.id.toString();
             newData.address = parentFacility.address || '';
             newData.country = parentFacility.country || 'India';
             newData.state = parentFacility.state || '';
@@ -285,6 +305,9 @@ export function AddFacility() {
         } else if (type === 'facility') {
           const parentFacility = facilities.find(f => f.id.toString() === cleanId);
           if (parentFacility) {
+            if (parentFacility.mainFacilityId) {
+              newData.mainFacilityId = parentFacility.mainFacilityId.toString();
+            }
             newData.address = parentFacility.address || '';
             newData.country = parentFacility.country || 'India';
             newData.state = parentFacility.state || '';
@@ -338,12 +361,24 @@ export function AddFacility() {
       setLoading(true);
       setGlobalError('');
 
-      const cleanMainFacilityId = (formData.mainFacilityId || '').toString().replace(/^(fac-|f-|mf-)/, '');
+      let cleanMainFacilityId = (formData.mainFacilityId || '').toString().replace(/^(fac-|f-|mf-)/, '');
       const rawParentFacilityId = (formData.parentFacilityId || '').toString().replace(/^(fac-|f-|mf-)/, '');
       const parsedParentId = parseInt(rawParentFacilityId, 10);
       const isParentAFacility = (formData as any).parentFacilityIdType === 'facility' || 
         formData.parentFacilityId.startsWith('fac-') || 
         formData.parentFacilityId.startsWith('f-');
+
+      if (!cleanMainFacilityId && !isNaN(parsedParentId)) {
+        const parentFac = facilities.find(f => f.id === parsedParentId);
+        if (parentFac?.mainFacilityId) {
+          cleanMainFacilityId = parentFac.mainFacilityId.toString();
+        } else {
+          const parentMf = mainFacilities.find(m => m.id === parsedParentId);
+          if (parentMf) {
+            cleanMainFacilityId = parentMf.id.toString();
+          }
+        }
+      }
 
       const submitData = {
         mainFacilityId: parseInt(cleanMainFacilityId, 10),
@@ -369,12 +404,12 @@ export function AddFacility() {
 
       if (id && !isViewMode) {
         await api.put(`/facilities/${id}`, submitData);
-        toast.success('Facility saved successfully!');
-        navigate(returnUrl || '/facility-management');
+        toast.success(`${isSubfacility ? 'Subfacility' : 'Facility'} saved successfully!`);
+        navigate(returnUrl || '/facility-management', { state: { newFacilityId: Number(id), isSubfacility } });
       } else if (!id) {
         const createRes = await api.post('/facilities', submitData);
         const newFacility = createRes.data;
-        toast.success('Facility saved successfully!');
+        toast.success(`${isSubfacility ? 'Subfacility' : 'Facility'} saved successfully!`);
         setCreatedFacilityForAccess({
           id: newFacility?.id,
           name: newFacility?.facilityName || formData.facilityName,
@@ -425,6 +460,21 @@ export function AddFacility() {
 
   return (
     <div className="w-full sm:p-6 pb-10 min-h-screen">
+      {/* Breadcrumb if navigated from All Assets */}
+      {returnUrl === '/assets' && (
+        <div className="text-xs text-gray-500 font-medium mb-3 flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={handleBack}
+            className="hover:text-emerald-700 hover:underline cursor-pointer font-semibold text-gray-600"
+          >
+            All Assets
+          </button>
+          <span className="text-gray-400">/</span>
+          <span className="text-emerald-700 font-bold">{isSubfacility ? 'Add Subfacility' : 'Add Facility'}</span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div className="flex items-center gap-2">
@@ -436,9 +486,14 @@ export function AddFacility() {
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-xl font-bold text-gray-900 tracking-tight">
-            {isViewMode ? 'View Facility' : id ? 'Edit Facility' : 'Add Facility'}
-          </h1>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 tracking-tight">
+              {isViewMode ? (isSubfacility ? 'View Subfacility' : 'View Facility') : id ? (isSubfacility ? 'Edit Subfacility' : 'Edit Facility') : (isSubfacility ? 'Add Subfacility' : 'Add Facility')}
+            </h1>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {isSubfacility ? 'Create a new subfacility under an existing parent facility' : 'Create a new facility location and profile'}
+            </p>
+          </div>
         </div>
 
         {/* Top Actions */}
@@ -549,7 +604,7 @@ export function AddFacility() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 mb-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Facility Code <span className="text-red-500">*</span>
+                  {isSubfacility ? 'Subfacility Code' : 'Facility Code'} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -567,7 +622,7 @@ export function AddFacility() {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Facility Name <span className="text-red-500">*</span>
+                  {isSubfacility ? 'Subfacility Name' : 'Facility Name'} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -575,7 +630,7 @@ export function AddFacility() {
                   value={formData.facilityName}
                   onChange={handleChange}
                   disabled={isViewMode}
-                  placeholder="e.g. Kolhapur"
+                  placeholder={isSubfacility ? 'e.g. Floor 1' : 'e.g. Kolhapur'}
                   className={`w-full h-9 px-3 text-xs border rounded-lg focus:ring-2 focus:ring-green-500/20 focus:border-green-600 outline-none transition-all ${
                     errors.facilityName ? 'border-red-500' : 'border-gray-300'
                   } ${isViewMode ? 'bg-gray-50 text-gray-500' : 'bg-white text-gray-900'}`}
@@ -585,7 +640,7 @@ export function AddFacility() {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Facility Category <span className="text-red-500">*</span>
+                  {isSubfacility ? 'Subfacility Category' : 'Facility Category'} <span className="text-red-500">*</span>
                 </label>
                 <input
                   list="facility-category-options"
@@ -608,14 +663,14 @@ export function AddFacility() {
 
             <div className="mb-5">
               <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Facility Description <span className="text-red-500">*</span>
+                {isSubfacility ? 'Subfacility Description' : 'Facility Description'} <span className="text-red-500">*</span>
               </label>
               <textarea
                 name="description"
                 value={formData.description}
                 onChange={handleChange}
                 disabled={isViewMode}
-                placeholder="Enter facility description..."
+                placeholder={isSubfacility ? 'Enter subfacility details and location notes...' : 'Enter facility description...'}
                 rows={3}
                 className={`w-full px-3 py-2 text-xs border rounded-lg focus:ring-2 focus:ring-green-500/20 focus:border-green-600 outline-none transition-all resize-none ${
                   errors.description ? 'border-red-500' : 'border-gray-300'
@@ -639,11 +694,11 @@ export function AddFacility() {
                     value="true"
                     checked={formData.isLocationPart === 'true'}
                     onChange={handleChange}
-                    disabled={isViewMode}
+                    disabled={isViewMode || isSubfacility}
                     className="w-3.5 h-3.5 text-green-600 border-gray-300 focus:ring-green-500 cursor-pointer"
                   />
                   <label htmlFor="partOfLocation" className="text-xs font-semibold text-gray-800 whitespace-nowrap cursor-pointer">
-                    This facility is a part of
+                    {isSubfacility ? 'Parent Facility *' : 'This facility is a part of'}
                   </label>
                 </div>
                 <div className="flex-1 max-w-md">
@@ -651,8 +706,8 @@ export function AddFacility() {
                     name="parentFacilityId"
                     value={formData.parentFacilityId}
                     onChange={handleChange}
-                    disabled={isViewMode || formData.isLocationPart === 'false'}
-                    placeholder="Select"
+                    disabled={isViewMode || (!isSubfacility && formData.isLocationPart === 'false')}
+                    placeholder={isSubfacility ? 'Select Parent Facility *' : 'Select'}
                     className={errors.parentFacilityId ? 'border-red-500' : ''}
                     showSocietiesAndBuildings={false}
                     filterByMainFacilityId={formData.mainFacilityId}
@@ -668,21 +723,23 @@ export function AddFacility() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2.5">
-                <input
-                  type="radio"
-                  id="notPartOfLocation"
-                  name="isLocationPart"
-                  value="false"
-                  checked={formData.isLocationPart === 'false'}
-                  onChange={handleChange}
-                  disabled={isViewMode}
-                  className="w-3.5 h-3.5 text-green-600 border-gray-300 focus:ring-green-500 cursor-pointer"
-                />
-                <label htmlFor="notPartOfLocation" className="text-xs font-semibold text-gray-800 cursor-pointer">
-                  This facility is not a part of another location, is located at
-                </label>
-              </div>
+              {!isSubfacility && (
+                <div className="flex items-center gap-2.5">
+                  <input
+                    type="radio"
+                    id="notPartOfLocation"
+                    name="isLocationPart"
+                    value="false"
+                    checked={formData.isLocationPart === 'false'}
+                    onChange={handleChange}
+                    disabled={isViewMode}
+                    className="w-3.5 h-3.5 text-green-600 border-gray-300 focus:ring-green-500 cursor-pointer"
+                  />
+                  <label htmlFor="notPartOfLocation" className="text-xs font-semibold text-gray-800 cursor-pointer">
+                    This facility is not a part of another location, is located at
+                  </label>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 mb-5">
@@ -979,7 +1036,7 @@ export function AddFacility() {
             }}
             onSkip={() => {
               setIsAccessPromptOpen(false);
-              navigate(returnUrl || '/facility-management');
+              navigate(returnUrl || '/facility-management', { state: { newFacilityId: createdFacilityForAccess.id, isSubfacility } });
             }}
           />
 
@@ -987,7 +1044,7 @@ export function AddFacility() {
             isOpen={isGiveAccessModalOpen}
             onClose={() => {
               setIsGiveAccessModalOpen(false);
-              navigate(returnUrl || '/facility-management');
+              navigate(returnUrl || '/facility-management', { state: { newFacilityId: createdFacilityForAccess.id, isSubfacility } });
             }}
             targetType="facility"
             targetId={createdFacilityForAccess.id}
@@ -995,7 +1052,7 @@ export function AddFacility() {
             targetCode={createdFacilityForAccess.code}
             targetCategory={createdFacilityForAccess.category}
             onSuccess={() => {
-              navigate(returnUrl || '/facility-management');
+              navigate(returnUrl || '/facility-management', { state: { newFacilityId: createdFacilityForAccess.id, isSubfacility } });
             }}
           />
         </>

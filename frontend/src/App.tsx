@@ -440,6 +440,16 @@ function App() {
             }
           />
           <Route
+            path="/master/subfacility/new"
+            element={
+              <ProtectedRoute moduleId="facility_management" action="create">
+                <DashboardLayout>
+                  <AddFacility />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/master/facility/edit/:id"
             element={
               <ProtectedRoute moduleId="facility_management" action="edit">

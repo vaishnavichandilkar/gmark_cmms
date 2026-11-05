@@ -1155,6 +1155,21 @@ export function AddMachine() {
 
   return (
     <div className="sm:px-4 pb-6 pt-0 w-full flex flex-col bg-white">
+      {/* Breadcrumb if navigated from All Assets */}
+      {locationState?.returnUrl === '/assets' && (
+        <div className="text-xs text-slate-500 font-medium mb-3 flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={handleGoBack}
+            className="hover:text-emerald-700 hover:underline cursor-pointer font-semibold text-slate-600"
+          >
+            All Assets
+          </button>
+          <span className="text-slate-400">/</span>
+          <span className="text-emerald-700 font-bold">Add Machine</span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div className="flex items-center">

@@ -421,6 +421,7 @@ const TreeNode = ({
   return (
     <div>
       <div 
+        id={`asset-node-${node.id}`}
         className={`group relative flex items-center gap-1.5 py-1 px-2.5 transition-all ${
           isBeingDragged 
             ? 'opacity-40 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg scale-[0.99]' 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AssetTree, canDragNode, getAllExpandableIds } from '../../../components/4m/AssetTree';
 import type { TreeNodeData } from '../../../components/4m/AssetTree';
@@ -7,7 +7,7 @@ import { MoveAssetModal } from '../../../components/4m/MoveAssetModal';
 import { GiveAccessModal } from '../../../components/4m/GiveAccessModal';
 import { api } from '../../../lib/api';
 import { Skeleton } from '../../../components/shared/ui/Skeleton';
-import { X, ArrowRight, FolderInput, Loader2, AlertCircle, Building2, Building, Cpu, CheckCircle2 } from 'lucide-react';
+import { X, ArrowRight, FolderInput, Loader2, AlertCircle, Building2, Building, Cpu, CheckCircle2, Plus, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../store';
@@ -33,6 +33,9 @@ export function AssetsManagement() {
     category?: string;
     type: 'facility' | 'machine' | 'mainFacility';
   } | null>(null);
+
+  const [isAddNewOpen, setIsAddNewOpen] = useState(false);
+  const addNewDropdownRef = useRef<HTMLDivElement>(null);
 
   const handleExpandAll = () => {
     setExpandedIds(new Set(getAllExpandableIds(treeData)));
@@ -84,9 +87,88 @@ export function AssetsManagement() {
 
   const canManageAssets = ['SUPER_ADMIN', 'SOCIETY_ADMIN', 'BUILDING_ADMIN'].includes(user?.role as string);
 
+  // Close + Add New dropdown on outside click or Escape key
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (addNewDropdownRef.current && !addNewDropdownRef.current.contains(event.target as Node)) {
+        setIsAddNewOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsAddNewOpen(false);
+      }
+    };
+
+    if (isAddNewOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isAddNewOpen]);
+
   useEffect(() => {
     fetchData();
-  }, [user]);
+  }, [user, location.key]);
+
+  // Handle auto-expand and selection when returning from creating Facility, Subfacility, or Machine
+  useEffect(() => {
+    const state = location.state as any;
+    const targetMachineId = state?.newMachineId;
+    const targetFacilityId = state?.newFacilityId;
+
+    if ((targetMachineId || targetFacilityId) && treeData.length > 0) {
+      const findPath = (
+        nodes: TreeNodeData[], 
+        predicate: (n: TreeNodeData) => boolean, 
+        path: string[] = []
+      ): { node: TreeNodeData; ancestors: string[] } | null => {
+        for (const n of nodes) {
+          if (predicate(n)) return { node: n, ancestors: path };
+          if (n.children && n.children.length > 0) {
+            const res = findPath(n.children, predicate, [...path, n.id]);
+            if (res) return res;
+          }
+        }
+        return null;
+      };
+
+      const predicate = (n: TreeNodeData) => {
+        if (targetMachineId) {
+          return (
+            n.id === `mac-${targetMachineId}` || 
+            n.id === `dev-${targetMachineId}` || 
+            n.originalData?.id?.toString() === targetMachineId.toString()
+          );
+        }
+        if (targetFacilityId) {
+          return (
+            n.id === `fac-${targetFacilityId}` || 
+            n.id === `mf-${targetFacilityId}` || 
+            n.originalData?.id?.toString() === targetFacilityId.toString()
+          );
+        }
+        return false;
+      };
+
+      const result = findPath(treeData, predicate);
+      if (result) {
+        setExpandedIds(prev => new Set([...prev, ...result.ancestors, result.node.id]));
+        setSelectedNode(result.node);
+        setTimeout(() => {
+          const el = document.getElementById(`asset-node-${result.node.id}`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }, 150);
+      }
+      // Clean up state without refreshing
+      navigate('.', { replace: true, state: {} });
+    }
+  }, [treeData, location.state]);
 
   // Restore detailsNode from location state if we navigate back
   useEffect(() => {
@@ -554,6 +636,94 @@ export function AssetsManagement() {
                 <span>Move Selected Asset</span>
               </button>
             )}
+
+            {/* + Add New Dropdown */}
+            <div className="relative" ref={addNewDropdownRef}>
+              <button
+                type="button"
+                id="btn-add-new-asset"
+                onClick={() => setIsAddNewOpen(prev => !prev)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#00a651] hover:bg-[#009040] active:scale-95 text-white text-xs font-semibold rounded-lg shadow-xs transition-all cursor-pointer whitespace-nowrap"
+                aria-expanded={isAddNewOpen}
+                aria-haspopup="true"
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span>+ Add New</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isAddNewOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isAddNewOpen && (
+                <div 
+                  className="absolute right-0 mt-1.5 w-60 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150"
+                  role="menu"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsAddNewOpen(false);
+                      navigate('/master/facility/new', { state: { returnUrl: '/assets', isSubfacility: false } });
+                    }}
+                    className="w-full px-3.5 py-2.5 text-left text-xs font-semibold text-gray-700 hover:text-emerald-800 hover:bg-emerald-50/80 flex items-center gap-3 transition-colors cursor-pointer group"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <Building2 className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-gray-900 flex items-center gap-1.5">
+                        <span>🏢</span>
+                        <span>Add Facility</span>
+                      </div>
+                      <div className="text-[10px] text-gray-500 font-normal truncate">Create top-level facility</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsAddNewOpen(false);
+                      navigate('/master/subfacility/new', { state: { returnUrl: '/assets', isSubfacility: true } });
+                    }}
+                    className="w-full px-3.5 py-2.5 text-left text-xs font-semibold text-gray-700 hover:text-teal-800 hover:bg-teal-50/80 flex items-center gap-3 transition-colors cursor-pointer group"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <Building className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-gray-900 flex items-center gap-1.5">
+                        <span>🏬</span>
+                        <span>Add Subfacility</span>
+                      </div>
+                      <div className="text-[10px] text-gray-500 font-normal truncate">Add under parent facility</div>
+                    </div>
+                  </button>
+
+                  <div className="my-1 border-t border-gray-100" />
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsAddNewOpen(false);
+                      navigate('/machine-management/new', { state: { returnUrl: '/assets' } });
+                    }}
+                    className="w-full px-3.5 py-2.5 text-left text-xs font-semibold text-gray-700 hover:text-orange-800 hover:bg-orange-50/80 flex items-center gap-3 transition-colors cursor-pointer group"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-orange-100 text-orange-700 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <Cpu className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-gray-900 flex items-center gap-1.5">
+                        <span>⚙️</span>
+                        <span>Add Machine</span>
+                      </div>
+                      <div className="text-[10px] text-gray-500 font-normal truncate">Register machine / asset</div>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
