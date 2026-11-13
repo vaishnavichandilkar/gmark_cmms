@@ -31,6 +31,7 @@ import { api } from '../../lib/api';
 import Logo4M from '../../assets/4MLogo.png';
 import { validateGSTIN } from '../../utils/gstValidation';
 import { fetchLocationByPincode } from '../../utils/pincodeService';
+import toast from 'react-hot-toast';
 
 export function SignUpPage() {
   const navigate = useNavigate();
@@ -74,9 +75,29 @@ export function SignUpPage() {
 
   // Post Sign-Up Package Selection Modal States
   const [showPackageModal, setShowPackageModal] = useState(false);
-  const [selectedPackage, setSelectedPackage] = useState<'CMMS' | 'IOT' | 'BOTH'>('BOTH');
+  const [isCmmsSelected, setIsCmmsSelected] = useState(true);
+  const [isIotSelected, setIsIotSelected] = useState(true);
   const [registeredAuthData, setRegisteredAuthData] = useState<any>(null);
   const [launching, setLaunching] = useState(false);
+
+  const selectedPackage: 'CMMS' | 'IOT' | 'BOTH' =
+    isCmmsSelected && isIotSelected ? 'BOTH' : isCmmsSelected ? 'CMMS' : 'IOT';
+
+  const handleToggleCmms = () => {
+    if (isCmmsSelected && !isIotSelected) {
+      toast.error('At least one product must remain selected');
+      return;
+    }
+    setIsCmmsSelected(prev => !prev);
+  };
+
+  const handleToggleIot = () => {
+    if (isIotSelected && !isCmmsSelected) {
+      toast.error('At least one product must remain selected');
+      return;
+    }
+    setIsIotSelected(prev => !prev);
+  };
 
   const [gstChecking, setGstChecking] = useState(false);
   const [gstAvailability, setGstAvailability] = useState<{ checkedGst: string; available: boolean; message: string } | null>(null);
@@ -380,6 +401,10 @@ export function SignUpPage() {
   };
 
   const handleConfirmPackage = async () => {
+    if (!isCmmsSelected && !isIotSelected) {
+      toast.error('Please select at least one product');
+      return;
+    }
     setLaunching(true);
     try {
       if (registeredAuthData?.accessToken) {
@@ -1087,19 +1112,19 @@ export function SignUpPage() {
                 </div>
                 <h2 className="text-2xl font-black text-gray-900 tracking-tight">Select Your Products</h2>
                 <p className="text-xs text-gray-500 font-medium mt-1">
-                  Choose the modules to enable for your workspace
+                  Choose one or both modules to enable for your workspace (multi-select)
                 </p>
               </div>
 
-              {/* Package Options Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              {/* Package Options Grid: Multi-select CMMS & IoT SCADA */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                 
                 {/* Option 1: CMMS */}
                 <div 
-                  onClick={() => setSelectedPackage('CMMS')}
+                  onClick={handleToggleCmms}
                   className={`p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
-                    selectedPackage === 'CMMS'
-                      ? 'border-[#00a651] bg-emerald-50/60 shadow-md ring-2 ring-emerald-500/20'
+                    isCmmsSelected
+                      ? 'border-[#00a651] bg-emerald-50/70 shadow-md ring-2 ring-emerald-500/20'
                       : 'border-gray-200 bg-white hover:border-gray-300'
                   }`}
                 >
@@ -1107,28 +1132,33 @@ export function SignUpPage() {
                     <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
                       <Wrench className="w-5 h-5" />
                     </div>
-                    <input 
-                      type="radio" 
-                      name="postPackage" 
-                      checked={selectedPackage === 'CMMS'} 
-                      onChange={() => setSelectedPackage('CMMS')}
-                      className="w-4 h-4 text-[#00a651] focus:ring-[#00a651]"
-                    />
+                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+                      isCmmsSelected
+                        ? 'bg-[#00a651] border-[#00a651] text-white shadow-2xs'
+                        : 'border-gray-300 bg-white'
+                    }`}>
+                      {isCmmsSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                    </div>
                   </div>
                   <div>
-                    <h3 className="text-base font-extrabold text-gray-900 mb-1">CMMS</h3>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <h3 className="text-base font-extrabold text-gray-900">CMMS</h3>
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                        Maintenance
+                      </span>
+                    </div>
                     <p className="text-xs text-gray-500 font-medium">
-                      Maintenance & Work Orders
+                      Work orders, maintenance schedules, asset hierarchy, and preventive maintenance
                     </p>
                   </div>
                 </div>
 
                 {/* Option 2: IoT SCADA */}
                 <div 
-                  onClick={() => setSelectedPackage('IOT')}
+                  onClick={handleToggleIot}
                   className={`p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
-                    selectedPackage === 'IOT'
-                      ? 'border-[#00a651] bg-emerald-50/60 shadow-md ring-2 ring-emerald-500/20'
+                    isIotSelected
+                      ? 'border-[#00a651] bg-emerald-50/70 shadow-md ring-2 ring-emerald-500/20'
                       : 'border-gray-200 bg-white hover:border-gray-300'
                   }`}
                 >
@@ -1136,50 +1166,23 @@ export function SignUpPage() {
                     <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
                       <Cpu className="w-5 h-5" />
                     </div>
-                    <input 
-                      type="radio" 
-                      name="postPackage" 
-                      checked={selectedPackage === 'IOT'} 
-                      onChange={() => setSelectedPackage('IOT')}
-                      className="w-4 h-4 text-[#00a651] focus:ring-[#00a651]"
-                    />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-extrabold text-gray-900 mb-1">IoT SCADA</h3>
-                    <p className="text-xs text-gray-500 font-medium">
-                      SCADA & Live Monitoring
-                    </p>
-                  </div>
-                </div>
-
-                {/* Option 3: Both (CMMS + IoT) */}
-                <div 
-                  onClick={() => setSelectedPackage('BOTH')}
-                  className={`p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between relative ${
-                    selectedPackage === 'BOTH'
-                      ? 'border-[#00a651] bg-emerald-50/70 shadow-md ring-2 ring-emerald-500/20'
-                      : 'border-gray-200 bg-white hover:border-gray-300'
-                  }`}
-                >
-                  <span className="absolute -top-3 right-4 px-2.5 py-0.5 bg-[#00a651] text-white text-[10px] font-extrabold rounded-full uppercase tracking-wider shadow-sm">
-                    Recommended
-                  </span>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
-                      <Boxes className="w-5 h-5" />
+                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+                      isIotSelected
+                        ? 'bg-[#00a651] border-[#00a651] text-white shadow-2xs'
+                        : 'border-gray-300 bg-white'
+                    }`}>
+                      {isIotSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                     </div>
-                    <input 
-                      type="radio" 
-                      name="postPackage" 
-                      checked={selectedPackage === 'BOTH'} 
-                      onChange={() => setSelectedPackage('BOTH')}
-                      className="w-4 h-4 text-[#00a651] focus:ring-[#00a651]"
-                    />
                   </div>
                   <div>
-                    <h3 className="text-base font-extrabold text-gray-900 mb-1">Both (CMMS + IoT)</h3>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <h3 className="text-base font-extrabold text-gray-900">IoT SCADA</h3>
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                        SCADA
+                      </span>
+                    </div>
                     <p className="text-xs text-gray-500 font-medium">
-                      All Modules Included
+                      Live sensor telemetry, machine health, alert triggers, and real-time SCADA views
                     </p>
                   </div>
                 </div>
