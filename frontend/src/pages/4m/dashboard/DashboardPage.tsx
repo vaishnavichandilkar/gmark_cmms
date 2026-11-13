@@ -71,21 +71,72 @@ export function DashboardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, buildingIds } = useSelector((state: RootState) => state.auth);
 
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const userPermissions = (user as any)?.permissions || [];
+  const hasGranularDashboardPerms = userPermissions.some(
+    (p: any) => p.moduleId === 'dashboard_iot' || p.moduleId === 'dashboard_cmms'
+  );
+
+  const canAccessIot = useMemo(() => {
+    // If user's active package is strictly CMMS, IoT is not accessible
+    if (user?.moduleAccess === 'CMMS') return false;
+    if (isSuperAdmin) return true;
+    if (hasGranularDashboardPerms) {
+      const p = userPermissions.find((p: any) => p.moduleId === 'dashboard_iot');
+      return p ? Boolean(p.canView) : false;
+    }
+    const dashPerm = userPermissions.find((p: any) => p.moduleId === 'dashboard');
+    if (dashPerm) return Boolean(dashPerm.canView);
+    return user?.moduleAccess === 'BOTH' || user?.moduleAccess === 'IOT' || !user?.moduleAccess;
+  }, [user, isSuperAdmin, hasGranularDashboardPerms, userPermissions]);
+
+  const canAccessCmms = useMemo(() => {
+    // If user's active package is strictly IOT, CMMS is not accessible
+    if (user?.moduleAccess === 'IOT') return false;
+    if (isSuperAdmin) return true;
+    if (hasGranularDashboardPerms) {
+      const p = userPermissions.find((p: any) => p.moduleId === 'dashboard_cmms');
+      return p ? Boolean(p.canView) : false;
+    }
+    const dashPerm = userPermissions.find((p: any) => p.moduleId === 'dashboard');
+    if (dashPerm) return Boolean(dashPerm.canView);
+    return user?.moduleAccess === 'BOTH' || user?.moduleAccess === 'CMMS' || !user?.moduleAccess;
+  }, [user, isSuperAdmin, hasGranularDashboardPerms, userPermissions]);
+
   const tabParam = searchParams.get('tab');
 
-  // Tab State: 'iot' | 'cmms'
+  // Tab State: 'cmms' | 'iot' (CMMS is primary default)
   const [activeTab, setActiveTab] = useState<'iot' | 'cmms'>(() => {
-    if (tabParam === 'cmms') return 'cmms';
+    if (user?.moduleAccess === 'IOT') return 'iot';
     if (tabParam === 'iot') return 'iot';
+    if (tabParam === 'cmms') return 'cmms';
     if (user?.moduleAccess === 'CMMS') return 'cmms';
-    return 'iot';
+    return 'cmms';
   });
 
   useEffect(() => {
-    if (tabParam === 'cmms' || tabParam === 'iot') {
-      setActiveTab(tabParam);
+    if (user?.moduleAccess === 'CMMS') {
+      if (activeTab !== 'cmms') setActiveTab('cmms');
+      return;
     }
-  }, [tabParam]);
+    if (user?.moduleAccess === 'IOT') {
+      if (activeTab !== 'iot') setActiveTab('iot');
+      return;
+    }
+    if (tabParam === 'cmms' && canAccessCmms) {
+      setActiveTab('cmms');
+    } else if (tabParam === 'iot' && canAccessIot) {
+      setActiveTab('iot');
+    }
+  }, [tabParam, canAccessIot, canAccessCmms, user?.moduleAccess]);
+
+  useEffect(() => {
+    if (!canAccessIot && canAccessCmms && activeTab !== 'cmms') {
+      setActiveTab('cmms');
+    } else if (canAccessIot && !canAccessCmms && activeTab !== 'iot') {
+      setActiveTab('iot');
+    }
+  }, [canAccessIot, canAccessCmms, activeTab]);
 
   const handleTabSwitch = (tab: 'iot' | 'cmms') => {
     setActiveTab(tab);
@@ -95,15 +146,6 @@ export function DashboardPage() {
       return next;
     }, { replace: true });
   };
-
-
-  useEffect(() => {
-    if (user?.moduleAccess === 'CMMS') {
-      setActiveTab('cmms');
-    } else if (user?.moduleAccess === 'IOT') {
-      setActiveTab('iot');
-    }
-  }, [user?.moduleAccess]);
 
   // Scope Data States
   const [mainFacilities, setMainFacilities] = useState<any[]>([]);
@@ -250,8 +292,8 @@ export function DashboardPage() {
       }
 
       if (mainFacilities.length > 0) {
-        if (activeTab === 'cmms' || user?.role === 'SUPER_ADMIN') {
-          // In CMMS or Super Admin mode, show all plant assets by default without artificial restriction
+        if (activeTab === 'cmms' || isSuperAdmin || user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') {
+          // In CMMS or Admin mode, show all plant assets by default without artificial restriction
           setSelectedMainFacilityIds([]);
           setSelectedFacilityIds([]);
           setSelectedMachineIds([]);
@@ -728,23 +770,8 @@ export function DashboardPage() {
       <div className="relative z-50 flex flex-col md:flex-row items-center justify-center gap-4 mb-6 pt-2">
         
         {/* Centered Standalone Tab Switcher Buttons */}
-        <div className="flex items-center gap-3">
-          {(user?.moduleAccess === 'BOTH' || user?.moduleAccess === 'IOT' || !user?.moduleAccess) && (
-            <button
-              type="button"
-              onClick={() => handleTabSwitch('iot')}
-              className={`flex items-center gap-2.5 px-6 py-2.5 rounded-xl font-extrabold text-sm transition-all duration-200 cursor-pointer ${
-                activeTab === 'iot'
-                  ? 'bg-emerald-600 text-white shadow-xs border border-emerald-600'
-                  : 'bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 border border-slate-200 shadow-xs'
-              }`}
-            >
-              <Cpu className={`w-4 h-4 ${activeTab === 'iot' ? 'text-white' : 'text-slate-500'}`} />
-              <span>IoT Dashboard</span>
-            </button>
-          )}
-
-          {(user?.moduleAccess === 'BOTH' || user?.moduleAccess === 'CMMS' || !user?.moduleAccess) && (
+        {canAccessIot && canAccessCmms ? (
+          <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => handleTabSwitch('cmms')}
@@ -757,8 +784,36 @@ export function DashboardPage() {
               <Wrench className={`w-4 h-4 ${activeTab === 'cmms' ? 'text-white' : 'text-slate-500'}`} />
               <span>CMMS Dashboard</span>
             </button>
-          )}
-        </div>
+
+            <button
+              type="button"
+              onClick={() => handleTabSwitch('iot')}
+              className={`flex items-center gap-2.5 px-6 py-2.5 rounded-xl font-extrabold text-sm transition-all duration-200 cursor-pointer ${
+                activeTab === 'iot'
+                  ? 'bg-emerald-600 text-white shadow-xs border border-emerald-600'
+                  : 'bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 border border-slate-200 shadow-xs'
+              }`}
+            >
+              <Cpu className={`w-4 h-4 ${activeTab === 'iot' ? 'text-white' : 'text-slate-500'}`} />
+              <span>IoT SCADA</span>
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            {canAccessCmms && (
+              <div className="flex items-center gap-2.5 px-6 py-2.5 rounded-xl font-extrabold text-sm bg-emerald-600 text-white shadow-xs border border-emerald-600">
+                <Wrench className="w-4 h-4 text-white" />
+                <span>CMMS Dashboard</span>
+              </div>
+            )}
+            {canAccessIot && (
+              <div className="flex items-center gap-2.5 px-6 py-2.5 rounded-xl font-extrabold text-sm bg-emerald-600 text-white shadow-xs border border-emerald-600">
+                <Cpu className="w-4 h-4 text-white" />
+                <span>IoT Dashboard</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Live Status Indicator with Friendly Label */}
         <div className="md:absolute md:right-0 flex items-center gap-2 text-xs font-bold text-slate-700 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-xs">
@@ -767,10 +822,21 @@ export function DashboardPage() {
         </div>
       </div>
 
+      {/* Access Denied Banner when neither dashboard is permitted */}
+      {!canAccessIot && !canAccessCmms && (
+        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-slate-200 shadow-xs text-center p-6 my-6">
+          <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 mb-4">
+            <ShieldAlert size={28} />
+          </div>
+          <h3 className="text-base font-bold text-slate-800 mb-1">Dashboard Access Restricted</h3>
+          <p className="text-xs text-slate-500 max-w-md">You do not have permission to view the IoT or CMMS dashboards. Please contact your administrator to grant access in Manage Access.</p>
+        </div>
+      )}
+
       {/* ========================================================================================= */}
       {/* TAB 1: IOT DASHBOARD VIEW */}
       {/* ========================================================================================= */}
-      {activeTab === 'iot' && (
+      {activeTab === 'iot' && canAccessIot && (
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1002,7 +1068,7 @@ export function DashboardPage() {
       {/* ========================================================================================= */}
       {/* TAB 2: ENTERPRISE PRODUCTION-READY CMMS DASHBOARD VIEW */}
       {/* ========================================================================================= */}
-      {activeTab === 'cmms' && (
+      {activeTab === 'cmms' && canAccessCmms && (
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}

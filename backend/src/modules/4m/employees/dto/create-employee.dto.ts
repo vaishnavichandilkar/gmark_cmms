@@ -13,9 +13,9 @@ export class CreateEmployeeDto {
   @IsNotEmpty()
   mobileNumber: string;
 
-  @IsEmail()
-  @IsOptional()
-  officialEmail?: string;
+  @IsEmail({}, { message: 'Please provide a valid official email address' })
+  @IsNotEmpty({ message: 'Official email is required' })
+  officialEmail: string;
 
   @IsEmail()
   @IsOptional()

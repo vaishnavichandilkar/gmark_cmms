@@ -13,6 +13,7 @@ import { SocietiesModule } from './modules/4m/societies/societies.module';
 import { UsersModule } from './modules/4m/users/users.module';
 import { AuthModule } from './modules/core/auth/auth.module';
 import { AuditLogModule } from './modules/core/audit-log/audit-log.module';
+import { ProfileModule } from './modules/core/profile/profile.module';
 import { EmployeesModule } from './modules/4m/employees/employees.module';
 import { MainFacilitiesModule } from './modules/4m/main-facilities/main-facilities.module';
 import { FacilitiesModule } from './modules/4m/facilities/facilities.module';
@@ -51,6 +52,7 @@ import { SuppliersModule } from './modules/4m/suppliers/suppliers.module';
     ParserModule,
     AuthModule,
     AuditLogModule,
+    ProfileModule,
     EmployeesModule,
     MainFacilitiesModule,
     FacilitiesModule,

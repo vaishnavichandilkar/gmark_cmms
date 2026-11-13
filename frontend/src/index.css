@@ -166,12 +166,25 @@ button {
 }
 
 /* 4M Brand Enterprise Form Input Focus States */
-input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):focus,
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([data-custom-select-input]):focus,
 select:focus,
 textarea:focus {
   outline: none;
   border-color: #009a43;
   box-shadow: 0 0 0 2px rgba(0, 154, 67, 0.15);
+}
+
+input[data-custom-select-input],
+input[data-custom-select-input]:focus {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+input[data-custom-select-input]::placeholder {
+  font-size: 12px !important;
+  color: #94a3b8 !important;
 }
 
 /* Labels and Placeholders */

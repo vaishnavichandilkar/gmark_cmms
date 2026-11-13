@@ -20,7 +20,14 @@ export interface ModuleItem {
 }
 
 const availableModules: ModuleItem[] = [
-  { id: 'dashboard', name: 'Dashboard' },
+  { 
+    id: 'dashboard', 
+    name: 'Dashboard',
+    subModules: [
+      { id: 'dashboard_iot', name: 'IoT' },
+      { id: 'dashboard_cmms', name: 'CMMS' },
+    ]
+  },
   { id: 'assets', name: 'All Assets' },
   { id: 'master_employee', name: 'Master - Employee' },
   { id: 'master_main_facility', name: 'Master - Facility' },
@@ -94,7 +101,7 @@ const availableModules: ModuleItem[] = [
 const allModuleIds = availableModules.flatMap(m => [m.id, ...(m.subModules?.map(s => s.id) || [])]);
 
 const isActionAllowed = (moduleId: string, action: string) => {
-  if (moduleId === 'dashboard' && action !== 'view') return false;
+  if ((moduleId === 'dashboard' || moduleId.startsWith('dashboard_')) && action !== 'view') return false;
   if (['manage_access', 'user_management', 'facility_management', 'machine_management', 'assets'].includes(moduleId) && action === 'import') return false;
   if (moduleId.startsWith('asset_') && action === 'import') return false;
   
@@ -153,6 +160,7 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
 
   const [loading, setLoading] = useState(false);
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({
+    dashboard: true,
     facility_management: true,
     machine_management: true,
     spares: true,
@@ -406,6 +414,26 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
             });
           }
 
+          // Inherit dashboard tabs if parent dashboard is configured
+          const dashPerm = merged.find((p: any) => p.moduleId === 'dashboard');
+          if (dashPerm) {
+            ['dashboard_iot', 'dashboard_cmms'].forEach(tabId => {
+              const hasOverride = userOverrides.some((p: any) => p.moduleId === tabId);
+              if (!hasOverride && next[tabId]) {
+                const tabItem = merged.find((p: any) => p.moduleId === tabId);
+                next[tabId] = {
+                  view: tabItem ? !!tabItem.canView : (dashPerm.canView || false),
+                  create: false,
+                  edit: false,
+                  delete: false,
+                  import: false,
+                  export: false,
+                  print: false,
+                };
+              }
+            });
+          }
+
           // Inherit machine tabs if parent machine_management is configured
           const mmPerm = merged.find((p: any) => p.moduleId === 'machine_management');
           if (mmPerm) {
@@ -594,6 +622,24 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
         });
       }
 
+      // If toggling dashboard view, cascade to dashboard_iot and dashboard_cmms
+      if (moduleId === 'dashboard' && action === 'view') {
+        ['dashboard_iot', 'dashboard_cmms'].forEach(subId => {
+          if (!next[subId]) {
+            next[subId] = { view: false, create: false, edit: false, delete: false, import: false, export: false, print: false };
+          }
+          next[subId].view = checked;
+        });
+      }
+
+      // If checking dashboard submodule view, ensure parent dashboard view is checked
+      if (moduleId.startsWith('dashboard_') && checked && action === 'view') {
+        if (!next.dashboard) {
+          next.dashboard = { view: false, create: false, edit: false, delete: false, import: false, export: false, print: false };
+        }
+        next.dashboard.view = true;
+      }
+
       // If an asset view is enabled, ensure parent assets module view is enabled
       if (moduleId.startsWith('asset_') && checked && action === 'view') {
         if (!next.assets) {
@@ -764,10 +810,10 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
 
       updateMod(moduleId);
 
-      // If toggling parent machine_management or facility_management, also cascade to all sub-tabs
-      if (moduleId === 'machine_management' || moduleId === 'facility_management') {
-        const mod = availableModules.find(m => m.id === moduleId);
-        mod?.subModules?.forEach(sub => updateMod(sub.id));
+      // If toggling parent module with subModules, also cascade to all sub-tabs
+      const targetMod = availableModules.find(m => m.id === moduleId);
+      if (targetMod?.subModules) {
+        targetMod.subModules.forEach(sub => updateMod(sub.id));
       }
 
       // If toggling parent assets, cascade to all asset sub-rows
@@ -964,6 +1010,7 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
                 <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-20 shadow-xs">
                   <tr>
                     <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-4 py-3 text-xs font-bold text-gray-700 uppercase tracking-wider">Module</th>
+                    <th className="sticky top-0 z-20 bg-gray-100 border-b border-r border-gray-200 px-3 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-28">Select All</th>
                     <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">View</th>
                     <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Create</th>
                     <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Edit</th>
@@ -971,7 +1018,6 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
                     <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Import</th>
                     <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Export</th>
                     <th className="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 px-2 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-16">Print</th>
-                    <th className="sticky top-0 z-20 bg-gray-100 border-b border-l border-gray-200 px-3 py-3 text-xs font-bold text-gray-700 text-center uppercase tracking-wider w-28">Select All</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -1013,6 +1059,15 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
                           )}
                         </td>
                         
+                        <td className="px-3 py-3 text-center border-r border-gray-200 bg-gray-50/30">
+                          <input 
+                            type="checkbox"
+                            checked={isRowAllSelected(mod.id)}
+                            onChange={(e) => handleSelectAllRow(mod.id, e.target.checked)}
+                            className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                          />
+                        </td>
+
                         {['view', 'create', 'edit', 'delete', 'import', 'export', 'print'].map(action => (
                           <td key={action} className="px-2 py-3 text-center">
                             {isActionAllowed(mod.id, action) ? (
@@ -1027,15 +1082,6 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
                             )}
                           </td>
                         ))}
-
-                        <td className="px-3 py-3 text-center border-l border-gray-200 bg-gray-50/30">
-                          <input 
-                            type="checkbox"
-                            checked={isRowAllSelected(mod.id)}
-                            onChange={(e) => handleSelectAllRow(mod.id, e.target.checked)}
-                            className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
-                          />
-                        </td>
                       </tr>
 
                       {/* Render Sub-module Tab Rows */}
@@ -1046,6 +1092,15 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
                               <span className="text-purple-400 font-mono text-base">↳</span>
                               <span className="text-sm font-semibold text-gray-800">{sub.name}</span>
                             </div>
+                          </td>
+
+                          <td className="px-3 py-2.5 text-center border-r border-gray-200 bg-purple-50/30">
+                            <input 
+                              type="checkbox"
+                              checked={isRowAllSelected(sub.id)}
+                              onChange={(e) => handleSelectAllRow(sub.id, e.target.checked)}
+                              className="w-4.5 h-4.5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                            />
                           </td>
 
                           {['view', 'create', 'edit', 'delete', 'import', 'export', 'print'].map(action => (
@@ -1062,15 +1117,6 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
                               )}
                             </td>
                           ))}
-
-                          <td className="px-3 py-2.5 text-center border-l border-gray-200 bg-purple-50/30">
-                            <input 
-                              type="checkbox"
-                              checked={isRowAllSelected(sub.id)}
-                              onChange={(e) => handleSelectAllRow(sub.id, e.target.checked)}
-                              className="w-4.5 h-4.5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
-                            />
-                          </td>
                         </tr>
                       ))}
 
@@ -1133,6 +1179,15 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
                                   </div>
                                 </td>
 
+                                <td className="px-3 py-2.5 text-center border-r border-gray-200 bg-purple-50/30">
+                                  <input 
+                                    type="checkbox"
+                                    checked={isRowAllSelected(asset.id)}
+                                    onChange={(e) => handleSelectAllRow(asset.id, e.target.checked)}
+                                    className="w-4.5 h-4.5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                                  />
+                                </td>
+
                                 {['view', 'create', 'edit', 'delete', 'import', 'export', 'print'].map(action => (
                                   <td key={action} className="px-2 py-2.5 text-center">
                                     {isActionAllowed(asset.id, action) ? (
@@ -1147,15 +1202,6 @@ export function UserPermissionsModal({ isOpen, onClose, userId, userName }: User
                                     )}
                                   </td>
                                 ))}
-
-                                <td className="px-3 py-2.5 text-center border-l border-gray-200 bg-purple-50/30">
-                                  <input 
-                                    type="checkbox"
-                                    checked={isRowAllSelected(asset.id)}
-                                    onChange={(e) => handleSelectAllRow(asset.id, e.target.checked)}
-                                    className="w-4.5 h-4.5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
-                                  />
-                                </td>
                               </tr>
                             );
                           })

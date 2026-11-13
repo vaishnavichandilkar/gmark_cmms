@@ -86,9 +86,14 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
   }
 
   // --- Configuration ---
-  private readonly brokerUrl = 'mqtt://mqtt.gmarksoftware.com:1883';
-  private readonly username = 'admin';
-  private readonly password = 'admin123';
+  private readonly defaultBrokerUrl = 'mqtt://mqtt.gmarksoftware.com:1883';
+  private readonly fallbackBrokerUrl = 'mqtt://13.204.57.212:1883';
+  private currentBrokerUrl = process.env.MQTT_BROKER_URL || 'mqtt://mqtt.gmarksoftware.com:1883';
+  private readonly username = process.env.MQTT_USERNAME || 'admin';
+  private readonly password = process.env.MQTT_PASSWORD || 'admin123';
+  private hasFallenBack = false;
+  private lastLoggedError = '';
+  private lastLoggedErrorTime = 0;
 
   private readonly topics = [
     'AGC/SE-20260508012',
@@ -136,11 +141,12 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit() {
-    this.logger.log(`Connecting to MQTT broker at ${this.brokerUrl}`);
-    this.client = mqtt.connect(this.brokerUrl, {
-      username: this.username,
-      password: this.password,
-    });
+    if (process.env.MQTT_ENABLED === 'false' || process.env.DISABLE_MQTT === 'true') {
+      this.logger.warn('MQTT client disabled via environment configuration (MQTT_ENABLED=false).');
+      return;
+    }
+
+    this.connectClient();
 
     // Load Register Definitions
     this.prisma.registerDefinition
@@ -156,9 +162,27 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
           `Failed to load register definitions: ${err.message}`,
         );
       });
+  }
+
+  private connectClient() {
+    if (this.client) {
+      try {
+        this.client.removeAllListeners();
+        this.client.end(true);
+      } catch (_) {}
+    }
+
+    this.logger.log(`Connecting to MQTT broker at ${this.currentBrokerUrl}`);
+    this.client = mqtt.connect(this.currentBrokerUrl, {
+      username: this.username,
+      password: this.password,
+      reconnectPeriod: 5000,
+      connectTimeout: 5000,
+    });
 
     this.client.on('connect', () => {
-      this.logger.log('Connected to MQTT broker');
+      this.logger.log(`Successfully connected to MQTT broker at ${this.currentBrokerUrl}`);
+      this.lastLoggedError = '';
 
       this.client.subscribe(this.topics, (err) => {
         if (err) {
@@ -212,14 +236,36 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
       }
     });
 
-    this.client.on('error', (err) => {
-      this.logger.error(`MQTT Client Error: ${err.message}`);
+    this.client.on('error', (err: any) => {
+      const errMsg = err?.message || String(err);
+
+      // If DNS resolution fails (ENOTFOUND) and we haven't tried the fallback IP yet:
+      if (errMsg.includes('ENOTFOUND') && !this.hasFallenBack) {
+        this.hasFallenBack = true;
+        this.logger.warn(
+          `DNS lookup failed for ${this.currentBrokerUrl}. Automatically falling back to direct IP broker: ${this.fallbackBrokerUrl}`,
+        );
+        this.currentBrokerUrl = this.fallbackBrokerUrl;
+        this.connectClient();
+        return;
+      }
+
+      // De-duplicate & throttle repetitive connection error logs to once every 30 seconds
+      const now = Date.now();
+      if (errMsg !== this.lastLoggedError || now - this.lastLoggedErrorTime > 30000) {
+        this.lastLoggedError = errMsg;
+        this.lastLoggedErrorTime = now;
+        this.logger.error(`MQTT Client Error: ${errMsg} (Retrying every 5s...)`);
+      }
     });
   }
 
   onModuleDestroy() {
     if (this.client) {
-      this.client.end();
+      try {
+        this.client.removeAllListeners();
+        this.client.end(true);
+      } catch (_) {}
     }
   }
 

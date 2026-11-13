@@ -416,7 +416,7 @@ export function CmmsDashboardView({
   const kpiData = useMemo(() => {
     const now = new Date();
     const totalAssets = scopedMachines.length;
-    const onlineAssets = scopedMachines.filter(m => m.status === 'online').length;
+    const onlineAssets = scopedMachines.filter(m => (m.status || 'Online').toLowerCase() === 'online').length;
     const offlineAssets = totalAssets - onlineAssets;
 
     const activeWorkOrders = scopedWorkOrders.filter(w => w.status === 'IN_PROGRESS').length;
@@ -1252,7 +1252,7 @@ export function CmmsDashboardView({
               {scopedMachines.slice(0, 12).map(machine => {
                 const hasDevice = !!machine.deviceId;
                 const liveData = hasDevice ? (liveTelemetryMap[machine.deviceId] || {}) : {};
-                const isOnline = machine.status === 'online';
+                const isOnline = (machine.status || 'Online').toLowerCase() === 'online';
                 const ry = liveData.ryVoltage || liveData.voltageR;
                 const currentR = liveData.currentR;
                 const pressure = liveData.pressureBar;

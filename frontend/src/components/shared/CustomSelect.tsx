@@ -52,10 +52,11 @@ export function CustomSelect({
 
     options.forEach(opt => {
       if (!opt) return;
-      const val = typeof opt === 'string' ? opt.trim() : opt.value?.trim();
-      if (!val || val === '+') return;
+      const val = typeof opt === 'string' ? opt.trim() : (opt.value !== undefined ? String(opt.value).trim() : '');
+      const label = typeof opt === 'string' ? opt.trim() : (opt.label !== undefined ? String(opt.label).trim() : '');
+      if ((val === '' && !label) || val === '+') return;
 
-      const key = `${val}___${typeof opt !== 'string' && opt.isAction ? 'action' : 'item'}`;
+      const key = `${val}___${label}___${typeof opt !== 'string' && opt.isAction ? 'action' : 'item'}`;
       if (!seen.has(key)) {
         seen.add(key);
         result.push(opt);
@@ -127,11 +128,17 @@ export function CustomSelect({
   const updateCoords = () => {
     if (wrapperRef.current) {
       const rect = wrapperRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const spaceBelow = viewportHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      // If space below is less than 240px and space above has more room, flip upward
+      const shouldOpenUpward = spaceBelow < 240 && spaceAbove > spaceBelow;
+
       setCoords({
-        top: rect.bottom + 4,
-        left: rect.left,
+        top: shouldOpenUpward ? rect.top - 4 : rect.bottom + 4,
+        left: Math.max(8, Math.min(rect.left, window.innerWidth - Math.max(rect.width, 200) - 8)),
         width: Math.max(rect.width, 200),
-        openUpward: false,
+        openUpward: shouldOpenUpward,
       });
     }
   };
@@ -141,13 +148,6 @@ export function CustomSelect({
       updateCoords();
       setHighlightedIndex(-1);
 
-      // Always smoothly scroll active field to center of screen so dropdown menu is 100% visible
-      const timer = setTimeout(() => {
-        if (wrapperRef.current) {
-          wrapperRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 40);
-
       if (searchInputRef.current) {
         searchInputRef.current.focus();
       }
@@ -155,7 +155,6 @@ export function CustomSelect({
       window.addEventListener('resize', handleResizeOrScroll);
       window.addEventListener('scroll', handleResizeOrScroll, true);
       return () => {
-        clearTimeout(timer);
         window.removeEventListener('resize', handleResizeOrScroll);
         window.removeEventListener('scroll', handleResizeOrScroll, true);
       };
@@ -272,19 +271,29 @@ export function CustomSelect({
         }}
       >
         <input
+          data-custom-select-input="true"
           type="text"
           disabled={disabled}
-          value={isOpen ? filterSearch : displayLabel}
+          readOnly={!searchable && !allowCustom}
+          value={isOpen ? (searchable || allowCustom ? filterSearch : displayLabel) : displayLabel}
           onChange={(e) => {
-            setFilterSearch(e.target.value);
-            if (!isOpen) setIsOpen(true);
+            if (searchable || allowCustom) {
+              setFilterSearch(e.target.value);
+              if (!isOpen) setIsOpen(true);
+            }
           }}
           onFocus={() => {
             if (!disabled && !isOpen) setIsOpen(true);
           }}
           placeholder={displayLabel || placeholder}
-          className={`flex-1 w-full min-w-0 bg-transparent outline-none text-xs text-slate-800 placeholder:text-slate-400 ${
-            disabled ? 'cursor-not-allowed' : 'cursor-text'
+          style={{
+            border: 'none',
+            outline: 'none',
+            boxShadow: 'none',
+            fontSize: '12px',
+          }}
+          className={`flex-1 w-full min-w-0 bg-transparent border-0 outline-none shadow-none text-xs text-slate-800 placeholder:text-slate-400 ${
+            disabled ? 'cursor-not-allowed' : (!searchable && !allowCustom ? 'cursor-pointer' : 'cursor-text')
           } ${value && !isOpen ? 'font-medium' : ''}`}
         />
         <div className="flex items-center gap-1.5 text-slate-400 ml-2">
@@ -321,16 +330,28 @@ export function CustomSelect({
         createPortal(
           <div
             ref={dropdownRef}
+            data-custom-select-portal="true"
             style={{
               position: 'fixed',
-              top: `${coords.top}px`,
+              ...(coords.openUpward
+                ? {
+                    bottom: `${Math.max(8, window.innerHeight - coords.top)}px`,
+                    top: 'auto',
+                  }
+                : {
+                    top: `${coords.top}px`,
+                    bottom: 'auto',
+                  }),
               left: `${coords.left}px`,
               width: `${coords.width}px`,
-              zIndex: 99999,
+              zIndex: 100005,
+              maxHeight: coords.openUpward
+                ? `${Math.max(160, Math.min(260, coords.top - 16))}px`
+                : `${Math.max(160, Math.min(260, window.innerHeight - coords.top - 16))}px`,
             }}
             className={`bg-white border border-slate-200 ${
               rounded === 'xl' || rounded === '2xl' ? 'rounded-2xl' : 'rounded-xl'
-            } shadow-xl overflow-hidden p-1.5 flex flex-col gap-1.5 ${dropdownClassName}`}
+            } shadow-2xl overflow-hidden p-1.5 flex flex-col gap-1.5 ${dropdownClassName}`}
           >
             {/* Search Input (only when searchable prop is true) */}
             {searchable && (
@@ -398,7 +419,7 @@ export function CustomSelect({
             )}
 
             {/* Options List Container */}
-            <div className="max-h-[190px] overflow-y-auto space-y-0.5 pr-0.5">
+            <div className="max-h-[220px] overflow-y-auto space-y-0.5 pr-0.5">
               {filteredRegularOptions.length > 0 ? (
                 filteredRegularOptions.map((option, idx) => {
                   const itemIndex = actionOptions.length + idx;
@@ -410,6 +431,9 @@ export function CustomSelect({
                   return (
                     <div
                       key={idx}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                      }}
                       onClick={() => handleSelect(option)}
                       onMouseEnter={() => setHighlightedIndex(itemIndex)}
                       className={`px-3 py-2 cursor-pointer text-xs sm:text-sm rounded-lg transition-all flex items-center justify-between ${

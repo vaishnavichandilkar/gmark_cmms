@@ -56,7 +56,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       {/* Main Content Area */}
       <div className="main-content flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden">
         {/* Modern Fiix Top Navbar */}
-        <header className="w-full bg-white border-b border-slate-200/90 h-[42px] px-3 sm:px-5 flex items-center justify-between z-40 shrink-0 shadow-xs print:hidden">
+        <header className="w-full bg-white border-b border-slate-200/90 h-[52px] px-3 sm:px-5 flex items-center justify-between z-40 shrink-0 shadow-xs print:hidden">
           
           {/* Breadcrumbs Trail */}
           <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 overflow-x-auto py-0.5">

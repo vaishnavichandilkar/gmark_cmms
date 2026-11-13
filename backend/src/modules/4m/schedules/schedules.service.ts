@@ -283,8 +283,8 @@ export class SchedulesService implements OnModuleInit {
 
   async getSchedules(query: { type?: string; search?: string; machineId?: number }, user?: any) {
     const where: any = {};
-    const isSuperAdmin = user?.role === 'SUPER_ADMIN';
-    const effectiveAdminId = isSuperAdmin ? null : (user?.adminId || user?.userId);
+    const isPlatformSuperAdmin = user?.id === 1 || user?.email === 'superadmin@hypn.com';
+    const effectiveAdminId = isPlatformSuperAdmin ? null : (user?.adminId || user?.userId);
 
     if (effectiveAdminId) {
       where.adminId = effectiveAdminId;

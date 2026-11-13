@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,11 +8,14 @@ import {
   LayoutDashboard, Wrench, Cpu, Droplet, 
   Flame, ArrowUpDown, MoreHorizontal, Users, 
   ChevronDown, Boxes, ShieldCheck, Menu, X, Key, Calendar,
-  ClipboardList, Package, Briefcase
+  ClipboardList, Package, Briefcase, Sliders, Bell
 } from 'lucide-react';
+import { api } from '../../lib/api';
 import { logout } from '../../store/slices/authSlice';
 import { LogoutConfirmModal } from './LogoutConfirmModal';
 import { ChangePasswordModal } from './ChangePasswordModal';
+import { PreferencesModal } from './PreferencesModal';
+import { NotificationsModal } from './NotificationsModal';
 import { NotificationBell } from './NotificationBell';
 import type { RootState } from '../../store';
 import logo4m from '../../assets/4MLogo.png';
@@ -38,21 +41,52 @@ export function FloatingNavbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfilePopupOpen, setIsProfilePopupOpen] = useState(false);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  const [isPreferencesModalOpen, setIsPreferencesModalOpen] = useState(false);
+  const [isNotificationsModalOpen, setIsNotificationsModalOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
     'Master': true,
     'IOT': true,
     'HYPN': true,
   });
 
+  // Close profile dropdown on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsProfilePopupOpen(false);
+      }
+    };
+    if (isProfilePopupOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isProfilePopupOpen]);
+
   if (!isAuthenticated || !user) return null;
 
   const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'SOCIETY_ADMIN' || (user.designation && user.designation.toLowerCase().includes('admin'));
 
-  const handleLogoutConfirm = () => {
+  const handleLogoutConfirm = async () => {
     setIsModalOpen(false);
+    try {
+      await api.post('/api/v1/profile/logout').catch(() => null);
+    } catch (_) {}
     dispatch(logout());
     navigate('/login');
   };
+
+  const getInitials = (name?: string) => {
+    if (!name) return '4M';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
+
+  const fullName = user.fullName || (user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.username || 'User');
+  const roleDisplay = user.role === 'SUPER_ADMIN' ? 'ADMIN' : (user.role || 'USER');
+  const userInitials = getInitials(fullName);
 
   const toggleMenu = (label: string) => {
     setExpandedMenus(prev => ({
@@ -175,6 +209,14 @@ export function FloatingNavbar() {
     if (!user.permissions || !Array.isArray(user.permissions)) return false;
 
     const perm = user.permissions.find((p: any) => p.moduleId === moduleId);
+    if (moduleId === 'dashboard') {
+      if (perm && perm.canView) return true;
+      const iotPerm = user.permissions.find((p: any) => p.moduleId === 'dashboard_iot');
+      if (iotPerm && iotPerm.canView) return true;
+      const cmmsPerm = user.permissions.find((p: any) => p.moduleId === 'dashboard_cmms');
+      if (cmmsPerm && cmmsPerm.canView) return true;
+      return false;
+    }
     if (!perm && (moduleId === 'master_main_facility' || moduleId === 'facility_master')) {
       const fmPerm = user.permissions.find((p: any) => p.moduleId === 'facility_management');
       if (fmPerm && fmPerm.canView) return true;
@@ -354,21 +396,21 @@ export function FloatingNavbar() {
         {/* Toggle Expand Button */}
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="absolute -right-2.5 top-[11px] w-5 h-5 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:border-emerald-400 hover:shadow-xs transition-all duration-150 z-50 shadow-xs cursor-pointer"
+          className="absolute -right-2.5 top-[16px] w-5 h-5 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:border-emerald-400 hover:shadow-xs transition-all duration-150 z-50 shadow-xs cursor-pointer"
           title={isExpanded ? 'Collapse Sidebar' : 'Expand Sidebar'}
         >
           {isExpanded ? <ChevronLeft size={11} strokeWidth={2.5} /> : <ChevronRight size={11} strokeWidth={2.5} />}
         </button>
 
         {/* Logo Section */}
-        <div className={`flex items-center px-3 h-[42px] border-b border-slate-100 shrink-0 ${isExpanded ? 'justify-between' : 'justify-center'}`}>
+        <div className={`flex items-center px-3.5 h-[52px] border-b border-slate-100 shrink-0 ${isExpanded ? 'justify-between' : 'justify-center'}`}>
           <img 
             src={logo4m} 
             alt="4M Logo" 
-            className={isExpanded ? "h-6 w-auto max-w-[100px] object-contain" : "h-5 w-auto object-contain"} 
+            className={isExpanded ? "h-[38px] w-auto max-w-[130px] object-contain transition-all" : "h-[28px] w-auto object-contain transition-all"} 
           />
           {isExpanded && (
-            <span className="text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/60 rounded">
+            <span className="text-[10px] font-bold tracking-wider uppercase px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/60 rounded">
               CMMS
             </span>
           )}
@@ -383,21 +425,37 @@ export function FloatingNavbar() {
         <div className="p-1.5 border-t border-slate-200/80 bg-slate-50/50 relative shrink-0">
           <div className={`flex items-center ${isExpanded ? 'justify-between' : 'justify-center flex-col gap-1.5'}`}>
             <div 
-              className={`flex items-center gap-1.5 cursor-pointer hover:bg-white p-1 rounded-md border border-transparent hover:border-slate-200/80 transition-all relative ${!isExpanded ? 'p-0 hover:bg-transparent hover:border-transparent' : 'flex-1 min-w-0 mr-1'}`}
+              role="button"
+              tabIndex={0}
+              aria-haspopup="menu"
+              aria-expanded={isProfilePopupOpen}
+              className={`flex items-center gap-2 cursor-pointer hover:bg-slate-100 p-1 rounded-lg border border-transparent hover:border-slate-200/80 transition-all relative outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/30 ${!isExpanded ? 'p-0 hover:bg-transparent hover:border-transparent' : 'flex-1 min-w-0 mr-1'}`}
               onClick={() => setIsProfilePopupOpen(!isProfilePopupOpen)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setIsProfilePopupOpen(!isProfilePopupOpen);
+                }
+              }}
             >
-              <div className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/80 flex items-center justify-center shrink-0 font-bold text-[11px] shadow-xs">
-                {user.firstName ? user.firstName.charAt(0).toUpperCase() : (user.username ? user.username.charAt(0).toUpperCase() : 'U')}
+              <div className="w-7 h-7 rounded-lg bg-[#15803D] text-white flex items-center justify-center shrink-0 font-bold text-xs shadow-xs border border-emerald-800 overflow-hidden">
+                {user.profileImageUrl ? (
+                  <img src={user.profileImageUrl} alt={fullName} className="w-full h-full object-cover" />
+                ) : (
+                  userInitials
+                )}
               </div>
               
               {isExpanded && (
-                <div className="flex flex-col min-w-0">
-                  <span className="text-xs font-semibold text-slate-800 truncate leading-tight">
-                    {user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.username || 'Admin User'}
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="text-xs font-bold text-slate-800 truncate leading-tight">
+                    {fullName}
                   </span>
-                  <span className="text-[8.5px] text-slate-500 uppercase tracking-wider font-medium truncate">
-                    {user.role === 'SUPER_ADMIN' ? 'Admin' : (user.designation || user.employee?.designation || user.role || 'Staff')}
-                  </span>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200/60 truncate">
+                      {roleDisplay}
+                    </span>
+                  </div>
                 </div>
               )}
 
@@ -412,48 +470,99 @@ export function FloatingNavbar() {
                       }}
                     />
                     <motion.div
+                      role="menu"
+                      aria-label="User profile options"
                       initial={{ opacity: 0, y: 8, scale: 0.96 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 8, scale: 0.96 }}
                       transition={{ duration: 0.12 }}
-                      className={`absolute bottom-[calc(100%+8px)] ${isExpanded ? 'left-0' : 'left-full ml-3'} w-56 bg-white rounded-lg shadow-lg border border-slate-200 overflow-hidden z-50 cursor-default`}
+                      className={`absolute bottom-[calc(100%+8px)] ${isExpanded ? 'left-0' : 'left-full ml-3'} w-64 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50 cursor-default max-h-[calc(100vh-100px)]`}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="p-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-md bg-white/20 flex items-center justify-center shrink-0 border border-white/30 font-bold text-xs">
-                            {user.firstName ? user.firstName.charAt(0).toUpperCase() : 'U'}
+                      {/* Compact Header: Avatar, Name, Email, Role */}
+                      <div className="p-3 bg-slate-50 border-b border-slate-200/80">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-9 h-9 rounded-lg bg-[#15803D] text-white flex items-center justify-center shrink-0 font-bold text-xs shadow-xs border border-emerald-800 overflow-hidden">
+                            {user.profileImageUrl ? (
+                              <img src={user.profileImageUrl} alt={fullName} className="w-full h-full object-cover" />
+                            ) : (
+                              userInitials
+                            )}
                           </div>
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-xs font-bold truncate">
-                              {user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.username || 'Admin User'}
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <span className="text-xs font-bold text-slate-900 truncate">
+                              {fullName}
                             </span>
-                            <span className="text-[10px] text-emerald-100 truncate">{user.email || user.username}</span>
+                            <span className="text-[10px] text-slate-500 truncate">{user.email || user.username}</span>
+                            <span className="inline-block mt-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 w-fit rounded bg-[#DCFCE7] text-[#166534] border border-emerald-200/60">
+                              {roleDisplay}
+                            </span>
                           </div>
                         </div>
                       </div>
-                      <div className="p-1 space-y-0.5">
-                        {isAdmin && (
-                          <button 
-                            onClick={() => {
-                              setIsProfilePopupOpen(false);
-                              setIsChangePasswordModalOpen(true);
-                            }}
-                            className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-emerald-600 rounded-md transition-colors cursor-pointer"
-                          >
-                            <Key size={13} className="text-slate-400" />
-                            Change Password
-                          </button>
-                        )}
+
+                      {/* Viewport-Safe Menu Items */}
+                      <div className="p-1 space-y-0.5" role="none">
                         <button 
+                          role="menuitem"
+                          onClick={() => {
+                            setIsProfilePopupOpen(false);
+                            navigate('/profile');
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg transition-colors cursor-pointer text-left"
+                        >
+                          <User size={14} className="text-slate-400" />
+                          <span>Profile</span>
+                        </button>
+
+                        <button 
+                          role="menuitem"
+                          onClick={() => {
+                            setIsProfilePopupOpen(false);
+                            setIsChangePasswordModalOpen(true);
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg transition-colors cursor-pointer text-left"
+                        >
+                          <Key size={14} className="text-slate-400" />
+                          <span>Change Password</span>
+                        </button>
+
+                        <button 
+                          role="menuitem"
+                          onClick={() => {
+                            setIsProfilePopupOpen(false);
+                            setIsNotificationsModalOpen(true);
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg transition-colors cursor-pointer text-left"
+                        >
+                          <Bell size={14} className="text-slate-400" />
+                          <span>Notifications</span>
+                        </button>
+
+                        <button 
+                          role="menuitem"
+                          onClick={() => {
+                            setIsProfilePopupOpen(false);
+                            setIsPreferencesModalOpen(true);
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg transition-colors cursor-pointer text-left"
+                        >
+                          <Sliders size={14} className="text-slate-400" />
+                          <span>System Preferences</span>
+                        </button>
+
+                        <div className="my-1 border-t border-slate-100" />
+
+                        <button 
+                          role="menuitem"
                           onClick={() => {
                             setIsProfilePopupOpen(false);
                             setIsModalOpen(true);
                           }}
-                          className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer text-left"
                         >
-                          <LogOut size={13} className="text-rose-500" />
-                          Logout
+                          <LogOut size={14} className="text-rose-500" />
+                          <span>Logout</span>
                         </button>
                       </div>
                     </motion.div>
@@ -519,9 +628,9 @@ export function FloatingNavbar() {
               className="fixed inset-y-0 left-0 w-[240px] bg-white z-[60] sm:hidden flex flex-col shadow-xl border-r border-slate-200"
             >
               {/* Logo Section */}
-              <div className="flex items-center justify-between px-3 h-[42px] border-b border-slate-100">
-                <img src={logo4m} alt="4M Logo" className="h-6 w-auto object-contain" />
-                <span className="text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/60 rounded">
+              <div className="flex items-center justify-between px-3.5 h-[52px] border-b border-slate-100">
+                <img src={logo4m} alt="4M Logo" className="h-[38px] w-auto max-w-[130px] object-contain" />
+                <span className="text-[10px] font-bold tracking-wider uppercase px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/60 rounded">
                   CMMS
                 </span>
               </div>
@@ -538,15 +647,19 @@ export function FloatingNavbar() {
                   onClick={() => setIsProfilePopupOpen(!isProfilePopupOpen)}
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-7 h-7 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center shrink-0 font-bold text-xs">
-                      {user.firstName ? user.firstName.charAt(0).toUpperCase() : 'U'}
+                    <div className="w-7 h-7 rounded-lg bg-[#15803D] text-white flex items-center justify-center shrink-0 font-bold text-xs shadow-xs border border-emerald-800 overflow-hidden">
+                      {user.profileImageUrl ? (
+                        <img src={user.profileImageUrl} alt={fullName} className="w-full h-full object-cover" />
+                      ) : (
+                        userInitials
+                      )}
                     </div>
                     <div className="flex flex-col min-w-0">
-                      <span className="text-xs font-semibold text-slate-800 truncate">
-                        {user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.username || 'Admin User'}
+                      <span className="text-xs font-bold text-slate-800 truncate">
+                        {fullName}
                       </span>
-                      <span className="text-[9px] text-slate-500 uppercase tracking-wider font-medium truncate">
-                        {user.role === 'SUPER_ADMIN' ? 'Admin' : (user.designation || user.employee?.designation || user.role || 'User')}
+                      <span className="text-[9px] text-emerald-700 font-bold uppercase tracking-wider truncate">
+                        {roleDisplay}
                       </span>
                     </div>
                   </div>
@@ -563,30 +676,62 @@ export function FloatingNavbar() {
                       transition={{ duration: 0.15 }}
                       className="overflow-hidden"
                     >
-                      <div className="flex flex-col gap-1 mt-2 bg-white rounded-lg border border-slate-200 p-1.5 shadow-xs">
-                        {isAdmin && (
-                          <button 
-                            onClick={() => {
-                              setIsProfilePopupOpen(false);
-                              setIsMobileMenuOpen(false);
-                              setIsChangePasswordModalOpen(true);
-                            }}
-                            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-emerald-600 rounded-md transition-colors"
-                          >
-                            <Key size={14} />
-                            Change Password
-                          </button>
-                        )}
+                      <div className="flex flex-col gap-0.5 mt-2 bg-white rounded-lg border border-slate-200 p-1 shadow-xs">
+                        <button 
+                          onClick={() => {
+                            setIsProfilePopupOpen(false);
+                            setIsMobileMenuOpen(false);
+                            navigate('/profile');
+                          }}
+                          className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 rounded-md transition-colors text-left"
+                        >
+                          <User size={13} className="text-slate-400" />
+                          <span>Profile</span>
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setIsProfilePopupOpen(false);
+                            setIsMobileMenuOpen(false);
+                            setIsChangePasswordModalOpen(true);
+                          }}
+                          className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 rounded-md transition-colors text-left"
+                        >
+                          <Key size={13} className="text-slate-400" />
+                          <span>Change Password</span>
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setIsProfilePopupOpen(false);
+                            setIsMobileMenuOpen(false);
+                            setIsNotificationsModalOpen(true);
+                          }}
+                          className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 rounded-md transition-colors text-left"
+                        >
+                          <Bell size={13} className="text-slate-400" />
+                          <span>Notifications</span>
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setIsProfilePopupOpen(false);
+                            setIsMobileMenuOpen(false);
+                            setIsPreferencesModalOpen(true);
+                          }}
+                          className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 rounded-md transition-colors text-left"
+                        >
+                          <Sliders size={13} className="text-slate-400" />
+                          <span>System Preferences</span>
+                        </button>
+                        <div className="my-1 border-t border-slate-100" />
                         <button 
                           onClick={() => {
                             setIsProfilePopupOpen(false);
                             setIsMobileMenuOpen(false);
                             setIsModalOpen(true);
                           }}
-                          className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                          className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-md transition-colors text-left"
                         >
-                          <LogOut size={14} />
-                          Logout
+                          <LogOut size={13} className="text-rose-500" />
+                          <span>Logout</span>
                         </button>
                       </div>
                     </motion.div>
@@ -607,6 +752,16 @@ export function FloatingNavbar() {
       <ChangePasswordModal 
         isOpen={isChangePasswordModalOpen} 
         onClose={() => setIsChangePasswordModalOpen(false)} 
+      />
+
+      <PreferencesModal
+        isOpen={isPreferencesModalOpen}
+        onClose={() => setIsPreferencesModalOpen(false)}
+      />
+
+      <NotificationsModal
+        isOpen={isNotificationsModalOpen}
+        onClose={() => setIsNotificationsModalOpen(false)}
       />
     </>
   );

@@ -289,7 +289,10 @@ export function MainFacilityMaster() {
 
       // 2. Filter by Active Filters
       for (const [key, value] of Object.entries(activeFilters)) {
-        if (facility[key] !== value) return false;
+        if (!value || value === 'All') continue;
+        const facVal = String(facility[key] ?? '').toLowerCase().trim();
+        const targetVal = String(value).toLowerCase().trim();
+        if (facVal !== targetVal) return false;
       }
 
       // 3. Column Filters

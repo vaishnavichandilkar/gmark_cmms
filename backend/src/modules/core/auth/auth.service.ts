@@ -25,7 +25,22 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
+
+  async checkGstAvailability(gstNumber: string) {
+    const cleaned = (gstNumber || '').trim().toUpperCase();
+    if (!cleaned) {
+      return { available: false, message: 'GST number is required' };
+    }
+    const existing = await this.prisma.registration.findFirst({
+      where: { gstNumber: cleaned }
+    });
+    return {
+      available: !existing,
+      gstNumber: cleaned,
+      message: existing ? 'This GST number is already registered.' : 'GST number is available.'
+    };
+  }
 
   async register(dto: RegisterDto) {
     if (!validatePasswordStrength(dto.password)) {
@@ -231,7 +246,7 @@ export class AuthService {
       // Self-reference adminId and link employeeId for root admin
       const updatedUser = await tx.user.update({
         where: { id: user.id },
-        data: { 
+        data: {
           adminId: user.id,
           employeeId: employee.id,
         },
@@ -315,6 +330,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Record last login timestamp
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
+
     const buildingIds = user.buildings.map((b) => b.buildingId);
     const tokens = await this.generateTokens(
       user.id,
@@ -326,6 +347,7 @@ export class AuthService {
       user.facilityId,
       user.deviceId,
       user.deviceName,
+      user.tokenVersion || 1,
     );
     await this.updateRefreshToken(user.id, tokens.refreshToken);
 
@@ -785,6 +807,7 @@ export class AuthService {
         user.facilityId,
         user.deviceId,
         user.deviceName,
+        user.tokenVersion || 1,
       );
       await this.updateRefreshToken(user.id, tokens.refreshToken);
 
@@ -920,6 +943,7 @@ export class AuthService {
     facilityId: number | null = null,
     deviceId: string | null = null,
     deviceName: string | null = null,
+    tokenVersion: number = 1,
   ) {
     const payload = {
       userId,
@@ -931,6 +955,7 @@ export class AuthService {
       deviceId,
       deviceName,
       buildingIds,
+      tokenVersion,
     };
 
     const accessToken = this.jwtService.sign(payload, {

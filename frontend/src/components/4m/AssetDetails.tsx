@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import type { TreeNodeData } from './AssetTree';
+import { calculateNodeCompleteness } from './AssetTree';
 import { Building2, Building, Cpu, Wifi, Image as ImageIcon, QrCode, Activity, MapPin, User, Navigation, Settings, FileText, Wrench, FolderInput, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -15,6 +16,7 @@ interface AssetDetailsProps {
 
 export const AssetDetails = ({ node, onRefresh, onMoveNode, onGiveAccess }: AssetDetailsProps) => {
   const [isMoveOpen, setIsMoveOpen] = useState(false);
+  const navigate = useNavigate();
 
   if (!node) {
     return (
@@ -26,31 +28,63 @@ export const AssetDetails = ({ node, onRefresh, onMoveNode, onGiveAccess }: Asse
     );
   }
 
+  const completeness = calculateNodeCompleteness(node);
+  let pctColor = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  if (completeness < 50) {
+    pctColor = 'bg-rose-50 text-rose-700 border-rose-200';
+  } else if (completeness < 80) {
+    pctColor = 'bg-amber-50 text-amber-700 border-amber-200';
+  }
+
   return (
     <div className="h-full overflow-y-auto bg-white flex flex-col">
       {/* Header */}
       <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10 shadow-sm shrink-0">
         <div className="flex items-center gap-4">
           <div className={`p-3 rounded-xl ${node.type === 'device' ? 'bg-orange-50 text-orange-600' :
-              node.type === 'building' || node.type === 'facility' ? 'bg-emerald-50 text-emerald-600' :
-                'bg-[#00a651]/10 text-[#00a651]'
+            node.type === 'building' || node.type === 'facility' ? 'bg-emerald-50 text-emerald-600' :
+              'bg-[#00a651]/10 text-[#00a651]'
             }`}>
             {node.type === 'device' && <Cpu className="w-6 h-6" />}
             {(node.type === 'building' || node.type === 'facility') && <Building className="w-6 h-6" />}
             {(node.type === 'society' || node.type === 'mainFacility') && <Building2 className="w-6 h-6" />}
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">{node.name}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-bold text-gray-900">{node.name}</h2>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border shadow-2xs ${pctColor}`}>
+                {completeness}% Details Filled
+              </span>
+            </div>
             <p className="text-sm text-gray-500 capitalize tracking-wide mt-0.5">{node.type.replace(/([A-Z])/g, ' $1').trim()}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 mr-8">
+          {(node.type === 'society' || node.type === 'building') && (
+            <button
+              type="button"
+              onClick={() => {
+                const targetId = node.originalData?.id || node.id.replace(/^(soc|bldg)-/, '');
+                if (node.type === 'society') {
+                  navigate(`/society/${targetId}`, { state: { returnUrl: '/assets' } });
+                } else {
+                  navigate(`/building/${targetId}`, { state: { returnUrl: '/assets' } });
+                }
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors shadow-2xs cursor-pointer"
+              title={`Open live SCADA telemetry dashboard for ${node.name}`}
+            >
+              <Activity className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Open SCADA Dashboard</span>
+            </button>
+          )}
+
           {onGiveAccess && ['device', 'facility', 'building', 'mainFacility', 'society'].includes(node.type) && (
             <button
               type="button"
               onClick={() => onGiveAccess(node)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors shadow-2xs cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors shadow-2xs cursor-pointer"
               title={`Give user access to this ${node.type === 'device' ? 'machine' : 'facility'}`}
             >
               <Shield className="w-3.5 h-3.5" />
@@ -100,7 +134,8 @@ export const AssetDetails = ({ node, onRefresh, onMoveNode, onGiveAccess }: Asse
 };
 
 const FacilityDetails = ({ node }: { node: TreeNodeData }) => {
-  const data = node.originalData;
+  const navigate = useNavigate();
+  const data = node.originalData || {};
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -116,13 +151,13 @@ const FacilityDetails = ({ node }: { node: TreeNodeData }) => {
     fileInputRef.current?.click();
   };
 
-  const idCode = data.mainFacilityCode || data.facilityCode || data.id || 'N/A';
+  const idCode = data.mainFacilityCode || data.facilityCode || data.code || data.id || 'N/A';
   const name = node.name || 'N/A';
   const type = node.type.replace(/([A-Z])/g, ' $1').trim();
   const status = data.status || 'Active';
-  const headName = data.mainFacilityHead || data.facilityHeadName || 'Not Assigned';
-  const category = data.category || 'N/A';
-  const subCategory = data.subcategory || data.subCategory || 'N/A';
+  const headName = data.mainFacilityHead || data.facilityHeadName || (node.type === 'society' || node.type === 'building' ? 'Not Applicable' : 'Not Assigned');
+  const category = data.category || (node.type === 'society' ? 'Society / Campus' : node.type === 'building' ? 'Building' : 'N/A');
+  const subCategory = data.subcategory || data.subCategory || (node.type === 'society' ? 'Residential / Commercial' : node.type === 'building' ? 'Infrastructure' : 'N/A');
 
   const address = data.address || '';
   const city = data.city || '';
@@ -130,14 +165,49 @@ const FacilityDetails = ({ node }: { node: TreeNodeData }) => {
   const country = data.country || '';
   const postalCode = data.postalCode || '';
 
-  const fullAddress = [address, city, state, country, postalCode].filter(Boolean).join(', ') || 'Address not available';
+  const fullAddress = [address, city, state, country, postalCode].filter(Boolean).join(', ') || (data.city ? data.city : 'Address not available');
 
   const latitude = data.latitude;
   const longitude = data.longitude;
   const coordinates = latitude && longitude ? `${latitude}, ${longitude}` : 'Not available';
+  const descriptionOrNotes = data.description || data.notes || data.info;
 
   return (
     <div className="space-y-6">
+      {/* SCADA Live Dashboard Quick Access Card for Society and Building */}
+      {(node.type === 'society' || node.type === 'building') && (
+        <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-200 rounded-xl p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="p-3 bg-white rounded-xl border border-emerald-200 text-emerald-600 shadow-2xs">
+              <Activity className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                Live IoT SCADA Monitoring
+                <span className="text-[10px] uppercase font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full">Available</span>
+              </h4>
+              <p className="text-xs text-gray-600 mt-1">
+                Real-time sensor telemetry, equipment dials, and alert triggers are configured for this {node.type}.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const targetId = node.originalData?.id || node.id.replace(/^(soc|bldg)-/, '');
+              if (node.type === 'society') {
+                navigate(`/society/${targetId}`, { state: { returnUrl: '/assets' } });
+              } else {
+                navigate(`/building/${targetId}`, { state: { returnUrl: '/assets' } });
+              }
+            }}
+            className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-xs flex items-center gap-2 shrink-0 cursor-pointer"
+          >
+            <span>Open SCADA Dashboard</span>
+            <Navigation className="w-3.5 h-3.5 rotate-45" />
+          </button>
+        </div>
+      )}
       <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
         <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-5">
           <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -210,10 +280,10 @@ const FacilityDetails = ({ node }: { node: TreeNodeData }) => {
               {coordinates}
             </div>
           </div>
-          {(data.description || data.notes) && (
+          {descriptionOrNotes && (
             <div className="md:col-span-2">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Description / Notes</p>
-              <p className="text-sm font-medium text-gray-900 whitespace-pre-line">{data.description || data.notes}</p>
+              <p className="text-sm font-medium text-gray-900 whitespace-pre-line">{descriptionOrNotes}</p>
             </div>
           )}
         </div>
@@ -268,9 +338,9 @@ const DeviceDetails = ({ device }: { device: any }) => {
       {/* Top Section */}
       <div className="flex gap-6 h-48 shrink-0">
         <div className="flex-1 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden relative group">
-          <img 
-            src={imageSrc} 
-            alt="Device" 
+          <img
+            src={imageSrc}
+            alt="Device"
             className="w-full h-full object-cover"
             onError={(e) => {
               (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1581092580497-e0d23cbdf1dc?auto=format&fit=crop&q=80';

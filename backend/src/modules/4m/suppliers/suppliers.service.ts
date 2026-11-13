@@ -27,8 +27,8 @@ export class SuppliersService {
 
   async findAll(query?: { search?: string }, currentUser?: any) {
     const { search } = query || {};
-    const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
-    const effectiveAdminId = isSuperAdmin ? null : (currentUser?.adminId || currentUser?.userId);
+    const isPlatformSuperAdmin = currentUser?.id === 1 || currentUser?.email === 'superadmin@hypn.com';
+    const effectiveAdminId = isPlatformSuperAdmin ? null : (currentUser?.adminId || currentUser?.userId);
 
     const whereCondition: any = search
       ? {
@@ -44,16 +44,11 @@ export class SuppliersService {
       : {};
 
     if (effectiveAdminId) {
-      const adminFilter = {
-        OR: [
-          { adminId: effectiveAdminId },
-          { adminId: null },
-        ],
-      };
+      const adminFilter = { adminId: effectiveAdminId };
       if (whereCondition.OR) {
         whereCondition.AND = [adminFilter];
       } else {
-        whereCondition.OR = adminFilter.OR;
+        whereCondition.adminId = effectiveAdminId;
       }
     }
 
@@ -92,10 +87,23 @@ export class SuppliersService {
       }
     }
 
+    if (createSupplierDto.gstNumber && createSupplierDto.gstNumber.trim()) {
+      const existingGst = await (this.prisma as any).supplier.findFirst({
+        where: {
+          gstNumber: createSupplierDto.gstNumber.trim().toUpperCase(),
+          ...(effectiveAdminId ? { adminId: effectiveAdminId } : {}),
+        },
+      });
+      if (existingGst) {
+        throw new BadRequestException('A supplier with this GST number already exists.');
+      }
+    }
+
     try {
       return await (this.prisma as any).supplier.create({
         data: {
           ...createSupplierDto,
+          gstNumber: createSupplierDto.gstNumber && createSupplierDto.gstNumber.trim() ? createSupplierDto.gstNumber.trim().toUpperCase() : null,
           supplierCode: code,
           adminId: effectiveAdminId,
         },
@@ -115,8 +123,10 @@ export class SuppliersService {
     }
   }
 
-  async update(id: number, updateSupplierDto: UpdateSupplierDto) {
-    await this.findOne(id);
+  async update(id: number, updateSupplierDto: UpdateSupplierDto, currentUser?: any) {
+    const existingSupplier = await this.findOne(id);
+    const effectiveAdminId = currentUser?.role === 'SUPER_ADMIN' ? null : (currentUser?.adminId || currentUser?.userId || existingSupplier.adminId || null);
+
     if (updateSupplierDto.supplierCode) {
       const existing = await (this.prisma as any).supplier.findUnique({
         where: { supplierCode: updateSupplierDto.supplierCode },
@@ -127,9 +137,28 @@ export class SuppliersService {
         );
       }
     }
+
+    if (updateSupplierDto.gstNumber && updateSupplierDto.gstNumber.trim()) {
+      const existingGst = await (this.prisma as any).supplier.findFirst({
+        where: {
+          id: { not: id },
+          gstNumber: updateSupplierDto.gstNumber.trim().toUpperCase(),
+          ...(effectiveAdminId ? { adminId: effectiveAdminId } : {}),
+        },
+      });
+      if (existingGst) {
+        throw new BadRequestException('A supplier with this GST number already exists.');
+      }
+    }
+
+    const dataToUpdate: any = { ...updateSupplierDto };
+    if (updateSupplierDto.gstNumber !== undefined) {
+      dataToUpdate.gstNumber = updateSupplierDto.gstNumber && updateSupplierDto.gstNumber.trim() ? updateSupplierDto.gstNumber.trim().toUpperCase() : null;
+    }
+
     return (this.prisma as any).supplier.update({
       where: { id },
-      data: updateSupplierDto,
+      data: dataToUpdate,
     });
   }
 

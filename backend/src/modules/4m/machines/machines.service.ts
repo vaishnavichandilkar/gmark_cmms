@@ -216,16 +216,17 @@ export class MachinesService {
       include: { employee: true }
     }) || jwtUser;
 
-    const isSuperAdmin = jwtUser?.role === 'SUPER_ADMIN' || user?.role === 'SUPER_ADMIN';
-    const effectiveAdminId = isSuperAdmin ? null : (jwtUser?.adminId || user?.adminId || user?.id);
+    const isPlatformSuperAdmin = jwtUser?.id === 1 || user?.id === 1 || jwtUser?.email === 'superadmin@hypn.com';
+    const isTenantSuperAdmin = jwtUser?.role === 'SUPER_ADMIN' || user?.role === 'SUPER_ADMIN';
+    const effectiveAdminId = isPlatformSuperAdmin ? null : (jwtUser?.adminId || user?.adminId || user?.id);
     let whereClause: any = {};
 
     if (effectiveAdminId) {
       whereClause.OR = [
         { adminId: effectiveAdminId },
-        { adminId: null },
         { facility: { adminId: effectiveAdminId } },
-        { building: { adminId: effectiveAdminId } },
+        { facility: { mainFacility: { adminId: effectiveAdminId } } },
+        { building: { mainFacility: { adminId: effectiveAdminId } } },
       ];
     }
 
@@ -237,7 +238,7 @@ export class MachinesService {
     });
     const facMap = new Map<number, any>(allFacs.map((f) => [f.id, f]));
 
-    if (!isSuperAdmin && !includeAll) {
+    if (!isTenantSuperAdmin && !includeAll) {
       if (hasAssetPerms) {
         // Handled via post-filtering with canViewMachine
       } else if (user.deviceId) {
@@ -283,7 +284,7 @@ export class MachinesService {
       include: { building: true, facility: true },
     });
 
-    if (!isSuperAdmin && hasAssetPerms && !includeAll) {
+    if (!isTenantSuperAdmin && hasAssetPerms && !includeAll) {
       machines = machines.filter(m => this.canViewMachine(m, permsMap, facMap, user));
     }
 
@@ -299,8 +300,8 @@ export class MachinesService {
     }
     const deviceMap = new Map(devices.map(d => [d.deviceId, d]));
 
-    return machines.map((machine) => {
-      let status = 'offline';
+    return machines.map((machine: any) => {
+      let status = machine.status || 'Online';
       let alerts: string[] = [];
       let lastSeen = machine.updatedAt;
 
@@ -308,7 +309,9 @@ export class MachinesService {
         const device = deviceMap.get(machine.deviceId);
         lastSeen = device.lastSeen || device.updatedAt;
         const diffMs = now.getTime() - lastSeen.getTime();
-        status = diffMs <= 60000 ? 'online' : 'offline';
+        if (diffMs <= 60000) {
+          status = 'Online';
+        }
 
         const latestData: any = device.latestData || {};
         if (latestData.inputPowerFaultType) alerts.push('Input Power Fault');
@@ -318,14 +321,17 @@ export class MachinesService {
         if (latestData.pump4FaultType) alerts.push('Pump 4 Fault');
       }
 
+      const resolvedStatus = (status || 'Online').toLowerCase() === 'offline' ? 'Offline' : 'Online';
+
       return {
+        ...machine,
         id: machine.id,
         name: machine.name,
         deviceId: machine.deviceId, // IoT MAC ID
         building: machine.building?.name || machine.facility?.facilityName || 'Unassigned',
         buildingId: machine.buildingId,
         facilityId: machine.facilityId,
-        status,
+        status: resolvedStatus,
         lastSeen,
         alerts,
         alertCount: alerts.length,
@@ -345,16 +351,22 @@ export class MachinesService {
       include: { employee: true }
     }) || jwtUser;
 
-    const isSuperAdmin = jwtUser?.role === 'SUPER_ADMIN' || user?.role === 'SUPER_ADMIN';
-    const effectiveAdminId = isSuperAdmin ? null : (jwtUser?.adminId || user?.adminId || user?.id);
+    const isPlatformSuperAdmin = jwtUser?.id === 1 || user?.id === 1 || jwtUser?.email === 'superadmin@hypn.com';
+    const isTenantSuperAdmin = jwtUser?.role === 'SUPER_ADMIN' || user?.role === 'SUPER_ADMIN';
+    const effectiveAdminId = isPlatformSuperAdmin ? null : (jwtUser?.adminId || user?.adminId || user?.id);
     const { hasAssetPerms, permsMap } = await this.getUserAssetPermissions(user, effectiveAdminId);
     let whereClause: any = { id };
 
     if (effectiveAdminId) {
-      whereClause.adminId = effectiveAdminId;
+      whereClause.OR = [
+        { adminId: effectiveAdminId },
+        { facility: { adminId: effectiveAdminId } },
+        { facility: { mainFacility: { adminId: effectiveAdminId } } },
+        { building: { mainFacility: { adminId: effectiveAdminId } } },
+      ];
     }
 
-    if (!isSuperAdmin) {
+    if (!isTenantSuperAdmin) {
       if (hasAssetPerms) {
         // Will be verified below using canViewMachine
       } else if (user.deviceId) {
@@ -395,11 +407,11 @@ export class MachinesService {
       include: { building: true, facility: true },
     });
 
-    if (!machine || (!isSuperAdmin && hasAssetPerms && !this.canViewMachine(machine, permsMap))) {
+    if (!machine || (!isTenantSuperAdmin && hasAssetPerms && !this.canViewMachine(machine, permsMap))) {
       throw new NotFoundException(`Machine with ID ${id} not found`);
     }
 
-    let status = 'offline';
+    let status = (machine as any).status || 'Online';
     if (machine.deviceId) {
       const device = await this.prisma.device.findUnique({
         where: { deviceId: machine.deviceId }
@@ -408,13 +420,16 @@ export class MachinesService {
         const now = new Date();
         const lastSeen = device.lastSeen || device.updatedAt;
         const diffMs = now.getTime() - lastSeen.getTime();
-        status = diffMs <= 60000 ? 'online' : 'offline';
+        if (diffMs <= 60000) {
+          status = 'Online';
+        }
       }
     }
+    const resolvedStatus = (status || 'Online').toLowerCase() === 'offline' ? 'Offline' : 'Online';
 
     return {
       ...machine,
-      status,
+      status: resolvedStatus,
     };
   }
 
@@ -493,6 +508,7 @@ export class MachinesService {
         latitude: data.latitude,
         longitude: data.longitude,
         notes: data.notes,
+        status: (data.status && typeof data.status === 'string' && data.status.toLowerCase() === 'offline') ? 'Offline' : 'Online',
         parentMachineId: data.parentDeviceId, // It was parentDeviceId on frontend
       },
     });
@@ -576,6 +592,7 @@ export class MachinesService {
         latitude: data.latitude,
         longitude: data.longitude,
         notes: data.notes,
+        status: data.status !== undefined ? ((typeof data.status === 'string' && data.status.toLowerCase() === 'offline') ? 'Offline' : 'Online') : undefined,
         parentMachineId: data.parentDeviceId,
       },
     });

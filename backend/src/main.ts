@@ -10,10 +10,15 @@ import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Increase payload limit for file/image uploads
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ limit: '50mb', extended: true }));
 
   // Security headers
   app.use(

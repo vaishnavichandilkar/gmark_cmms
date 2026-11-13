@@ -108,8 +108,10 @@ export function TableActions({
         !filterPortalRef.current.contains(event.target as Node)
       ) {
         // Also don't close if clicking inside a custom select portal dropdown
-        const target = event.target as HTMLElement;
-        if (target && target.closest('[data-custom-select-portal="true"]')) {
+        const targetEl = (event.target as Node | null) instanceof Element 
+          ? (event.target as Element) 
+          : (event.target as Node | null)?.parentElement;
+        if (targetEl?.closest?.('[data-custom-select-portal="true"]')) {
           return;
         }
         setIsFilterMenuOpen(false);
@@ -122,7 +124,7 @@ export function TableActions({
   const handleFilterSelect = (key: string, value: string) => {
     if (!onFilterChange) return;
     const newFilters = { ...activeFilters };
-    if (value) {
+    if (value && value !== 'All') {
       newFilters[key] = value;
     } else {
       delete newFilters[key];

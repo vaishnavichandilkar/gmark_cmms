@@ -6,6 +6,40 @@ import { CustomSelect } from '../../../components/shared/CustomSelect';
 import { CustomDatePicker } from '../../../components/shared/CustomDatePicker';
 import toast from 'react-hot-toast';
 
+function parseDateParts(dateVal: string | Date): { year: number; month: number; day: number } | null {
+  if (!dateVal) return null;
+  if (typeof dateVal === 'string') {
+    const match = dateVal.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (match) {
+      return {
+        year: parseInt(match[1], 10),
+        month: parseInt(match[2], 10),
+        day: parseInt(match[3], 10),
+      };
+    }
+  }
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return null;
+  return {
+    year: d.getFullYear(),
+    month: d.getMonth() + 1,
+    day: d.getDate(),
+  };
+}
+
+function isAtLeast18YearsApart(dobVal: string | Date, dojVal: string | Date): boolean {
+  const dob = parseDateParts(dobVal);
+  const doj = parseDateParts(dojVal);
+  if (!dob || !doj) return true;
+
+  let age = doj.year - dob.year;
+  const monthDiff = doj.month - dob.month;
+  if (monthDiff < 0 || (monthDiff === 0 && doj.day < dob.day)) {
+    age--;
+  }
+  return age >= 18;
+}
+
 export function AddEmployee() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -36,6 +70,26 @@ export function AddEmployee() {
   
   const salaryInputRef = useRef<HTMLInputElement>(null);
   const [shouldFocusSalary, setShouldFocusSalary] = useState(false);
+
+  const isAgeInvalid = Boolean(
+    formData.dateOfBirth &&
+    formData.dateOfJoining &&
+    !isAtLeast18YearsApart(formData.dateOfBirth, formData.dateOfJoining)
+  );
+
+  const minDojDate = React.useMemo(() => {
+    if (!formData.dateOfBirth) return undefined;
+    const parsed = parseDateParts(formData.dateOfBirth);
+    if (!parsed) return undefined;
+    return new Date(parsed.year + 18, parsed.month - 1, parsed.day);
+  }, [formData.dateOfBirth]);
+
+  const maxDobDate = React.useMemo(() => {
+    if (!formData.dateOfJoining) return undefined;
+    const parsed = parseDateParts(formData.dateOfJoining);
+    if (!parsed) return undefined;
+    return new Date(parsed.year - 18, parsed.month - 1, parsed.day);
+  }, [formData.dateOfJoining]);
   
   useEffect(() => {
     if (!initialLoading && shouldFocusSalary && salaryInputRef.current) {
@@ -162,9 +216,41 @@ export function AddEmployee() {
 
   const handleSave = async () => {
     // Basic validation
-    if (!formData.employeeCode || !formData.fullName || !formData.mobileNumber || !formData.dateOfJoining || !formData.dateOfBirth || !formData.department || !formData.designation) {
+    if (
+      !formData.employeeCode ||
+      !formData.fullName ||
+      !formData.mobileNumber ||
+      !formData.officialEmail ||
+      !formData.dateOfJoining ||
+      !formData.dateOfBirth ||
+      !formData.department ||
+      !formData.designation
+    ) {
       setError('Please fill in all required fields.');
       return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!formData.officialEmail.trim()) {
+      setError('Official Email is required.');
+      return;
+    }
+
+    if (!emailRegex.test(formData.officialEmail.trim())) {
+      setError('Please enter a valid Official Email address.');
+      return;
+    }
+
+    if (formData.personalEmail && formData.personalEmail.trim()) {
+      if (!emailRegex.test(formData.personalEmail.trim())) {
+        setError('Please enter a valid Personal Email address.');
+        return;
+      }
+      if (formData.personalEmail.trim().toLowerCase() === formData.officialEmail.trim().toLowerCase()) {
+        setError('Personal Email must be different from Official Email.');
+        return;
+      }
     }
 
     if (formData.mobileNumber.length !== 10) {
@@ -174,6 +260,11 @@ export function AddEmployee() {
 
     if (formData.salaryPayout && Number(formData.salaryPayout) < 0) {
       setError('Salary Payout cannot be negative.');
+      return;
+    }
+
+    if (formData.dateOfBirth && formData.dateOfJoining && !isAtLeast18YearsApart(formData.dateOfBirth, formData.dateOfJoining)) {
+      setError('Employee must be at least 18 years old on the date of joining (minimum 18 years difference between Date of Birth and Date of Joining).');
       return;
     }
 
@@ -445,7 +536,7 @@ export function AddEmployee() {
             {/* Row 2 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Official Email
+                Official Email <span className="text-red-500">*</span>
               </label>
               <input 
                 type="email" 
@@ -453,7 +544,10 @@ export function AddEmployee() {
                 placeholder="Enter Official Email"
                 value={formData.officialEmail}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all"
+                required
+                className={`w-full px-4 py-2.5 border ${
+                  !formData.officialEmail && error ? 'border-red-500 bg-red-50/50' : 'border-gray-300'
+                } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all`}
               />
             </div>
             <div>
@@ -466,8 +560,17 @@ export function AddEmployee() {
                 placeholder="Enter Personal Email"
                 value={formData.personalEmail}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all"
+                className={`w-full px-4 py-2.5 border ${
+                  formData.personalEmail && formData.officialEmail && formData.personalEmail.trim().toLowerCase() === formData.officialEmail.trim().toLowerCase()
+                    ? 'border-red-500 bg-red-50/50'
+                    : 'border-gray-300'
+                } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-600 outline-none transition-all`}
               />
+              {formData.personalEmail && formData.officialEmail && formData.personalEmail.trim().toLowerCase() === formData.officialEmail.trim().toLowerCase() && (
+                <p className="text-xs text-red-500 font-semibold mt-1">
+                  Personal email must be different from official email
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -477,7 +580,14 @@ export function AddEmployee() {
                 name="dateOfJoining"
                 value={formData.dateOfJoining}
                 onChange={handleChange}
+                minDate={minDojDate}
+                hasError={isAgeInvalid || (!formData.dateOfJoining && Boolean(error))}
               />
+              {isAgeInvalid && (
+                <p className="text-xs text-red-500 font-semibold mt-1">
+                  Date of Joining must be at least 18 years after Date of Birth
+                </p>
+              )}
             </div>
 
             {/* Row 3 */}
@@ -489,7 +599,14 @@ export function AddEmployee() {
                 name="dateOfBirth"
                 value={formData.dateOfBirth}
                 onChange={handleChange}
+                maxDate={maxDobDate}
+                hasError={isAgeInvalid || (!formData.dateOfBirth && Boolean(error))}
               />
+              {isAgeInvalid && (
+                <p className="text-xs text-red-500 font-semibold mt-1">
+                  Employee must be at least 18 years old on Date of Joining
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

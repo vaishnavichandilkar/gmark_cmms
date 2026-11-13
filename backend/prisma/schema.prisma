@@ -71,8 +71,14 @@ model User {
   workOrderRevisions WorkOrderRevision[]
   assignedScheduleTasks MaintenanceScheduleTask[]
   userCheckpoints UserCheckpoint[]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  department        String?
+  lastLoginAt       DateTime?
+  passwordChangedAt DateTime?
+  notificationPrefs Json?
+  uiPreferences     Json?
+  tokenVersion      Int              @default(1)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 }
 
 model Registration {
@@ -478,6 +484,7 @@ model Machine {
   latitude           String?
   longitude          String?
   notes              String?
+  status             String?  @default("Online")
 
   buildingId Int?
   building   Building? @relation(fields: [buildingId], references: [id], onDelete: Cascade)

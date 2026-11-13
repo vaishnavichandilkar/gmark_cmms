@@ -100,6 +100,60 @@ export const canDragNode = (node: TreeNodeData, enabled: boolean): boolean => {
   return node.type === 'device' || node.type === 'facility' || node.type === 'building';
 };
 
+// Helper: Calculate data completeness percentage for an asset node
+export const calculateNodeCompleteness = (node: TreeNodeData): number => {
+  const data = node.originalData;
+  if (!data) return 100;
+
+  let fieldsToCheck: string[] = [];
+
+  if (node.type === 'mainFacility') {
+    fieldsToCheck = [
+      'mainFacilityName', 'mainFacilityCode', 'mainFacilityHead', 'gstNumber',
+      'category', 'subcategory', 'description', 'address', 'city', 'state',
+      'country', 'postalCode', 'latitude', 'longitude'
+    ];
+  } else if (node.type === 'facility') {
+    fieldsToCheck = [
+      'facilityName', 'facilityCode', 'category', 'subCategory',
+      'facilityHeadName', 'description', 'address', 'city', 'state',
+      'country', 'postalCode', 'latitude', 'longitude', 'notes'
+    ];
+  } else if (node.type === 'building') {
+    fieldsToCheck = ['name', 'info', data.societyId ? 'societyId' : 'mainFacilityId'];
+  } else if (node.type === 'society') {
+    fieldsToCheck = ['name', 'city'];
+  } else if (node.type === 'device') {
+    // Check if Machine or IoT Device
+    if (node.id.startsWith('mac-') || data.machineCode !== undefined) {
+      fieldsToCheck = [
+        'name', 'machineCode', 'assetCode', 'serialNumber', 'make',
+        'modelNumber', 'machineCategory', 'machineSubCategory', 'description',
+        'maintenanceHead', 'headOfDepartment', 'machineOwner', 'costCenter',
+        'latitude', 'longitude', 'notes', 'company', 'deviceId'
+      ];
+    } else {
+      // IoT Device
+      fieldsToCheck = [
+        'name', 'deviceId', 'application', 'pumpType', 'controller',
+        'cardNo', 'topic', 'template', 'systemName', 'buildingId'
+      ];
+    }
+  }
+
+  if (fieldsToCheck.length === 0) return 100;
+
+  let filledCount = 0;
+  for (const field of fieldsToCheck) {
+    const val = data[field];
+    if (val !== null && val !== undefined && val !== '' && val !== false) {
+      filledCount++;
+    }
+  }
+
+  return Math.round((filledCount / fieldsToCheck.length) * 100);
+};
+
 export const AssetTree = ({ 
   data, 
   onSelect, 
@@ -338,6 +392,14 @@ const TreeNode = ({
   const isBeingDragged = draggedNode?.id === node.id;
   const isOver = dragOverNodeId === node.id;
   const isTargetValid = draggedNode ? canDropNode(draggedNode, node) : false;
+  const completeness = calculateNodeCompleteness(node);
+
+  let pctColor = 'bg-emerald-50 text-emerald-700 border-emerald-200/80';
+  if (completeness < 50) {
+    pctColor = 'bg-rose-50 text-rose-700 border-rose-200/80';
+  } else if (completeness < 80) {
+    pctColor = 'bg-amber-50 text-amber-700 border-amber-200/80';
+  }
 
   // Auto-expand folder/facility if hovered with a dragged item for 700ms
   useEffect(() => {
@@ -457,12 +519,19 @@ const TreeNode = ({
         )}
 
         {/* Expand/Collapse chevron */}
-        <div 
-          className={`w-4 h-4 flex items-center justify-center shrink-0 transition-colors z-10 bg-white ${hasChildren ? 'hover:bg-gray-200 rounded cursor-pointer text-gray-500 hover:text-gray-900' : 'opacity-0'}`}
-          onClick={hasChildren ? handleExpandToggle : undefined}
-        >
-           {hasChildren && (isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />)}
-        </div>
+        {hasChildren ? (
+          <button
+            type="button"
+            className="w-5 h-5 flex items-center justify-center shrink-0 transition-colors z-10 hover:bg-gray-200/70 rounded cursor-pointer text-gray-500 hover:text-gray-900"
+            onClick={handleExpandToggle}
+            title={isExpanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
+            aria-label={isExpanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
+          >
+            {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+          </button>
+        ) : (
+          <div className="w-5 h-5 shrink-0" />
+        )}
         
         {/* Rich Icon Wrapper */}
         <span className="shrink-0 z-10">
@@ -473,11 +542,21 @@ const TreeNode = ({
         
         {/* Title & Actions */}
         <div className="flex-1 min-w-0 flex items-center justify-between gap-2 ml-1 z-10">
-          <span className={`text-xs truncate transition-colors ${isSelected ? 'font-bold' : 'font-medium group-hover:text-gray-900'}`}>
-            {node.name}
-          </span>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className={`text-xs truncate transition-colors ${isSelected ? 'font-bold' : 'font-medium group-hover:text-gray-900'}`}>
+              {node.name}
+            </span>
+
+            {/* Percentage Details Filled Badge (compact micro badge) */}
+            <span
+              className={`text-[10px] leading-none font-bold px-1.5 py-0.5 rounded-[5px] border shrink-0 transition-all inline-flex items-center justify-center transform scale-[0.75] origin-left -mr-1.5 select-none ${pctColor}`}
+              title={`${node.name}: ${completeness}% details filled`}
+            >
+              {completeness}%
+            </span>
+          </div>
           
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0 ml-auto">
             {/* Visual drop target indicator */}
             {isOver && isTargetValid && (
               <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full flex items-center gap-1 animate-pulse shrink-0">
@@ -499,14 +578,6 @@ const TreeNode = ({
                 <FolderInput className="w-2.5 h-2.5 text-blue-600 shrink-0" />
                 <span>Move</span>
               </button>
-            )}
-
-            {hasChildren && (
-              <span className={`text-[10px] font-bold px-1.5 py-0 h-[18px] flex items-center rounded-full transition-colors shrink-0 ${
-                isSelected ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200 group-hover:text-gray-600'
-              }`}>
-                {node.children!.length}
-              </span>
             )}
           </div>
         </div>

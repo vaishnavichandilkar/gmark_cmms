@@ -28,6 +28,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Token is from an older database state.');
     }
 
+    // Invalidate tokens if the session was revoked or tokenVersion was bumped
+    if (payload.tokenVersion && user.tokenVersion && payload.tokenVersion < user.tokenVersion) {
+      throw new UnauthorizedException('Session has expired or was revoked.');
+    }
+
     return {
       userId: user.id,
       email: user.email,

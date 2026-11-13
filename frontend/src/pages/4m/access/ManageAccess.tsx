@@ -73,7 +73,7 @@ export function ManageAccess() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, columnFilters]);
+  }, [searchQuery, columnFilters, activeFilters]);
 
   const handleColumnFilterChange = (key: keyof typeof columnFilters, value: string) => {
     setColumnFilters(prev => ({
@@ -182,16 +182,17 @@ export function ManageAccess() {
 
       // Active Filters (Customize Filters)
       for (const [key, value] of Object.entries(activeFilters)) {
-        if (!value) continue;
+        if (!value || value === 'All') continue;
+        const target = value.toLowerCase().trim();
         if (key === 'status') {
-          const statusStr = role.isActive ? 'Active' : 'Inactive';
-          if (statusStr.toLowerCase() !== value.toLowerCase()) return false;
+          const statusStr = role.isActive ? 'active' : 'inactive';
+          if (statusStr !== target) return false;
         } else if (key === 'roleName') {
-          if ((role.roleName || '').toLowerCase() !== value.toLowerCase()) return false;
+          if ((role.roleName || '').toLowerCase().trim() !== target) return false;
         } else if (key === 'hasUsers') {
           const count = role.totalUsers || (role.users || []).length;
-          if (value === 'With Assigned Users' && count === 0) return false;
-          if (value === 'No Users (0)' && count > 0) return false;
+          if (target.includes('with') && count === 0) return false;
+          if (target.includes('no') && count > 0) return false;
         }
       }
 
@@ -246,7 +247,7 @@ export function ManageAccess() {
     }
 
     return result;
-  }, [roles, searchQuery, columnFilters, sortConfig]);
+  }, [roles, searchQuery, activeFilters, columnFilters, sortConfig]);
 
   const totalItems = filteredRoles.length;
   const totalPages = Math.ceil(totalItems / rowsPerPage);

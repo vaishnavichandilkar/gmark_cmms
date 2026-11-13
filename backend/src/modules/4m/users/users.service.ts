@@ -20,10 +20,10 @@ export class UsersService {
 
   async findAll(currentUser: any, societyId?: number) {
     let whereClause: any = {};
-    const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
-    const effectiveAdminId = currentUser?.adminId || currentUser?.userId;
+    const isPlatformSuperAdmin = currentUser?.id === 1 || currentUser?.email === 'superadmin@hypn.com';
+    const effectiveAdminId = isPlatformSuperAdmin ? null : (currentUser?.adminId || currentUser?.userId);
 
-    if (!isSuperAdmin && effectiveAdminId) {
+    if (effectiveAdminId) {
       whereClause.OR = [
         { adminId: effectiveAdminId },
         { id: effectiveAdminId }

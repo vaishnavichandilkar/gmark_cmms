@@ -52,7 +52,20 @@ export function AddMachine() {
   const permittedTabs = tabs.filter(tab => hasTabPermission(currentUser, tab, 'view'));
 
   // Tab States
-  const [activeTab, setActiveTab] = useState(locationState?.tab || savedDraft?.activeTab || 'General');
+  const [activeTab, setActiveTab] = useState(
+    locationState?.tab || 
+    locationState?.returnTab || 
+    new URLSearchParams(location.search).get('tab') || 
+    savedDraft?.activeTab || 
+    'General'
+  );
+
+  useEffect(() => {
+    const tabParam = locationState?.tab || locationState?.returnTab || new URLSearchParams(location.search).get('tab');
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [locationState, location.search]);
   const [pendingSpares, setPendingSpares] = useState<any[]>(savedDraft?.pendingSpares || []);
   const [spareSearchQuery, setSpareSearchQuery] = useState('');
 
@@ -546,6 +559,26 @@ export function AddMachine() {
     });
   };
 
+  const handleNavigateToCreateWorkOrder = () => {
+    sessionStorage.setItem('add_machine_draft', JSON.stringify({
+      formData,
+      pendingSpares,
+      pendingSpecifications,
+      pendingPurchases,
+      pendingDocuments,
+      pendingMacId,
+      pendingMachineType,
+      activeTab: 'WO',
+    }));
+    navigate('/work-orders/new', {
+      state: {
+        returnUrl: location.pathname,
+        returnTab: 'WO',
+        tab: 'WO',
+      }
+    });
+  };
+
   const handleOpenSpare = async (spare: any) => {
     let targetSpareId = catalogSpares.find(
       s => (spare.id && String(s.id) === String(spare.id)) ||
@@ -765,6 +798,7 @@ export function AddMachine() {
         headOfDepartment: formData.headOfDepartment,
         machineOwner: formData.machineOwner,
         notes: formData.notes,
+        status: formData.status || 'Online',
         application: pendingMachineType || 'DOMESTIC_WATER_SYS',
         pumpType: 'WMP_BOOSTER_PUMP',
         controller: 'AIPCU',
@@ -1917,17 +1951,7 @@ export function AddMachine() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => {
-                      setWoForm({
-                        problemDescription: '',
-                        priority: 'MEDIUM',
-                        triggerType: 'MANUAL',
-                        assignedTechnicianId: '',
-                        estimatedStartDate: '',
-                        estimatedEndDate: '',
-                      });
-                      setIsWoModalOpen(true);
-                    }}
+                    onClick={handleNavigateToCreateWorkOrder}
                     className="flex items-center gap-1.5 px-3.5 py-1.5 min-h-[34px] bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer whitespace-nowrap"
                   >
                     <Plus size={15} />
@@ -1960,6 +1984,14 @@ export function AddMachine() {
                           <Wrench className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                           <p className="font-semibold text-slate-700">No Work Orders Added</p>
                           <p className="text-xs text-slate-400 mt-0.5">Click &ldquo;Create Work Order&rdquo; to schedule a job for this machine</p>
+                          <button
+                            type="button"
+                            onClick={handleNavigateToCreateWorkOrder}
+                            className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-xs font-semibold shadow-xs cursor-pointer"
+                          >
+                            <Plus size={14} />
+                            <span>Create Work Order</span>
+                          </button>
                         </td>
                       </tr>
                     ) : (
@@ -3070,7 +3102,6 @@ export function AddMachine() {
                       options={[
                         { label: 'Daily', value: 'DAILY' },
                         { label: 'Weekly', value: 'WEEKLY' },
-                        { label: 'Bimonthly', value: 'BIMONTHLY' },
                         { label: 'Monthly', value: 'MONTHLY' },
                         { label: 'Quarterly', value: 'QUARTERLY' },
                         { label: 'Half Yearly', value: 'HALF_YEARLY' },
@@ -3241,7 +3272,6 @@ export function AddMachine() {
                     options={[
                       { label: 'Daily', value: 'DAILY' },
                       { label: 'Weekly', value: 'WEEKLY' },
-                      { label: 'Bimonthly', value: 'BIMONTHLY' },
                       { label: 'Monthly', value: 'MONTHLY' },
                       { label: 'Quarterly', value: 'QUARTERLY' },
                       { label: 'Half Yearly', value: 'HALF_YEARLY' },

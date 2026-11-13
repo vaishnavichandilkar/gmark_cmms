@@ -170,7 +170,7 @@ export function MachineManagement() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, columnFilters]);
+  }, [searchQuery, columnFilters, activeFilters]);
 
   useEffect(() => {
     fetchMachines();
@@ -411,13 +411,14 @@ export function MachineManagement() {
 
       // Active Filters (Customize Filters)
       for (const [key, value] of Object.entries(activeFilters)) {
-        if (!value) continue;
-        if (key === 'company' && (machine.company || '').toLowerCase() !== value.toLowerCase()) return false;
-        if (key === 'status' && !(machine.status || 'online').toLowerCase().includes(value.toLowerCase())) return false;
-        if (key === 'category' && (machine.machineCategory || '').toLowerCase() !== value.toLowerCase()) return false;
-        if (key === 'subCategory' && (machine.machineSubCategory || '').toLowerCase() !== value.toLowerCase()) return false;
-        if (key === 'building' && (machine.building || '').toLowerCase() !== value.toLowerCase()) return false;
-        if (key === 'make' && (machine.make || '').toLowerCase() !== value.toLowerCase()) return false;
+        if (!value || value === 'All') continue;
+        const target = value.toLowerCase().trim();
+        if (key === 'company' && (machine.company || '').toLowerCase().trim() !== target) return false;
+        if (key === 'status' && !(machine.status || 'online').toLowerCase().includes(target)) return false;
+        if (key === 'category' && (machine.machineCategory || '').toLowerCase().trim() !== target) return false;
+        if (key === 'subCategory' && (machine.machineSubCategory || '').toLowerCase().trim() !== target) return false;
+        if (key === 'building' && (machine.building || '').toLowerCase().trim() !== target) return false;
+        if (key === 'make' && (machine.make || '').toLowerCase().trim() !== target) return false;
       }
 
       // 2. Column-wise Filters
@@ -489,7 +490,7 @@ export function MachineManagement() {
       const cmp = valA.localeCompare(valB, undefined, { numeric: true });
       return sortConfig.direction === 'asc' ? cmp : -cmp;
     });
-  }, [machines, searchQuery, columnFilters, sortConfig]);
+  }, [permittedMachines, searchQuery, activeFilters, columnFilters, sortConfig]);
 
   const totalItems = filteredMachines.length;
   const totalPages = Math.ceil(totalItems / rowsPerPage);
@@ -1482,8 +1483,12 @@ export function MachineManagement() {
                     )}
                     {visibleColumns.includes('status') && (
                       <td className="px-3.5 py-2.5 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          {machine.status || 'Online'}
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                          (machine.status || 'Online').toLowerCase() === 'online'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-rose-50 text-rose-700 border border-rose-200'
+                        }`}>
+                          {(machine.status || 'Online').toLowerCase() === 'online' ? 'Online' : 'Offline'}
                         </span>
                       </td>
                     )}

@@ -72,6 +72,7 @@ export interface GSTValidationResult {
   panEntityType?: string;
   entityNumber?: string;
   checkDigit?: string;
+  expectedCheckDigit?: string;
 }
 
 /**
@@ -164,7 +165,14 @@ export function validateGSTIN(gstin: string, enforceChecksum = true): GSTValidat
   if (enforceChecksum && actualCheckDigit !== expectedCheckDigit) {
     return { 
       isValid: false, 
-      error: `Invalid GST check digit "${actualCheckDigit}". Expected check digit is "${expectedCheckDigit}".` 
+      error: `Invalid GST check digit "${actualCheckDigit}". Expected check digit is "${expectedCheckDigit}".`,
+      expectedCheckDigit,
+      checkDigit: actualCheckDigit,
+      stateCode,
+      stateName,
+      pan,
+      panEntityType,
+      entityNumber
     };
   }
 

@@ -10,15 +10,19 @@ export class SocietiesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(user: any) {
-    if (user.role === 'SUPER_ADMIN' || !user.societyId) {
+    const isPlatformSuperAdmin = user?.id === 1 || user?.email === 'superadmin@hypn.com';
+    if (isPlatformSuperAdmin) {
       return this.prisma.society.findMany({
         orderBy: { id: 'asc' },
       });
     }
-    return this.prisma.society.findMany({
-      where: { id: user.societyId },
-      orderBy: { id: 'asc' },
-    });
+    if (user.societyId) {
+      return this.prisma.society.findMany({
+        where: { id: user.societyId },
+        orderBy: { id: 'asc' },
+      });
+    }
+    return [];
   }
 
   async findOne(id: number, user?: any) {

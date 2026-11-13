@@ -216,16 +216,18 @@ export function AddMainFacility() {
       if (!payload.state) payload.state = null;
       if (!payload.city) payload.city = null;
 
+      let createdId: any = null;
       if (id) {
         await api.patch(`/main-facilities/${id}`, payload);
       } else {
         const res = await api.post('/main-facilities', payload);
+        createdId = res.data?.id;
         if (returnUrl) {
           sessionStorage.setItem('newlyAddedMainFacilityId', res.data.id.toString());
         }
       }
       toast.success('Facility saved successfully!');
-      navigate(returnUrl || '/master/main-facility');
+      navigate(returnUrl || '/master/main-facility', { state: { newFacilityId: createdId } });
     } catch (err: any) {
       console.error('Error saving facility:', err);
       setGlobalError(err.response?.data?.message || 'Failed to save facility. Please try again.');

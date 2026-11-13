@@ -109,8 +109,8 @@ export class FacilitiesService {
   }
 
   async findAll(currentUser?: any, includeAll: boolean = false) {
-    const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
-    const effectiveAdminId = isSuperAdmin ? null : (currentUser?.adminId || currentUser?.userId);
+    const isPlatformSuperAdmin = currentUser?.id === 1 || currentUser?.email === 'superadmin@hypn.com';
+    const effectiveAdminId = isPlatformSuperAdmin ? null : (currentUser?.adminId || currentUser?.userId);
     const whereClause: any = effectiveAdminId ? {
       OR: [
         { adminId: effectiveAdminId },

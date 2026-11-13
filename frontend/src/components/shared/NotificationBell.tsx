@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Bell, X, Volume2, VolumeX, Play, Mail, Check } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
+import { Bell, X, Volume2, VolumeX, Play, Mail, Check, Sliders } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
 import { io, Socket } from 'socket.io-client';
@@ -10,6 +12,7 @@ import { audioBuzzer } from '../../utils/audioBuzzer';
 let socket: Socket | null = null;
 
 export function NotificationBell({ isExpanded }: { isExpanded: boolean }) {
+  const navigate = useNavigate();
   const { isAuthenticated, accessToken } = useSelector((state: RootState) => state.auth);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -83,15 +86,23 @@ export function NotificationBell({ isExpanded }: { isExpanded: boolean }) {
       </button>
 
       <AnimatePresence>
-        {isDropdownOpen && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
+        {isDropdownOpen && typeof document !== 'undefined' && createPortal(
+          <div className="fixed inset-0 z-[9999] pointer-events-none">
+            <div 
+              className="fixed inset-0 bg-black/10 backdrop-blur-[1px] pointer-events-auto" 
+              onClick={() => setIsDropdownOpen(false)} 
+            />
             <motion.div
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
               transition={{ duration: 0.15 }}
-              className={`absolute bottom-[calc(100%+10px)] ${isExpanded ? 'left-[-120px]' : 'left-full ml-4'} w-84 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50`}
+              style={{
+                position: 'fixed',
+                bottom: '56px',
+                left: isExpanded ? '16px' : '72px',
+              }}
+              className="w-88 max-w-[calc(100vw-32px)] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-[10000] pointer-events-auto flex flex-col max-h-[460px]"
             >
               <div className="p-3.5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                 <div className="flex items-center gap-2">
@@ -131,7 +142,7 @@ export function NotificationBell({ isExpanded }: { isExpanded: boolean }) {
                   </button>
                 </div>
               </div>
-              <div className="max-h-64 overflow-y-auto p-2">
+              <div className="max-h-64 overflow-y-auto p-2 flex-1">
                 {alerts.length === 0 ? (
                   <div className="p-4 text-center text-gray-500 text-sm">No active alerts.</div>
                 ) : (
@@ -208,8 +219,25 @@ export function NotificationBell({ isExpanded }: { isExpanded: boolean }) {
                   })
                 )}
               </div>
+
+              {/* Footer link to Notification Settings */}
+              <div className="p-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs">
+                <span className="text-[11px] text-slate-500">CMMS Alert Matrix</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDropdownOpen(false);
+                    navigate('/profile?tab=notifications');
+                  }}
+                  className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer"
+                >
+                  <Sliders size={12} />
+                  <span>Notification Settings →</span>
+                </button>
+              </div>
             </motion.div>
-          </>
+          </div>,
+          document.body
         )}
       </AnimatePresence>
     </div>

@@ -58,7 +58,13 @@ export function ApproveRejectWOModal({
 
       setEstStartDate(new Date().toISOString().split('T')[0]);
       setEstEndDate(tomorrow.toISOString().split('T')[0]);
-      setSelectedTechId(workOrder.assignedTechnicianId || (techniciansList.length > 0 ? techniciansList[0].id : ''));
+      
+      const assignableTechs = techniciansList.filter((t: any) => 
+        t.role !== 'SUPER_ADMIN' && 
+        t.username?.toLowerCase() !== 'admin' &&
+        t.firstName?.toLowerCase() !== 'super admin'
+      );
+      setSelectedTechId(workOrder.assignedTechnicianId || (assignableTechs.length > 0 ? assignableTechs[0].id : ''));
       setRejectionReason('');
       setManagerRemarks('');
       setActiveAction('APPROVE');
@@ -293,17 +299,27 @@ export function ApproveRejectWOModal({
                       className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-sm font-semibold text-gray-800 outline-none focus:border-emerald-500"
                     >
                       <option value="">-- Select Technician from Database --</option>
-                      {techniciansList.length > 0 ? (
-                        techniciansList.map((t: any) => {
-                          const name = t.firstName ? `${t.firstName} ${t.lastName || ''}`.trim() : t.username;
-                          const isAdmin = t.role === 'SUPER_ADMIN' || t.role === 'SOCIETY_ADMIN';
-                          const label = isAdmin ? `${name} (Admin)` : name;
-                          return (
-                            <option key={t.id} value={t.id}>
-                              {label}
-                            </option>
-                          );
-                        })
+                      {techniciansList.filter((t: any) => 
+                        t.role !== 'SUPER_ADMIN' && 
+                        t.username?.toLowerCase() !== 'admin' &&
+                        t.firstName?.toLowerCase() !== 'super admin'
+                      ).length > 0 ? (
+                        techniciansList
+                          .filter((t: any) => 
+                            t.role !== 'SUPER_ADMIN' && 
+                            t.username?.toLowerCase() !== 'admin' &&
+                            t.firstName?.toLowerCase() !== 'super admin'
+                          )
+                          .map((t: any) => {
+                            const name = t.firstName ? `${t.firstName} ${t.lastName || ''}`.trim() : t.username;
+                            const isAdmin = t.role === 'SOCIETY_ADMIN' || t.role === 'BUILDING_ADMIN';
+                            const label = isAdmin ? `${name} (Admin)` : name;
+                            return (
+                              <option key={t.id} value={t.id}>
+                                {label}
+                              </option>
+                            );
+                          })
                       ) : (
                         <>
                           <option value="1">Technician Rajesh Kumar (Electrical & Pumps)</option>

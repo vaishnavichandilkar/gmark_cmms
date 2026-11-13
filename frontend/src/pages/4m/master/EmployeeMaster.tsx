@@ -193,7 +193,10 @@ export function EmployeeMaster() {
 
       // 2. Filter by Active Filters
       for (const [key, value] of Object.entries(activeFilters)) {
-        if (emp[key] !== value) return false;
+        if (!value || value === 'All') continue;
+        const empVal = String(emp[key] ?? '').toLowerCase().trim();
+        const targetVal = String(value).toLowerCase().trim();
+        if (empVal !== targetVal) return false;
       }
 
       // 3. Column Filters

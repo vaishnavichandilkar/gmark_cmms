@@ -23,7 +23,9 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
-  Shield
+  Shield,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../../lib/api';
@@ -36,7 +38,7 @@ import toast from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../store';
 import { hasPermission, hasAssetPermission } from '../../../utils/permissions';
-import { AssetTree, type TreeNodeData } from '../../../components/4m/AssetTree';
+import { AssetTree, getAllExpandableIds, type TreeNodeData } from '../../../components/4m/AssetTree';
 import { AssetDetails } from '../../../components/4m/AssetDetails';
 import { ColumnCustomizer, type ColumnDefinition } from '../../../components/shared/ColumnCustomizer';
 import { GiveAccessModal } from '../../../components/4m/GiveAccessModal';
@@ -114,6 +116,7 @@ export function FacilityManagement() {
   // View Switcher State: 'tree' vs 'table' (Hierarchy view first by default)
   const [activeView, setActiveView] = useState<'tree' | 'table'>('tree');
   const [treeData, setTreeData] = useState<TreeNodeData[]>([]);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedNode, setSelectedNode] = useState<TreeNodeData | null>(null);
   const [detailsNode, setDetailsNode] = useState<TreeNodeData | null>(null);
   const [treeLoading, setTreeLoading] = useState(false);
@@ -125,6 +128,36 @@ export function FacilityManagement() {
     code?: string;
     category?: string;
   } | null>(null);
+
+  const handleExpandAll = () => {
+    setExpandedIds(new Set(getAllExpandableIds(treeData)));
+  };
+
+  const handleCollapseAll = () => {
+    setExpandedIds(new Set());
+  };
+
+  const isAnyExpanded = expandedIds.size > 0;
+
+  const handleToggleExpandAll = () => {
+    if (isAnyExpanded) {
+      handleCollapseAll();
+    } else {
+      handleExpandAll();
+    }
+  };
+
+  const handleToggleExpand = (nodeId: string) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+      return next;
+    });
+  };
   
   // Column-wise Filters State
   const [showColumnFilters, setShowColumnFilters] = useState(true);
@@ -184,7 +217,7 @@ export function FacilityManagement() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, columnFilters]);
+  }, [searchQuery, columnFilters, activeFilters]);
 
   useEffect(() => {
     fetchFacilities();
@@ -360,6 +393,7 @@ export function FacilityManagement() {
       sortTree(finalTree);
 
       setTreeData(finalTree);
+      setExpandedIds(new Set(getAllExpandableIds(finalTree)));
     } catch (err) {
       console.error('Failed to load tree data', err);
     } finally {
@@ -622,12 +656,13 @@ export function FacilityManagement() {
 
       // Active Filters (Customize Filters)
       for (const [key, value] of Object.entries(activeFilters)) {
-        if (!value) continue;
-        if (key === 'category' && (facility.category || '').toLowerCase() !== value.toLowerCase()) return false;
-        if (key === 'subCategory' && (facility.subCategory || '').toLowerCase() !== value.toLowerCase()) return false;
-        if (key === 'mainFacility' && (facility.mainFacility?.mainFacilityName || '').toLowerCase() !== value.toLowerCase()) return false;
-        if (key === 'city' && (facility.city || '').toLowerCase() !== value.toLowerCase()) return false;
-        if (key === 'state' && (facility.state || '').toLowerCase() !== value.toLowerCase()) return false;
+        if (!value || value === 'All') continue;
+        const target = value.toLowerCase().trim();
+        if (key === 'category' && (facility.category || '').toLowerCase().trim() !== target) return false;
+        if (key === 'subCategory' && (facility.subCategory || '').toLowerCase().trim() !== target) return false;
+        if (key === 'mainFacility' && (facility.mainFacility?.mainFacilityName || '').toLowerCase().trim() !== target) return false;
+        if (key === 'city' && (facility.city || '').toLowerCase().trim() !== target) return false;
+        if (key === 'state' && (facility.state || '').toLowerCase().trim() !== target) return false;
       }
 
       // 2. Column-wise Filters
@@ -691,7 +726,7 @@ export function FacilityManagement() {
       const cmp = valA.localeCompare(valB, undefined, { numeric: true });
       return sortConfig.direction === 'asc' ? cmp : -cmp;
     });
-  }, [facilities, searchQuery, columnFilters, sortConfig]);
+  }, [facilities, searchQuery, activeFilters, columnFilters, sortConfig]);
 
   const totalItems = filteredFacilities.length;
   const totalPages = Math.ceil(totalItems / rowsPerPage);
@@ -835,17 +870,29 @@ export function FacilityManagement() {
       {activeView === 'tree' ? (
         /* Hierarchy Tree View (Same like All Assets) */
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col min-h-[620px]">
-          <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold text-gray-900">Facility & Asset Hierarchy</h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  {treeData.length} Root {treeData.length === 1 ? 'Node' : 'Nodes'}
-                </span>
-              </div>
-              <p className="text-[11px] text-gray-500 mt-0.5">
-                Unified hierarchical view (Facility → Sub-facility → Machine) • Click any node to inspect full details
-              </p>
+          <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                type="button"
+                id="btn-toggle-expand-all"
+                onClick={handleToggleExpandAll}
+                className="w-6 h-6 -ml-1 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
+                title={isAnyExpanded ? "Collapse all nodes" : "Expand all nodes"}
+                aria-label={isAnyExpanded ? "Collapse all nodes" : "Expand all nodes"}
+              >
+                {isAnyExpanded ? (
+                  <ChevronDown className="w-4.5 h-4.5 text-gray-700 stroke-[2.2]" />
+                ) : (
+                  <ChevronRight className="w-4.5 h-4.5 text-gray-700 stroke-[2.2]" />
+                )}
+              </button>
+              <h2 
+                className="text-sm font-bold text-gray-900 cursor-pointer select-none hover:text-emerald-700 transition-colors"
+                onClick={handleToggleExpandAll}
+                title={isAnyExpanded ? "Click to collapse all nodes" : "Click to expand all nodes"}
+              >
+                Facility & Asset Hierarchy
+              </h2>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -887,6 +934,10 @@ export function FacilityManagement() {
                 onDoubleClick={handleTreeSelect}
                 selectedId={selectedNode?.id || null} 
                 defaultExpanded={true}
+                expandedIds={expandedIds}
+                onToggleExpand={handleToggleExpand}
+                onExpandAll={handleExpandAll}
+                onCollapseAll={handleCollapseAll}
                 enableDragAndDrop={true}
                 onDropNode={(source, target) => {
                   setPendingMove({ source, target });

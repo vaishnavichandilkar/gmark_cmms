@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { ChevronLeft, Upload, Film, Trash2, Eye, Loader2, Pencil, FileText, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { workOrderService } from '../../../services/workOrderService';
@@ -7,15 +7,30 @@ import { api } from '../../../lib/api';
 
 export function CreateWorkOrderPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const targetMachineId = searchParams.get('machineId');
+  const returnUrl = (location.state as any)?.returnUrl;
+  const returnTab = (location.state as any)?.returnTab || 'WO';
+
+  const handleBack = () => {
+    if (returnUrl) {
+      navigate(returnUrl, { state: { tab: returnTab, returnTab } });
+    } else {
+      navigate('/work-orders');
+    }
+  };
 
   const [selectedMachineId, setSelectedMachineId] = useState<number | string>('');
   const [selectedMachine, setSelectedMachine] = useState<any>(null);
   const [machinesList, setMachinesList] = useState<any[]>([]);
+  const [facilityOptions, setFacilityOptions] = useState<any[]>([]);
+  const [subFacilityOptions, setSubFacilityOptions] = useState<any[]>([]);
+  const [selectedFacilityId, setSelectedFacilityId] = useState<string>('');
+  const [selectedSubFacilityId, setSelectedSubFacilityId] = useState<string>('');
   const [problemDescription, setProblemDescription] = useState(searchParams.get('problem') || '');
-  const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>(
-    (searchParams.get('priority') as any) || 'MEDIUM'
+  const [status, setStatus] = useState<'Predictive' | 'Preventive' | 'Safety' | 'Breakdown'>(
+    (searchParams.get('status') as any) || 'Breakdown'
   );
 
   const [uploadingFiles, setUploadingFiles] = useState(false);
@@ -44,31 +59,142 @@ export function CreateWorkOrderPage() {
     return m.fileType === 'DOCUMENT' || !!m.fileName?.match(/\.(pdf|doc|docx|xls|xlsx|csv|txt|ppt|pptx)$/i);
   };
 
-  useEffect(() => {
-    fetchMachines();
-  }, []);
+  const getMachineLocations = (m: any, facList: any[], subList: any[]) => {
+    let facId = '';
+    let subId = '';
 
-  const fetchMachines = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get('/machines');
-      const data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
-      setMachinesList(data);
-      if (targetMachineId) {
-        const found = data.find((m: any) => String(m.id) === String(targetMachineId));
-        if (found) {
-          setSelectedMachineId(found.id);
-          setSelectedMachine(found);
-          return;
+    if (m.facilityId) {
+      const match = subList.find(s => s.type === 'facility' && String(s.rawId) === String(m.facilityId));
+      if (match) {
+        subId = match.id;
+        facId = match.parentFacilityId || '';
+      }
+    } else if (m.buildingId) {
+      const match = subList.find(s => s.type === 'building' && String(s.rawId) === String(m.buildingId));
+      if (match) {
+        subId = match.id;
+        facId = match.parentFacilityId || '';
+      }
+    } else if (m.building && m.building !== 'Unassigned') {
+      const match = subList.find(s => s.name?.toLowerCase() === String(m.building).toLowerCase());
+      if (match) {
+        subId = match.id;
+        facId = match.parentFacilityId || '';
+      }
+    }
+
+    if (!facId) {
+      if (m.facility?.mainFacilityId) {
+        facId = `mf-${m.facility.mainFacilityId}`;
+      } else if (m.company) {
+        const match = facList.find(f => String(f.rawId) === String(m.company) || f.name?.toLowerCase() === String(m.company).toLowerCase());
+        if (match) {
+          facId = match.id;
+        } else {
+          facId = `comp-${m.company}`;
         }
       }
-      if (data.length > 0) {
-        setSelectedMachineId(data[0].id);
-        setSelectedMachine(data[0]);
+    }
+
+    return { facId, subId };
+  };
+
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  const fetchInitialData = async () => {
+    try {
+      setLoading(true);
+      const [machRes, mainFacRes, socRes, facRes, bldgRes] = await Promise.all([
+        api.get('/machines').catch(() => ({ data: [] })),
+        api.get('/main-facilities').catch(() => ({ data: [] })),
+        api.get('/societies').catch(() => ({ data: [] })),
+        api.get('/facilities').catch(() => ({ data: [] })),
+        api.get('/buildings').catch(() => ({ data: [] })),
+      ]);
+
+      const machines = Array.isArray(machRes.data) ? machRes.data : (machRes.data?.data || []);
+      const mainFacs = Array.isArray(mainFacRes.data) ? mainFacRes.data : [];
+      const societies = Array.isArray(socRes.data) ? socRes.data : [];
+      const facilities = Array.isArray(facRes.data) ? facRes.data : [];
+      const buildings = Array.isArray(bldgRes.data) ? bldgRes.data : [];
+
+      setMachinesList(machines);
+
+      // 1. Build facility options (top-level)
+      const facMap = new Map<string, any>();
+      mainFacs.forEach((mf: any) => {
+        facMap.set(`mf-${mf.id}`, {
+          id: `mf-${mf.id}`,
+          name: mf.mainFacilityName,
+          rawId: mf.id,
+          type: 'mainFacility',
+        });
+      });
+      societies.forEach((s: any) => {
+        facMap.set(`soc-${s.id}`, {
+          id: `soc-${s.id}`,
+          name: s.name,
+          rawId: s.id,
+          type: 'society',
+        });
+      });
+      machines.forEach((m: any) => {
+        if (m.company && isNaN(Number(m.company)) && !Array.from(facMap.values()).some(f => f.name.toLowerCase() === m.company.toLowerCase())) {
+          facMap.set(`comp-${m.company}`, {
+            id: `comp-${m.company}`,
+            name: m.company,
+            rawId: m.company,
+            type: 'company',
+          });
+        }
+      });
+      const facOptionsList = Array.from(facMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+      setFacilityOptions(facOptionsList);
+
+      // 2. Build sub-facility options
+      const subMap = new Map<string, any>();
+      facilities.forEach((f: any) => {
+        subMap.set(`fac-${f.id}`, {
+          id: `fac-${f.id}`,
+          name: f.facilityName,
+          rawId: f.id,
+          parentFacilityId: f.mainFacilityId ? `mf-${f.mainFacilityId}` : null,
+          type: 'facility',
+        });
+      });
+      buildings.forEach((b: any) => {
+        subMap.set(`bldg-${b.id}`, {
+          id: `bldg-${b.id}`,
+          name: b.name,
+          rawId: b.id,
+          parentFacilityId: b.societyId ? `soc-${b.societyId}` : (b.mainFacilityId ? `mf-${b.mainFacilityId}` : null),
+          type: 'building',
+        });
+      });
+      const subOptionsList = Array.from(subMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+      setSubFacilityOptions(subOptionsList);
+
+      // 3. Resolve initial selection
+      let initialMachine = null;
+      if (targetMachineId) {
+        initialMachine = machines.find((m: any) => String(m.id) === String(targetMachineId));
+      }
+      if (!initialMachine && machines.length > 0) {
+        initialMachine = machines[0];
+      }
+
+      if (initialMachine) {
+        setSelectedMachineId(initialMachine.id);
+        setSelectedMachine(initialMachine);
+        const { facId, subId } = getMachineLocations(initialMachine, facOptionsList, subOptionsList);
+        if (facId) setSelectedFacilityId(facId);
+        if (subId) setSelectedSubFacilityId(subId);
       }
     } catch (err) {
-      console.error('Failed to fetch machines:', err);
-      toast.error('Failed to load machines list');
+      console.error('Failed to load initial work order data:', err);
+      toast.error('Failed to load machines and facilities');
     } finally {
       setLoading(false);
     }
@@ -78,10 +204,89 @@ export function CreateWorkOrderPage() {
     setSelectedMachineId(mId);
     const found = machinesList.find(m => String(m.id) === String(mId));
     setSelectedMachine(found || null);
+    if (found) {
+      const { facId, subId } = getMachineLocations(found, facilityOptions, subFacilityOptions);
+      if (facId) setSelectedFacilityId(facId);
+      if (subId) setSelectedSubFacilityId(subId);
+    }
     if (validationErrors.machineId) {
       setValidationErrors(prev => ({ ...prev, machineId: '' }));
     }
   };
+
+  const handleFacilityChange = (facId: string) => {
+    setSelectedFacilityId(facId);
+    setSelectedSubFacilityId('');
+    if (validationErrors.facilityId) {
+      setValidationErrors(prev => ({ ...prev, facilityId: '' }));
+    }
+
+    const matching = machinesList.filter(m => {
+      if (!facId) return true;
+      const loc = getMachineLocations(m, facilityOptions, subFacilityOptions);
+      return loc.facId === facId;
+    });
+
+    if (matching.length > 0) {
+      if (!matching.some(m => String(m.id) === String(selectedMachineId))) {
+        handleMachineSelect(matching[0].id);
+      }
+    } else {
+      setSelectedMachineId('');
+      setSelectedMachine(null);
+    }
+  };
+
+  const handleSubFacilityChange = (subId: string) => {
+    setSelectedSubFacilityId(subId);
+    if (validationErrors.subFacilityId) {
+      setValidationErrors(prev => ({ ...prev, subFacilityId: '' }));
+    }
+
+    if (subId && !selectedFacilityId) {
+      const sub = subFacilityOptions.find(s => s.id === subId);
+      if (sub?.parentFacilityId) {
+        setSelectedFacilityId(sub.parentFacilityId);
+        if (validationErrors.facilityId) {
+          setValidationErrors(prev => ({ ...prev, facilityId: '' }));
+        }
+      }
+    }
+
+    const matching = machinesList.filter(m => {
+      const loc = getMachineLocations(m, facilityOptions, subFacilityOptions);
+      if (selectedFacilityId && loc.facId !== selectedFacilityId) return false;
+      if (subId && loc.subId !== subId) return false;
+      return true;
+    });
+
+    if (matching.length > 0) {
+      if (!matching.some(m => String(m.id) === String(selectedMachineId))) {
+        handleMachineSelect(matching[0].id);
+      }
+    } else {
+      setSelectedMachineId('');
+      setSelectedMachine(null);
+    }
+  };
+
+  const availableSubFacilities = useMemo(() => {
+    if (!selectedFacilityId) return subFacilityOptions;
+    return subFacilityOptions.filter(s => s.parentFacilityId === selectedFacilityId);
+  }, [subFacilityOptions, selectedFacilityId]);
+
+  const filteredMachines = useMemo(() => {
+    return machinesList.filter(m => {
+      const loc = getMachineLocations(m, facilityOptions, subFacilityOptions);
+      if (selectedFacilityId && loc.facId !== selectedFacilityId) {
+        return false;
+      }
+      if (selectedSubFacilityId && loc.subId !== selectedSubFacilityId) {
+        return false;
+      }
+      return true;
+    });
+  }, [machinesList, selectedFacilityId, selectedSubFacilityId, facilityOptions, subFacilityOptions]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -168,6 +373,12 @@ export function CreateWorkOrderPage() {
   const validateForm = (): boolean => {
     const errors: { [key: string]: string } = {};
 
+    if (!selectedFacilityId) {
+      errors.facilityId = 'Facility is required.';
+    }
+    if (!selectedSubFacilityId && availableSubFacilities.length > 0) {
+      errors.subFacilityId = 'Sub-Facility is required.';
+    }
     if (!selectedMachineId || !selectedMachine) {
       errors.machineId = 'Machine selection is required.';
     }
@@ -193,14 +404,20 @@ export function CreateWorkOrderPage() {
       const payload = {
         machineId: Number(selectedMachineId),
         problemDescription: problemDescription.trim(),
-        priority,
-        triggerType: 'MANUAL',
+        priority: status === 'Breakdown' ? 'HIGH' : status === 'Safety' ? 'CRITICAL' : 'MEDIUM',
+        statusType: status,
+        maintenanceCategory: status.toUpperCase(),
+        triggerType: status === 'Preventive' ? 'SCHEDULED' : 'MANUAL',
         mediaFiles: mediaList,
       };
 
       const result = await workOrderService.createWorkOrder(payload);
       toast.success(`Work Order ${result?.woNumber || 'WO-2026-XXXX'} created successfully!`);
-      navigate('/work-orders');
+      if (returnUrl) {
+        navigate(returnUrl, { state: { tab: returnTab, returnTab } });
+      } else {
+        navigate('/work-orders');
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to create Work Order. Please try again.');
     } finally {
@@ -217,27 +434,27 @@ export function CreateWorkOrderPage() {
   }
 
   return (
-    <div className="sm:p-6 pb-10 w-full h-full flex flex-col overflow-y-auto">
+    <div className="p-3 sm:p-5 w-full h-full flex flex-col overflow-y-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
         <div className="flex items-center">
           <button
             type="button"
-            onClick={() => navigate('/work-orders')}
+            onClick={handleBack}
             className="text-gray-600 hover:text-gray-900 mr-2 focus:outline-none cursor-pointer"
           >
-            <ChevronLeft size={24} />
+            <ChevronLeft size={22} />
           </button>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Add Work Order</h1>
+          <h1 className="text-lg sm:text-xl font-bold text-gray-800">Add Work Order</h1>
         </div>
 
         {/* Top Actions */}
         <div className="flex items-center gap-2.5">
           <button
             type="button"
-            onClick={() => navigate('/work-orders')}
+            onClick={handleBack}
             disabled={isSubmitting}
-            className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+            className="px-4 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-semibold text-xs transition-all shadow-xs disabled:opacity-50 cursor-pointer"
           >
             Back
           </button>
@@ -245,7 +462,7 @@ export function CreateWorkOrderPage() {
             type="button"
             onClick={() => handleSubmit()}
             disabled={isSubmitting}
-            className="flex items-center justify-center gap-1.5 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-xs disabled:opacity-70 min-w-[80px] cursor-pointer"
+            className="flex items-center justify-center gap-1.5 px-5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-xs disabled:opacity-70 min-w-[80px] cursor-pointer"
           >
             {isSubmitting ? (
               <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -257,24 +474,66 @@ export function CreateWorkOrderPage() {
       </div>
 
       {/* Form Card Container */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3.5 sm:p-5 flex-1 flex flex-col min-h-0">
+        <form onSubmit={handleSubmit} className="space-y-3.5 flex-1 flex flex-col min-h-0">
           {/* Form Fields Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
+            {/* Facility */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Facility <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={selectedFacilityId}
+                onChange={e => handleFacilityChange(e.target.value)}
+                className={`w-full px-3 py-1.5 min-h-[34px] border ${
+                  validationErrors.facilityId ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                } rounded-lg bg-white text-xs sm:text-sm text-gray-900 outline-none focus:border-green-500 transition-all cursor-pointer`}
+              >
+                <option value="">Select Facility</option>
+                {facilityOptions.map(fac => (
+                  <option key={fac.id} value={fac.id}>
+                    {fac.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Sub-Facility */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Sub-Facility <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={selectedSubFacilityId}
+                onChange={e => handleSubFacilityChange(e.target.value)}
+                className={`w-full px-3 py-1.5 min-h-[34px] border ${
+                  validationErrors.subFacilityId ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                } rounded-lg bg-white text-xs sm:text-sm text-gray-900 outline-none focus:border-green-500 transition-all cursor-pointer`}
+              >
+                <option value="">Select Sub-Facility</option>
+                {availableSubFacilities.map(sub => (
+                  <option key={sub.id} value={sub.id}>
+                    {sub.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Machine Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
                 Machine <span className="text-red-500">*</span>
               </label>
               <select
                 value={selectedMachineId}
                 onChange={e => handleMachineSelect(e.target.value)}
-                className={`w-full px-4 py-2.5 border ${
+                className={`w-full px-3 py-1.5 min-h-[34px] border ${
                   validationErrors.machineId ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                } rounded-lg bg-white text-gray-900 outline-none focus:border-green-500 transition-all`}
+                } rounded-lg bg-white text-xs sm:text-sm text-gray-900 outline-none focus:border-green-500 transition-all cursor-pointer`}
               >
-                <option value="">{machinesList.length === 0 ? 'No machines available' : 'Select Machine'}</option>
-                {machinesList.map(m => (
+                <option value="">{filteredMachines.length === 0 ? 'No machines available' : 'Select Machine'}</option>
+                {filteredMachines.map(m => (
                   <option key={m.id} value={m.id}>
                     {m.name} ({m.machineCode || `ID-${m.id}`})
                   </option>
@@ -282,66 +541,52 @@ export function CreateWorkOrderPage() {
               </select>
             </div>
 
-            {/* Priority */}
+            {/* Status */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Priority <span className="text-red-500">*</span>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Status <span className="text-red-500">*</span>
               </label>
               <select
-                value={priority}
-                onChange={e => setPriority(e.target.value as any)}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 outline-none focus:border-green-500 transition-all"
+                value={status}
+                onChange={e => setStatus(e.target.value as any)}
+                className="w-full px-3 py-1.5 min-h-[34px] border border-gray-300 rounded-lg bg-white text-xs sm:text-sm text-gray-900 outline-none focus:border-green-500 transition-all cursor-pointer"
               >
-                <option value="LOW">Low</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="HIGH">High</option>
-                <option value="CRITICAL">Critical</option>
+                <option value="Predictive">Predictive</option>
+                <option value="Preventive">Preventive</option>
+                <option value="Safety">Safety</option>
+                <option value="Breakdown">Breakdown</option>
               </select>
-            </div>
-
-            {/* Category / Location (Read-only metadata) */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Facility / Location
-              </label>
-              <input
-                type="text"
-                readOnly
-                value={selectedMachine ? (selectedMachine.facility?.facilityName || selectedMachine.building?.name || 'Main Facility') : 'Select Machine'}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 outline-none"
-              />
             </div>
           </div>
 
-          {/* Auto-populated Machine Details */}
+          {/* Auto-populated Machine Details (single row layout) */}
           {selectedMachine && (
-            <div className="bg-green-50/50 border border-green-200 rounded-xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-              <div>
-                <span className="text-gray-400 block font-semibold text-[10px] uppercase">MAKE & MODEL</span>
-                <span className="font-bold text-gray-900 mt-0.5 block">{selectedMachine.make || 'Grundfos'} / {selectedMachine.modelNumber || 'CRN-15'}</span>
+            <div className="bg-green-50/50 border border-green-200 rounded-lg px-4 py-2 flex flex-wrap items-center justify-between gap-3 text-xs shrink-0">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-gray-400 font-semibold text-[10px] uppercase shrink-0">MAKE & MODEL:</span>
+                <span className="font-bold text-gray-900 text-xs truncate">{selectedMachine.make || 'Grundfos'} / {selectedMachine.modelNumber || 'CRN-15'}</span>
               </div>
-              <div>
-                <span className="text-gray-400 block font-semibold text-[10px] uppercase">SERIAL NUMBER</span>
-                <span className="font-bold text-gray-900 mt-0.5 block">{selectedMachine.serialNumber || 'SN-2026-9901'}</span>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-gray-400 font-semibold text-[10px] uppercase shrink-0">SERIAL NUMBER:</span>
+                <span className="font-bold text-gray-900 text-xs truncate">{selectedMachine.serialNumber || 'SN-2026-9901'}</span>
               </div>
-              <div>
-                <span className="text-gray-400 block font-semibold text-[10px] uppercase">CATEGORY</span>
-                <span className="font-bold text-gray-900 mt-0.5 block">{selectedMachine.machineCategory || 'Hydropneumatic'}</span>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-gray-400 font-semibold text-[10px] uppercase shrink-0">CATEGORY:</span>
+                <span className="font-bold text-gray-900 text-xs truncate">{selectedMachine.machineCategory || 'Equipment'}</span>
               </div>
-              <div>
-                <span className="text-gray-400 block font-semibold text-[10px] uppercase">MACHINE CODE</span>
-                <span className="font-bold text-gray-900 mt-0.5 block">{selectedMachine.machineCode || `MCH-${selectedMachine.id}`}</span>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-gray-400 font-semibold text-[10px] uppercase shrink-0">MACHINE CODE:</span>
+                <span className="font-bold text-gray-900 text-xs truncate">{selectedMachine.machineCode || `MCH-${selectedMachine.id}`}</span>
               </div>
             </div>
           )}
 
           {/* Problem Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
               Problem Description <span className="text-red-500">*</span>
             </label>
             <textarea
-              rows={4}
               value={problemDescription}
               onChange={e => {
                 setProblemDescription(e.target.value);
@@ -349,10 +594,11 @@ export function CreateWorkOrderPage() {
                   setValidationErrors(prev => ({ ...prev, problemDescription: '' }));
                 }
               }}
+              rows={4}
               placeholder="Enter detailed problem description, abnormal noise, leak, or fault details..."
-              className={`w-full px-4 py-2.5 border ${
+              className={`w-full p-3 border ${
                 validationErrors.problemDescription ? 'border-red-500 bg-red-50' : 'border-gray-300'
-              } rounded-lg bg-white text-gray-900 outline-none focus:border-green-500 transition-all placeholder-gray-400`}
+              } rounded-xl bg-white text-xs sm:text-sm text-gray-900 outline-none focus:border-green-500 transition-all placeholder-gray-400 resize-none min-h-[90px]`}
             />
             {validationErrors.problemDescription && (
               <p className="text-xs text-red-500 font-semibold mt-1">{validationErrors.problemDescription}</p>
@@ -361,101 +607,113 @@ export function CreateWorkOrderPage() {
 
           {/* Photo & Video Upload */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Attach Photos & Videos (Optional)
-            </label>
-            <div className="border-2 border-dashed border-gray-300 hover:border-green-500 rounded-2xl p-8 text-center bg-gray-50/70 hover:bg-green-50/20 transition-all relative group cursor-pointer">
-              <input
-                type="file"
-                multiple
-                accept="image/*,video/*,.pdf"
-                onChange={handleFileUpload}
-                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                disabled={uploadingFiles}
-              />
-              <div className="flex flex-col items-center justify-center gap-3">
-                <div className="w-14 h-14 rounded-2xl bg-white border border-gray-200 group-hover:border-green-300 text-green-600 group-hover:scale-105 transition-all flex items-center justify-center shadow-xs">
-                  {uploadingFiles ? <Loader2 className="animate-spin" size={24} /> : <Upload size={24} />}
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-gray-800">
-                    {uploadingFiles ? 'Uploading Files...' : 'Click or Drag & Drop Photos, Videos or Documents'}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Attach fault photos, sound/vibration video clips or manuals (Max 25MB)
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl flex items-center gap-2 shadow-xs transition-all pointer-events-none"
-                >
-                  <Upload size={15} /> Browse Files
-                </button>
-              </div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold text-gray-700">
+                Attach Photos & Videos (Optional)
+              </label>
+              {mediaList.length > 0 && (
+                <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  {mediaList.length} file{mediaList.length > 1 ? 's' : ''} attached
+                </span>
+              )}
             </div>
 
-            {/* Media Thumbnails */}
-            {mediaList.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3">
-                {mediaList.map((m, idx) => (
-                  <div key={idx} className="relative group bg-white hover:bg-slate-50/50 rounded-xl overflow-hidden border border-slate-200 hover:border-emerald-300 hover:shadow-md transition-all aspect-video flex items-center justify-center">
-                    {m.fileType === 'VIDEO' ? (
-                      <div className="flex flex-col items-center justify-center text-slate-700 p-2 text-center h-full w-full">
-                        <Film size={26} className="text-slate-600 mb-1" />
-                        <span className="text-[10px] truncate max-w-full font-semibold">{m.fileName}</span>
-                      </div>
-                    ) : isDocFile(m) ? (
-                      <div className="flex flex-col items-center justify-center p-3 text-center h-full w-full bg-slate-50">
-                        <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-1 shadow-2xs">
-                          <FileText size={18} />
-                        </div>
-                        <span className="text-[11px] font-semibold text-slate-800 line-clamp-2 px-1 max-w-full leading-tight" title={m.fileName}>
-                          {m.fileName}
-                        </span>
-                        <span className="text-[9px] uppercase font-bold text-slate-400 mt-0.5">
-                          {m.fileName.split('.').pop() || 'DOC'}
-                        </span>
-                      </div>
-                    ) : (
-                      <img src={m.fileUrl} alt={m.fileName} className="w-full h-full object-cover" />
-                    )}
+            {mediaList.length === 0 ? (
+              <div className="border-2 border-dashed border-gray-300 hover:border-green-500 rounded-xl p-4 sm:p-5 text-center bg-gray-50/70 hover:bg-green-50/20 transition-all relative flex flex-col items-center justify-center gap-2 cursor-pointer group min-h-[120px]">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*,video/*,.pdf"
+                  onChange={handleFileUpload}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                  disabled={uploadingFiles}
+                />
+                <div className="w-10 h-10 rounded-xl bg-white border border-gray-200 group-hover:border-green-300 text-green-600 group-hover:scale-105 transition-all flex items-center justify-center shadow-2xs shrink-0">
+                  {uploadingFiles ? <Loader2 className="animate-spin" size={20} /> : <Upload size={20} />}
+                </div>
+                <div className="text-center min-w-0">
+                  <p className="text-xs font-bold text-gray-800">
+                    {uploadingFiles ? 'Uploading Files...' : 'Click or Drag & Drop Photos, Videos or Documents'}
+                  </p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">
+                    Attach fault photos, video clips or manuals (Max 25MB)
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 group-hover:border-emerald-500 group-hover:text-emerald-700 text-slate-700 font-semibold text-xs rounded-lg shadow-2xs transition-all pointer-events-none shrink-0 mt-1">
+                  <Upload size={13} /> Browse Files
+                </span>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {/* Compact dropzone banner */}
+                <div className="border-2 border-dashed border-gray-300 hover:border-green-500 rounded-xl py-2.5 px-3.5 text-center bg-gray-50/70 hover:bg-green-50/20 transition-all relative flex items-center justify-center gap-2 cursor-pointer group shrink-0">
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*,video/*,.pdf"
+                    onChange={handleFileUpload}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                    disabled={uploadingFiles}
+                  />
+                  <Upload size={16} className="text-emerald-600 shrink-0" />
+                  <span className="text-xs font-semibold text-gray-700 group-hover:text-emerald-700">
+                    {uploadingFiles ? 'Uploading...' : 'Click or Drop to Add More Files'}
+                  </span>
+                </div>
 
-                    {/* Floating Action Bar - Keeps Uploaded File Visible on Hover */}
-                    <div className="absolute inset-0 bg-slate-900/10 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
-                      <div className="flex items-center gap-1.5 bg-white/95 backdrop-blur-md px-2.5 py-1.5 rounded-xl shadow-lg border border-slate-200">
+                {/* Scrollable Thumbnails row/grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2.5 max-h-[140px] overflow-y-auto p-0.5">
+                  {mediaList.map((m, idx) => (
+                    <div key={idx} className="relative group bg-white rounded-xl overflow-hidden border border-slate-200 hover:border-emerald-300 hover:shadow-xs transition-all min-h-[90px] h-[100px] flex items-center justify-center">
+                      {m.fileType === 'VIDEO' ? (
+                        <div className="flex flex-col items-center justify-center text-slate-700 p-1 text-center h-full w-full">
+                          <Film size={22} className="text-slate-600 mb-0.5" />
+                          <span className="text-[10px] truncate max-w-full font-medium">{m.fileName}</span>
+                        </div>
+                      ) : isDocFile(m) ? (
+                        <div className="flex flex-col items-center justify-center p-2 text-center h-full w-full bg-slate-50">
+                          <FileText size={20} className="text-emerald-600 mb-1" />
+                          <span className="text-[10px] font-semibold text-slate-800 truncate max-w-full" title={m.fileName}>
+                            {m.fileName}
+                          </span>
+                        </div>
+                      ) : (
+                        <img src={m.fileUrl} alt={m.fileName} className="w-full h-full object-cover" />
+                      )}
+
+                      {/* Action buttons overlay */}
+                      <div className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => handleViewMedia(m)}
-                          className="p-1.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-600 hover:text-white rounded-lg transition-all cursor-pointer shadow-2xs hover:scale-105"
+                          className="p-1.5 bg-white/95 hover:bg-emerald-600 text-slate-700 hover:text-white rounded-md transition-all cursor-pointer shadow-xs"
                           title="View File"
                         >
-                          <Eye size={16} />
+                          <Eye size={14} />
                         </button>
                         <button
                           type="button"
                           onClick={() => setEditingMedia({ index: idx, fileName: m.fileName, fileUrl: m.fileUrl, fileType: m.fileType, newFile: null })}
-                          className="p-1.5 bg-blue-50 hover:bg-blue-600 text-blue-600 hover:text-white rounded-lg transition-all cursor-pointer shadow-2xs hover:scale-105"
+                          className="p-1.5 bg-white/95 hover:bg-blue-600 text-slate-700 hover:text-white rounded-md transition-all cursor-pointer shadow-xs"
                           title="Edit File"
                         >
-                          <Pencil size={16} />
+                          <Pencil size={14} />
                         </button>
                         <button
                           type="button"
                           onClick={() => removeMedia(idx)}
-                          className="p-1.5 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white rounded-lg transition-all cursor-pointer shadow-2xs hover:scale-105"
+                          className="p-1.5 bg-white/95 hover:bg-rose-600 text-slate-700 hover:text-white rounded-md transition-all cursor-pointer shadow-xs"
                           title="Delete File"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </div>
-
-
         </form>
       </div>
 

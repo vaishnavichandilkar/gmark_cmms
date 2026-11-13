@@ -23,42 +23,51 @@ export function LogoutConfirmModal({ isOpen, onClose, onConfirm }: LogoutConfirm
 
           {/* Modal Container */}
           <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-dialog-title"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', duration: 0.4 }}
-            className="relative w-full max-w-[400px] bg-white p-6 rounded-3xl shadow-2xl z-10"
+            className="relative w-full max-w-[420px] bg-white p-6 rounded-2xl shadow-2xl border border-slate-200 z-10"
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Close Button */}
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              aria-label="Close dialog"
             >
               <X size={18} />
             </button>
 
             {/* Content */}
             <div className="flex flex-col items-center text-center mt-2">
-              <div className="w-14 h-14 bg-red-50 border border-red-100 text-red-500 rounded-2xl flex items-center justify-center mb-4">
+              <div className="w-13 h-13 bg-rose-50 border border-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mb-4">
                 <LogOut size={24} />
               </div>
 
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Confirm Logout</h3>
-              <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-                Are you sure you want to log out of your account? You will need to log back in to monitor and control the systems.
+              <h3 id="logout-dialog-title" className="text-lg font-bold text-slate-900 mb-2">
+                Confirm Sign Out
+              </h3>
+              <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+                Are you sure you want to sign out of 4M CMMS? You will need to sign in again to access maintenance schedules and work orders.
               </p>
 
               {/* Actions */}
               <div className="flex gap-3 w-full">
                 <button
+                  type="button"
                   onClick={onClose}
-                  className="flex-1 py-3 px-4 rounded-xl bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-700 font-medium text-sm transition-all cursor-pointer"
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-sm transition-all cursor-pointer shadow-xs"
                 >
                   Cancel
                 </button>
                 <button
+                  type="button"
                   onClick={onConfirm}
-                  className="flex-1 py-3 px-4 rounded-xl bg-red-600 hover:bg-red-500 text-white font-medium text-sm transition-all shadow-lg shadow-red-600/20 hover:shadow-red-600/30 cursor-pointer active:scale-[0.98]"
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm transition-all shadow-md shadow-rose-600/20 active:scale-[0.98] cursor-pointer"
                 >
                   Logout
                 </button>

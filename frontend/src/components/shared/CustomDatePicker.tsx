@@ -10,9 +10,11 @@ interface CustomDatePickerProps {
   onChange: (e: any) => void;
   placeholder?: string;
   className?: string;
+  inputClassName?: string;
   disabled?: boolean;
   minDate?: Date | string | null;
   maxDate?: Date | string | null;
+  hasError?: boolean;
 }
 
 export function CustomDatePicker({ 
@@ -21,9 +23,11 @@ export function CustomDatePicker({
   onChange, 
   placeholder = 'Select Date', 
   className = '', 
+  inputClassName = '',
   disabled = false,
   minDate,
-  maxDate
+  maxDate,
+  hasError = false
 }: CustomDatePickerProps) {
   
   const [mode, setMode] = useState<'date' | 'month' | 'year'>('date');
@@ -93,7 +97,7 @@ export function CustomDatePicker({
         dateFormat="dd/MM/yyyy"
         minDate={minDateVal || undefined}
         maxDate={maxDateVal || undefined}
-        className={`w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-gray-900 ${disabled ? 'opacity-60 cursor-not-allowed bg-gray-50' : 'cursor-pointer'}`}
+        className={`w-full px-4 py-2.5 ${hasError ? 'border-red-500 bg-red-50/50' : 'bg-white border-gray-300'} border rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-gray-900 ${disabled ? 'opacity-60 cursor-not-allowed bg-gray-50' : 'cursor-pointer'} ${inputClassName}`}
         wrapperClassName="w-full"
         popperClassName="pt-2"
         calendarClassName="!border-gray-200 !shadow-lg border-0"

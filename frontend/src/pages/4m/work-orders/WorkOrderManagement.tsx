@@ -146,9 +146,14 @@ export function WorkOrderManagement() {
       if (techData && Array.isArray(techData)) {
         const isSuperAdmin = user?.role === 'SUPER_ADMIN';
         const effectiveAdminId = user?.adminId || user?.id || user?.userId;
+        const validTechs = techData.filter((u: any) => 
+          u.role !== 'SUPER_ADMIN' && 
+          u.username?.toLowerCase() !== 'admin' &&
+          u.firstName?.toLowerCase() !== 'super admin'
+        );
         const myUsers = isSuperAdmin
-          ? techData
-          : techData.filter((u: any) =>
+          ? validTechs
+          : validTechs.filter((u: any) =>
               u.adminId === effectiveAdminId ||
               u.id === effectiveAdminId ||
               u.id === user?.id ||

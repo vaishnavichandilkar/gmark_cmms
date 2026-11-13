@@ -72,8 +72,8 @@ export class CheckpointsService implements OnModuleInit {
   }
 
   async getMasterCheckpoints(search?: string, type?: string, currentUser?: any) {
-    const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
-    const effectiveAdminId = isSuperAdmin ? null : (currentUser?.adminId || currentUser?.userId);
+    const isPlatformSuperAdmin = currentUser?.id === 1 || currentUser?.email === 'superadmin@hypn.com';
+    const effectiveAdminId = isPlatformSuperAdmin ? null : (currentUser?.adminId || currentUser?.userId);
     const where: any = {};
     if (type) {
       where.checkpointType = type;

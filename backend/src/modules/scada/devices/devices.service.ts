@@ -6,23 +6,22 @@ export class DevicesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getAllDevices(user: any) {
+    const isPlatformSuperAdmin = user?.id === 1 || user?.email === 'superadmin@hypn.com';
     let whereClause: any = {};
 
-    if (user.role === 'SUPER_ADMIN') {
+    if (isPlatformSuperAdmin) {
       whereClause = {};
-    } else if (user.role === 'SOCIETY_ADMIN') {
-      if (user.societyId) {
-        whereClause = {
-          building: { societyId: user.societyId },
-        };
-      }
-    } else {
-      if (user.societyId) {
-        whereClause.building = { societyId: user.societyId };
-      }
+    } else if (user.societyId) {
+      whereClause = {
+        building: { societyId: user.societyId },
+      };
       if (user.buildingIds && user.buildingIds.length > 0) {
         whereClause.buildingId = { in: user.buildingIds };
       }
+    } else if (user.deviceId) {
+      whereClause = { deviceId: user.deviceId };
+    } else {
+      return [];
     }
 
     const devices = await this.prisma.device.findMany({

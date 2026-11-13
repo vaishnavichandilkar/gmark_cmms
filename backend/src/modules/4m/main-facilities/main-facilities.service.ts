@@ -11,29 +11,28 @@ export class MainFacilitiesService {
   ) {}
 
   async create(createDto: CreateMainFacilityDto, currentUser?: any) {
-    const existingFacility = await this.prisma.mainFacility.findFirst({
-      where: {
-        OR: [
-          { mainFacilityCode: createDto.mainFacilityCode },
-          { gstNumber: createDto.gstNumber }
-        ]
-      }
-    });
+    const effectiveAdminId = currentUser?.adminId || currentUser?.userId || null;
 
-    if (existingFacility) {
-      if (existingFacility.gstNumber === createDto.gstNumber) {
-        throw new ConflictException('GST Number already exists');
+    if (createDto.gstNumber && createDto.gstNumber.trim()) {
+      const existingFacility = await this.prisma.mainFacility.findFirst({
+        where: {
+          gstNumber: createDto.gstNumber.trim(),
+          ...(effectiveAdminId ? { adminId: effectiveAdminId } : {}),
+        }
+      });
+
+      if (existingFacility) {
+        throw new ConflictException('GST Number already exists for another facility');
       }
-      // If code exists, it will just get a new unique code anyway
     }
 
     // Generate the real unique code at insertion time
     const realFacilityCode = await this.codeSequenceService.generateNextCode('MAIN_FACILITY');
-    const effectiveAdminId = currentUser?.adminId || currentUser?.userId || null;
 
     return this.prisma.mainFacility.create({
       data: {
         ...createDto,
+        gstNumber: createDto.gstNumber && createDto.gstNumber.trim() ? createDto.gstNumber.trim().toUpperCase() : null,
         mainFacilityCode: realFacilityCode,
         adminId: effectiveAdminId,
       },
@@ -95,8 +94,8 @@ export class MainFacilitiesService {
   }
 
   async findAll(currentUser?: any, includeAll: boolean = false) {
-    const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
-    const effectiveAdminId = isSuperAdmin ? null : (currentUser?.adminId || currentUser?.userId);
+    const isPlatformSuperAdmin = currentUser?.id === 1 || currentUser?.email === 'superadmin@hypn.com';
+    const effectiveAdminId = isPlatformSuperAdmin ? null : (currentUser?.adminId || currentUser?.userId);
     const whereClause: any = effectiveAdminId ? { adminId: effectiveAdminId } : {};
 
     if (!includeAll) {
@@ -151,10 +150,30 @@ export class MainFacilitiesService {
     return mainFacility;
   }
 
-  async update(id: number, updateDto: any) {
+  async update(id: number, updateDto: any, currentUser?: any) {
+    if (updateDto.gstNumber && updateDto.gstNumber.trim()) {
+      const effectiveAdminId = currentUser?.role === 'SUPER_ADMIN' ? null : (currentUser?.adminId || currentUser?.userId || null);
+      const existingFacility = await this.prisma.mainFacility.findFirst({
+        where: {
+          id: { not: id },
+          gstNumber: updateDto.gstNumber.trim(),
+          ...(effectiveAdminId ? { adminId: effectiveAdminId } : {}),
+        }
+      });
+
+      if (existingFacility) {
+        throw new ConflictException('GST Number already exists for another facility');
+      }
+    }
+
+    const dataToUpdate = { ...updateDto };
+    if (updateDto.gstNumber !== undefined) {
+      dataToUpdate.gstNumber = updateDto.gstNumber && updateDto.gstNumber.trim() ? updateDto.gstNumber.trim().toUpperCase() : null;
+    }
+
     return this.prisma.mainFacility.update({
       where: { id },
-      data: updateDto,
+      data: dataToUpdate,
     });
   }
 

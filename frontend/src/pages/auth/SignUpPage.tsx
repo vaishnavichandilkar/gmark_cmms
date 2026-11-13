@@ -78,6 +78,52 @@ export function SignUpPage() {
   const [registeredAuthData, setRegisteredAuthData] = useState<any>(null);
   const [launching, setLaunching] = useState(false);
 
+  const [gstChecking, setGstChecking] = useState(false);
+  const [gstAvailability, setGstAvailability] = useState<{ checkedGst: string; available: boolean; message: string } | null>(null);
+
+  useEffect(() => {
+    const trimmed = formData.gstNumber.trim().toUpperCase();
+    if (trimmed.length === 15) {
+      const val = validateGSTIN(trimmed);
+      if (val.isValid) {
+        let isCancelled = false;
+        setGstChecking(true);
+        const timer = setTimeout(async () => {
+          try {
+            const res = await api.get(`/auth/check-gst?gstNumber=${encodeURIComponent(trimmed)}`);
+            if (!isCancelled) {
+              setGstAvailability({ checkedGst: trimmed, available: res.data.available, message: res.data.message });
+              if (!res.data.available) {
+                setFieldErrors(prev => ({ ...prev, gstNumber: 'This GST number is already registered.' }));
+              } else {
+                setFieldErrors(prev => {
+                  const copy = { ...prev };
+                  if (copy.gstNumber === 'This GST number is already registered.') {
+                    delete copy.gstNumber;
+                  }
+                  return copy;
+                });
+              }
+            }
+          } catch (e) {
+            console.error('Failed to check GST availability', e);
+          } finally {
+            if (!isCancelled) setGstChecking(false);
+          }
+        }, 350);
+
+        return () => {
+          isCancelled = true;
+          clearTimeout(timer);
+        };
+      } else {
+        setGstAvailability(null);
+      }
+    } else {
+      setGstAvailability(null);
+    }
+  }, [formData.gstNumber]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
@@ -113,13 +159,15 @@ export function SignUpPage() {
     if (!formData.businessCategory || !formData.businessCategory.trim()) {
       errors.businessCategory = 'Please select business category.';
     }
-    const trimmedGst = formData.gstNumber.trim();
+    const trimmedGst = formData.gstNumber.trim().toUpperCase();
     if (!trimmedGst) {
       errors.gstNumber = 'Please enter a valid GST number.';
     } else {
       const gstValidation = validateGSTIN(trimmedGst);
       if (!gstValidation.isValid) {
         errors.gstNumber = gstValidation.error || 'Please enter a valid GST number.';
+      } else if (gstAvailability && gstAvailability.checkedGst === trimmedGst && !gstAvailability.available) {
+        errors.gstNumber = 'This GST number is already registered.';
       }
     }
     setFieldErrors(errors);
@@ -187,22 +235,38 @@ export function SignUpPage() {
     return Object.keys(errors).length === 0;
   };
 
-  const handleNextStep = () => {
+  const handleNextStep = async () => {
     if (isStepTransitioning) return;
     setGlobalError(null);
     if (currentStep === 1) {
-      if (validateStep1()) {
-        setIsStepTransitioning(true);
-        setFieldErrors({});
-        // Pre-fill State in Step 2 from validated GSTIN if state is empty
-        const gstResult = validateGSTIN(formData.gstNumber);
-        if (gstResult.isValid && gstResult.stateName && !formData.state) {
-          setFormData(prev => ({ ...prev, state: gstResult.stateName || prev.state }));
+      if (!validateStep1()) return;
+
+      const trimmedGst = formData.gstNumber.trim().toUpperCase();
+      try {
+        setGstChecking(true);
+        const checkRes = await api.get(`/auth/check-gst?gstNumber=${encodeURIComponent(trimmedGst)}`);
+        if (!checkRes.data.available) {
+          setFieldErrors(prev => ({ ...prev, gstNumber: 'This GST number is already registered.' }));
+          setGstAvailability({ checkedGst: trimmedGst, available: false, message: 'This GST number is already registered.' });
+          return;
         }
-        setCurrentStep(2);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        setTimeout(() => setIsStepTransitioning(false), 300);
+        setGstAvailability({ checkedGst: trimmedGst, available: true, message: 'GST number is available.' });
+      } catch (e) {
+        console.error('Failed to verify GST uniqueness', e);
+      } finally {
+        setGstChecking(false);
       }
+
+      setIsStepTransitioning(true);
+      setFieldErrors({});
+      // Pre-fill State in Step 2 from validated GSTIN if state is empty
+      const gstResult = validateGSTIN(formData.gstNumber);
+      if (gstResult.isValid && gstResult.stateName && !formData.state) {
+        setFormData(prev => ({ ...prev, state: gstResult.stateName || prev.state }));
+      }
+      setCurrentStep(2);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => setIsStepTransitioning(false), 300);
     } else if (currentStep === 2) {
       if (validateStep2()) {
         setIsStepTransitioning(true);
@@ -609,10 +673,34 @@ export function SignUpPage() {
                       <p className="mt-1 text-[11px] text-red-500 font-semibold">{fieldErrors.gstNumber}</p>
                     ) : (
                       (() => {
-                        const trimmed = formData.gstNumber.trim();
+                        const trimmed = formData.gstNumber.trim().toUpperCase();
                         if (trimmed.length === 15) {
                           const result = validateGSTIN(trimmed);
                           if (result.isValid) {
+                            if (gstChecking) {
+                              return (
+                                <p className="mt-1 text-[11px] text-gray-500 font-medium animate-pulse">
+                                  Verifying GST uniqueness...
+                                </p>
+                              );
+                            }
+                            if (gstAvailability && gstAvailability.checkedGst === trimmed) {
+                              if (!gstAvailability.available) {
+                                return (
+                                  <p className="mt-1 text-[11px] text-red-500 font-semibold">
+                                    ❌ This GST number is already registered with another account.
+                                  </p>
+                                );
+                              }
+                              return (
+                                <div className="mt-1 flex items-center gap-1.5 text-[11px] text-emerald-600 font-medium">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                  <span>
+                                    Valid GSTIN & Available: <strong>{result.stateName} ({result.stateCode})</strong> • {result.panEntityType}
+                                  </span>
+                                </div>
+                              );
+                            }
                             return (
                               <div className="mt-1 flex items-center gap-1.5 text-[11px] text-emerald-600 font-medium">
                                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
@@ -623,9 +711,28 @@ export function SignUpPage() {
                             );
                           } else {
                             return (
-                              <p className="mt-1 text-[11px] text-amber-600 font-medium">
-                                ⚠ {result.error}
-                              </p>
+                              <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-amber-600 font-medium">
+                                <span>⚠ {result.error}</span>
+                                {result.expectedCheckDigit && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const fixed = trimmed.slice(0, 14) + result.expectedCheckDigit;
+                                      setFormData(prev => ({ ...prev, gstNumber: fixed }));
+                                      if (fieldErrors.gstNumber) {
+                                        setFieldErrors(prev => {
+                                          const copy = { ...prev };
+                                          delete copy.gstNumber;
+                                          return copy;
+                                        });
+                                      }
+                                    }}
+                                    className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 font-semibold rounded text-[11px] border border-amber-300 transition-colors cursor-pointer inline-flex items-center gap-1 shadow-sm"
+                                  >
+                                    Fix check digit to "{result.expectedCheckDigit}"
+                                  </button>
+                                )}
+                              </div>
                             );
                           }
                         }

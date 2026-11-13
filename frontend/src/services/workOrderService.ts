@@ -182,8 +182,13 @@ export const workOrderService = {
   async getTechniciansList() {
     try {
       const response = await api.get('/users');
-      // Filter technicians, operators, building admins or return users
-      return response.data;
+      // Filter out Super Admin - system administrators should not be assigned as field technicians/operators
+      const users = Array.isArray(response.data) ? response.data : [];
+      return users.filter((u: any) => 
+        u.role !== 'SUPER_ADMIN' && 
+        u.username?.toLowerCase() !== 'admin' &&
+        u.firstName?.toLowerCase() !== 'super admin'
+      );
     } catch (err: any) {
       return [];
     }

@@ -6,25 +6,20 @@ export class BuildingsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(user: any, societyId?: number) {
+    const isPlatformSuperAdmin = user?.id === 1 || user?.email === 'superadmin@hypn.com';
     const whereClause: any = {};
 
-    if (user.role === 'SUPER_ADMIN' || !user.societyId) {
+    if (isPlatformSuperAdmin) {
       if (societyId !== undefined) {
         whereClause.societyId = societyId;
       }
-    } else if (user.role === 'SOCIETY_ADMIN') {
-      if (societyId !== undefined) {
-        whereClause.societyId = societyId;
-      } else if (user.societyId) {
-        whereClause.societyId = user.societyId;
-      }
-    } else {
-      if (user.societyId) {
-        whereClause.societyId = user.societyId;
-      }
+    } else if (user.societyId) {
+      whereClause.societyId = user.societyId;
       if (user.buildingIds && user.buildingIds.length > 0) {
         whereClause.id = { in: user.buildingIds };
       }
+    } else {
+      return [];
     }
 
     const buildings = await this.prisma.building.findMany({

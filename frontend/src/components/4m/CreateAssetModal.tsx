@@ -26,7 +26,7 @@ export const CreateAssetModal: React.FC<CreateAssetModalProps> = ({ isOpen, onCl
 
   const handleSelectFacility = () => {
     onClose();
-    navigate('/master/facility/new', { state: { returnUrl: '/assets', isSubfacility: false } });
+    navigate('/master/main-facility/new', { state: { returnUrl: '/assets' } });
   };
 
   const handleSelectSubfacility = () => {

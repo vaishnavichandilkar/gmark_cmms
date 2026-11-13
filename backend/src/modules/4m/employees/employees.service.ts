@@ -15,6 +15,22 @@ export class EmployeesService {
       throw new BadRequestException('Salary payout cannot be negative');
     }
 
+    const officialEmail = createEmployeeDto.officialEmail?.trim();
+    if (!officialEmail) {
+      throw new BadRequestException('Official email is required');
+    }
+
+    const personalEmail = createEmployeeDto.personalEmail?.trim();
+    if (personalEmail && officialEmail && personalEmail.toLowerCase() === officialEmail.toLowerCase()) {
+      throw new BadRequestException('Personal email must be different from official email');
+    }
+
+    if (createEmployeeDto.dateOfBirth && createEmployeeDto.dateOfJoining) {
+      if (!this.validateAgeDifference(createEmployeeDto.dateOfBirth, createEmployeeDto.dateOfJoining)) {
+        throw new BadRequestException('Employee must be at least 18 years old on the date of joining (minimum 18 years difference between Date of Birth and Date of Joining)');
+      }
+    }
+
     const effectiveAdminId = currentUser?.adminId || currentUser?.userId || null;
 
     if (createEmployeeDto.officialEmail) {
@@ -62,11 +78,9 @@ export class EmployeesService {
   }
 
   async findAll(currentUser?: any) {
-    const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
-    const effectiveAdminId = currentUser?.adminId || currentUser?.userId;
-    const whereClause: any = isSuperAdmin
-      ? {}
-      : effectiveAdminId ? { adminId: effectiveAdminId } : {};
+    const isPlatformSuperAdmin = currentUser?.id === 1 || currentUser?.email === 'superadmin@hypn.com';
+    const effectiveAdminId = isPlatformSuperAdmin ? null : (currentUser?.adminId || currentUser?.userId);
+    const whereClause: any = effectiveAdminId ? { adminId: effectiveAdminId } : {};
 
     const employees = await this.prisma.employee.findMany({
       where: whereClause,
@@ -147,6 +161,25 @@ export class EmployeesService {
 
     if (!existingEmployee) {
       throw new ConflictException('Employee not found');
+    }
+
+    if (updateEmployeeDto.officialEmail !== undefined && (!updateEmployeeDto.officialEmail || !updateEmployeeDto.officialEmail.trim())) {
+      throw new BadRequestException('Official email is required');
+    }
+
+    const checkOfficial = (updateEmployeeDto.officialEmail !== undefined ? updateEmployeeDto.officialEmail : existingEmployee.officialEmail)?.trim().toLowerCase();
+    const checkPersonal = (updateEmployeeDto.personalEmail !== undefined ? updateEmployeeDto.personalEmail : existingEmployee.personalEmail)?.trim().toLowerCase();
+
+    if (checkPersonal && checkOfficial && checkPersonal === checkOfficial) {
+      throw new BadRequestException('Personal email must be different from official email');
+    }
+
+    const effectiveDob = updateEmployeeDto.dateOfBirth !== undefined ? updateEmployeeDto.dateOfBirth : existingEmployee.dateOfBirth;
+    const effectiveDoj = updateEmployeeDto.dateOfJoining !== undefined ? updateEmployeeDto.dateOfJoining : existingEmployee.dateOfJoining;
+    if (effectiveDob && effectiveDoj) {
+      if (!this.validateAgeDifference(effectiveDob, effectiveDoj)) {
+        throw new BadRequestException('Employee must be at least 18 years old on the date of joining (minimum 18 years difference between Date of Birth and Date of Joining)');
+      }
     }
 
     const effectiveAdminId = currentUser?.adminId || currentUser?.userId || existingEmployee.adminId;
@@ -243,5 +276,32 @@ export class EmployeesService {
     return this.prisma.employee.delete({
       where: { id },
     });
+  }
+
+  private validateAgeDifference(dobInput: string | Date, dojInput: string | Date): boolean {
+    const parse = (input: string | Date): { y: number; m: number; d: number } | null => {
+      if (!input) return null;
+      if (typeof input === 'string') {
+        const match = input.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+        if (match) {
+          return { y: parseInt(match[1], 10), m: parseInt(match[2], 10), d: parseInt(match[3], 10) };
+        }
+      }
+      const dt = new Date(input);
+      if (isNaN(dt.getTime())) return null;
+      return { y: dt.getUTCFullYear(), m: dt.getUTCMonth() + 1, d: dt.getUTCDate() };
+    };
+
+    const dob = parse(dobInput);
+    const doj = parse(dojInput);
+    if (!dob || !doj) return true;
+
+    let age = doj.y - dob.y;
+    const monthDiff = doj.m - dob.m;
+    if (monthDiff < 0 || (monthDiff === 0 && doj.d < dob.d)) {
+      age--;
+    }
+
+    return age >= 18;
   }
 }

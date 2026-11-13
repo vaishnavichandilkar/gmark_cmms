@@ -28,10 +28,25 @@ export function EditMachine() {
   const location = useLocation();
   const { user: currentUser } = useSelector((state: RootState) => state.auth);
   
-  const [activeTab, setActiveTab] = useState(location.state?.tab || 'General');
+  const [activeTab, setActiveTab] = useState(
+    location.state?.tab || 
+    location.state?.returnTab || 
+    new URLSearchParams(location.search).get('tab') || 
+    'General'
+  );
   const [saving, setSaving] = useState(false);
   const returnUrl = (location.state as any)?.returnUrl;
   const returnTab = (location.state as any)?.returnTab;
+
+  useEffect(() => {
+    const tabParam = location.state?.tab || location.state?.returnTab || new URLSearchParams(location.search).get('tab');
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+      if (tabParam === 'WO') {
+        fetchWorkOrders();
+      }
+    }
+  }, [location.state, location.search]);
 
   const handleBack = () => {
     if (returnUrl) {
@@ -784,7 +799,7 @@ export function EditMachine() {
 
         setFormData(prev => ({
           ...prev,
-          status: device.status === 'online' ? 'Online' : 'Offline',
+          status: (device.status || 'Online').toLowerCase() === 'offline' ? 'Offline' : 'Online',
           name: device.name || '',
           deviceId: device.deviceId || '',
           company: device.company || device.facility?.mainFacilityId?.toString() || '',
@@ -933,6 +948,7 @@ export function EditMachine() {
         headOfDepartment: formData.headOfDepartment,
         machineOwner: formData.machineOwner,
         notes: formData.notes,
+        status: formData.status || 'Online',
       });
       toast.success('Machine saved successfully!');
     } catch (error: any) {
@@ -2144,15 +2160,13 @@ export function EditMachine() {
                     <button
                       type="button"
                       onClick={() => {
-                        setWoForm({
-                          problemDescription: '',
-                          priority: 'MEDIUM',
-                          triggerType: 'MANUAL',
-                          assignedTechnicianId: '',
-                          estimatedStartDate: '',
-                          estimatedEndDate: '',
+                        navigate(`/work-orders/new?machineId=${id}`, {
+                          state: {
+                            returnUrl: location.pathname,
+                            returnTab: 'WO',
+                            tab: 'WO'
+                          }
                         });
-                        setIsWoModalOpen(true);
                       }}
                       className="flex items-center gap-1.5 px-3.5 py-1.5 min-h-[34px] bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer whitespace-nowrap"
                     >
@@ -2172,31 +2186,7 @@ export function EditMachine() {
                 </div>
               </div>
 
-              {/* Stat badges */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
-                  <div className="text-[11px] font-semibold text-slate-500">Total Work Orders</div>
-                  <div className="text-xl font-bold text-slate-900 mt-0.5">{workOrders.length}</div>
-                </div>
-                <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-200/60">
-                  <div className="text-[11px] font-semibold text-blue-600">In Progress / Active</div>
-                  <div className="text-xl font-bold text-blue-700 mt-0.5">
-                    {workOrders.filter(w => w.status === 'IN_PROGRESS' || w.status === 'APPROVED').length}
-                  </div>
-                </div>
-                <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200/60">
-                  <div className="text-[11px] font-semibold text-amber-700">Pending Approval</div>
-                  <div className="text-xl font-bold text-amber-800 mt-0.5">
-                    {workOrders.filter(w => w.status === 'PENDING_APPROVAL').length}
-                  </div>
-                </div>
-                <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-200/60">
-                  <div className="text-[11px] font-semibold text-emerald-600">Completed</div>
-                  <div className="text-xl font-bold text-emerald-700 mt-0.5">
-                    {workOrders.filter(w => w.status === 'COMPLETED' || w.status === 'CLOSED').length}
-                  </div>
-                </div>
-              </div>
+
 
               {/* Table */}
               <div className="overflow-x-auto w-full border border-slate-200 rounded-xl shadow-2xs">
@@ -2231,6 +2221,24 @@ export function EditMachine() {
                           <Wrench className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                           <p className="font-semibold text-slate-700">No Work Orders for this Machine</p>
                           <p className="text-xs text-slate-400 mt-0.5">Create a breakdown or preventive work order to start tracking maintenance</p>
+                          {canCreateInTab && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigate(`/work-orders/new?machineId=${id}`, {
+                                  state: {
+                                    returnUrl: location.pathname,
+                                    returnTab: 'WO',
+                                    tab: 'WO'
+                                  }
+                                });
+                              }}
+                              className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-xs font-semibold shadow-xs cursor-pointer"
+                            >
+                              <Plus size={14} />
+                              <span>Create First Work Order</span>
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ) : (
@@ -3668,7 +3676,6 @@ export function EditMachine() {
                       options={[
                         { label: 'Daily', value: 'DAILY' },
                         { label: 'Weekly', value: 'WEEKLY' },
-                        { label: 'Bimonthly', value: 'BIMONTHLY' },
                         { label: 'Monthly', value: 'MONTHLY' },
                         { label: 'Quarterly', value: 'QUARTERLY' },
                         { label: 'Half Yearly', value: 'HALF_YEARLY' },
@@ -3791,7 +3798,6 @@ export function EditMachine() {
                     options={[
                       { label: 'Daily', value: 'DAILY' },
                       { label: 'Weekly', value: 'WEEKLY' },
-                      { label: 'Bimonthly', value: 'BIMONTHLY' },
                       { label: 'Monthly', value: 'MONTHLY' },
                       { label: 'Quarterly', value: 'QUARTERLY' },
                       { label: 'Half Yearly', value: 'HALF_YEARLY' },

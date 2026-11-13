@@ -270,14 +270,32 @@ export const SuppliersListPage: React.FC = () => {
   // Filtered and sorted suppliers
   const filteredSuppliers = useMemo(() => {
     let result = suppliers.filter((s) => {
-      // Active Filters (Customize Filters)
+      // 1. Global Search
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchesGlobal =
+          (s.name || '').toLowerCase().includes(q) ||
+          (s.supplierCode || '').toLowerCase().includes(q) ||
+          (s.businessCategory || '').toLowerCase().includes(q) ||
+          (s.contactPerson || '').toLowerCase().includes(q) ||
+          (s.email || '').toLowerCase().includes(q) ||
+          (s.phone || '').toLowerCase().includes(q) ||
+          (s.city || '').toLowerCase().includes(q) ||
+          (s.state || '').toLowerCase().includes(q) ||
+          (s.country || '').toLowerCase().includes(q) ||
+          (s.gstNumber || '').toLowerCase().includes(q);
+        if (!matchesGlobal) return false;
+      }
+
+      // 2. Active Filters (Customize Filters)
       for (const [key, value] of Object.entries(activeFilters)) {
-        if (!value) continue;
-        if (key === 'city' && (s.city || '').toLowerCase() !== value.toLowerCase()) return false;
-        if (key === 'state' && (s.state || '').toLowerCase() !== value.toLowerCase()) return false;
-        if (key === 'country' && (s.country || '').toLowerCase() !== value.toLowerCase()) return false;
-        if (key === 'businessCategory' && (s.businessCategory || '').toLowerCase() !== value.toLowerCase()) return false;
-        if (key === 'status' && (s.status || 'ACTIVE').toLowerCase() !== value.toLowerCase()) return false;
+        if (!value || value === 'All') continue;
+        const target = value.toLowerCase().trim();
+        if (key === 'city' && (s.city || '').toLowerCase().trim() !== target) return false;
+        if (key === 'state' && (s.state || '').toLowerCase().trim() !== target) return false;
+        if (key === 'country' && (s.country || '').toLowerCase().trim() !== target) return false;
+        if (key === 'businessCategory' && (s.businessCategory || '').toLowerCase().trim() !== target) return false;
+        if (key === 'status' && (s.status || 'ACTIVE').toLowerCase().trim() !== target) return false;
       }
       if (columnFilters.name && !s.name?.toLowerCase().includes(columnFilters.name.toLowerCase().trim())) {
         return false;
@@ -360,7 +378,7 @@ export const SuppliersListPage: React.FC = () => {
     }
 
     return result;
-  }, [suppliers, activeFilters, columnFilters, sortConfig]);
+  }, [suppliers, searchQuery, activeFilters, columnFilters, sortConfig]);
 
   const citiesList = useMemo(() => Array.from(new Set(suppliers.map((s) => s.city).filter(Boolean))).sort(), [suppliers]);
   const statesList = useMemo(() => Array.from(new Set(suppliers.map((s) => s.state).filter(Boolean))).sort(), [suppliers]);

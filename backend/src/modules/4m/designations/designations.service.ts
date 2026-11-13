@@ -26,13 +26,11 @@ export class DesignationsService {
   }
 
   async findAll(currentUser?: any) {
-    const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
-    const effectiveAdminId = currentUser?.adminId || currentUser?.userId;
-    const whereClause: any = isSuperAdmin
-      ? {}
-      : effectiveAdminId
-        ? { OR: [{ adminId: effectiveAdminId }, { adminId: null }] }
-        : {};
+    const isPlatformSuperAdmin = currentUser?.id === 1 || currentUser?.email === 'superadmin@hypn.com';
+    const effectiveAdminId = isPlatformSuperAdmin ? null : (currentUser?.adminId || currentUser?.userId);
+    const whereClause: any = effectiveAdminId
+      ? { OR: [{ adminId: effectiveAdminId }, { adminId: null }] }
+      : {};
 
     const designations = await this.prisma.designation.findMany({
       where: whereClause,
@@ -50,7 +48,7 @@ export class DesignationsService {
             { employee: { designation: { equals: d.name, mode: 'insensitive' } } }
           ]
         };
-        if (!isSuperAdmin && effectiveAdminId) {
+        if (effectiveAdminId) {
           userWhere.AND = [
             { OR: [{ adminId: effectiveAdminId }, { id: effectiveAdminId }] }
           ];
@@ -172,14 +170,14 @@ export class DesignationsService {
 
   async findOne(idOrName: number | string, currentUser?: any) {
     const isNum = !isNaN(+idOrName);
-    const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
-    const effectiveAdminId = currentUser?.adminId || currentUser?.userId;
+    const isPlatformSuperAdmin = currentUser?.id === 1 || currentUser?.email === 'superadmin@hypn.com';
+    const effectiveAdminId = isPlatformSuperAdmin ? null : (currentUser?.adminId || currentUser?.userId);
 
     const where: any = isNum
       ? { id: +idOrName }
       : { name: { equals: idOrName.toString(), mode: 'insensitive' } };
 
-    if (!isSuperAdmin && effectiveAdminId) {
+    if (effectiveAdminId) {
       where.OR = [
         { adminId: effectiveAdminId },
         { adminId: null }
@@ -203,7 +201,7 @@ export class DesignationsService {
         { employee: { designation: { equals: designation.name, mode: 'insensitive' } } }
       ]
     };
-    if (!isSuperAdmin && effectiveAdminId) {
+    if (effectiveAdminId) {
       userWhere.AND = [
         { OR: [{ adminId: effectiveAdminId }, { id: effectiveAdminId }] }
       ];
@@ -249,7 +247,7 @@ export class DesignationsService {
     const empWhere: any = {
       designation: { equals: designation.name, mode: 'insensitive' }
     };
-    if (!isSuperAdmin && effectiveAdminId) {
+    if (effectiveAdminId) {
       empWhere.adminId = effectiveAdminId;
     }
     const directEmployees = await this.prisma.employee.findMany({

@@ -4,6 +4,7 @@ import {
   Post,
   Patch,
   Body,
+  Query,
   UseGuards,
   Req,
   Ip,
@@ -33,6 +34,12 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly auditLogService: AuditLogService,
   ) {}
+
+  @Get('check-gst')
+  @ApiOperation({ summary: 'Check if GST number is available for registration' })
+  async checkGst(@Query('gstNumber') gstNumber: string) {
+    return this.authService.checkGstAvailability(gstNumber);
+  }
 
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })

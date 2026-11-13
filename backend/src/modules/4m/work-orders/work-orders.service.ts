@@ -32,6 +32,8 @@ export class WorkOrdersService {
     problemDescription: string;
     priority?: WorkOrderPriority;
     triggerType?: string;
+    maintenanceCategory?: string;
+    statusType?: string;
     assignedTechnicianId?: number | null;
     mediaFiles?: { fileUrl: string; fileName: string; fileType: string }[];
   }, user?: any) {
@@ -62,6 +64,7 @@ export class WorkOrdersService {
         priority: dto.priority || WorkOrderPriority.MEDIUM,
         triggerType: dto.triggerType || 'MANUAL',
         status: WorkOrderStatus.PENDING_APPROVAL,
+        maintenanceCategory: dto.maintenanceCategory || (dto.statusType ? String(dto.statusType).toUpperCase() : 'BREAKDOWN'),
         assignedTechnicianId: dto.assignedTechnicianId ? Number(dto.assignedTechnicianId) : null,
         createdById: user?.userId ? Number(user.userId) : null,
         creatorName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username : 'System User',
@@ -104,11 +107,16 @@ export class WorkOrdersService {
     search?: string;
   }, user?: any) {
     const where: any = {};
-    const isSuperAdmin = user?.role === 'SUPER_ADMIN';
-    const effectiveAdminId = isSuperAdmin ? null : (user?.adminId || user?.userId);
+    const isPlatformSuperAdmin = user?.id === 1 || user?.email === 'superadmin@hypn.com';
+    const effectiveAdminId = isPlatformSuperAdmin ? null : (user?.adminId || user?.userId);
 
     if (effectiveAdminId) {
-      where.adminId = effectiveAdminId;
+      where.OR = [
+        { adminId: effectiveAdminId },
+        { machine: { adminId: effectiveAdminId } },
+        { machine: { facility: { adminId: effectiveAdminId } } },
+        { machine: { facility: { mainFacility: { adminId: effectiveAdminId } } } }
+      ];
     }
 
     if (query.machineId) {

@@ -308,13 +308,23 @@ export function ScheduleMaintenanceDashboard() {
 
       // 3. Filter by Active Filters (Customize Filters)
       for (const [key, value] of Object.entries(activeFilters)) {
-        if (!value) continue;
+        if (!value || value === 'All') continue;
         if (key === 'facility') {
           const facName = sch.machine?.facility?.facilityName || '';
-          if (facName !== value) return false;
+          const bldName = sch.machine?.building?.name || '';
+          const full = `${facName} ${bldName}`.toLowerCase();
+          const target = value.toLowerCase();
+          if (facName.toLowerCase() !== target && bldName.toLowerCase() !== target && !full.includes(target)) {
+            return false;
+          }
         } else if (key === 'machine') {
           const mName = sch.machine?.name || '';
-          if (mName !== value) return false;
+          const mCode = sch.machine?.machineCode || '';
+          const mMake = sch.machine?.make || '';
+          const target = value.toLowerCase();
+          if (mName.toLowerCase() !== target && !mName.toLowerCase().includes(target) && !mCode.toLowerCase().includes(target) && !mMake.toLowerCase().includes(target)) {
+            return false;
+          }
         } else if (key === 'scheduleType') {
           if (sch.scheduleType?.toUpperCase() !== value.toUpperCase()) return false;
         } else if (key === 'frequency') {
@@ -323,7 +333,7 @@ export function ScheduleMaintenanceDashboard() {
           if (sch.priority?.toUpperCase() !== value.toUpperCase()) return false;
         } else if (key === 'status') {
           if (sch.status?.toUpperCase() !== value.toUpperCase()) return false;
-        } else if (sch[key as keyof MaintenanceSchedule] !== value) {
+        } else if (sch[key as keyof MaintenanceSchedule]?.toString().toUpperCase() !== value.toUpperCase()) {
           return false;
         }
       }
@@ -450,7 +460,7 @@ export function ScheduleMaintenanceDashboard() {
     {
       key: 'status',
       label: 'Status',
-      options: ['ACTIVE', 'INACTIVE', 'COMPLETED']
+      options: ['ACTIVE', 'PAUSED', 'INACTIVE', 'COMPLETED']
     },
     ...(uniqueFacilities.length > 0 ? [{
       key: 'facility',
@@ -967,6 +977,7 @@ export function ScheduleMaintenanceDashboard() {
                             <option value="PREVENTIVE">Preventive</option>
                             <option value="PREDICTIVE">Predictive</option>
                             <option value="CONDITION">Condition</option>
+                            <option value="BREAKDOWN">Breakdown</option>
                           </select>
                         </div>
                         <div className="relative">

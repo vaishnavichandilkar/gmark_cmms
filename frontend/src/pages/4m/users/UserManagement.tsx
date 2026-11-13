@@ -22,7 +22,6 @@ const USER_COLUMNS: ColumnDefinition[] = [
   { id: 'reportingTo', label: 'Reporting To', category: 'Hierarchy', defaultVisible: true },
   { id: 'status', label: 'Status', category: 'General', defaultVisible: true },
   { id: 'accessScope', label: 'Access Scope', category: 'Access', defaultVisible: true },
-  { id: 'moduleAccess', label: 'Module Access', category: 'Access', defaultVisible: false },
   { id: 'department', label: 'Department', category: 'Profile', defaultVisible: true },
   { id: 'designation', label: 'Designation', category: 'Profile', defaultVisible: true },
   { id: 'contactNumber', label: 'Contact Number', category: 'Contact', defaultVisible: false },
@@ -85,7 +84,6 @@ export function UserManagement() {
     reportingTo: '',
     status: '',
     accessScope: '',
-    moduleAccess: '',
     department: '',
     designation: '',
     contactNumber: '',
@@ -98,7 +96,7 @@ export function UserManagement() {
   });
 
   type UserSortKey =
-    | 'employee' | 'username' | 'role' | 'reportingTo' | 'status' | 'accessScope' | 'moduleAccess'
+    | 'employee' | 'username' | 'role' | 'reportingTo' | 'status' | 'accessScope'
     | 'department' | 'designation' | 'contactNumber' | 'officialEmail'
     | 'city' | 'state' | 'country' | 'pincode' | 'createdAt';
 
@@ -112,7 +110,7 @@ export function UserManagement() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, columnFilters]);
+  }, [searchQuery, columnFilters, activeFilters]);
 
   useEffect(() => {
     fetchUsers();
@@ -182,7 +180,6 @@ export function UserManagement() {
       reportingTo: '',
       status: '',
       accessScope: '',
-      moduleAccess: '',
       department: '',
       designation: '',
       contactNumber: '',
@@ -306,21 +303,22 @@ export function UserManagement() {
 
       // Active Filters (Customize Filters)
       for (const [key, value] of Object.entries(activeFilters)) {
-        if (!value) continue;
+        if (!value || value === 'All') continue;
+        const target = value.toLowerCase().trim();
         if (key === 'role') {
-          const userRole = (user.designation || user.role || '').toLowerCase();
-          if (userRole !== value.toLowerCase().trim()) return false;
+          const userRole = (user.designation || user.role || '').toLowerCase().trim();
+          if (userRole !== target) return false;
         } else if (key === 'status') {
           const statusStr = user.isActive ? 'active' : 'inactive';
-          if (statusStr !== value.toLowerCase().trim()) return false;
+          if (statusStr !== target) return false;
         } else if (key === 'accessScope') {
-          const scopeStr = getAccessScopeStr(user).toLowerCase();
-          if (!scopeStr.includes(value.toLowerCase().trim())) return false;
+          const scopeStr = getAccessScopeStr(user).toLowerCase().trim();
+          if (!scopeStr.includes(target)) return false;
         } else if (key === 'department') {
-          if ((user.employee?.department || '').toLowerCase() !== value.toLowerCase().trim()) return false;
+          if ((user.employee?.department || '').toLowerCase().trim() !== target) return false;
         } else if (key === 'designation') {
-          const desigStr = (user.employee?.designation || user.designation || '').toLowerCase();
-          if (!desigStr.includes(value.toLowerCase().trim())) return false;
+          const desigStr = (user.employee?.designation || user.designation || '').toLowerCase().trim();
+          if (!desigStr.includes(target)) return false;
         }
       }
 
@@ -347,9 +345,6 @@ export function UserManagement() {
       if (columnFilters.accessScope) {
         const scopeStr = getAccessScopeStr(user).toLowerCase();
         if (!scopeStr.includes(columnFilters.accessScope.toLowerCase().trim())) return false;
-      }
-      if (columnFilters.moduleAccess) {
-        if ((user.moduleAccess || '').toLowerCase() !== columnFilters.moduleAccess.toLowerCase().trim()) return false;
       }
       if (columnFilters.department) {
         if ((user.employee?.department || '').toLowerCase() !== columnFilters.department.toLowerCase().trim()) return false;
@@ -409,9 +404,6 @@ export function UserManagement() {
         } else if (sortConfig.key === 'accessScope') {
           aVal = getAccessScopeStr(a);
           bVal = getAccessScopeStr(b);
-        } else if (sortConfig.key === 'moduleAccess') {
-          aVal = a.moduleAccess || '';
-          bVal = b.moduleAccess || '';
         } else if (sortConfig.key === 'department') {
           aVal = a.employee?.department || '';
           bVal = b.employee?.department || '';
@@ -448,7 +440,7 @@ export function UserManagement() {
     }
 
     return result;
-  }, [users, searchQuery, columnFilters, sortConfig]);
+  }, [users, searchQuery, activeFilters, columnFilters, sortConfig]);
 
   const totalItems = filteredUsers.length;
   const totalPages = Math.ceil(totalItems / rowsPerPage);
@@ -468,7 +460,6 @@ export function UserManagement() {
         case 'reportingTo': return u.employee?.reportingTo || u.reportingTo || '-';
         case 'status': return u.isActive ? 'Active' : 'Inactive';
         case 'accessScope': return getAccessScopeStr(u) || '-';
-        case 'moduleAccess': return u.moduleAccess || '-';
         case 'department': return u.employee?.department || '-';
         case 'designation': return u.employee?.designation || u.designation || '-';
         case 'contactNumber': return u.employee?.mobileNumber || u.mobileNumber || '-';
@@ -670,29 +661,6 @@ export function UserManagement() {
                         title="Sort by Access Scope"
                       >
                         {sortConfig?.key === 'accessScope' ? (
-                          sortConfig.direction === 'asc' ? <ArrowUp size={13} className="text-blue-600" /> : <ArrowDown size={13} className="text-blue-600" />
-                        ) : (
-                          <ArrowUpDown size={12} className="text-gray-400 opacity-60" />
-                        )}
-                      </button>
-                    </div>
-                  </th>
-                )}
-
-                {visibleColumns.includes('moduleAccess') && (
-                  <th className="px-3.5 py-2.5 select-none whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <span>Module Access</span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSort('moduleAccess');
-                        }}
-                        className="p-0.5 rounded hover:bg-slate-200/60 transition-colors cursor-pointer"
-                        title="Sort by Module Access"
-                      >
-                        {sortConfig?.key === 'moduleAccess' ? (
                           sortConfig.direction === 'asc' ? <ArrowUp size={13} className="text-blue-600" /> : <ArrowDown size={13} className="text-blue-600" />
                         ) : (
                           <ArrowUpDown size={12} className="text-gray-400 opacity-60" />
@@ -1093,34 +1061,6 @@ export function UserManagement() {
                     </th>
                   )}
 
-                  {/* Module Access Filter */}
-                  {visibleColumns.includes('moduleAccess') && (
-                    <th className="px-2.5 py-1.5 font-normal">
-                      <div className="relative">
-                        <select
-                          value={columnFilters.moduleAccess}
-                          onChange={(e) => handleColumnFilterChange('moduleAccess', e.target.value)}
-                          className="w-full text-xs px-2 py-1 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-700 font-normal pr-6 shadow-2xs"
-                        >
-                          <option value="">All Access</option>
-                          <option value="ALL">All Modules</option>
-                          <option value="IOT_EMS">IoT / EMS</option>
-                          <option value="4M_FACILITIES">4M Facilities</option>
-                          <option value="SERVICE_AGENTS">Service Agents</option>
-                        </select>
-                        {columnFilters.moduleAccess && (
-                          <button
-                            type="button"
-                            onClick={() => handleColumnFilterChange('moduleAccess', '')}
-                            className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
-                          >
-                            <X size={12} />
-                          </button>
-                        )}
-                      </div>
-                    </th>
-                  )}
-
                   {/* Department Filter */}
                   {visibleColumns.includes('department') && (
                     <th className="px-2.5 py-1.5 font-normal">
@@ -1455,14 +1395,6 @@ export function UserManagement() {
                           ) : (
                             <span className="text-gray-400 text-xs font-medium pl-1">-</span>
                           )}
-                        </td>
-                      )}
-
-                      {visibleColumns.includes('moduleAccess') && (
-                        <td className="px-3.5 py-2.5 whitespace-nowrap">
-                          <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                            {listUser.moduleAccess || 'ALL'}
-                          </span>
                         </td>
                       )}
 

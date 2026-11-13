@@ -40,7 +40,12 @@ export function Level3ApprovalModal({
 
   useEffect(() => {
     if (workOrder) {
-      setSelectedTechId(workOrder.assignedTechnicianId || (techniciansList.length > 0 ? techniciansList[0].id : ''));
+      const validTechs = techniciansList.filter((t: any) => 
+        t.role !== 'SUPER_ADMIN' && 
+        t.username?.toLowerCase() !== 'admin' &&
+        t.firstName?.toLowerCase() !== 'super admin'
+      );
+      setSelectedTechId(workOrder.assignedTechnicianId || (validTechs.length > 0 ? validTechs[0].id : ''));
       setRemarks('Level 3 Critical Breakdown Approved. Deploy senior technician with priority spare kit.');
       setRejectionReason('');
       setActionType('APPROVE');
@@ -187,16 +192,22 @@ export function Level3ApprovalModal({
                       className="w-full p-2.5 bg-white border border-gray-300 rounded-xl text-xs font-semibold text-gray-800 outline-none"
                     >
                       <option value="">-- Select Senior Technician --</option>
-                      {techniciansList.map((t: any) => {
-                        const name = t.firstName ? `${t.firstName} ${t.lastName || ''}`.trim() : t.username;
-                        const isAdmin = t.role === 'SUPER_ADMIN' || t.role === 'SOCIETY_ADMIN';
-                        const label = isAdmin ? `${name} (Admin)` : name;
-                        return (
-                          <option key={t.id} value={t.id}>
-                            {label}
-                          </option>
-                        );
-                      })}
+                      {techniciansList
+                        .filter((t: any) => 
+                          t.role !== 'SUPER_ADMIN' && 
+                          t.username?.toLowerCase() !== 'admin' &&
+                          t.firstName?.toLowerCase() !== 'super admin'
+                        )
+                        .map((t: any) => {
+                          const name = t.firstName ? `${t.firstName} ${t.lastName || ''}`.trim() : t.username;
+                          const isAdmin = t.role === 'SOCIETY_ADMIN' || t.role === 'BUILDING_ADMIN';
+                          const label = isAdmin ? `${name} (Admin)` : name;
+                          return (
+                            <option key={t.id} value={t.id}>
+                              {label}
+                            </option>
+                          );
+                        })}
                     </select>
                   </div>
 

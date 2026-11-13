@@ -69,14 +69,19 @@ export const SCHEDULE_TAB_MODULE_MAP: Record<string, string> = {
 export const hasPermission = (user: any, moduleId: string, action: ActionType): boolean => {
   if (!user) return false;
 
-  // Super Admin has all permissions
-  if (user?.role === 'SUPER_ADMIN') return true;
+  // Super Admin and Admins have all permissions
+  if (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'SOCIETY_ADMIN') return true;
 
   // If no permissions array is available, deny access for security
   if (!user?.permissions || !Array.isArray(user.permissions)) return false;
 
   const perm = user.permissions.find((p: any) => p.moduleId === moduleId);
-  
+
+  // If the user has no permissions entry for a dashboard tab, fallback to parent dashboard
+  if (!perm && (moduleId === 'dashboard_iot' || moduleId === 'dashboard_cmms')) {
+    return hasPermission(user, 'dashboard', action);
+  }
+
   // If the user has no permissions entry for a machine tab, fallback to parent machine_management
   if (!perm && moduleId.startsWith('machine_tab_')) {
     return hasPermission(user, 'machine_management', action);
@@ -102,10 +107,12 @@ export const hasPermission = (user: any, moduleId: string, action: ActionType): 
     return hasPermission(user, 'schedules', action);
   }
 
-  // Convenience fallback: if checking master_main_facility but user only has facility_management permission
+  // Convenience fallback: if checking master_main_facility but user only has facility_management or assets permission
   if (!perm && moduleId === 'master_main_facility') {
     const fmPerm = user.permissions.find((p: any) => p.moduleId === 'facility_management');
     if (fmPerm) return hasPermission(user, 'facility_management', action);
+    const assetsPerm = user.permissions.find((p: any) => p.moduleId === 'assets');
+    if (assetsPerm) return hasPermission(user, 'assets', action);
   }
 
   // Special check for 'assets' module:
@@ -210,16 +217,16 @@ export const hasAssetPermission = (
   action: ActionType = 'view'
 ): boolean => {
   if (!user) return false;
-  if (user.role === 'SUPER_ADMIN') return true;
+  if (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'SOCIETY_ADMIN') return true;
   if (!user.permissions || !Array.isArray(user.permissions)) return false;
 
   const actionKey = action === 'view' ? 'canView'
     : action === 'create' ? 'canCreate'
-    : action === 'edit' ? 'canEdit'
-    : action === 'delete' ? 'canDelete'
-    : action === 'import' ? 'canImport'
-    : action === 'export' ? 'canExport'
-    : 'canPrint';
+      : action === 'edit' ? 'canEdit'
+        : action === 'delete' ? 'canDelete'
+          : action === 'import' ? 'canImport'
+            : action === 'export' ? 'canExport'
+              : 'canPrint';
 
   // Check if user has ANY asset-level permissions configured
   const hasGranularAssetPerms = user.permissions.some((p: any) => p.moduleId?.startsWith('asset_'));
