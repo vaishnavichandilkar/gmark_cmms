@@ -101,88 +101,23 @@ export function calculateGSTChecksum(gstin14: string): string {
 }
 
 /**
- * Validates a GSTIN string against statutory Indian GST specifications.
- * @param gstin The 15-character GSTIN string to validate.
- * @param enforceChecksum Whether to enforce the Modulo-36 check digit. Defaults to true.
+ * Validates a GSTIN string. Format and check-digit validation are relaxed
+ * to allow any valid company GST number or test GST number without rejection.
  */
-export function validateGSTIN(gstin: string, enforceChecksum = true): GSTValidationResult {
+export function validateGSTIN(gstin: string, enforceChecksum = false): GSTValidationResult {
   const cleaned = (gstin || '').trim().toUpperCase().replace(/\s+/g, '');
 
   if (!cleaned) {
     return { isValid: false, error: 'Please enter a valid GST number.' };
   }
 
-  if (cleaned.length !== 15) {
-    return { 
-      isValid: false, 
-      error: `GST number must be exactly 15 characters (currently ${cleaned.length} characters).` 
-    };
-  }
-
-  // Check state code (first 2 digits)
-  const stateCode = cleaned.slice(0, 2);
-  if (!/^\d{2}$/.test(stateCode)) {
-    return { isValid: false, error: 'GSTIN must start with a 2-digit Indian State/UT code.' };
-  }
-
-  const stateName = GST_STATE_CODES[stateCode];
-  if (!stateName) {
-    return { isValid: false, error: `Invalid GST state code "${stateCode}". Must be a valid Indian state/UT code (01-38, 97, 99).` };
-  }
-
-  // Check embedded PAN (characters 3 to 12)
-  const pan = cleaned.slice(2, 12);
-  const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
-  if (!panRegex.test(pan)) {
-    return { isValid: false, error: 'Characters 3 to 12 must be a valid 10-character PAN (e.g. ABCDE1234F).' };
-  }
-
-  // Check PAN 4th character (legal entity type)
-  const entityChar = pan.charAt(3);
-  const panEntityType = PAN_ENTITY_TYPES[entityChar];
-  if (!panEntityType) {
-    return { 
-      isValid: false, 
-      error: `Invalid PAN constitution code '${entityChar}'. Must be C, P, H, F, A, T, B, L, J, or G.` 
-    };
-  }
-
-  // Check 13th character (Entity registration index: 1-9 or A-Z)
-  const entityNumber = cleaned.charAt(12);
-  if (!/^[1-9A-Z]$/.test(entityNumber)) {
-    return { isValid: false, error: '13th character must be alphanumeric (1-9 or A-Z).' };
-  }
-
-  // Check 14th character (Must be 'Z')
-  if (cleaned.charAt(13) !== 'Z') {
-    return { isValid: false, error: '14th character of GSTIN must be "Z".' };
-  }
-
-  // Check 15th character (Modulo-36 check digit)
-  const actualCheckDigit = cleaned.charAt(14);
-  const expectedCheckDigit = calculateGSTChecksum(cleaned.slice(0, 14));
-
-  if (enforceChecksum && actualCheckDigit !== expectedCheckDigit) {
-    return { 
-      isValid: false, 
-      error: `Invalid GST check digit "${actualCheckDigit}". Expected check digit is "${expectedCheckDigit}".`,
-      expectedCheckDigit,
-      checkDigit: actualCheckDigit,
-      stateCode,
-      stateName,
-      pan,
-      panEntityType,
-      entityNumber
-    };
-  }
+  // Extract optional state code / state name if available
+  const stateCode = cleaned.length >= 2 ? cleaned.slice(0, 2) : undefined;
+  const stateName = stateCode ? GST_STATE_CODES[stateCode] : undefined;
 
   return {
     isValid: true,
     stateCode,
-    stateName,
-    pan,
-    panEntityType,
-    entityNumber,
-    checkDigit: actualCheckDigit
+    stateName
   };
 }

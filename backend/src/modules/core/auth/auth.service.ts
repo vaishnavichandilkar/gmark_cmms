@@ -121,11 +121,6 @@ export class AuthService {
       throw new BadRequestException('Please enter a valid GST number.');
     }
 
-    const gstValidation = validateGSTIN(gstNumber);
-    if (!gstValidation.isValid) {
-      throw new BadRequestException(gstValidation.error || 'Please enter a valid GST number.');
-    }
-
     if (!address) {
       throw new BadRequestException('Please enter complete company address.');
     }

@@ -83,44 +83,40 @@ export function SignUpPage() {
 
   useEffect(() => {
     const trimmed = formData.gstNumber.trim().toUpperCase();
-    if (trimmed.length === 15) {
-      const val = validateGSTIN(trimmed);
-      if (val.isValid) {
-        let isCancelled = false;
-        setGstChecking(true);
-        const timer = setTimeout(async () => {
-          try {
-            const res = await api.get(`/auth/check-gst?gstNumber=${encodeURIComponent(trimmed)}`);
-            if (!isCancelled) {
-              setGstAvailability({ checkedGst: trimmed, available: res.data.available, message: res.data.message });
-              if (!res.data.available) {
-                setFieldErrors(prev => ({ ...prev, gstNumber: 'This GST number is already registered.' }));
-              } else {
-                setFieldErrors(prev => {
-                  const copy = { ...prev };
-                  if (copy.gstNumber === 'This GST number is already registered.') {
-                    delete copy.gstNumber;
-                  }
-                  return copy;
-                });
-              }
+    if (trimmed.length >= 10) {
+      let isCancelled = false;
+      setGstChecking(true);
+      const timer = setTimeout(async () => {
+        try {
+          const res = await api.get(`/auth/check-gst?gstNumber=${encodeURIComponent(trimmed)}`);
+          if (!isCancelled) {
+            setGstAvailability({ checkedGst: trimmed, available: res.data.available, message: res.data.message });
+            if (!res.data.available) {
+              setFieldErrors(prev => ({ ...prev, gstNumber: 'This GST number is already registered.' }));
+            } else {
+              setFieldErrors(prev => {
+                const copy = { ...prev };
+                if (copy.gstNumber === 'This GST number is already registered.') {
+                  delete copy.gstNumber;
+                }
+                return copy;
+              });
             }
-          } catch (e) {
-            console.error('Failed to check GST availability', e);
-          } finally {
-            if (!isCancelled) setGstChecking(false);
           }
-        }, 350);
+        } catch (e) {
+          console.error('Failed to check GST availability', e);
+        } finally {
+          if (!isCancelled) setGstChecking(false);
+        }
+      }, 350);
 
-        return () => {
-          isCancelled = true;
-          clearTimeout(timer);
-        };
-      } else {
-        setGstAvailability(null);
-      }
+      return () => {
+        isCancelled = true;
+        clearTimeout(timer);
+      };
     } else {
       setGstAvailability(null);
+      setGstChecking(false);
     }
   }, [formData.gstNumber]);
 
@@ -162,13 +158,8 @@ export function SignUpPage() {
     const trimmedGst = formData.gstNumber.trim().toUpperCase();
     if (!trimmedGst) {
       errors.gstNumber = 'Please enter a valid GST number.';
-    } else {
-      const gstValidation = validateGSTIN(trimmedGst);
-      if (!gstValidation.isValid) {
-        errors.gstNumber = gstValidation.error || 'Please enter a valid GST number.';
-      } else if (gstAvailability && gstAvailability.checkedGst === trimmedGst && !gstAvailability.available) {
-        errors.gstNumber = 'This GST number is already registered.';
-      }
+    } else if (gstAvailability && gstAvailability.checkedGst === trimmedGst && !gstAvailability.available) {
+      errors.gstNumber = 'This GST number is already registered.';
     }
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
@@ -674,73 +665,34 @@ export function SignUpPage() {
                     ) : (
                       (() => {
                         const trimmed = formData.gstNumber.trim().toUpperCase();
-                        if (trimmed.length === 15) {
-                          const result = validateGSTIN(trimmed);
-                          if (result.isValid) {
-                            if (gstChecking) {
+                        if (trimmed.length > 0) {
+                          if (gstChecking) {
+                            return (
+                              <p className="mt-1 text-[11px] text-gray-500 font-medium animate-pulse">
+                                Verifying GST availability...
+                              </p>
+                            );
+                          }
+                          if (gstAvailability && gstAvailability.checkedGst === trimmed) {
+                            if (!gstAvailability.available) {
                               return (
-                                <p className="mt-1 text-[11px] text-gray-500 font-medium animate-pulse">
-                                  Verifying GST uniqueness...
+                                <p className="mt-1 text-[11px] text-red-500 font-semibold">
+                                  ❌ This GST number is already registered with another account.
                                 </p>
                               );
                             }
-                            if (gstAvailability && gstAvailability.checkedGst === trimmed) {
-                              if (!gstAvailability.available) {
-                                return (
-                                  <p className="mt-1 text-[11px] text-red-500 font-semibold">
-                                    ❌ This GST number is already registered with another account.
-                                  </p>
-                                );
-                              }
-                              return (
-                                <div className="mt-1 flex items-center gap-1.5 text-[11px] text-emerald-600 font-medium">
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                                  <span>
-                                    Valid GSTIN & Available: <strong>{result.stateName} ({result.stateCode})</strong> • {result.panEntityType}
-                                  </span>
-                                </div>
-                              );
-                            }
+                            const result = validateGSTIN(trimmed);
                             return (
                               <div className="mt-1 flex items-center gap-1.5 text-[11px] text-emerald-600 font-medium">
                                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                                 <span>
-                                  Valid GSTIN: <strong>{result.stateName} ({result.stateCode})</strong> • {result.panEntityType}
+                                  GST number is available{result.stateName ? ` (${result.stateName})` : ''}
                                 </span>
-                              </div>
-                            );
-                          } else {
-                            return (
-                              <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-amber-600 font-medium">
-                                <span>⚠ {result.error}</span>
-                                {result.expectedCheckDigit && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const fixed = trimmed.slice(0, 14) + result.expectedCheckDigit;
-                                      setFormData(prev => ({ ...prev, gstNumber: fixed }));
-                                      if (fieldErrors.gstNumber) {
-                                        setFieldErrors(prev => {
-                                          const copy = { ...prev };
-                                          delete copy.gstNumber;
-                                          return copy;
-                                        });
-                                      }
-                                    }}
-                                    className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 font-semibold rounded text-[11px] border border-amber-300 transition-colors cursor-pointer inline-flex items-center gap-1 shadow-sm"
-                                  >
-                                    Fix check digit to "{result.expectedCheckDigit}"
-                                  </button>
-                                )}
                               </div>
                             );
                           }
                         }
-                        return (
-                          <p className="mt-0.5 text-[10px] text-gray-400">
-                            15-character GSTIN format (State code + PAN + Entity + Z + Check digit)
-                          </p>
-                        );
+                        return null;
                       })()
                     )}
                   </div>

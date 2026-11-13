@@ -81,56 +81,11 @@ export function calculateGSTChecksum(gstin14: string): string {
   return chars.charAt(checkCodeVal);
 }
 
-export function validateGSTIN(gstin: string, enforceChecksum = true): { isValid: boolean; error?: string } {
+export function validateGSTIN(gstin: string, enforceChecksum = false): { isValid: boolean; error?: string } {
   const cleaned = (gstin || '').trim().toUpperCase().replace(/\s+/g, '');
 
   if (!cleaned) {
     return { isValid: false, error: 'Please enter a valid GST number.' };
-  }
-
-  if (cleaned.length !== 15) {
-    return { isValid: false, error: `GST number must be exactly 15 characters (received ${cleaned.length}).` };
-  }
-
-  // 1. State code
-  const stateCode = cleaned.slice(0, 2);
-  if (!GST_STATE_CODES[stateCode]) {
-    return { isValid: false, error: `Invalid GST state code "${stateCode}". Must be a valid Indian state/UT code (01-38, 97, 99).` };
-  }
-
-  // 2. Embedded PAN
-  const pan = cleaned.slice(2, 12);
-  const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
-  if (!panRegex.test(pan)) {
-    return { isValid: false, error: 'Characters 3 to 12 must be a valid 10-character PAN format (e.g. ABCDE1234F).' };
-  }
-
-  // 3. PAN 4th char constitution
-  const entityChar = pan.charAt(3);
-  if (!PAN_ENTITY_TYPES[entityChar]) {
-    return { isValid: false, error: `Invalid PAN entity type "${entityChar}". Must be C, P, H, F, A, T, B, L, J, or G.` };
-  }
-
-  // 4. Entity code
-  const entityNumber = cleaned.charAt(12);
-  if (!/^[1-9A-Z]$/.test(entityNumber)) {
-    return { isValid: false, error: '13th character must be alphanumeric (1-9 or A-Z).' };
-  }
-
-  // 5. 14th char 'Z'
-  if (cleaned.charAt(13) !== 'Z') {
-    return { isValid: false, error: '14th character of GSTIN must be "Z".' };
-  }
-
-  // 6. Checksum check digit
-  if (enforceChecksum) {
-    const expectedCheckDigit = calculateGSTChecksum(cleaned.slice(0, 14));
-    if (cleaned.charAt(14) !== expectedCheckDigit) {
-      return { 
-        isValid: false, 
-        error: `Invalid GST check digit "${cleaned.charAt(14)}". Expected check digit is "${expectedCheckDigit}".` 
-      };
-    }
   }
 
   return { isValid: true };
