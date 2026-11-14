@@ -11,9 +11,25 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { json, urlencoded } from 'express';
+import * as path from 'path';
+import * as fs from 'fs';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  if (process.env.DATABASE_URL && process.env.SKIP_DB_INIT !== 'true') {
+    try {
+      const initScriptPath = path.join(process.cwd(), 'scripts', 'init-production-db.js');
+      if (fs.existsSync(initScriptPath)) {
+        const initDb = require(initScriptPath);
+        if (typeof initDb === 'function') {
+          await initDb();
+        }
+      }
+    } catch (e: any) {
+      console.warn('[Bootstrap] Database auto-init warning:', e?.message);
+    }
+  }
+
   const app = await NestFactory.create(AppModule);
 
   // Increase payload limit for file/image uploads

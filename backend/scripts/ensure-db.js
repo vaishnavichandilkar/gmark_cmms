@@ -65,6 +65,11 @@ function cleanStalePid() {
 }
 
 async function main() {
+  if (process.platform !== 'win32' || process.env.NODE_ENV === 'production' || process.env.RENDER) {
+    console.log('[ensure-db] Non-Windows or cloud environment detected. Skipping local postgres starter.');
+    process.exit(0);
+  }
+
   // 1. Check if PostgreSQL is already active
   const alreadyRunning = await isPortOpen(PG_PORT);
   if (alreadyRunning) {
@@ -79,8 +84,8 @@ async function main() {
 
   // 3. Start PostgreSQL using pg_ctl
   if (!fs.existsSync(PG_CTL_PATH)) {
-    console.error(`[ensure-db] Error: PostgreSQL binary not found at ${PG_CTL_PATH}`);
-    process.exit(1);
+    console.log(`[ensure-db] PostgreSQL binary not found at ${PG_CTL_PATH}. Skipping local postgres starter.`);
+    process.exit(0);
   }
 
   try {
