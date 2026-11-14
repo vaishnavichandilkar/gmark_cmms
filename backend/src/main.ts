@@ -6,6 +6,14 @@ try {
   // .env may not exist in container/production or already loaded
 }
 
+// Guard against unhandled third-party background connection drops (e.g. MQTT connack timeout)
+process.on('uncaughtException', (err: any) => {
+  console.error('[Process] Uncaught Exception caught safely:', err?.message || err);
+});
+process.on('unhandledRejection', (reason: any) => {
+  console.warn('[Process] Unhandled Rejection caught safely:', reason?.message || reason);
+});
+
 import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';

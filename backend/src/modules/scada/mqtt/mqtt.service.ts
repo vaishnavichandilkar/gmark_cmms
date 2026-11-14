@@ -167,8 +167,10 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
   private connectClient() {
     if (this.client) {
       try {
-        this.client.removeAllListeners();
-        this.client.end(true);
+        const oldClient = this.client;
+        oldClient.removeAllListeners();
+        oldClient.on('error', () => {}); // Prevent unhandled 'error' event crashes on stale client
+        oldClient.end(true);
       } catch (_) {}
     }
 
@@ -264,6 +266,7 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
     if (this.client) {
       try {
         this.client.removeAllListeners();
+        this.client.on('error', () => {});
         this.client.end(true);
       } catch (_) {}
     }
