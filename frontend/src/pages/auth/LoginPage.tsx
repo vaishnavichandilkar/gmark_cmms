@@ -40,6 +40,9 @@ export function LoginPage() {
         } else {
           setError(errorData.message);
         }
+      } else if (err.message) {
+        console.error('Login error:', err);
+        setError(`Unable to reach server (${err.message}). Please refresh the page or check your connection.`);
       } else {
         setError('Login failed. Please check your credentials and try again.');
       }
