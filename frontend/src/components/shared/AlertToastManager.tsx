@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 import { io, Socket } from 'socket.io-client';
 import { AlertCircle, AlertTriangle, CheckCircle, Info, VolumeX, Mail, Check, ArrowUpRight } from 'lucide-react';
-import { api } from '../../lib/api';
+import { api, API_BASE_URL } from '../../lib/api';
 import type { RootState } from '../../store';
 import { audioBuzzer } from '../../utils/audioBuzzer';
 
@@ -35,7 +35,7 @@ export function AlertToastManager() {
     if (!token) return;
 
     // Connect to websocket to listen for global alerts
-    socket = io('http://localhost:3002', {
+    socket = io(API_BASE_URL, {
       auth: { token },
       transports: ['websocket'],
     });

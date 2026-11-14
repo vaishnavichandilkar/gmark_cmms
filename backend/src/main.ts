@@ -53,10 +53,15 @@ async function bootstrap() {
     }),
   );
 
-  // Enable CORS
+  // Enable CORS with dynamic origin reflection to support credentials
   app.enableCors({
-    origin: '*',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, or server-to-server) or any client origin
+      callback(null, true);
+    },
     credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type, Accept, Authorization, X-Requested-With',
   });
 
   const config = new DocumentBuilder()

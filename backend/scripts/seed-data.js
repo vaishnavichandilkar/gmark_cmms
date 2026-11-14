@@ -195,3 +195,4 @@ module.exports = {
   firePanelRegisterDefinitions,
   codeSequences,
 };
+

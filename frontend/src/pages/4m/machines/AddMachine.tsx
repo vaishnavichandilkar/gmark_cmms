@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { CustomSelect } from '../../../components/shared/CustomSelect';
 import { CustomDatePicker } from '../../../components/shared/CustomDatePicker';
-import { api } from '../../../lib/api';
+import { api, API_BASE_URL } from '../../../lib/api';
 import { FacilityHierarchyPicker } from '../../../components/4m/FacilityHierarchyPicker';
 import { MachineHierarchyPicker } from '../../../components/4m/MachineHierarchyPicker';
 import { MachineImageCard } from '../../../components/4m/MachineImageCard';
@@ -1070,7 +1070,7 @@ export function AddMachine() {
       } else if (doc.content) {
         const fullUrl = doc.content.startsWith('http') || doc.content.startsWith('data:')
           ? doc.content
-          : `http://localhost:3002${doc.content.startsWith('/') ? doc.content : `/${doc.content}`}`;
+          : `${API_BASE_URL}${doc.content.startsWith('/') ? doc.content : `/${doc.content}`}`;
         window.open(fullUrl, '_blank');
       } else {
         toast.error('File content unavailable');

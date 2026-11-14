@@ -9,7 +9,7 @@ import {
   ArrowLeft, Search, Plus, Wifi, Activity, ShieldAlert, RefreshCw, Sparkles, Trash2, Eye, Pencil, X, ChevronDown,
   Wrench, Calendar, CheckSquare, Clock, AlertTriangle, FileText, CheckCircle2, ExternalLink
 } from 'lucide-react';
-import { api } from '../../../lib/api';
+import { api, API_BASE_URL } from '../../../lib/api';
 import { FacilityHierarchyPicker } from '../../../components/4m/FacilityHierarchyPicker';
 import { MachineHierarchyPicker } from '../../../components/4m/MachineHierarchyPicker';
 import { MachineImageCard } from '../../../components/4m/MachineImageCard';
@@ -995,7 +995,7 @@ export function EditMachine() {
       if (doc.content) {
         const fullUrl = doc.content.startsWith('http') || doc.content.startsWith('data:')
           ? doc.content
-          : `http://localhost:3002${doc.content.startsWith('/') ? doc.content : `/${doc.content}`}`;
+          : `${API_BASE_URL}${doc.content.startsWith('/') ? doc.content : `/${doc.content}`}`;
         window.open(fullUrl, '_blank');
       } else {
         toast.error('File URL is not available');

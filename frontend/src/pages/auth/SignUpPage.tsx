@@ -392,6 +392,9 @@ export function SignUpPage() {
         } else {
           setGlobalError(errorText);
         }
+      } else if (err.message) {
+        console.error('Sign up error details:', err);
+        setGlobalError(`Network error (${err.message}). Unable to connect to server. Please try again.`);
       } else {
         setGlobalError('Registration failed. Please verify your details and try again.');
       }

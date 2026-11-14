@@ -5,7 +5,7 @@ import { Bell, X, Volume2, VolumeX, Play, Mail, Check, Sliders } from 'lucide-re
 import { useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
 import { io, Socket } from 'socket.io-client';
-import { api } from '../../lib/api';
+import { api, API_BASE_URL } from '../../lib/api';
 import type { RootState } from '../../store';
 import { audioBuzzer } from '../../utils/audioBuzzer';
 
@@ -48,7 +48,7 @@ export function NotificationBell({ isExpanded }: { isExpanded: boolean }) {
         console.error('Failed to load initial active alerts:', err);
       });
 
-    socket = io('http://localhost:3002', {
+    socket = io(API_BASE_URL, {
       auth: { token: accessToken },
       transports: ['websocket'],
     });

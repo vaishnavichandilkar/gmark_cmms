@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Upload, Eye, Pencil, Trash2, Maximize2, Loader2, ZoomIn, ZoomOut, RotateCw, Download, X, ImageIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { API_BASE_URL } from '../../lib/api';
 
 interface MachineImageCardProps {
   imageUrl?: string;
@@ -133,8 +134,8 @@ export function MachineImageCard({
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   onError={(e) => {
                     const target = e.currentTarget;
-                    if (currentImage && !target.src.includes(':3002') && !target.src.startsWith('data:')) {
-                      target.src = `http://localhost:3002${currentImage.startsWith('/') ? currentImage : `/${currentImage}`}`;
+                    if (currentImage && !target.src.startsWith('data:')) {
+                      target.src = `${API_BASE_URL}${currentImage.startsWith('/') ? currentImage : `/${currentImage}`}`;
                     }
                   }}
                 />
@@ -321,8 +322,8 @@ export function MachineImageCard({
                   className="max-h-[55vh] max-w-full object-contain rounded-lg shadow-2xl"
                   onError={(e) => {
                     const target = e.currentTarget;
-                    if (currentImage && !target.src.includes(':3002') && !target.src.startsWith('data:')) {
-                      target.src = `http://localhost:3002${currentImage.startsWith('/') ? currentImage : `/${currentImage}`}`;
+                    if (currentImage && !target.src.startsWith('data:')) {
+                      target.src = `${API_BASE_URL}${currentImage.startsWith('/') ? currentImage : `/${currentImage}`}`;
                     }
                   }}
                 />

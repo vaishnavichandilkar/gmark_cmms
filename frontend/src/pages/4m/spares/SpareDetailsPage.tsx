@@ -9,7 +9,7 @@ import {
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../store';
 import { hasSpareTabPermission } from '../../../utils/permissions';
-import { api } from '../../../lib/api';
+import { api, API_BASE_URL } from '../../../lib/api';
 import { 
   spareService, type SparePart, type LocationStock, type MachineUsage, 
   type SpecificationField, type WarrantyItem, type SupplierItem, type SpareDocument 
@@ -1191,7 +1191,7 @@ export function SpareDetailsPage() {
       } else if (doc.content) {
         const fullUrl = doc.content.startsWith('http') || doc.content.startsWith('data:') || doc.content.startsWith('blob:')
           ? doc.content
-          : `http://localhost:3002${doc.content.startsWith('/') ? doc.content : `/${doc.content}`}`;
+          : `${API_BASE_URL}${doc.content.startsWith('/') ? doc.content : `/${doc.content}`}`;
         window.open(fullUrl, '_blank');
       } else {
         toast.error('File content unavailable');
@@ -1468,8 +1468,8 @@ export function SpareDetailsPage() {
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           onError={(e) => {
                             const target = e.currentTarget;
-                            if (currentImage && !target.src.includes(':3002') && !target.src.startsWith('data:')) {
-                              target.src = `http://localhost:3002${currentImage.startsWith('/') ? currentImage : `/${currentImage}`}`;
+                            if (currentImage && !target.src.startsWith('data:')) {
+                              target.src = `${API_BASE_URL}${currentImage.startsWith('/') ? currentImage : `/${currentImage}`}`;
                             }
                           }}
                         />
@@ -3819,8 +3819,8 @@ export function SpareDetailsPage() {
                     className="max-h-[55vh] max-w-full object-contain rounded-lg shadow-2xl"
                     onError={(e) => {
                       const target = e.currentTarget;
-                      if (modalImg && !target.src.includes(':3002') && !target.src.startsWith('data:')) {
-                        target.src = `http://localhost:3002${modalImg.startsWith('/') ? modalImg : `/${modalImg}`}`;
+                      if (modalImg && !target.src.startsWith('data:')) {
+                        target.src = `${API_BASE_URL}${modalImg.startsWith('/') ? modalImg : `/${modalImg}`}`;
                       }
                     }}
                   />

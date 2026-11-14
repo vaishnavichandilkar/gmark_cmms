@@ -10,7 +10,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
-import { api } from '../../../lib/api';
+import { api, API_BASE_URL } from '../../../lib/api';
 import {
   RegisterAlertModal,
   type RegisterAlertConfigData,
@@ -206,7 +206,7 @@ export function DeviceLiveMonitor() {
     if (!deviceId) return;
 
     const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-    const socket: Socket = io('http://localhost:3002', {
+    const socket: Socket = io(API_BASE_URL, {
       transports: ['websocket'],
       auth: { token },
     });

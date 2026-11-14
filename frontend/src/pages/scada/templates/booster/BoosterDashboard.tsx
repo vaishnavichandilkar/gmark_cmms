@@ -12,7 +12,7 @@ import { FaultResetCard } from './components/FaultResetCard';
 import { PressureTrendCard } from './components/PressureTrendCard';
 import { ProcessFlowContainer } from './components/ProcessFlow/PipeNetwork';
 
-import { api } from '../../../../lib/api';
+import { api, API_BASE_URL } from '../../../../lib/api';
 import type { RootState } from '../../../../store';
 import { audioBuzzer } from '../../../../utils/audioBuzzer';
 import './scada.css'; // Will create this
@@ -208,7 +208,7 @@ export const BoosterDashboard: React.FC<BoosterDashboardProps> = ({
       })
       .catch(console.error);
 
-    const socket = io('http://localhost:3002', {
+    const socket = io(API_BASE_URL, {
       auth: { token: accessToken },
     });
 

@@ -53,7 +53,7 @@ import { toast } from 'react-hot-toast';
 import { io, Socket } from 'socket.io-client';
 
 import { MultiSelect } from '../../../components/shared/MultiSelect';
-import { api } from '../../../lib/api';
+import { api, API_BASE_URL } from '../../../lib/api';
 import { hasAssetPermission } from '../../../utils/permissions';
 
 interface CmmsDashboardViewProps {
@@ -193,7 +193,7 @@ export function CmmsDashboardView({
     const token = localStorage.getItem('token');
 
     try {
-      socket = io('http://localhost:3002', {
+      socket = io(API_BASE_URL, {
         auth: { token },
         transports: ['websocket', 'polling'],
       });

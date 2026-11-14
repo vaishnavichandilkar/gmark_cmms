@@ -9,6 +9,7 @@ import { exportData } from '../../../utils/exportUtils';
 import { ColumnCustomizer } from '../../../components/shared/ColumnCustomizer';
 import type { ColumnDefinition } from '../../../components/shared/ColumnCustomizer';
 import toast from 'react-hot-toast';
+import { API_BASE_URL } from '../../../lib/api';
 
 const SPARES_COLUMNS: ColumnDefinition[] = [
   // General Details
@@ -1375,8 +1376,8 @@ export function SparesListPage() {
                                     className="w-8 h-8 rounded-lg object-cover border border-slate-200 shrink-0"
                                     onError={(e) => {
                                       const target = e.currentTarget;
-                                      if (img && !target.src.includes(':3002') && !target.src.startsWith('data:')) {
-                                        target.src = `http://localhost:3002${img.startsWith('/') ? img : `/${img}`}`;
+                                      if (img && !target.src.startsWith('data:')) {
+                                        target.src = `${API_BASE_URL}${img.startsWith('/') ? img : `/${img}`}`;
                                       }
                                     }}
                                   />

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { io } from 'socket.io-client';
 import { Droplets, CloudRain, Maximize, Minimize, Gauge, Fuel } from 'lucide-react';
-import { api } from '../../../../lib/api';
+import { api, API_BASE_URL } from '../../../../lib/api';
 import type { RootState } from '../../../../store';
 import { SectionHeader } from './components/SectionHeader';
 import { FirePumpCard } from './components/FirePumpCard';
@@ -153,7 +153,7 @@ export const FirePanelDashboard: React.FC<FirePanelDashboardProps> = ({
       })
       .catch(console.error);
 
-    const socket = io('http://localhost:3002', {
+    const socket = io(API_BASE_URL, {
       auth: { token: accessToken },
     });
 

@@ -6,7 +6,7 @@ import { ArrowLeft } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { DeviceCard } from '../../../components/scada/device/DeviceCard';
 import type { Device } from '../../../types';
-import { api } from '../../../lib/api';
+import { api, API_BASE_URL } from '../../../lib/api';
 import type { RootState } from '../../../store';
 
 export function BuildingDetails() {
@@ -101,7 +101,7 @@ export function BuildingDetails() {
   useEffect(() => {
     // Connect WebSocket for live updates with JWT Auth token
     const token = localStorage.getItem('token');
-    const socket = io('http://localhost:3002', {
+    const socket = io(API_BASE_URL, {
       auth: { token },
     });
 
