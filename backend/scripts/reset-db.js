@@ -135,9 +135,23 @@ async function resetDb() {
 
   for (const table of serialTables) {
     try {
-      await prisma.$executeRawUnsafe(
-        `SELECT setval(pg_get_serial_sequence('"${table}"', 'id'), coalesce((SELECT MAX(id) FROM "${table}"), 1), false);`
-      );
+      await prisma.$executeRawUnsafe(`
+        DO $$
+        DECLARE
+          seq_name text;
+          max_id bigint;
+        BEGIN
+          seq_name := pg_get_serial_sequence('"${table}"', 'id');
+          IF seq_name IS NOT NULL THEN
+            EXECUTE format('SELECT MAX(id) FROM %I', '${table}') INTO max_id;
+            IF max_id IS NULL THEN
+              PERFORM setval(seq_name, 1, false);
+            ELSE
+              PERFORM setval(seq_name, max_id, true);
+            END IF;
+          END IF;
+        END $$;
+      `);
     } catch (_) {}
   }
 
@@ -152,3 +166,4 @@ resetDb()
   .finally(async () => {
     await prisma.$disconnect();
   });
+

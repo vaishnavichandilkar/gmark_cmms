@@ -2,9 +2,22 @@ import axios from 'axios';
 import { store } from '../store';
 import { updateAccessToken, logout } from '../store/slices/authSlice';
 
-// Backend URL: local development
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002';
-// export const API_BASE_URL = 'https://gmark-cmms.onrender.com';
+// Backend URL: auto-detects cloud URL when deployed (e.g. Vercel), or falls back to localhost in local dev
+export const API_BASE_URL = (() => {
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return import.meta.env.VITE_API_URL || 'http://localhost:3002';
+    }
+    return (
+      import.meta.env.VITE_PROD_API_URL ||
+      (import.meta.env.VITE_API_URL && !import.meta.env.VITE_API_URL.includes('localhost')
+        ? import.meta.env.VITE_API_URL
+        : 'https://gmark-cmms.onrender.com')
+    );
+  }
+  return import.meta.env.VITE_API_URL || 'https://gmark-cmms.onrender.com';
+})();
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
